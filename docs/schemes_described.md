@@ -64,16 +64,21 @@ Here we'd use [Cooperative exit][1] with the help ot [SE][2].
 _User initiates bridging of Spark (wRunes) into Runes_
 
 1) User sends a [burn transaction][8] transferring the chosen amount of BTKN tokens (from User’s Spark wallet) back to the Bridge-Vault address on Spark and includes the user’s desired Bitcoin in the metadata.
-2) Spark rollup node: Mines the burn transaction in a block.
-3) Spark BTKN indexer: Detects the burn and creates a BurnReceipt: `{spark_txid, ttxo_index, amount, rune_id, dest PKᵣ}`, which is then sent to the Watcher. Burned tokens are irreversible — they cannot be recovered or reused.
-4) Watcher micro-service: Relays the BurnReceipt to its local FROST signer daemon.
-5) Create a Bitcoin vault-spend transaction.
-This transaction will transfer the corresponding amount of Runes from the vault UTXO to the user_pubkey_BTC.
-6) Collects t partial signatures, combines them into a single signature, constructs the Bitcoin transaction (including the Runes TRANSFER opcode for the correct asset and quantity), and broadcasts it.
-7) Bitcoin full node verifier confirms the vault-spend transaction.
-Once the agreed confirmation depth (e.g., 6 blocks) is reached, the Runes are secure in the user’s L1 wallet. 
-The Spark-side supply has already been burned, maintaining a 1-for-1 backing.
 
+--- 
+_Burning transferred tokens_
+
+2) After receiving tokens on bridge account, burning process in initiated.
+Obtaining additional information from BurnReceipt: `{spark_txid, ttxo_index, amount, rune_id, dest PKᵣ}`.
+3) Burning is initiated by token owner (bridge account) by sending burning token [request][8].
+
+---
+_Forming of exit transaction in BTC_
+
+4) Form BTC transaction with correct amount of Runes tokens to be transferred to user’s BTC pubkey and appropriate amount of Rnes tokens data in description. Collects t partial signatures, combines them into a single signature, constructs the Bitcoin transaction (including the Runes TRANSFER opcode for the correct asset and quantity), and broadcasts it. Burned tokens are irreversible — they cannot be recovered or reused.
+5) Collects t partial signatures, combines them into a single signature, constructs the Bitcoin transaction (including the Runes TRANSFER opcode for the correct asset and quantity), and broadcasts it.
+6) Bitcoin full node verifier confirms the vault-spend transaction.
+   Once the agreed confirmation depth (e.g., 6 blocks) is reached, the Runes are secure in the user’s L1 wallet.
 
 [1]: https://docs.spark.money/spark/withdrawals#cooperative-exit
 [2]: https://docs.spark.money/spark/core-concepts#spark-entity-se
