@@ -44,9 +44,9 @@ It waits for **M** partial signatures from Spark_signer_M, merges them into a si
     * Embeds the DepositProof in an auxiliary field.
     * Is signed with σ under PKᴳ.
 
-4) Spark operators validate the aggregate signature and bridge rules, then includes the Mint TTXO in the next Spark block.
+4) Spark operators validate the aggregate signature and bridge rules, then broadcasts the Mint transaction in Spark.
 
-5) User’s Spark wallet: Detects the new block and displays the newly minted wRunes tokens. 
+5) User’s Spark wallet: Detects the new transaction and displays the newly minted wRunes tokens. 
 The deposit is complete; the Bitcoin vault balance has increased by the same amount now present on Spark.
 
 ---
@@ -67,7 +67,7 @@ _User initiates bridging of Spark (wRunes) into Runes_
 --- 
 _Burning transferred tokens_
 
-2) After receiving tokens on bridge account, burning process in initiated.
+2) After receiving tokens on bridge account, burning process is initiated.
 Obtaining additional information from BurnReceipt: `{spark_txid, ttxo_index, amount, rune_id, dest PKᵣ}`.
 3) Burning is initiated by token owner (bridge account) by sending burning token [request][8].
 
