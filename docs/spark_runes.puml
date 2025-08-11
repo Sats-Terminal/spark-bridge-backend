@@ -1,0 +1,23 @@
+@startuml
+
+title Bridge interaction scheme Spark -> Rune
+
+note over User_Spark_wallet,SparkEntity:User token burning
+User_Spark_wallet->SparkEntity: Token holders burn tokens by \n destroying their associated metadata.
+
+note over Spark_indexer,Proxy:Burning detection event
+Spark_indexer->Proxy:Watch for tx with: \n Users Spark wallet pubkey +\n burning event + \n extract additional information from meta
+
+note over Proxy, Spark_indexer:Forming exit tx in BTC to \n exchange wRunes -> Runes
+Proxy->BTC_signer_1: sign partially formed transaction to BTC
+Proxy->BTC_signer_2: sign partially formed transaction to BTC
+Proxy->BTC_node: Create Appropriate tx in BTC chain with established BTC node
+
+note over Proxy,Spark_Chain:Bridge Spark to Runes
+Proxy->BTC_node: Create Appropriate tx in BTC chain
+
+note over User_BTC_wallet, BTC_node: Tokens acquisition
+User_BTC_wallet<-BTC_node: Runes
+
+
+@enduml

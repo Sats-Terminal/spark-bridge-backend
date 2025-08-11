@@ -1,0 +1,34 @@
+@startuml
+
+
+title Bridge interaction scheme Rune -> Spark
+
+note over User_BTC_wallet,Proxy:Initial call to bridge tokens
+User_BTC_wallet->Proxy: user_pubkey + amount_in + rune_id + uuid
+
+note over Proxy,Verifier_1_BTC:Initial call to subscribe for pubkey tx events (Verifier_1_BTC)
+
+Proxy->Verifier_1_BTC:Watch for tx with: user_pubkey
+Verifier_1_BTC->Verifier_1_BTC: watch for txs with user_pubkey
+Verifier_1_BTC<->Spark_Chain: calls to watch chain changes
+Proxy<--Verifier_1_BTC: event from needed tx that matches user_pubkey
+
+
+note over Proxy,Verifier_2_BTC:Initial call to subscribe for pubkey tx events (Verifier_2_BTC)
+Proxy->Verifier_2_BTC:Watch for tx with: user_pubkey
+Verifier_2_BTC->Verifier_2_BTC: watch for txs with user_pubkey
+Verifier_2_BTC<->Spark_Chain: call to watch chain changes
+Proxy<--Verifier_2_BTC: event from needed tx that matches user_pubkey
+
+note over Proxy:Does expected tx here?
+Proxy->Proxy: Aggregate and wait for tx events from Verifiers
+
+note over Proxy,SparkEntity:Bridge Runes to Spark
+Proxy->Spark_signer_1: sign partially formed transaction to Spark
+Proxy->Spark_signer_2: sign partially formed transaction to Spark
+Proxy->SparkEntity: Create Appropriate tx in Spark chain with newly crated account
+
+note over User_Spark_wallet, SparkEntity: Tokens acquisition
+User_Spark_wallet<-SparkEntity: wRunes
+
+@enduml
