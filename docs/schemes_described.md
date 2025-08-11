@@ -1,6 +1,6 @@
 ## Bridge docs
 
-First version of bridge [docs][6], but it would be simplified for the first implementation.
+General version of bridge [docs][6], but it would be simplified for the first implementation.
 
 ### Bridge Wallets
 
@@ -79,7 +79,13 @@ _Forming of exit transaction in BTC_
 6) Bitcoin full node verifier confirms the vault-spend transaction.
    Once the agreed confirmation depth (e.g., 6 blocks) is reached, the Runes are secure in the user’s L1 wallet.
 
+### Connection between Runes and Spark wallets
+
+![wallet_connection.png](wallet_connection.png)
+
 ### General diagram of all services together
+
+![bridge_diagram.png](bridge_diagram.png)
 
 
 
