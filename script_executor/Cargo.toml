@@ -1,0 +1,17 @@
+[package]
+name = "script_executor"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+thiserror.workspace = true
+tracing.workspace = true
+serde = { version = "1.0.219", features = ["derive"] }
+utoipa.workspace = true
+
+[dev-dependencies]
+anyhow.workspace = true
+config_parser.workspace = true
+dotenv.workspace = true
+global_utils.workspace = true
+serde_json.workspace = true
