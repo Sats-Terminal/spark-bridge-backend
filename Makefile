@@ -25,6 +25,14 @@ docker/up:
 docker/down:
 	docker-compose down spark-helper-service
 
+## Open db from docker
+docker/db/up:
+	docker compose up persistent-db-storage -d
+
+## Close db from docker
+docker/db/down:
+	docker compose down -v persistent-db-storage
+
 ## Format code
 fmt:
 	cargo +nightly fmt --all
