@@ -1,6 +1,7 @@
 ## Bridge docs
 
 General version of bridge [docs][6], but it would be simplified for the first implementation.
+Another simplified version of implementation paper is [here][9].
 
 ### Bridge Wallets
 
@@ -97,3 +98,4 @@ _Forming of exit transaction in BTC_
 [6]: https://docs.google.com/document/d/18PfC31R2z18FLDN12VORlb9KTIhpYSanX5gbLuemakU/edit?usp=sharing
 [7]: https://docs.spark.money/lrc20/hello-btkn#what-the-btkn%3F
 [8]: https://docs.spark.money/lrc20/burning
+[9]: https://docs.google.com/document/d/120hl_wwvCOdpYgpEi_H5Lwt-jwIGA9miWjgOPo5QS-s/edit?usp=sharing
