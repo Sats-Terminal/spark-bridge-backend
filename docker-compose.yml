@@ -1,0 +1,19 @@
+name: spark-helper
+services:
+
+  spark-helper-service:
+    build: .
+    restart: always
+    environment:
+      - SSH_PRIVATE_KEY_PATH=/assets/spark_test_execution
+      - RUST_LOG=trace
+      - APP_ENVIRONMENT=production
+    ports:
+      - "8080:8080"
+    entrypoint: spark-helper
+#    entrypoint: tail -f /dev/null
+    volumes:
+      - ./configuration/production.toml:/configuration/production.toml
+
+volumes:
+  service-data:
