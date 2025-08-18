@@ -1,7 +1,7 @@
-import { Psbt, networks, payments, script, Transaction } from "bitcoinjs-lib";
-import { ECPairFactory } from "ecpair";
-import * as ecc from "@bitcoinerlab/secp256k1";
-import { toXOnly } from "bitcoinjs-lib/src/psbt/bip371";
+import { Psbt, networks, payments, script, Transaction } from 'bitcoinjs-lib';
+import { ECPairFactory } from 'ecpair';
+import * as ecc from '@bitcoinerlab/secp256k1';
+import { toXOnly } from 'bitcoinjs-lib/src/psbt/bip371';
 
 import {
   Runestone,
@@ -13,30 +13,30 @@ import {
   none,
   EtchInscription,
   RuneId,
-} from "runelib"; // <- adjust import
-import { toOutputScript } from "bitcoinjs-lib/src/address";
-import logger from "../src/logger";
-import { call_rpc } from "../titan_test/rpc_utils";
+} from 'runelib'; // <- adjust import
+import { toOutputScript } from 'bitcoinjs-lib/src/address';
+import logger from '../src/logger';
+import { call_rpc } from '../titan_test/rpc_utils';
 
 const ECPair = ECPairFactory(ecc);
 
 // ----------- CONFIG: fill these -----------
 const network = networks.regtest;
 // Wallet Import Format (WIF)
-const YOUR_WIF = "cSYFixQzjSrZ4b4LBT16Q7RXBk52DZ5cpJydE7DzuZS1RhzaXpEN";
+const YOUR_WIF = 'cSYFixQzjSrZ4b4LBT16Q7RXBk52DZ5cpJydE7DzuZS1RhzaXpEN';
 
-const txid = "6e14b295261c93ca9da4f3683675443e7569c2e0ac00422b6efbf66797859e6c";
+const txid = '6e14b295261c93ca9da4f3683675443e7569c2e0ac00422b6efbf66797859e6c';
 const vout = 0;
 const value = 5000000000;
 const txHex =
-  "020000000001010000000000000000000000000000000000000000000000000000000000000000ffffffff025100ffffffff0200f2052a01000000160014e2b97f3eaaa8ed2a0ab03033b61627b3f0c9292e0000000000000000266a24aa21a9ede2f61c3f71d1defd3fa999dfa36953755c690689799962b48bebd836974e8cf90120000000000000000000000000000000000000000000000000000000000000000000000000";
+  '020000000001010000000000000000000000000000000000000000000000000000000000000000ffffffff025100ffffffff0200f2052a01000000160014e2b97f3eaaa8ed2a0ab03033b61627b3f0c9292e0000000000000000266a24aa21a9ede2f61c3f71d1defd3fa999dfa36953755c690689799962b48bebd836974e8cf90120000000000000000000000000000000000000000000000000000000000000000000000000';
 
 // -----------------------------------------
 
 // https://developer.bitcoin.org/reference/rpc/getnewaddress.html
 async function mine(n = 1, address?: string) {
-  const addr = address ?? (await call_rpc("b", ["", "bech32m"])); // regtest bech32m is fine
-  return call_rpc("generatetoaddress", [n, addr]);
+  const addr = address ?? (await call_rpc('b', ['', 'bech32m'])); // regtest bech32m is fine
+  return call_rpc('generatetoaddress', [n, addr]);
 }
 
 async function signAndSend(keyPair: any, psbt: Psbt) {
@@ -56,10 +56,10 @@ async function signAndSend(keyPair: any, psbt: Psbt) {
   psbt.finalizeAllInputs();
   const tx = psbt.extractTransaction();
   const raw = tx.toHex();
-  const txid = await call_rpc("sendrawtransaction", [raw]);
+  const txid = await call_rpc('sendrawtransaction', [raw]);
   // Mine a block so it confirms on regtest
   // await mine(1);
-  console.log("Broadcasted:", txid);
+  console.log('Broadcasted:', txid);
   return txid;
 }
 
@@ -72,9 +72,9 @@ async function mint() {
     pubkey: Buffer.from(keyPair.publicKey),
     network,
   });
-  console.log("address:", address.toString());
+  console.log('address:', address.toString());
 
-  logger.info("address:", address.toString());
+  logger.info('address:', address.toString());
 
   logger.info(`Using UTXO ${txid}:${vout}`);
 
@@ -82,7 +82,7 @@ async function mint() {
   psbt.addInput({
     hash: txid,
     index: vout,
-    nonWitnessUtxo: Buffer.from(txHex, "hex"),
+    nonWitnessUtxo: Buffer.from(txHex, 'hex'),
   });
 
   psbt.addOutput({

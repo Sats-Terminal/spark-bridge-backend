@@ -1,5 +1,5 @@
-import { Psbt } from "bitcoinjs-lib";
-import { call_rpc } from "../titan_test/rpc_utils";
+import { Psbt } from 'bitcoinjs-lib';
+import { call_rpc } from '../titan_test/rpc_utils';
 
 export async function signAndSend(
   keyPair: any,
@@ -31,8 +31,8 @@ export async function signAndSend(
   psbt.finalizeAllInputs();
   const tx = psbt.extractTransaction();
   const raw = tx.toHex();
-  const txid = await call_rpc("sendrawtransaction", [raw]);
-  console.log("Broadcasted:", txid);
+  const txid = await call_rpc('sendrawtransaction', [raw]);
+  console.log('Broadcasted:', txid);
 }
 
 export function toXOnly(pubkey: Buffer): Buffer {

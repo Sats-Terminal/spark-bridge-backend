@@ -6,11 +6,11 @@ import {
   Psbt,
   script,
   Signer as BTCSigner,
-} from "bitcoinjs-lib";
-import { Taptree } from "bitcoinjs-lib/src/types";
-import { ECPairAPI, ECPairFactory } from "ecpair";
-import ecc from "@bitcoinerlab/secp256k1";
-import axios, { AxiosResponse } from "axios";
+} from 'bitcoinjs-lib';
+import { Taptree } from 'bitcoinjs-lib/src/types';
+import { ECPairAPI, ECPairFactory } from 'ecpair';
+import ecc from '@bitcoinerlab/secp256k1';
+import axios, { AxiosResponse } from 'axios';
 import {
   Etching,
   EtchInscription,
@@ -20,9 +20,9 @@ import {
   Runestone,
   some,
   Terms,
-} from "runelib";
-import { call_rpc } from "../titan_test/rpc_utils";
-import { signAndSend, toXOnly } from "./test_utils";
+} from 'runelib';
+import { call_rpc } from '../titan_test/rpc_utils';
+import { signAndSend, toXOnly } from './test_utils';
 
 initEccLib(ecc as any);
 // declare const window: any;
@@ -30,11 +30,11 @@ const ECPair: ECPairAPI = ECPairFactory(ecc);
 const network = networks.regtest;
 
 // mint: http://bridge.scrypt.io:8888/rune/BESTSCRYPTMINT
-const name = "CCCCCCCCCCCCCCCCCCNH";
-const wif_private_key = "cSYFixQzjSrZ4b4LBT16Q7RXBk52DZ5cpJydE7DzuZS1RhzaXpEN";
+const name = 'CCCCCCCCCCCCCCCCCCNH';
+const wif_private_key = 'cSYFixQzjSrZ4b4LBT16Q7RXBk52DZ5cpJydE7DzuZS1RhzaXpEN';
 const keyPair = ECPair.fromWIF(wif_private_key, network);
 const utxo_tx_id =
-  "6eb70a7fbc44f63fd0fe24291bc007a5ee4d44e759af21aec467fda7fec3dab3";
+  '6eb70a7fbc44f63fd0fe24291bc007a5ee4d44e759af21aec467fda7fec3dab3';
 const utxo_vout = 0;
 const utxo_value = 1250000000;
 
@@ -48,19 +48,19 @@ async function etching() {
     network,
   });
 
-  console.log("p2wpkh address: ", p2wpkh_address);
-  console.log("p2tr address: ", p2tr_address);
+  console.log('p2wpkh address: ', p2wpkh_address);
+  console.log('p2tr address: ', p2tr_address);
   // stop here and get address to insert into PUB_ADDR
   // process.exit(0);
 
   const ins = new EtchInscription();
 
-  ins.setContent("text/plain", Buffer.from("scrypt is best", "utf-8"));
+  ins.setContent('text/plain', Buffer.from('scrypt is best', 'utf-8'));
   ins.setRune(name);
 
   const etching_script_asm = `${toXOnly(
     Buffer.from(keyPair.publicKey),
-  ).toString("hex")} OP_CHECKSIG`;
+  ).toString('hex')} OP_CHECKSIG`;
   const etching_script = Buffer.concat([
     script.fromASM(etching_script_asm),
     ins.encipher(),
@@ -88,8 +88,8 @@ async function etching() {
     network,
   });
 
-  const address = script_p2tr.address ?? "";
-  console.log("send coin to address", address);
+  const address = script_p2tr.address ?? '';
+  console.log('send coin to address', address);
 
   console.log(`Using UTXO ${utxo_tx_id}:${utxo_vout}`);
 
@@ -122,7 +122,7 @@ async function etching() {
     some(0),
     some(rune),
     none(),
-    some("$"),
+    some('$'),
     some(terms),
     true,
   );

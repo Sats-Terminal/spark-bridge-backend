@@ -1,15 +1,15 @@
-import { ECPairFactory } from "ecpair";
-import ecc from "@bitcoinerlab/secp256k1";
-import { initEccLib, networks, payments, Psbt } from "bitcoinjs-lib";
-import { signAndSend, toXOnly } from "./test_utils";
+import { ECPairFactory } from 'ecpair';
+import ecc from '@bitcoinerlab/secp256k1';
+import { initEccLib, networks, payments, Psbt } from 'bitcoinjs-lib';
+import { signAndSend, toXOnly } from './test_utils';
 
 initEccLib(ecc);
 const network = networks.regtest;
-const wif_private_key = "cSYFixQzjSrZ4b4LBT16Q7RXBk52DZ5cpJydE7DzuZS1RhzaXpEN";
+const wif_private_key = 'cSYFixQzjSrZ4b4LBT16Q7RXBk52DZ5cpJydE7DzuZS1RhzaXpEN';
 const ECPair = ECPairFactory(ecc);
 const keyPair = ECPair.fromWIF(wif_private_key, network);
 const utxo_tx_id =
-  "363fd538f27d52b4487f7d19548c49422a1e9ebf63a29fa4480d28c5a43823ff";
+  '363fd538f27d52b4487f7d19548c49422a1e9ebf63a29fa4480d28c5a43823ff';
 const utxo_vout = 0;
 const utxo_value = 5000000000;
 

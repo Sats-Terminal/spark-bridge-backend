@@ -1,12 +1,12 @@
-import logger from "../src/logger";
-import Client from "bitcoin-core";
+import logger from '../src/logger';
+import Client from 'bitcoin-core';
 
 const client = new Client({
-  password: "bitcoinpass",
-  username: "bitcoin",
-  host: "http://127.0.0.1",
+  password: 'bitcoinpass',
+  username: 'bitcoin',
+  host: 'http://127.0.0.1',
   port: 18443,
-  network: "regtest",
+  network: 'regtest',
 });
 
 async function main() {

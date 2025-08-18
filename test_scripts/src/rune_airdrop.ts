@@ -8,10 +8,10 @@ import {
   Signer as BTCSigner,
   crypto,
   payments,
-} from "bitcoinjs-lib";
-import { ECPairFactory, ECPairAPI } from "ecpair";
-import ecc from "@bitcoinerlab/secp256k1";
-import axios, { AxiosResponse } from "axios";
+} from 'bitcoinjs-lib';
+import { ECPairFactory, ECPairAPI } from 'ecpair';
+import ecc from '@bitcoinerlab/secp256k1';
+import axios, { AxiosResponse } from 'axios';
 import {
   Rune,
   RuneId,
@@ -23,7 +23,7 @@ import {
   Range,
   Etching,
   Edict,
-} from "runelib";
+} from 'runelib';
 
 initEccLib(ecc as any);
 declare const window: any;
@@ -34,7 +34,7 @@ const network = networks.testnet;
 
 async function mintWithTaproot() {
   const keyPair = ECPair.fromWIF(
-    "cPwrst1ya98KhMRc5Bbj3MPB9AjQWvMAxjxQDWzv2Ak2Bq4EoXYP",
+    'cPwrst1ya98KhMRc5Bbj3MPB9AjQWvMAxjxQDWzv2Ak2Bq4EoXYP',
     network,
   );
 
@@ -44,7 +44,7 @@ async function mintWithTaproot() {
     pubkey: toXOnly(tweakedSigner.publicKey),
     network,
   });
-  const address = p2pktr.address ?? "";
+  const address = p2pktr.address ?? '';
   console.log(`Waiting till UTXO is detected at this Address: ${address}`);
 
   const utxos = await waitUntilUTXO(address as string);
@@ -81,7 +81,7 @@ async function mintWithTaproot() {
 
   for (let i = 0; i < 11; i++) {
     psbt.addOutput({
-      address: "tb1ppresfm876y9ddn3fgw2zr0wj0pl3zanslje9nfpznq3kc90q46rqmnne43", // rune receive address
+      address: 'tb1ppresfm876y9ddn3fgw2zr0wj0pl3zanslje9nfpznq3kc90q46rqmnne43', // rune receive address
       value: 546,
     });
   }
@@ -96,7 +96,7 @@ async function mintWithTaproot() {
     546 * 11;
 
   psbt.addOutput({
-    address: "tb1ppresfm876y9ddn3fgw2zr0wj0pl3zanslje9nfpznq3kc90q46rqmnne43", // change address
+    address: 'tb1ppresfm876y9ddn3fgw2zr0wj0pl3zanslje9nfpznq3kc90q46rqmnne43', // change address
     value: change,
   });
 
@@ -107,7 +107,7 @@ async function mintWithTaproot() {
 mintWithTaproot();
 
 const blockstream = new axios.Axios({
-  baseURL: `https://blockstream.info/testnet/api`,
+  baseURL: 'https://blockstream.info/testnet/api',
 });
 
 export async function waitUntilUTXO(address: string) {
@@ -171,11 +171,11 @@ export async function signAndSend(
         ],
       });
 
-      console.log("signed psbt", res);
+      console.log('signed psbt', res);
 
       res = await window.unisat.pushPsbt(res);
 
-      console.log("txid", res);
+      console.log('txid', res);
     } catch (e) {
       console.log(e);
     }
@@ -183,13 +183,13 @@ export async function signAndSend(
 }
 
 export async function broadcast(txHex: string) {
-  const response: AxiosResponse<string> = await blockstream.post("/tx", txHex);
+  const response: AxiosResponse<string> = await blockstream.post('/tx', txHex);
   return response.data;
 }
 
 function tapTweakHash(pubKey: Buffer, h: Buffer | undefined): Buffer {
   return crypto.taggedHash(
-    "TapTweak",
+    'TapTweak',
     Buffer.concat(h ? [pubKey, h] : [pubKey]),
   );
 }
@@ -199,11 +199,11 @@ function toXOnly(pubkey: Buffer): Buffer {
 }
 
 function tweakSigner(signer: BTCSigner, opts: any = {}): BTCSigner {
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+   
   // @ts-ignore
   let privateKey: Uint8Array | undefined = signer.privateKey!;
   if (!privateKey) {
-    throw new Error("Private key is required for tweaking signer!");
+    throw new Error('Private key is required for tweaking signer!');
   }
   if (signer.publicKey[0] === 3) {
     privateKey = ecc.privateNegate(privateKey);
@@ -214,7 +214,7 @@ function tweakSigner(signer: BTCSigner, opts: any = {}): BTCSigner {
     tapTweakHash(toXOnly(signer.publicKey), opts.tweakHash),
   );
   if (!tweakedPrivateKey) {
-    throw new Error("Invalid tweaked private key!");
+    throw new Error('Invalid tweaked private key!');
   }
 
   return ECPair.fromPrivateKey(Buffer.from(tweakedPrivateKey), {
