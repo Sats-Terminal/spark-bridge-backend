@@ -1,9 +1,0 @@
-[package]
-name = "btc_verifier"
-edition = "2024"
-version.workspace = true
-rust-version.workspace = true
-authors.workspace = true
-readme.workspace = true
-
-[dependencies]
