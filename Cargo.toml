@@ -1,8 +1,8 @@
 [workspace]
 resolver = "3"
 members = [
-    "apps/*",
     "crates/*",
+    "bridge_rest_api/*",
     "bitcoin_verifier/*",
     "spark_balance_checker/*",
 ]

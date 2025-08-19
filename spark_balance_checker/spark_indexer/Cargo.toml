@@ -1,9 +1,0 @@
-[package]
-name = "spark_indexer"
-edition = "2024"
-version.workspace = true
-rust-version.workspace = true
-authors.workspace = true
-readme.workspace = true
-
-[dependencies]
