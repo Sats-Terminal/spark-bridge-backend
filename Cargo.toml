@@ -1,37 +1,16 @@
 [workspace]
 resolver = "3"
 members = [
-    "btc_indexer",
-    "btc_signer",
-    "btc_verifier",
-    "config_parser",
-    "global_utils", "persistent_storage",
-    "script_executor",
-    "server_helper",
+    "crates/*",
 ]
 
 [workspace.package]
 version = "0.1.0"
-rust-version = "1.88.0"
+rust-version = "1.89.0"
 authors = ["DistributedLabs"]
 readme = "Readme.md"
 
 [workspace.dependencies]
-actix-web = { version = "4.11.0" }
-anyhow = { version = "1.0.98" }
-config = { version = "0.15.13" }
-config_parser = { path = "./config_parser" }
-dotenv = { version = "0.15.0" }
-global_utils = { path = "./global_utils" }
-script_executor = { path = "./script_executor" }
-serde = { version = "1.0.219", features = ["derive"] }
-serde_json = { version = "1.0.140" }
-strum = { version = "0.27", features = ["derive"] }
-thiserror = { version = "2.0.12" }
-tokio = { version = "1.45.0", features = ["full"] }
 tracing = { version = "0.1.41", features = [] }
-tracing-actix-web = { version = "0.7.19" }
 tracing-appender = { version = "0.2.3" }
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
-utoipa = { version = "4.2.3", features = ["actix_extras"] }
-utoipa-swagger-ui = { version = "7.1.0", features = ["actix-web"] }
