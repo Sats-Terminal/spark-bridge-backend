@@ -1,0 +1,8 @@
+[package]
+name = "spark-balance-checker-utils"
+edition = { workspace = true }
+
+[dependencies]
+spark-balance-checker-common = { workspace = true }
+bech32 = { workspace = true }
+hex = { workspace = true }

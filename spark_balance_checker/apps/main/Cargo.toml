@@ -1,0 +1,11 @@
+[package]
+name = "spark-balance-checker-main"
+edition = { workspace = true }
+
+[dependencies]
+spark-balance-checker-server = { workspace = true }
+spark-balance-checker-common = { workspace = true }
+axum = { workspace = true }
+tokio = { workspace = true }
+env_logger = { workspace = true }
+log = { workspace = true }

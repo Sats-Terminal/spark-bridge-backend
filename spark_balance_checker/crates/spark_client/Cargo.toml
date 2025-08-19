@@ -1,0 +1,15 @@
+[package]
+name = "spark-balance-checker-client"
+edition = { workspace = true }
+
+[dependencies]
+spark-balance-checker-common = { workspace = true }
+spark-balance-checker-utils = { workspace = true }
+spark-protos = { workspace = true }
+tonic = { workspace = true }
+tokio = { workspace = true }
+hex = { workspace = true }
+log = { workspace = true }
+eyre = { workspace = true }
+bech32 = { workspace = true }
+env_logger = { workspace = true }

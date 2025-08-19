@@ -2,7 +2,7 @@
 address = "127.0.0.1:5000"
 
 [spark]
-ca_pem_path = "ca.pem"
+ca_pem_path = "./spark_balance_checker/ca.pem"
 
 [[spark.operators]]
 id = 1
