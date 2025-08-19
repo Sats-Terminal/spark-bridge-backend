@@ -1,5 +1,4 @@
 use actix_web::{HttpResponseBuilder, Responder, http::StatusCode, web};
-use script_executor::test_executor::CmdOutput;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, instrument};
 use utoipa::ToSchema;
@@ -11,7 +10,7 @@ pub struct ExecuteTestRequest {
 
 #[derive(Debug, Serialize, ToSchema)]
 pub enum ExecuteTestResponse {
-    Ok(CmdOutput),
+    Ok(()),
     Err(String),
 }
 
@@ -48,10 +47,6 @@ pub async fn handle(body: web::Json<ExecuteTestRequest>) -> impl Responder {
     }
 }
 
-fn inner_execute(_path_to_execute: &str) -> crate::error::Result<CmdOutput> {
-    Ok(CmdOutput {
-        status: None,
-        stdout: "All ok".to_string(),
-        stderr: "".to_string(),
-    })
+fn inner_execute(_path_to_execute: &str) -> crate::error::Result<()> {
+    Ok(())
 }

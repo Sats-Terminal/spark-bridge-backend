@@ -17,10 +17,9 @@ readme = "Readme.md"
 actix-web = { version = "4.11.0" }
 anyhow = { version = "1.0.98" }
 config = { version = "0.15.13" }
-config_parser = { path = "./crates/config_parser" }
+config_parser = { path = "./bitcoin_verifier/config_parser" }
 dotenv = { version = "0.15.0" }
 global_utils = { path = "./crates/global_utils" }
-script_executor = { path = "./crates/script_executor" }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = { version = "1.0.140" }
 strum = { version = "0.27", features = ["derive"] }
