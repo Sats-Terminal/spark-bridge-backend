@@ -6,6 +6,7 @@ use tracing::{debug, instrument};
 
 const CONFIG_FOLDER_NAME: &str = "configuration";
 const CARGO_MANIFEST_DIR: &str = "CARGO_MANIFEST_DIR";
+const PATH_TO_CONFIGS: &str = "../../infrastructure/";
 pub const APP_CONFIGURATION_NAME: &str = "APP_ENVIRONMENT";
 pub const SSH_PRIVATE_KEY_PATH: &str = "SSH_PRIVATE_KEY_PATH";
 pub const DEFAULT_APP_PRODUCTION_CONFIG_NAME: &str = "production";
@@ -18,6 +19,7 @@ pub const DEFAULT_APP_LOCAL_CONFIG_NAME: &str = "local";
 /// ```rust
 /// use config_parser::config::{ConfigVariant, DEFAULT_APP_LOCAL_CONFIG_NAME, ServerConfig};
 /// let config = ServerConfig::init_config(ConfigVariant::Local);
+/// println!("{config:?}");
 /// assert!(config.is_ok())
 /// ```
 /// Example of using production configuration:
@@ -64,7 +66,7 @@ impl ServerConfig {
             ConfigVariant::Production => "/".to_string(),
             ConfigVariant::Local => {
                 let _ = dotenv::dotenv().ok().unwrap();
-                format!("{}/../", get_cargo_manifest_dir())
+                format!("{}/{PATH_TO_CONFIGS}", get_cargo_manifest_dir())
             }
         };
         debug!("Configuration folder lookup path: {folder_path}");
