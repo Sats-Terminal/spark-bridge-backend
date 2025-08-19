@@ -11,12 +11,12 @@ default = ["client"]
 client = []
 
 [dependencies]
-serde = { version = "1.0", features = ["derive"] }
-tonic = "0.12.3"
-prost = "0.13.5"
-prost-wkt-types = "0.6.1"
-prost-wkt = "0.6.1"
+serde = { workspace = true }
+tonic = { workspace = true }
+prost = { workspace = true }
+prost-wkt-types = { workspace = true }
+prost-wkt = { workspace = true }
 
 [build-dependencies]
-prost-wkt-build = "0.6.1"
-tonic-build = { version = "0.12.3", features = ["prost"] }
+prost-wkt-build = { workspace = true }
+tonic-build = { workspace = true }
