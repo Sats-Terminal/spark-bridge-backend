@@ -37,8 +37,8 @@ fn main() {
         )
         .expect("Failed to compile Spark Operator RPC protocol buffers");
 
-    let spark_descriptor_bytes = read(&spark_descriptor_file)
-        .expect("Failed to read Spark Operator RPC protocol buffer descriptor");
+    let spark_descriptor_bytes =
+        read(&spark_descriptor_file).expect("Failed to read Spark Operator RPC protocol buffer descriptor");
     let spark_descriptor = FileDescriptorSet::decode(&*spark_descriptor_bytes)
         .expect("Failed to decode Spark Operator RPC protocol buffer descriptor");
 

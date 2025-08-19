@@ -1,6 +1,6 @@
-use spark_balance_checker_common::error::ServerError;
 use bech32::Bech32m;
 use hex;
+use spark_balance_checker_common::error::ServerError;
 
 // FIXME: ensure proper sequence of network types
 /// Networks supported by Spark.
@@ -54,9 +54,7 @@ fn decode_proto(buf: &[u8]) -> Result<&[u8], ServerError> {
     if buf.len() >= 3 && buf[0] == TAG && buf[1] as usize + 2 == buf.len() {
         Ok(&buf[2..])
     } else {
-        Err(ServerError::DecodeError(
-            "decode_proto error: Bad proto".to_string(),
-        ))
+        Err(ServerError::DecodeError("decode_proto error: Bad proto".to_string()))
     }
 }
 
@@ -79,8 +77,7 @@ pub fn decode_spark_address(addr: String) -> Result<SparkAddressData, ServerErro
         ));
     }
 
-    let (hrp, proto) =
-        bech32::decode(&addr).map_err(|e| ServerError::DecodeError(e.to_string()))?;
+    let (hrp, proto) = bech32::decode(&addr).map_err(|e| ServerError::DecodeError(e.to_string()))?;
 
     // The Bech32 spec requires the HRP to be lowercase. The `bech32`
     // crate accepts uppercase HRPs, so we enforce the stricter rule
@@ -95,20 +92,15 @@ pub fn decode_spark_address(addr: String) -> Result<SparkAddressData, ServerErro
     // Reject legacy Bech32 (BIP-173) by re-encoding with Bech32m and
     // comparing the checksum. If it differs, the original variant must
     // have been classic Bech32.
-    let reencoded = bech32::encode::<Bech32m>(hrp, &proto)
-        .map_err(|e| ServerError::DecodeError(e.to_string()))?;
+    let reencoded = bech32::encode::<Bech32m>(hrp, &proto).map_err(|e| ServerError::DecodeError(e.to_string()))?;
     if reencoded.to_lowercase() != addr.to_lowercase() {
         return Err(ServerError::DecodeError(
             "decode_spark_address error: Invalid variant".to_string(),
         ));
     }
 
-    let network = Network::from_hrp(&hrp_str).ok_or_else(|| {
-        ServerError::DecodeError(format!(
-            "decode_spark_address error: Unknown prefix: {}",
-            hrp_str
-        ))
-    })?;
+    let network = Network::from_hrp(&hrp_str)
+        .ok_or_else(|| ServerError::DecodeError(format!("decode_spark_address error: Unknown prefix: {}", hrp_str)))?;
 
     let key = decode_proto(&proto).map_err(|e| ServerError::DecodeError(e.to_string()))?;
 

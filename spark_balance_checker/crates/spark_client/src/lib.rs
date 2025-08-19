@@ -1,2 +1,2 @@
-mod connection;
 pub mod client;
+mod connection;

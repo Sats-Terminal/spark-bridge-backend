@@ -1,12 +1,12 @@
-use spark_balance_checker_client::client::SparkRpcClient;
-use spark_balance_checker_common::config::Config;
-use spark_balance_checker_common::error::ServerError;
 use axum::{
     Router,
     extract::{Json, State},
     routing::get,
 };
 use serde::{Deserialize, Serialize};
+use spark_balance_checker_client::client::SparkRpcClient;
+use spark_balance_checker_common::config::Config;
+use spark_balance_checker_common::error::ServerError;
 
 #[derive(Clone)]
 struct AppState {
@@ -69,8 +69,6 @@ async fn get_balance(
 
 pub async fn create_app(config: &Config) -> Router {
     let state = AppState::new(config);
-    let app = Router::new()
-        .route("/balance", get(get_balance))
-        .with_state(state);
+    let app = Router::new().route("/balance", get(get_balance)).with_state(state);
     app
 }

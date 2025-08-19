@@ -1,5 +1,5 @@
-use spark_balance_checker_common::{error::ServerError, config::SparkConfig};
 use eyre::Result;
+use spark_balance_checker_common::{config::SparkConfig, error::ServerError};
 use spark_protos::spark::spark_service_client::SparkServiceClient;
 use std::str::FromStr;
 use tonic::transport::Channel;
@@ -32,9 +32,7 @@ impl SparkConnectionPool {
         let channel = Channel::from_shared(uri.to_string())
             .map_err(|e| ServerError::ConnectionError(format!("Failed to create channel: {}", e)))?
             .tls_config(tls)
-            .map_err(|e| {
-                ServerError::ConnectionError(format!("Failed to create TLS config: {}", e))
-            })?
+            .map_err(|e| ServerError::ConnectionError(format!("Failed to create TLS config: {}", e)))?
             .connect()
             .await
             .map_err(|e| {
@@ -48,12 +46,8 @@ impl SparkConnectionPool {
     }
 
     // This function creates a new spark client.
-    pub(crate) async fn create_client(
-        &mut self,
-    ) -> Result<SparkServiceClient<Channel>, ServerError> {
-        let base_url = self.config.operators[self.current_connection]
-            .base_url
-            .clone();
+    pub(crate) async fn create_client(&mut self) -> Result<SparkServiceClient<Channel>, ServerError> {
+        let base_url = self.config.operators[self.current_connection].base_url.clone();
 
         let channel = self.create_tls_channel(base_url).await?;
 
