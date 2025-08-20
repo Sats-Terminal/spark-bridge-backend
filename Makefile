@@ -14,25 +14,6 @@ help:
         { lastLine = $$0 }' $(MAKEFILE_LIST) | sort -u
 	@printf "\n"
 
-docker/build:
-	docker build . -t spark_test_helper:image
-
-## Open db from docker
-docker/up:
-	docker-compose -f docker-compose.yml up -d --build
-
-## Close db from docker
-docker/down:
-	docker-compose down spark-helper-service
-
-## Open db from docker
-docker/db/up:
-	docker compose up persistent-db-storage -d
-
-## Close db from docker
-docker/db/down:
-	docker compose down -v persistent-db-storage
-
 ## Format code
 fmt:
 	cargo +nightly fmt --all

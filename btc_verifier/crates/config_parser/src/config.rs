@@ -4,8 +4,7 @@ use std::{
     str::FromStr,
 };
 
-use bitcoincore_rpc::Auth;
-use bitcoincore_rpc::bitcoin::Network;
+use bitcoincore_rpc::{Auth, bitcoin::Network};
 use config::{Config, Environment};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, instrument};

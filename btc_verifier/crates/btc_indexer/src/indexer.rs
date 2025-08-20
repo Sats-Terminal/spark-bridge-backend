@@ -1,13 +1,14 @@
 use std::{collections::HashMap, sync::Arc};
 
 use async_trait::async_trait;
-use bitcoincore_rpc::{bitcoin, json, Client, RpcApi};
+use bitcoincore_rpc::{Client, RpcApi, bitcoin, json};
 use config_parser::config::BtcRpcCredentials;
+use persistent_storage::init::PersistentRepoShared;
 use titan_client::TitanTcpClient;
-use tokio::sync::{mpsc::Sender, RwLock};
+use tokio::sync::{RwLock, mpsc::Sender};
 use tokio_util::sync::CancellationToken;
 use tracing::instrument;
-use persistent_storage::init::PersistentRepoShared;
+
 use crate::api::{BtcIndexerApi, Subscription, SubscriptionEvents};
 
 #[derive()]
@@ -37,7 +38,6 @@ impl BtcIndexer {
         Self::open_listener(
             storage.clone(),
             titan_client.clone(),
-
             btc_rpc_client.clone(),
             cancellation_token.child_token(),
         );
@@ -99,7 +99,7 @@ impl BtcIndexerApi for BtcIndexer {
 mod testing {
     use std::{str::FromStr, time::SystemTime};
 
-    use bitcoincore_rpc::{bitcoin::Txid, RawTx};
+    use bitcoincore_rpc::{RawTx, bitcoin::Txid};
     use config_parser::config::BtcRpcCredentials;
     use ordinals::Runestone;
     use titan_client::{EventType, TcpSubscriptionRequest, TitanApi, TitanClient};
