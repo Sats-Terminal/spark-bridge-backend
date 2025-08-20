@@ -44,6 +44,8 @@ pub const BITCOIN_RPC_PASSWORD: &str = "BITCOIN_RPC_PASSWORD";
 pub struct ServerConfig {
     #[serde(rename(deserialize = "application"))]
     pub app_config: AppConfig,
+    #[serde(rename(deserialize = "btc_indexer"))]
+    pub btc_indexer_config: BtcIndexerParams,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -68,6 +70,11 @@ pub struct BtcRpcCredentials {
     pub network: Network,
     pub name: String,
     pub password: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct BtcIndexerParams {
+    pub update_interval_millis: u64,
 }
 
 #[derive(Debug, Copy, Clone, strum::Display, Serialize, Deserialize)]
@@ -140,12 +147,10 @@ mod env_parser {
     }
 
     pub fn obtain_env_value(name: impl AsRef<str>) -> crate::error::Result<String> {
-        Ok(
-            std::env::var(name.as_ref()).map_err(|err| ConfigParserError::ConfigEnvParseError {
-                missing_var_name: name.as_ref().to_string(),
-                err,
-            })?,
-        )
+        std::env::var(name.as_ref()).map_err(|err| ConfigParserError::ConfigEnvParseError {
+            missing_var_name: name.as_ref().to_string(),
+            err,
+        })
     }
 }
 

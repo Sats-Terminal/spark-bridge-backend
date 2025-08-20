@@ -1,72 +1,144 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use async_trait::async_trait;
-use bitcoincore_rpc::{Client, RpcApi, bitcoin, json};
-use config_parser::config::BtcRpcCredentials;
+use bitcoincore_rpc::{Client, RawTx, RpcApi, bitcoin, json};
+use config_parser::config::{BtcIndexerParams, BtcRpcCredentials};
 use persistent_storage::init::PersistentRepoShared;
-use titan_client::TitanTcpClient;
-use tokio::sync::{RwLock, mpsc::Sender};
+use titan_client::{Event, EventType, TitanApi, TitanClient};
+use titan_types::{AddressTxOut, Transaction};
+use tokio::sync::{
+    RwLock,
+    mpsc::{Receiver, Sender},
+    oneshot,
+};
 use tokio_util::sync::CancellationToken;
-use tracing::instrument;
+use tracing::{error, log::debug};
 
-use crate::api::{BtcIndexerApi, Subscription, SubscriptionEvents};
-
+use crate::api::{AccountReplenishmentEvent, BtcIndexerApi};
+type SubscriptionStorage = Arc<RwLock<HashMap<EventType, EventTypeChannels>>>;
 #[derive()]
-pub struct BtcIndexer {
+pub struct BtcIndexer<C> {
+    btc_indexer_params: BtcIndexerParams,
     //todo: maybe move into traits?
-    subscription_storage: Arc<RwLock<HashMap<Subscription, Sender<SubscriptionEvents>>>>,
-    indexer_client: TitanTcpClient,
+    // subscription_storage: Arc<RwLock<HashMap<EventType, EventTypeChannels>>>,
+    indexer_client: C,
     btc_core: Arc<Client>,
     cancellation_token: CancellationToken,
 }
 
-pub struct IndexerParams {
-    btc_rpc_creds: BtcRpcCredentials,
-    db_pool: Arc<PersistentRepoShared>,
+pub struct EventTypeChannels {
+    subscription_emitter: Receiver<Event>,
+    subscription_recipient: Sender<Event>,
 }
 
-impl BtcIndexer {
-    pub fn new(params: IndexerParams) -> crate::error::Result<Self> {
-        let storage = Arc::new(RwLock::new(HashMap::new()));
-        let cancellation_token = CancellationToken::new();
-        let titan_client = Arc::new(TitanTcpClient::new());
+pub struct IndexerParamsWithApi<C> {
+    indexer_params: IndexerParams,
+    titan_api_client: C,
+}
 
+pub struct IndexerParams {
+    btc_rpc_creds: BtcRpcCredentials,
+    db_pool: PersistentRepoShared,
+    btc_indexer_params: BtcIndexerParams,
+}
+
+impl BtcIndexer<TitanClient> {
+    pub fn with_api(params: IndexerParams) -> crate::error::Result<Self> {
+        let titan_api_client = titan_client::TitanClient::new(&params.btc_rpc_creds.url.to_string());
+        Self::new(IndexerParamsWithApi {
+            indexer_params: params,
+            titan_api_client,
+        })
+    }
+}
+
+impl<C: TitanApi> BtcIndexer<C> {
+    pub fn new(params: IndexerParamsWithApi<C>) -> crate::error::Result<Self> {
+        let cancellation_token = CancellationToken::new();
         let btc_rpc_client = Arc::new(Client::new(
-            &params.btc_rpc_creds.url.to_string(),
-            params.btc_rpc_creds.get_btc_creds(),
+            &params.indexer_params.btc_rpc_creds.url.to_string(),
+            params.indexer_params.btc_rpc_creds.get_btc_creds(),
         )?);
-        Self::open_listener(
-            storage.clone(),
-            titan_client.clone(),
-            btc_rpc_client.clone(),
-            cancellation_token.child_token(),
-        );
         Ok(BtcIndexer {
-            subscription_storage: storage,
-            indexer_client: TitanTcpClient::new(),
+            btc_indexer_params: params.indexer_params.btc_indexer_params,
+            // subscription_storage: storage,
+            indexer_client: params.titan_api_client,
             btc_core: btc_rpc_client,
             cancellation_token,
         })
     }
 
-    #[instrument(skip_all, level = "trace")]
-    async fn open_listener(
-        storage: Arc<RwLock<HashMap<Subscription, Sender<SubscriptionEvents>>>>,
-        titan_client: Arc<TitanTcpClient>,
-        rest_client: Arc<Client>,
+    pub fn create_default_titan_api(btc_rpc_creds: BtcRpcCredentials) -> TitanClient {
+        TitanClient::new(&btc_rpc_creds.url.to_string())
+    }
+
+    /// Spawns account replenishment tracking task
+    fn spawn_account_tracking_task(
+        titan_client: C,
+        event_tx: oneshot::Sender<AccountReplenishmentEvent>,
+        account_addr: String,
+        update_interval_millis: u64,
         cancellation_token: CancellationToken,
     ) {
+        let mut interval = tokio::time::interval(Duration::from_millis(update_interval_millis));
+        let is_confirmed_outs = |tx_outs: &[AddressTxOut]| -> bool { tx_outs.iter().all(|out| out.status.confirmed) };
+
         tokio::spawn(async move {
-            loop {
+            // todo: save about user that begun transaction to renew connection in bad cases
+            'checking_loop: loop {
                 tokio::select! {
                     _ = cancellation_token.cancelled() => {
-                        info!("Closing HotTokenManager updating task, because of cancellation token");
-                        break;
+                        debug!("[Btc indexer] Closing [Btc indexer] account updating task, because of cancellation token");
+                        break 'checking_loop;
                     },
                     _ = interval.tick() => {
-                        let _ = Self::fetch_and_update(&rest_client, &cached_tokens, &url_to_poll)
-                            .await
-                            .inspect_err(|e| error!("Failed to fetch hot tokens: {:?}", e));
+                        match titan_client.get_address(&account_addr).await{
+                            Ok(data) => {
+                                if  !data.outputs.is_empty() && is_confirmed_outs(&data.outputs) {
+                                    let _ = event_tx.send(AccountReplenishmentEvent{address: account_addr,account_data:data});
+                                    // todo: save data in db
+                                    break 'checking_loop;
+                                }
+                            }
+                            Err(e) => {
+                                error!("[Btc indexer] Failed to retrieve account data by address: {e}")
+                            }
+                        };
+                    }
+                }
+            }
+        });
+    }
+
+    fn spawn_tx_tracking_task(
+        titan_client: C,
+        event_tx: oneshot::Sender<Transaction>,
+        tx_id: bitcoin::Txid,
+        update_interval_millis: u64,
+        cancellation_token: CancellationToken,
+    ) {
+        let mut interval = tokio::time::interval(Duration::from_millis(update_interval_millis));
+        tokio::spawn(async move {
+            // todo: save about user that begun transaction to renew connection in bad cases
+            'checking_loop: loop {
+                tokio::select! {
+                    _ = cancellation_token.cancelled() => {
+                        debug!("[Btc indexer] Closing [Btc indexer] account updating task, because of cancellation token");
+                        break 'checking_loop;
+                    },
+                    _ = interval.tick() => {
+                        match titan_client.get_transaction(&tx_id).await{
+                            Ok(data) => {
+                                if data.status.confirmed {
+                                    let _ = event_tx.send(data);
+                                    // todo: save data in db
+                                    break 'checking_loop;
+                                }
+                            }
+                            Err(e) => {
+                                error!("[Btc indexer] Failed to retrieve account data by address: {e}")
+                            }
+                        };
                     }
                 }
             }
@@ -74,16 +146,34 @@ impl BtcIndexer {
     }
 }
 
-impl Drop for BtcIndexer {
-    fn drop(&mut self) {
-        self.cancellation_token.cancel()
-    }
-}
-
 #[async_trait]
-impl BtcIndexerApi for BtcIndexer {
-    async fn subscribe(options: Subscription) -> crate::error::Result<SubscriptionEvents> {
-        todo!()
+impl<C: TitanApi> BtcIndexerApi for BtcIndexer<C> {
+    fn track_tx_changes(&self, tx_id: bitcoin::Txid) -> crate::error::Result<oneshot::Receiver<Transaction>> {
+        let (event_tx, event_rx) = oneshot::channel::<Transaction>();
+        Self::spawn_tx_tracking_task(
+            self.indexer_client.clone(),
+            event_tx,
+            tx_id,
+            self.btc_indexer_params.update_interval_millis,
+            self.cancellation_token.child_token(),
+        );
+        Ok(event_rx)
+    }
+
+    fn track_account_changes(
+        &self,
+        account_id: impl AsRef<str>,
+    ) -> crate::error::Result<oneshot::Receiver<AccountReplenishmentEvent>> {
+        let tx_id = account_id.as_ref().to_string();
+        let (event_tx, event_rx) = oneshot::channel::<AccountReplenishmentEvent>();
+        Self::spawn_account_tracking_task(
+            self.indexer_client.clone(),
+            event_tx,
+            tx_id,
+            self.btc_indexer_params.update_interval_millis,
+            self.cancellation_token.child_token(),
+        );
+        Ok(event_rx)
     }
 
     fn get_tx_info(&self, tx_id: bitcoin::Txid) -> crate::error::Result<bitcoin::transaction::Transaction> {
@@ -93,16 +183,26 @@ impl BtcIndexerApi for BtcIndexer {
     fn get_blockchain_info(&self) -> crate::error::Result<json::GetBlockchainInfoResult> {
         Ok(self.btc_core.get_blockchain_info()?)
     }
+
+    fn broadcast_transaction(&self, tx: impl RawTx) -> crate::error::Result<bitcoin::blockdata::transaction::Txid> {
+        Ok(self.btc_core.send_raw_transaction(tx)?)
+    }
+}
+
+impl<C> Drop for BtcIndexer<C> {
+    fn drop(&mut self) {
+        self.cancellation_token.cancel()
+    }
 }
 
 #[cfg(test)]
 mod testing {
-    use std::{str::FromStr, time::SystemTime};
+    use std::str::FromStr;
 
     use bitcoincore_rpc::{RawTx, bitcoin::Txid};
-    use config_parser::config::BtcRpcCredentials;
+    use config_parser::config::{BtcRpcCredentials, ConfigVariant, PostgresDbCredentials, ServerConfig};
     use ordinals::Runestone;
-    use titan_client::{EventType, TcpSubscriptionRequest, TitanApi, TitanClient};
+    use persistent_storage::init::PostgresRepo;
 
     use crate::{
         api::BtcIndexerApi,
@@ -113,7 +213,15 @@ mod testing {
     async fn init_btc_indexer() -> anyhow::Result<()> {
         dotenv::dotenv()?;
         let btc_rpc_creds = BtcRpcCredentials::new()?;
-        let indexer = BtcIndexer::new(IndexerParams { btc_rpc_creds })?;
+        let db_pool = PostgresRepo::from_config(PostgresDbCredentials::new()?)
+            .await?
+            .into_shared();
+        let app_config = ServerConfig::init_config(ConfigVariant::Local)?;
+        let indexer = BtcIndexer::with_api(IndexerParams {
+            btc_rpc_creds,
+            db_pool,
+            btc_indexer_params: app_config.btc_indexer_config,
+        })?;
         println!("Blockchain info: {:?}", indexer.get_blockchain_info()?);
         Ok(())
     }
@@ -122,7 +230,15 @@ mod testing {
     async fn get_btc_tx_by_id() -> anyhow::Result<()> {
         dotenv::dotenv()?;
         let btc_rpc_creds = BtcRpcCredentials::new()?;
-        let indexer = BtcIndexer::new(IndexerParams { btc_rpc_creds })?;
+        let db_pool = PostgresRepo::from_config(PostgresDbCredentials::new()?)
+            .await?
+            .into_shared();
+        let app_config = ServerConfig::init_config(ConfigVariant::Local)?;
+        let indexer = BtcIndexer::with_api(IndexerParams {
+            btc_rpc_creds,
+            db_pool,
+            btc_indexer_params: app_config.btc_indexer_config,
+        })?;
         let tx_info = indexer.get_tx_info(Txid::from_str(
             "250f0473c42878dbe9153100100c9c9a55ea85eea688fd358d975351b33d2741",
         )?)?;
@@ -130,153 +246,10 @@ mod testing {
         println!("Blockchain info: {:?}", tx_info.raw_hex());
         println!("Blockchain info: {:?}", tx_info.tx_out(1)?.script_pubkey.as_script());
         let hex = "020704a7d987f890dd81b7f4ebe7d07b0101052406000ae80708904e";
-        let bytes = hex::decode(hex)?; // Converts hex string to Vec<u8>
         let etching = Runestone::decipher(&tx_info);
         println!("Parsed ordinals: {:?}", etching);
         // println!("Parsed ordinals: {:?}",ordinals::Etching::deserialize("020704a7d987f890dd81b7f4ebe7d07b0101052406000ae80708904e")?);
 
         Ok(())
     }
-
-    #[tokio::test]
-    async fn it_works() -> anyhow::Result<()> {
-        titan_client::TitanTcpClientConfig {
-            max_retries: None,
-            retry_delay: Default::default(),
-            read_buffer_capacity: 0,
-            max_buffer_size: 0,
-            ping_interval: Default::default(),
-            pong_timeout: Default::default(),
-        };
-        // titan_client::TitanTcpClient::new_with_config(Confi)
-        let api = TitanClient::new("http://127.0.0.1:3030");
-        println!("AsyncClient status: {:?}", api.get_status().await);
-        let btc_rpc_creds = BtcRpcCredentials::new()?;
-        let indexer = BtcIndexer::new(IndexerParams { btc_rpc_creds })?;
-        // indexer.indexer_client.
-        let events = vec![
-            EventType::RuneEtched,
-            EventType::RuneBurned,
-            EventType::RuneMinted,
-            EventType::RuneTransferred,
-            EventType::AddressModified,
-            EventType::TransactionSubmitted,
-            EventType::TransactionsAdded,
-            EventType::TransactionsReplaced,
-            EventType::MempoolTransactionsAdded,
-            EventType::MempoolTransactionsReplaced,
-            EventType::MempoolEntriesUpdated,
-            EventType::NewBlock,
-            EventType::Reorg,
-        ];
-        let mut x = indexer
-            .indexer_client
-            .subscribe(
-                "bc1qepx55kfsgavty5jxa5vyayztcvvk20wkn25ytsahh0g4t7jgekpqe4qh04",
-                TcpSubscriptionRequest {
-                    subscribe: events.clone(),
-                },
-            )
-            .await?;
-        let mut x_2 = indexer
-            .indexer_client
-            .subscribe(
-                "bc1p6fx5ksk4hrnqyesve2ps6w6a2y7j8utlsq54v9r6yn7tc3e5dfvqkgchsk",
-                TcpSubscriptionRequest {
-                    subscribe: events.clone(),
-                },
-            )
-            .await?;
-        let mut x_3 = indexer
-            .indexer_client
-            .subscribe(
-                "bc1q7x0jt49e999ydrwrdwdqmh8nhmh7sf7xf9m8um",
-                TcpSubscriptionRequest {
-                    subscribe: events.clone(),
-                },
-            )
-            .await?;
-        let mut x_4 = indexer
-            .indexer_client
-            .subscribe(
-                "bc1qwzrryqr3ja8w7hnja2spmkgfdcgvqwp5swz4af4ngsjecfz0w0pqud7k38",
-                TcpSubscriptionRequest {
-                    subscribe: events.clone(),
-                },
-            )
-            .await?;
-        let mut x_5 = indexer
-            .indexer_client
-            .subscribe(
-                "bc1qczm7ud0rsku03qx7rtzhkrgvawc3qjcx8dv65v",
-                TcpSubscriptionRequest {
-                    subscribe: events.clone(),
-                },
-            )
-            .await?;
-        println!("{:?}", indexer.indexer_client.get_status());
-        loop {
-            println!(
-                "time: {:?}, status: {:?}",
-                SystemTime::now(),
-                indexer.indexer_client.get_status()
-            );
-            tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
-            match x.try_recv() {
-                Ok(m) => {
-                    println!("message: {:?}, time: {:?}", m, SystemTime::now(),);
-                }
-                Err(e) => {
-                    println!("errror: {e:?}, time; {:?}", SystemTime::now(),)
-                }
-            }
-            match x_2.try_recv() {
-                Ok(m) => {
-                    println!("message2: {:?}, time: {:?}", m, SystemTime::now(),);
-                }
-                Err(e) => {
-                    println!("errror2: {e:?}, time; {:?}", SystemTime::now(),)
-                }
-            }
-            match x_3.try_recv() {
-                Ok(m) => {
-                    println!("message2: {:?}, time: {:?}", m, SystemTime::now(),);
-                }
-                Err(e) => {
-                    println!("errror2: {e:?}, time; {:?}", SystemTime::now(),)
-                }
-            }
-            match x_4.try_recv() {
-                Ok(m) => {
-                    println!("message2: {:?}, time: {:?}", m, SystemTime::now(),);
-                }
-                Err(e) => {
-                    println!("errror2: {e:?}, time; {:?}", SystemTime::now(),)
-                }
-            }
-            match x_5.try_recv() {
-                Ok(m) => {
-                    println!("message2: {:?}, time: {:?}", m, SystemTime::now(),);
-                }
-                Err(e) => {
-                    println!("errror2: {e:?}, time; {:?}", SystemTime::now(),)
-                }
-            }
-        }
-        Ok(())
-    }
 }
-
-// what I have todo:
-// * index transaction -> by subscription track transaction and return msg on completion
-// * save received transactions in db
-// * implement on subscription of some tx, 1) check whether value is in db 2) if true return else subscribe on this event
-// * implement on looking in bitcoin d some info
-// * get full tx info on demand
-//
-// * implement rest api entrypoint for starting bridging funds from one place to another
-//  + subscribe on replenishment of address
-//  +
-//
-// store in db:
-// tx_id, inputs, outputs, parsed tx in runes, raw_tx

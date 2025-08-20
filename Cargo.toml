@@ -34,6 +34,7 @@ btc_indexer = { path = "./btc_verifier/crates/btc_indexer" }
 persistent_storage = { path = "./btc_verifier/crates/persistent_storage" }
 tokio-util = { version = "0.7.16" }
 titan-client = { version = "0.1.43" }
+titan-types = { version = "0.1.28"}
 bitcoincore-rpc = { version = "0.19.0" }
 bitcoin = { version = "0.32.7" }
 ordinals = { version = "0.0.15" }

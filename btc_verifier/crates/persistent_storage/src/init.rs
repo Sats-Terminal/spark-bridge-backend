@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use config_parser::config::{PostgresDbCredentials, PostgresDbTestingCredentials};
-use sqlx::{Acquire, PgConnection, PgPool, Pool, Postgres, pool::PoolConnection, query};
-use tracing::{debug, instrument, trace};
+use sqlx::{PgPool, Pool, Postgres, pool::PoolConnection};
+use tracing::{instrument, trace};
 
 use crate::error::{DbError, DbInitError};
 
@@ -85,7 +85,7 @@ impl PersistentRepoTrait for PostgresRepo {
 }
 
 pub mod db_helpers {
-    use sqlx::{Acquire, Connection};
+    use sqlx::Connection;
 
     use crate::{error::DbError, init::PersistentDbConn};
 
