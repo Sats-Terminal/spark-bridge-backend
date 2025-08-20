@@ -9,7 +9,7 @@ use tokio::net::TcpListener;
 async fn main() {
     let _ = env_logger::builder().filter_level(log::LevelFilter::Debug).try_init();
 
-    let config = Config::new(None).unwrap();
+    let config = Config::new(None);
     let app = create_app(&config).await;
     let listener = TcpListener::bind(config.server.address.clone()).await.unwrap();
     axum::serve(listener, app).await.unwrap();

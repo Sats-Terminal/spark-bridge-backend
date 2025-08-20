@@ -8,7 +8,6 @@ tonic = { workspace = true }
 tokio = { workspace = true }
 hex = { workspace = true }
 log = { workspace = true }
-eyre = { workspace = true }
 bech32 = { workspace = true }
 env_logger = { workspace = true }
 serde = { workspace = true }

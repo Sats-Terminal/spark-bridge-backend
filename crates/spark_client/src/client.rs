@@ -2,7 +2,6 @@ use crate::common::{config::SparkConfig, error::SparkClientError};
 use crate::connection::SparkConnectionPool;
 use crate::utils::spark_address::Network;
 use crate::utils::spark_address::decode_spark_address;
-use eyre::Result;
 use hex;
 use log;
 use spark_protos::spark::spark_service_client::SparkServiceClient;

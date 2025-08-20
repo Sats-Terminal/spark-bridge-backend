@@ -24,7 +24,6 @@ tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 tonic = { version = "0.12.3", features = ["tls-native-roots"] }
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.9.5"
-eyre = "0.6.2"
 tokio = { version = "1.47.1", features = ["full"] }
 env_logger = "0.11.8"
 log = "0.4.27"

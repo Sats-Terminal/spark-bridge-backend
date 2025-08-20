@@ -7,5 +7,4 @@ toml = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true }
 axum = { workspace = true }
-eyre = { workspace = true }
 spark-client = { workspace = true }

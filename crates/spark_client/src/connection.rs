@@ -1,5 +1,4 @@
 use crate::common::{config::SparkConfig, error::SparkClientError};
-use eyre::Result;
 use spark_protos::spark::spark_service_client::SparkServiceClient;
 use std::str::FromStr;
 use tonic::transport::Channel;
