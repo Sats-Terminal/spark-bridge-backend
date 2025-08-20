@@ -1,5 +1,6 @@
 use std::{env::VarError, net::AddrParseError};
-
+use std::num::ParseIntError;
+use bitcoincore_rpc::bitcoin::network::ParseNetworkError;
 use config::ConfigError;
 use thiserror::Error;
 
@@ -15,4 +16,8 @@ pub enum ConfigParserError {
     ConfigEnvParseError { missing_var_name: String, err: VarError },
     #[error("Occurred custom error: {0}")]
     Custom(String),
+    #[error("Failed to parse integer, var name: {var_name}, err: {err}")]
+    ParseIntError { var_name: String, err: ParseIntError },
+    #[error("Failed to parse Btc network, err: {0}")]
+    ParseNetworkError (#[from] ParseNetworkError),
 }

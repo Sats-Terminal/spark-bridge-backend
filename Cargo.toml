@@ -43,3 +43,8 @@ btc_signer = { path = "./btc_signer" }
 btc_verifier = { path = "./btc_verifier" }
 persistent_storage = { path = "./persistent_storage" }
 server_helper = { path = "./server_helper" }
+tokio-util = { version = "0.7.16" }
+titan-client = { version = "0.1.43" }
+bitcoincore-rpc = { version = "0.19.0" }
+bitcoin = { version = "0.32.7" }
+ordinals = { version = "0.0.15" }

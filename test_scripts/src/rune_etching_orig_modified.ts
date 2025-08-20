@@ -34,9 +34,9 @@ const name = 'CCCCCCCCCCCCCCCCCCNH';
 const wif_private_key = 'cSYFixQzjSrZ4b4LBT16Q7RXBk52DZ5cpJydE7DzuZS1RhzaXpEN';
 const keyPair = ECPair.fromWIF(wif_private_key, network);
 const utxo_tx_id =
-  '6eb70a7fbc44f63fd0fe24291bc007a5ee4d44e759af21aec467fda7fec3dab3';
+  '543da646ceca5425d20a7a0b0e8515c22ab15fdbf872b0337f701d6ff8e28115';
 const utxo_vout = 0;
-const utxo_value = 1250000000;
+const utxo_value = 156250000;
 
 async function etching() {
   const { address: p2wpkh_address } = payments.p2wpkh({

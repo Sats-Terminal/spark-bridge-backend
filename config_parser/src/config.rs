@@ -1,10 +1,16 @@
-use std::{fmt::Debug, net::SocketAddr, str::FromStr};
+use std::{
+    fmt::Debug,
+    net::{IpAddr, SocketAddr},
+    str::FromStr,
+};
 
+use bitcoincore_rpc::Auth;
+use bitcoincore_rpc::bitcoin::Network;
 use config::{Config, Environment};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, instrument};
 
-use crate::error::ConfigParserError;
+use crate::{config::env_parser::EnvParser, error::ConfigParserError};
 
 const CONFIG_FOLDER_NAME: &str = "configuration";
 const CARGO_MANIFEST_DIR: &str = "CARGO_MANIFEST_DIR";
@@ -15,6 +21,11 @@ const DEFAULT_APP_LOCAL_BASE_FILENAME: &str = "base.toml";
 pub const DEFAULT_APP_LOCAL_CONFIG_NAME: &str = "local";
 pub const POSTGRES_TESTING_URL_ENV_NAME: &str = "DATABASE_URL_TESTING";
 pub const POSTGRES_URL_ENV_NAME: &str = "DATABASE_URL";
+pub const BITCOIN_NETWORK: &str = "BITCOIN_NETWORK";
+pub const BITCOIN_RPC_HOST: &str = "BITCOIN_RPC_HOST";
+pub const BITCOIN_RPC_PORT: &str = "BITCOIN_RPC_PORT";
+pub const BITCOIN_RPC_USERNAME: &str = "BITCOIN_RPC_USERNAME";
+pub const BITCOIN_RPC_PASSWORD: &str = "BITCOIN_RPC_PASSWORD";
 
 /// Struct used for initialization of different kinds of configurations
 ///
@@ -50,6 +61,14 @@ pub struct PostgresDbTestingCredentials {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PostgresDbCredentials {
     pub url: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct BtcRpcCredentials {
+    pub url: SocketAddr,
+    pub network: Network,
+    pub name: String,
+    pub password: String,
 }
 
 #[derive(Debug, Copy, Clone, strum::Display, Serialize, Deserialize)]
@@ -111,12 +130,20 @@ pub fn get_app_config_val() -> ConfigVariant {
     }
 }
 
-trait EnvParser {
-    const ENV_NAME: &'static str;
-    fn obtain_env_value() -> crate::error::Result<String> {
+mod env_parser {
+    use crate::error::ConfigParserError;
+
+    pub trait EnvParser {
+        const ENV_NAME: &'static str;
+        fn obtain_env_value() -> crate::error::Result<String> {
+            obtain_env_value(Self::ENV_NAME)
+        }
+    }
+
+    pub fn obtain_env_value(name: impl AsRef<str>) -> crate::error::Result<String> {
         Ok(
-            std::env::var(Self::ENV_NAME).map_err(|err| ConfigParserError::ConfigEnvParseError {
-                missing_var_name: Self::ENV_NAME.to_string(),
+            std::env::var(name.as_ref()).map_err(|err| ConfigParserError::ConfigEnvParseError {
+                missing_var_name: name.as_ref().to_string(),
                 err,
             })?,
         )
@@ -143,6 +170,33 @@ impl PostgresDbCredentials {
     pub fn new() -> crate::error::Result<Self> {
         Ok(Self {
             url: Self::obtain_env_value()?,
+        })
+    }
+}
+
+impl BtcRpcCredentials {
+    pub fn get_btc_creds(&self) -> Auth {
+        if self.name.is_empty() && self.password.is_empty() {
+            Auth::None
+        } else {
+            Auth::UserPass(self.name.clone(), self.password.clone())
+        }
+    }
+
+    pub fn new() -> crate::error::Result<Self> {
+        Ok(Self {
+            url: SocketAddr::new(
+                IpAddr::from_str(&env_parser::obtain_env_value(BITCOIN_RPC_HOST)?)?,
+                u16::from_str(&env_parser::obtain_env_value(BITCOIN_RPC_PORT)?).map_err(|e| {
+                    ConfigParserError::ParseIntError {
+                        var_name: BITCOIN_RPC_PORT.to_string(),
+                        err: e,
+                    }
+                })?,
+            ),
+            network: Network::from_str(&env_parser::obtain_env_value(BITCOIN_NETWORK)?)?,
+            name: env_parser::obtain_env_value(BITCOIN_RPC_USERNAME)?,
+            password: env_parser::obtain_env_value(BITCOIN_RPC_PASSWORD)?,
         })
     }
 }
