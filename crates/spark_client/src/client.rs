@@ -1,10 +1,10 @@
+use crate::common::{config::SparkConfig, error::SparkClientError};
 use crate::connection::SparkConnectionPool;
+use crate::utils::spark_address::Network;
+use crate::utils::spark_address::decode_spark_address;
 use eyre::Result;
 use hex;
 use log;
-use crate::common::{config::SparkConfig, error::SparkClientError};
-use crate::utils::spark_address::Network;
-use crate::utils::spark_address::decode_spark_address;
 use spark_protos::spark::spark_service_client::SparkServiceClient;
 use spark_protos::spark::{QueryTokenOutputsRequest, QueryTokenOutputsResponse};
 use std::future::Future;
@@ -79,7 +79,9 @@ impl SparkRpcClient {
             log::info!("Switching operator");
         }
 
-        Err(SparkClientError::ConnectionError("All retry attempts failed".to_string()))
+        Err(SparkClientError::ConnectionError(
+            "All retry attempts failed".to_string(),
+        ))
     }
 
     pub async fn get_token_outputs(

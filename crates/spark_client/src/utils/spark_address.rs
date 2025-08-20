@@ -1,6 +1,6 @@
+use crate::common::error::SparkClientError;
 use bech32::Bech32m;
 use hex;
-use crate::common::error::SparkClientError;
 
 // FIXME: ensure proper sequence of network types
 /// Networks supported by Spark.
@@ -54,7 +54,9 @@ fn decode_proto(buf: &[u8]) -> Result<&[u8], SparkClientError> {
     if buf.len() >= 3 && buf[0] == TAG && buf[1] as usize + 2 == buf.len() {
         Ok(&buf[2..])
     } else {
-        Err(SparkClientError::DecodeError("decode_proto error: Bad proto".to_string()))
+        Err(SparkClientError::DecodeError(
+            "decode_proto error: Bad proto".to_string(),
+        ))
     }
 }
 
@@ -99,8 +101,9 @@ pub fn decode_spark_address(addr: String) -> Result<SparkAddressData, SparkClien
         ));
     }
 
-    let network = Network::from_hrp(&hrp_str)
-        .ok_or_else(|| SparkClientError::DecodeError(format!("decode_spark_address error: Unknown prefix: {}", hrp_str)))?;
+    let network = Network::from_hrp(&hrp_str).ok_or_else(|| {
+        SparkClientError::DecodeError(format!("decode_spark_address error: Unknown prefix: {}", hrp_str))
+    })?;
 
     let key = decode_proto(&proto).map_err(|e| SparkClientError::DecodeError(e.to_string()))?;
 

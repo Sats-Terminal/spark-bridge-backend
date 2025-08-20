@@ -1,7 +1,7 @@
 pub mod client;
+mod common;
 mod connection;
 mod utils;
-mod common;
 
 pub use common::config::SparkConfig;
 pub use common::error::SparkClientError;

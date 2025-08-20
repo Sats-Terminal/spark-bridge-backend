@@ -1,7 +1,7 @@
 use eyre::Result;
 use serde::Deserialize;
-use toml;
 use spark_client::SparkConfig;
+use toml;
 
 const CONFIG_FILE: &str = "./spark_balance_checker/config.toml";
 

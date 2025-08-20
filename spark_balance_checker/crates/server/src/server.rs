@@ -4,9 +4,9 @@ use axum::{
     routing::get,
 };
 use serde::{Deserialize, Serialize};
-use spark_client::client::SparkRpcClient;
 use spark_balance_checker_common::config::Config;
 use spark_balance_checker_common::error::ServerError;
+use spark_client::client::SparkRpcClient;
 
 #[derive(Clone)]
 struct AppState {
