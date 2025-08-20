@@ -2,10 +2,9 @@ use crate::connection::SparkConnectionPool;
 use eyre::Result;
 use hex;
 use log;
-use spark_balance_checker_common::config::SparkConfig;
-use spark_balance_checker_common::error::ServerError;
-use spark_balance_checker_utils::spark_address::Network;
-use spark_balance_checker_utils::spark_address::decode_spark_address;
+use crate::common::{config::SparkConfig, error::SparkClientError};
+use crate::utils::spark_address::Network;
+use crate::utils::spark_address::decode_spark_address;
 use spark_protos::spark::spark_service_client::SparkServiceClient;
 use spark_protos::spark::{QueryTokenOutputsRequest, QueryTokenOutputsResponse};
 use std::future::Future;
@@ -31,7 +30,7 @@ impl SparkRpcClient {
         }
     }
 
-    async fn get_client(&mut self) -> Result<SparkServiceClient<Channel>, ServerError> {
+    async fn get_client(&mut self) -> Result<SparkServiceClient<Channel>, SparkClientError> {
         match &self.cached_client {
             Some(client) => Ok(client.clone()),
             None => {
@@ -49,10 +48,10 @@ impl SparkRpcClient {
         self.cached_client = None;
     }
 
-    async fn retry_query<F, Fut, Resp, P>(&mut self, query_fn: F, params: P) -> Result<Resp, ServerError>
+    async fn retry_query<F, Fut, Resp, P>(&mut self, query_fn: F, params: P) -> Result<Resp, SparkClientError>
     where
         F: Fn(SparkServiceClient<Channel>, P) -> Fut,
-        Fut: Future<Output = Result<Resp, ServerError>>,
+        Fut: Future<Output = Result<Resp, SparkClientError>>,
         P: Clone,
     {
         for _i in 0..N_OPERATOR_SWITCHES {
@@ -80,20 +79,20 @@ impl SparkRpcClient {
             log::info!("Switching operator");
         }
 
-        Err(ServerError::ConnectionError("All retry attempts failed".to_string()))
+        Err(SparkClientError::ConnectionError("All retry attempts failed".to_string()))
     }
 
     pub async fn get_token_outputs(
         &mut self,
         spark_address: String,
         token_identifier: String,
-    ) -> Result<QueryTokenOutputsResponse, ServerError> {
+    ) -> Result<QueryTokenOutputsResponse, SparkClientError> {
         let address_data = decode_spark_address(spark_address)?;
 
         let identity_public_key = hex::decode(address_data.identity_public_key)
-            .map_err(|e| ServerError::DecodeError(format!("Failed to decode identity public key: {}", e)))?;
+            .map_err(|e| SparkClientError::DecodeError(format!("Failed to decode identity public key: {}", e)))?;
         let token_identifier = bech32::decode(&token_identifier)
-            .map_err(|e| ServerError::DecodeError(format!("Failed to decode token identifier: {}", e)))?
+            .map_err(|e| SparkClientError::DecodeError(format!("Failed to decode token identifier: {}", e)))?
             .1;
 
         let query_fn = |mut client: SparkServiceClient<Channel>, params: (Vec<u8>, Vec<u8>, Network)| async move {
@@ -106,7 +105,7 @@ impl SparkRpcClient {
             client
                 .query_token_outputs(request)
                 .await
-                .map_err(|e| ServerError::ConnectionError(format!("Failed to query balance: {}", e)))
+                .map_err(|e| SparkClientError::ConnectionError(format!("Failed to query balance: {}", e)))
         };
 
         self.retry_query(query_fn, (identity_public_key, token_identifier, address_data.network))

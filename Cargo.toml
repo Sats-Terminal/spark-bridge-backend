@@ -1,6 +1,7 @@
 [workspace]
 resolver = "3"
 members = [
+    # global
     "crates/*",
 
     # spark-balance-checker
@@ -41,11 +42,10 @@ tonic-build = { version = "0.12.3", features = ["prost"] }
 
 # global crates/* dependencies
 spark-protos = { path = "./crates/spark-protos-rpc" }
+spark-client = { path = "./crates/spark_client" }
 
 # spark-balance-checker crates/* dependencies
 spark-balance-checker-common = { path = "./spark_balance_checker/crates/common" }
-spark-balance-checker-utils = { path = "./spark_balance_checker/crates/utils" }
-spark-balance-checker-client = { path = "./spark_balance_checker/crates/spark_client" }
 spark-balance-checker-server = { path = "./spark_balance_checker/crates/server" }
 
 # spark-balance-checker apps/* dependencies

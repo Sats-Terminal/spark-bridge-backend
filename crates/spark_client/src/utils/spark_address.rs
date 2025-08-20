@@ -1,6 +1,6 @@
 use bech32::Bech32m;
 use hex;
-use spark_balance_checker_common::error::ServerError;
+use crate::common::error::SparkClientError;
 
 // FIXME: ensure proper sequence of network types
 /// Networks supported by Spark.
@@ -49,22 +49,22 @@ pub struct SparkAddressData {
     pub network: Network,
 }
 
-fn decode_proto(buf: &[u8]) -> Result<&[u8], ServerError> {
+fn decode_proto(buf: &[u8]) -> Result<&[u8], SparkClientError> {
     const TAG: u8 = 0x0a;
     if buf.len() >= 3 && buf[0] == TAG && buf[1] as usize + 2 == buf.len() {
         Ok(&buf[2..])
     } else {
-        Err(ServerError::DecodeError("decode_proto error: Bad proto".to_string()))
+        Err(SparkClientError::DecodeError("decode_proto error: Bad proto".to_string()))
     }
 }
 
-pub fn decode_spark_address(addr: String) -> Result<SparkAddressData, ServerError> {
+pub fn decode_spark_address(addr: String) -> Result<SparkAddressData, SparkClientError> {
     // -----------------------------------------------------------------
     // Early sanity checks (avoid allocating in `bech32::decode` when we
     // already know the string is invalid).
     // -----------------------------------------------------------------
     if addr.len() > 90 {
-        return Err(ServerError::DecodeError(
+        return Err(SparkClientError::DecodeError(
             "decode_spark_address error: Invalid length".to_string(),
         ));
     }
@@ -72,19 +72,19 @@ pub fn decode_spark_address(addr: String) -> Result<SparkAddressData, ServerErro
     let has_upper = addr.bytes().any(|b| b.is_ascii_uppercase());
     let has_lower = addr.bytes().any(|b| b.is_ascii_lowercase());
     if has_upper && has_lower {
-        return Err(ServerError::DecodeError(
+        return Err(SparkClientError::DecodeError(
             "decode_spark_address error: Mixed case".to_string(),
         ));
     }
 
-    let (hrp, proto) = bech32::decode(&addr).map_err(|e| ServerError::DecodeError(e.to_string()))?;
+    let (hrp, proto) = bech32::decode(&addr).map_err(|e| SparkClientError::DecodeError(e.to_string()))?;
 
     // The Bech32 spec requires the HRP to be lowercase. The `bech32`
     // crate accepts uppercase HRPs, so we enforce the stricter rule
     // here.
     let hrp_str = hrp.to_string();
     if hrp_str.bytes().any(|b| b.is_ascii_uppercase()) {
-        return Err(ServerError::DecodeError(
+        return Err(SparkClientError::DecodeError(
             "decode_spark_address error: Mixed case".to_string(),
         ));
     }
@@ -92,20 +92,20 @@ pub fn decode_spark_address(addr: String) -> Result<SparkAddressData, ServerErro
     // Reject legacy Bech32 (BIP-173) by re-encoding with Bech32m and
     // comparing the checksum. If it differs, the original variant must
     // have been classic Bech32.
-    let reencoded = bech32::encode::<Bech32m>(hrp, &proto).map_err(|e| ServerError::DecodeError(e.to_string()))?;
+    let reencoded = bech32::encode::<Bech32m>(hrp, &proto).map_err(|e| SparkClientError::DecodeError(e.to_string()))?;
     if reencoded.to_lowercase() != addr.to_lowercase() {
-        return Err(ServerError::DecodeError(
+        return Err(SparkClientError::DecodeError(
             "decode_spark_address error: Invalid variant".to_string(),
         ));
     }
 
     let network = Network::from_hrp(&hrp_str)
-        .ok_or_else(|| ServerError::DecodeError(format!("decode_spark_address error: Unknown prefix: {}", hrp_str)))?;
+        .ok_or_else(|| SparkClientError::DecodeError(format!("decode_spark_address error: Unknown prefix: {}", hrp_str)))?;
 
-    let key = decode_proto(&proto).map_err(|e| ServerError::DecodeError(e.to_string()))?;
+    let key = decode_proto(&proto).map_err(|e| SparkClientError::DecodeError(e.to_string()))?;
 
     if key.len() != 33 {
-        return Err(ServerError::DecodeError(format!(
+        return Err(SparkClientError::DecodeError(format!(
             "decode_spark_address error: Wrong key length: {}",
             key.len()
         )));

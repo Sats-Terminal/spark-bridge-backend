@@ -4,7 +4,7 @@ edition = { workspace = true }
 
 [dependencies]
 spark-balance-checker-common = { workspace = true }
-spark-balance-checker-client = { workspace = true }
+spark-client = { workspace = true }
 axum = { workspace = true }
 serde = { workspace = true }
 tokio = { workspace = true }

@@ -4,7 +4,7 @@ use axum::{
     routing::get,
 };
 use serde::{Deserialize, Serialize};
-use spark_balance_checker_client::client::SparkRpcClient;
+use spark_client::client::SparkRpcClient;
 use spark_balance_checker_common::config::Config;
 use spark_balance_checker_common::error::ServerError;
 
@@ -63,7 +63,7 @@ async fn get_balance(
                 }
             }
         }
-        Err(e) => Err(e),
+        Err(e) => Err(ServerError::from(e)),
     }
 }
 

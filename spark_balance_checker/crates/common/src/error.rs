@@ -3,6 +3,16 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use thiserror::Error;
+use spark_client::SparkClientError;
+
+impl From<SparkClientError> for ServerError {
+    fn from(error: SparkClientError) -> Self {
+        match error {
+            SparkClientError::ConnectionError(message) => ServerError::ConnectionError(format!("Spark client connection error: {}", message)),
+            SparkClientError::DecodeError(message) => ServerError::DecodeError(format!("Spark client decode error: {}", message)),
+        }
+    }
+}
 
 #[derive(Error, Debug)]
 pub enum ServerError {

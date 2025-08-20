@@ -1,5 +1,5 @@
 use eyre::Result;
-use spark_balance_checker_common::{config::SparkConfig, error::ServerError};
+use crate::common::{config::SparkConfig, error::SparkClientError};
 use spark_protos::spark::spark_service_client::SparkServiceClient;
 use std::str::FromStr;
 use tonic::transport::Channel;
@@ -21,22 +21,22 @@ impl SparkConnectionPool {
         }
     }
 
-    async fn create_tls_channel(&self, base_url: String) -> Result<Channel, ServerError> {
+    async fn create_tls_channel(&self, base_url: String) -> Result<Channel, SparkClientError> {
         let uri = Uri::from_str(&base_url)
-            .map_err(|e| ServerError::ConnectionError(format!("Failed to create URI: {}", e)))?;
+            .map_err(|e| SparkClientError::ConnectionError(format!("Failed to create URI: {}", e)))?;
         let mut tls = ClientTlsConfig::new().ca_certificate(self.certificate.clone());
         if let Some(host) = uri.host() {
             tls = tls.domain_name(host);
         }
 
         let channel = Channel::from_shared(uri.to_string())
-            .map_err(|e| ServerError::ConnectionError(format!("Failed to create channel: {}", e)))?
+            .map_err(|e| SparkClientError::ConnectionError(format!("Failed to create channel: {}", e)))?
             .tls_config(tls)
-            .map_err(|e| ServerError::ConnectionError(format!("Failed to create TLS config: {}", e)))?
+            .map_err(|e| SparkClientError::ConnectionError(format!("Failed to create TLS config: {}", e)))?
             .connect()
             .await
             .map_err(|e| {
-                ServerError::ConnectionError(format!(
+                SparkClientError::ConnectionError(format!(
                     "Failed to connect to operator {}: {}",
                     self.current_connection, e
                 ))
@@ -46,7 +46,7 @@ impl SparkConnectionPool {
     }
 
     // This function creates a new spark client.
-    pub(crate) async fn create_client(&mut self) -> Result<SparkServiceClient<Channel>, ServerError> {
+    pub(crate) async fn create_client(&mut self) -> Result<SparkServiceClient<Channel>, SparkClientError> {
         let base_url = self.config.operators[self.current_connection].base_url.clone();
 
         let channel = self.create_tls_channel(base_url).await?;

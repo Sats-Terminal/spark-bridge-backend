@@ -1,19 +1,9 @@
 use eyre::Result;
 use serde::Deserialize;
 use toml;
+use spark_client::SparkConfig;
 
 const CONFIG_FILE: &str = "./spark_balance_checker/config.toml";
-
-#[derive(Deserialize, Debug, Clone)]
-pub struct SparkOperatorConfig {
-    pub base_url: String,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-pub struct SparkConfig {
-    pub operators: Vec<SparkOperatorConfig>,
-    pub ca_pem_path: String,
-}
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct ServerConfig {
