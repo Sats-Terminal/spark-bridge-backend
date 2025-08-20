@@ -62,8 +62,8 @@ impl SparkConnectionPool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::common::config::SparkOperatorConfig;
     use env_logger;
-    use spark_balance_checker_common::config::Config;
     use tokio;
 
     fn init_logger() {
@@ -77,8 +77,13 @@ mod tests {
     async fn test_get_client() {
         init_logger();
 
-        let config = Config::new(None).unwrap();
-        let mut connection_pool = SparkConnectionPool::new(config.spark);
+        let spark_config = SparkConfig {
+            operators: vec![SparkOperatorConfig {
+                base_url: "https://0.spark.lightspark.com".to_string(),
+            }],
+            ca_pem_path: "../../ca.pem".to_string(),
+        };
+        let mut connection_pool = SparkConnectionPool::new(spark_config);
         connection_pool.create_client().await.unwrap();
     }
 }

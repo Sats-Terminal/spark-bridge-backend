@@ -118,7 +118,7 @@ impl SparkRpcClient {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use spark_balance_checker_common::config::Config;
+    use crate::common::config::{SparkConfig, SparkOperatorConfig};
 
     fn init_logger() {
         let _ = env_logger::builder()
@@ -135,9 +135,14 @@ mod tests {
         let address = "sprt1pgss8fxt9jxuv4dgjwrg539s6u06ueausq076xvfej7wdah0htvjlxunt9fa4n".to_string();
         let rune_id = "btknrt1p2sy7a8cx5pqfm3u4p2qfqa475fgwj3eg5d03hhk47t66605zf6qg52vj2".to_string();
 
-        let config = Config::new(None).unwrap();
+        let config = SparkConfig {
+            operators: vec![SparkOperatorConfig {
+                base_url: "https://0.spark.lightspark.com".to_string(),
+            }],
+            ca_pem_path: "../../ca.pem".to_string(),
+        };
 
-        let mut balance_checker = SparkRpcClient::new(config.spark);
+        let mut balance_checker = SparkRpcClient::new(config);
 
         let response = balance_checker.get_token_outputs(address, rune_id).await.unwrap();
 
