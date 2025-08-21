@@ -38,3 +38,5 @@ titan-types = { version = "0.1.28"}
 bitcoincore-rpc = { version = "0.19.0" }
 bitcoin = { version = "0.32.7" }
 ordinals = { version = "0.0.15" }
+mockall = { version = "0.13.1" }
+reqwest = { version = "0.12.23"}

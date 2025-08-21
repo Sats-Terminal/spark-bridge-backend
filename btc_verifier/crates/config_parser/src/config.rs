@@ -11,7 +11,7 @@ use tracing::{debug, instrument};
 
 use crate::{config::env_parser::EnvParser, error::ConfigParserError};
 
-const CONFIG_FOLDER_NAME: &str = "configuration";
+const CONFIG_FOLDER_NAME: &str = "../../infrastructure/configuration";
 const CARGO_MANIFEST_DIR: &str = "CARGO_MANIFEST_DIR";
 pub const APP_CONFIGURATION_NAME: &str = "APP_ENVIRONMENT";
 pub const SSH_PRIVATE_KEY_PATH: &str = "SSH_PRIVATE_KEY_PATH";
@@ -103,7 +103,7 @@ impl ServerConfig {
             ConfigVariant::Production => "/".to_string(),
             ConfigVariant::Local => {
                 let _ = dotenv::dotenv().ok().unwrap();
-                format!("{}/../", get_cargo_manifest_dir())
+                format!("{}/", get_cargo_manifest_dir())
             }
         };
         debug!("Configuration folder lookup path: {folder_path}");
