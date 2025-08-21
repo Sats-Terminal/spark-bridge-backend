@@ -121,19 +121,21 @@ impl ServerConfig {
     }
 }
 
-pub fn get_cargo_manifest_dir() -> String {
-    std::env::var(CARGO_MANIFEST_DIR).unwrap()
+impl ConfigVariant {
+    #[instrument(level = "trace", ret)]
+    pub fn init() -> ConfigVariant {
+        if let Ok(x) = std::env::var(APP_CONFIGURATION_NAME)
+            && x == crate::config::ConfigVariant::Production.to_string()
+        {
+            ConfigVariant::Production
+        } else {
+            ConfigVariant::Local
+        }
+    }
 }
 
-#[instrument(level = "trace", ret)]
-pub fn get_app_config_val() -> ConfigVariant {
-    if let Ok(x) = std::env::var(APP_CONFIGURATION_NAME)
-        && x == crate::config::ConfigVariant::Production.to_string()
-    {
-        ConfigVariant::Production
-    } else {
-        ConfigVariant::Local
-    }
+pub fn get_cargo_manifest_dir() -> String {
+    std::env::var(CARGO_MANIFEST_DIR).unwrap()
 }
 
 mod env_parser {

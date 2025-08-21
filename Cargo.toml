@@ -1,7 +1,8 @@
 [workspace]
 resolver = "3"
 members = [
-    "btc_verifier/crates/*",
+    "btc_indexer/apps/*",
+    "btc_indexer/crates/*",
     "crates/*",
 ]
 
@@ -16,11 +17,11 @@ actix-web = { version = "4.11.0" }
 async-trait = { version = "0.1.88" }
 anyhow = { version = "1.0.98" }
 config = { version = "0.15.13" }
-config_parser = { path = "./btc_verifier/crates/config_parser" }
+config_parser = { path = "./btc_indexer/crates/config_parser" }
 dotenv = { version = "0.15.0" }
 global_utils = { path = "./crates/global_utils" }
 serde = { version = "1.0.219", features = ["derive"] }
-serde_json = { version = "1.0.140" }
+serde_json = { version = "1.0.143" }
 strum = { version = "0.27", features = ["derive"] }
 sqlx = { version = "0.8.6", features = ["json", "runtime-tokio", "postgres"] }
 thiserror = { version = "2.0.12" }
@@ -28,15 +29,20 @@ tokio = { version = "1.45.0", features = ["full"] }
 tracing = { version = "0.1.41", features = [] }
 tracing-appender = { version = "0.2.3" }
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
-utoipa = { version = "4.2.3", features = ["actix_extras"] }
-utoipa-swagger-ui = { version = "7.1.0", features = ["actix-web"] }
-btc_indexer = { path = "./btc_verifier/crates/btc_indexer" }
-persistent_storage = { path = "./btc_verifier/crates/persistent_storage" }
+utoipa = { version = "5.4.0" }
+utoipa-swagger-ui = { version = "9.0.2" }
+btc_indexer = { path = "./btc_indexer/crates/btc_indexer" }
+persistent_storage = { path = "./btc_indexer/crates/persistent_storage" }
 tokio-util = { version = "0.7.16" }
 titan-client = { version = "0.1.43" }
-titan-types = { version = "0.1.28"}
+titan-types = { version = "0.1.28" }
 bitcoincore-rpc = { version = "0.19.0" }
 bitcoin = { version = "0.32.7" }
 ordinals = { version = "0.0.15" }
 mockall = { version = "0.13.1" }
-reqwest = { version = "0.12.23"}
+reqwest = { version = "0.12.23" }
+axum = { version = "0.8.4", features = ["macros"] }
+btc_indexer_server = { path = "./btc_indexer/crates/server", features = ["swagger"] }
+btc_indexer_internals = { path = "./btc_indexer/crates/indexer_internals" }
+uuid= { version = "1.18.0", features = ["serde"]}
+axum-test = { version = "18.0.0" }

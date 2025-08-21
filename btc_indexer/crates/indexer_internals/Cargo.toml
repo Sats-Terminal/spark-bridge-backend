@@ -1,5 +1,5 @@
 [package]
-name = "btc_indexer"
+name = "btc_indexer_internals"
 edition = "2024"
 version.workspace = true
 rust-version.workspace = true

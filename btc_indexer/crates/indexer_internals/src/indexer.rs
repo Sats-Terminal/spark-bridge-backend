@@ -1,22 +1,21 @@
 use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use async_trait::async_trait;
-use bitcoincore_rpc::{bitcoin, json, Client, RawTx, RpcApi};
+use bitcoincore_rpc::{Client, RawTx, RpcApi, bitcoin, json};
 use config_parser::config::{BtcIndexerParams, BtcRpcCredentials};
 use persistent_storage::init::PersistentRepoShared;
 use titan_client::{Event, EventType, TitanApi, TitanClient};
 use titan_types::{AddressTxOut, Transaction};
 use tokio::sync::{
+    RwLock,
     mpsc::{Receiver, Sender},
     oneshot,
-    RwLock,
 };
 use tokio_util::sync::CancellationToken;
 use tracing::{error, instrument, log::debug, trace};
 
 use crate::api::{AccountReplenishmentEvent, BtcIndexerApi};
-type SubscriptionStorage = Arc<RwLock<HashMap<EventType, EventTypeChannels>>>;
-#[derive()]
+
 pub struct BtcIndexer<C> {
     btc_indexer_params: BtcIndexerParams,
     //todo: maybe move into traits?
@@ -32,14 +31,14 @@ pub struct EventTypeChannels {
 }
 
 pub struct IndexerParamsWithApi<C> {
-    indexer_params: IndexerParams,
-    titan_api_client: C,
+    pub indexer_params: IndexerParams,
+    pub titan_api_client: C,
 }
 
 pub struct IndexerParams {
-    btc_rpc_creds: BtcRpcCredentials,
-    db_pool: PersistentRepoShared,
-    btc_indexer_params: BtcIndexerParams,
+    pub btc_rpc_creds: BtcRpcCredentials,
+    pub db_pool: PersistentRepoShared,
+    pub btc_indexer_params: BtcIndexerParams,
 }
 
 impl BtcIndexer<TitanClient> {
@@ -49,6 +48,17 @@ impl BtcIndexer<TitanClient> {
             indexer_params: params,
             titan_api_client,
         })
+    }
+}
+
+impl<C: Clone> Clone for BtcIndexer<C> {
+    fn clone(&self) -> Self {
+        BtcIndexer {
+            btc_indexer_params: self.btc_indexer_params.clone(),
+            indexer_client: self.indexer_client.clone(),
+            btc_core: self.btc_core.clone(),
+            cancellation_token: self.cancellation_token.clone(),
+        }
     }
 }
 
@@ -218,16 +228,16 @@ mod testing {
 
     use async_trait::async_trait;
     use bitcoin::OutPoint;
-    use bitcoincore_rpc::{bitcoin::Txid, RawTx};
+    use bitcoincore_rpc::{RawTx, bitcoin::Txid};
     use config_parser::config::{BtcRpcCredentials, ConfigVariant, PostgresDbCredentials, ServerConfig};
-    use global_utils::logger::{init_logger, LoggerGuard};
+    use global_utils::logger::{LoggerGuard, init_logger};
     use mockall::mock;
     use persistent_storage::init::PostgresRepo;
     use reqwest::header::HeaderMap;
     use titan_client::{Error, TitanApi};
     use titan_types::{
-        query, AddressData, AddressTxOut, Block, BlockTip, InscriptionId, MempoolEntry, Pagination,
-        PaginationResponse, RuneResponse, Status, Subscription, Transaction, TransactionStatus, TxOut,
+        AddressData, AddressTxOut, Block, BlockTip, InscriptionId, MempoolEntry, Pagination, PaginationResponse,
+        RuneResponse, Status, Subscription, Transaction, TransactionStatus, TxOut, query,
     };
 
     static TEST_LOGGER: LazyLock<LoggerGuard> = LazyLock::new(|| init_logger());
@@ -258,7 +268,7 @@ mod testing {
     }
 
     mod mock_tests {
-        use bitcoin::{hashes::Hash, BlockHash};
+        use bitcoin::{BlockHash, hashes::Hash};
         use titan_types::{AddressTxOut, SpentStatus};
         use tracing::{debug, info};
 

@@ -1,0 +1,21 @@
+[package]
+name = "persistent_storage"
+edition = "2024"
+version.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+readme.workspace = true
+
+[dependencies]
+async-trait = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+config_parser = { workspace = true }
+
+[dev-dependencies]
+anyhow = { workspace = true }
+dotenv = { workspace = true }
+global_utils = { workspace = true }
+tokio = { workspace = true }
