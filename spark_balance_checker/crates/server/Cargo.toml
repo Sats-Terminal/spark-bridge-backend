@@ -2,9 +2,15 @@
 name = "spark-balance-checker-server"
 edition = { workspace = true }
 
+[features]
+default = []
+swagger = []
+
 [dependencies]
 spark-balance-checker-common = { workspace = true }
 spark-client = { workspace = true }
 axum = { workspace = true }
 serde = { workspace = true }
 tokio = { workspace = true }
+utoipa = { workspace = true }
+utoipa-swagger-ui = { workspace = true, features = ["axum"] }

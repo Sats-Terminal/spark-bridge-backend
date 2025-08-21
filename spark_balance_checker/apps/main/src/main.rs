@@ -12,6 +12,11 @@ async fn main() {
     let config = Config::new(None);
     let app = create_app(&config).await;
     let listener = TcpListener::bind(config.server.address.clone()).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+
     log::info!("Listening on {}", config.server.address);
+    #[cfg(feature = "swagger")]
+    {
+        log::info!("Swagger UI available at {}/swagger-ui/", config.server.address);
+    }
+    axum::serve(listener, app).await.unwrap();
 }

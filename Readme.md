@@ -12,4 +12,4 @@ The service is responsible for querying spark nodes in order to get the balance 
 #### How to use
 
 1. Fill the ***spark_balance_checker/config.rs***
-2. Run the following command: `cargo run --bin spark-balance-checker-main`
+2. Run the following command: `cargo run --bin spark-balance-checker-main`. Add `--features swagger` to the command if you want to access swagger ui.

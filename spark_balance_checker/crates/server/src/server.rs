@@ -1,12 +1,14 @@
 use axum::{
     Router,
     extract::{Json, State},
-    routing::get,
+    routing::post,
 };
 use serde::{Deserialize, Serialize};
 use spark_balance_checker_common::config::Config;
 use spark_balance_checker_common::error::ServerError;
 use spark_client::client::SparkRpcClient;
+use utoipa::{OpenApi, ToSchema};
+use utoipa_swagger_ui::SwaggerUi;
 
 #[derive(Clone)]
 struct AppState {
@@ -21,17 +23,32 @@ impl AppState {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
+#[schema(example = json!({ 
+    "spark_address": "sprt1pgss8fxt9jxuv4dgjwrg539s6u06ueausq076xvfej7wdah0htvjlxunt9fa4n", 
+    "rune_id": "btknrt1p2sy7a8cx5pqfm3u4p2qfqa475fgwj3eg5d03hhk47t66605zf6qg52vj2" 
+}))]
 struct GetBalanceRequest {
     spark_address: String,
     rune_id: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
+#[schema(example = json!({ "balance": 1000 }))]
 struct GetBalanceResponse {
     balance: u128,
 }
 
+#[utoipa::path(
+    post,
+    path = "/balance",
+    request_body = GetBalanceRequest,
+    responses(
+        (status = 200, description = "Success", body = GetBalanceResponse),
+        (status = 400, description = "Bad Request", body = String),
+        (status = 500, description = "Internal Server Error", body = String),
+    ),
+)]
 async fn get_balance(
     State(mut state): State<AppState>,
     Json(payload): Json<GetBalanceRequest>,
@@ -67,8 +84,16 @@ async fn get_balance(
     }
 }
 
+#[derive(OpenApi)]
+#[openapi(paths(get_balance))]
+struct ApiDoc;
+
 pub async fn create_app(config: &Config) -> Router {
     let state = AppState::new(config);
-    let app = Router::new().route("/balance", get(get_balance)).with_state(state);
+    let app = Router::new().route("/balance", post(get_balance)).with_state(state);
+
+    #[cfg(feature = "swagger")]
+    let app = app.merge(SwaggerUi::new("/swagger-ui/").url("/api-docs/openapi.json", ApiDoc::openapi()));
+
     app
 }

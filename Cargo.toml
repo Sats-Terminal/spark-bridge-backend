@@ -49,3 +49,6 @@ spark-balance-checker-server = { path = "./spark_balance_checker/crates/server" 
 
 # spark-balance-checker apps/* dependencies
 spark-balance-checker-main = { path = "./spark_balance_checker/apps/main" }
+
+utoipa = { version = "5.4.0" }
+utoipa-swagger-ui = { version = "9.0.2" }
