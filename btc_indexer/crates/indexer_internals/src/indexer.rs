@@ -16,6 +16,10 @@ use tracing::{error, instrument, log::debug, trace};
 
 use crate::api::{AccountReplenishmentEvent, BtcIndexerApi};
 
+const BTC_INDEXER_LOG_PATH: &str = "btc_indexer";
+const TX_TRACKING_LOG_PATH: &str = "btc_indexer:tx_tracking";
+const ACCOUNT_TRACKING_LOG_PATH: &str = "btc_indexer:account_tracking";
+
 pub struct BtcIndexer<C> {
     btc_indexer_params: BtcIndexerParams,
     //todo: maybe move into traits?
@@ -42,6 +46,7 @@ pub struct IndexerParams {
 }
 
 impl BtcIndexer<TitanClient> {
+    #[instrument(skip(params))]
     pub fn with_api(params: IndexerParams) -> crate::error::Result<Self> {
         let titan_api_client = TitanClient::new(&params.btc_rpc_creds.url.to_string());
         Self::new(IndexerParamsWithApi {
@@ -63,6 +68,7 @@ impl<C: Clone> Clone for BtcIndexer<C> {
 }
 
 impl<C: TitanApi> BtcIndexer<C> {
+    #[instrument(skip(params))]
     pub fn new(params: IndexerParamsWithApi<C>) -> crate::error::Result<Self> {
         let cancellation_token = CancellationToken::new();
         let btc_rpc_client = Arc::new(Client::new(
@@ -217,11 +223,14 @@ impl<C: TitanApi> BtcIndexerApi for BtcIndexer<C> {
 }
 
 impl<C> Drop for BtcIndexer<C> {
+    #[instrument(skip(self))]
     fn drop(&mut self) {
+        debug!("[{BTC_INDEXER_LOG_PATH}] Closing indexer");
         self.cancellation_token.cancel()
     }
 }
 
+//todo: move this module into specified folder
 #[cfg(test)]
 mod testing {
     use std::{collections::HashMap, str::FromStr, sync::LazyLock};

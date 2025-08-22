@@ -1,5 +1,6 @@
 use std::{
     net::{IpAddr, SocketAddr, TcpListener},
+    str::FromStr,
     sync::LazyLock,
 };
 
@@ -9,9 +10,11 @@ use config_parser::config::{BtcRpcCredentials, ConfigVariant, PostgresDbCredenti
 use global_utils::logger::{LoggerGuard, init_logger};
 use persistent_storage::init::PostgresRepo;
 use tracing::{info, instrument};
+use url::Url;
 
 pub static TEST_LOGGER: LazyLock<LoggerGuard> = LazyLock::new(|| init_logger());
 
+/// Init test server with real docker
 #[instrument(level = "debug", ret)]
 pub async fn init_test_server() -> anyhow::Result<TestServer> {
     let _logger_guard = &*TEST_LOGGER;
@@ -33,9 +36,15 @@ pub async fn init_test_server() -> anyhow::Result<TestServer> {
     Ok(test_server)
 }
 
-pub fn obtain_random_addr() -> anyhow::Result<SocketAddr> {
+pub fn obtain_random_localhost_socket_addr() -> anyhow::Result<SocketAddr> {
     let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");
     let socket_addr = listener.local_addr()?;
     info!(server_addr = ?socket_addr, "Random address:");
     Ok(socket_addr)
+}
+
+pub fn obtain_random_localhost_url() -> anyhow::Result<Url> {
+    Ok(Url::from_str(
+        &format!("http://{}", obtain_random_localhost_socket_addr()?).to_string(),
+    )?)
 }

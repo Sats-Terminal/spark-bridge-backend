@@ -27,9 +27,15 @@ bitcoin = { workspace = true }
 serde_json = { workspace = true }
 titan-client = { workspace = true }
 tokio-util = { workspace = true }
+reqwest = { workspace = true }
+url = { workspace = true}
 
 [dev-dependencies]
 anyhow = { workspace = true }
 dotenv = { workspace = true }
 global_utils = { workspace = true }
 axum-test = { workspace = true }
+titan-types = {workspace = true}
+mockall = {workspace = true}
+async-trait = {workspace = true}
+bitcoincore-rpc = {workspace = true}

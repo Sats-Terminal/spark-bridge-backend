@@ -1,12 +1,12 @@
 use std::{net::SocketAddr, str::FromStr};
 
 use btc_indexer_server::{
-    common::SocketAddrWrapped,
+    common::{SocketAddrWrapped, UrlWrapped},
     routes::{track_tx::TrackTxRequest, track_wallet::TrackWalletRequest},
 };
 use tracing::info;
 
-use crate::utils::init::{TEST_LOGGER, init_test_server, obtain_random_addr};
+use crate::utils::init::{TEST_LOGGER, init_test_server, obtain_random_localhost_url};
 
 mod utils;
 
@@ -19,7 +19,7 @@ async fn test_invocation_wallet_tracking() -> anyhow::Result<()> {
         .post("/track_wallet")
         .json(&TrackWalletRequest {
             wallet: "bc1qvvwhefadjpsnynen8e4n2g3tc3d3hvtraemaxw".to_string(),
-            callback_url: SocketAddrWrapped(obtain_random_addr()?),
+            callback_url: UrlWrapped(obtain_random_localhost_url()?),
         })
         .await;
     info!("response: {:?}", response);

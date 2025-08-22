@@ -10,7 +10,7 @@ use config_parser::config::ServerConfig;
 use persistent_storage::init::PersistentRepoShared;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use tracing::info;
+use tracing::{info, instrument};
 use utoipa::{
     OpenApi, ToSchema, openapi,
     openapi::{Object, SchemaFormat},
@@ -19,7 +19,7 @@ use utoipa_swagger_ui::SwaggerUi;
 
 use crate::{
     AppState,
-    common::{Empty, SocketAddrWrapped},
+    common::{Empty, SocketAddrWrapped, UrlWrapped},
     error::ServerError,
 };
 
@@ -30,7 +30,7 @@ use crate::{
 }))]
 pub struct TrackWalletRequest {
     pub wallet: String,
-    pub callback_url: SocketAddrWrapped,
+    pub callback_url: UrlWrapped,
 }
 
 #[utoipa::path(
@@ -43,7 +43,8 @@ pub struct TrackWalletRequest {
         (status = 500, description = "Internal Server Error", body = String),
     ),
 )]
-pub(crate) async fn handler<C>(
+#[instrument(skip(_state))]
+pub async fn handler<C>(
     State(_state): State<AppState<C>>,
     Json(payload): Json<TrackWalletRequest>,
 ) -> Result<Json<Empty>, ServerError> {

@@ -44,5 +44,6 @@ reqwest = { version = "0.12.23" }
 axum = { version = "0.8.4", features = ["macros"] }
 btc_indexer_server = { path = "./btc_indexer/crates/server", features = ["swagger"] }
 btc_indexer_internals = { path = "./btc_indexer/crates/indexer_internals" }
-uuid= { version = "1.18.0", features = ["serde"]}
+uuid = { version = "1.18.0", features = ["serde"] }
 axum-test = { version = "18.0.0" }
+url = { version = "2.5.6" , features = ["serde"]}
