@@ -1,6 +1,5 @@
 use std::{net::IpAddr, str::FromStr};
 
-use axum;
 use btc_indexer_internals::indexer::{BtcIndexer, IndexerParams};
 use config_parser::config::{BtcRpcCredentials, ConfigVariant, PostgresDbCredentials, ServerConfig};
 use global_utils::logger::init_logger;
@@ -29,13 +28,12 @@ async fn main() -> anyhow::Result<()> {
         IpAddr::from_str(&app_config.app_config.http_server_ip)?,
         app_config.app_config.http_server_port,
     );
-    let listener = TcpListener::bind(addr_to_listen.clone()).await?;
+    let listener = TcpListener::bind(addr_to_listen).await?;
 
     tracing::info!("Listening on {:?}", addr_to_listen);
     #[cfg(feature = "swagger")]
-    {
-        tracing::info!("Swagger UI available at {}/swagger-ui/", config.server.address);
-    }
+    tracing::info!("Swagger UI available at {:?}/swagger-ui/", addr_to_listen);
+
     axum::serve(listener, app).await.unwrap();
     Ok(())
 }

@@ -6,9 +6,10 @@ use std::{
 
 use async_trait::async_trait;
 use axum::{Router, routing::post};
+use axum_test::TestServer;
 use bitcoin::{BlockHash, OutPoint, hashes::Hash};
 use bitcoincore_rpc::{RawTx, bitcoin::Txid};
-use btc_indexer_internals::indexer::BtcIndexer;
+use btc_indexer_internals::indexer::{BtcIndexer, IndexerParams, IndexerParamsWithApi};
 use btc_indexer_server::AppState;
 use config_parser::config::{BtcRpcCredentials, ConfigVariant, PostgresDbCredentials, ServerConfig};
 use global_utils::logger::{LoggerGuard, init_logger};
@@ -22,6 +23,8 @@ use titan_types::{
 };
 use tracing::{debug, info, instrument};
 use utoipa_swagger_ui::SwaggerUi;
+
+use crate::utils::init::TEST_LOGGER;
 
 mock! {
     pub TitanIndexer {}
@@ -75,6 +78,33 @@ mock! {
     }
 }
 
+#[instrument(level = "debug", skip(generate_mocked_titan_indexer), ret)]
+pub async fn init_mocked_test_server(
+    generate_mocked_titan_indexer: impl Fn() -> MockTitanIndexer,
+) -> anyhow::Result<TestServer> {
+    let _logger_guard = &*TEST_LOGGER;
+    let (btc_creds, postgres_creds, config_variant) = (
+        BtcRpcCredentials::new()?,
+        PostgresDbCredentials::new()?,
+        ConfigVariant::Local,
+    );
+    let app_config = ServerConfig::init_config(config_variant)?;
+    let db_pool = PostgresRepo::from_config(postgres_creds).await?.into_shared();
+    let mocked_titan_indexer = generate_mocked_titan_indexer();
+    let btc_indexer = BtcIndexer::new(IndexerParamsWithApi {
+        indexer_params: IndexerParams {
+            btc_rpc_creds: btc_creds,
+            db_pool: db_pool.clone(),
+            btc_indexer_params: app_config.btc_indexer_config,
+        },
+        titan_api_client: mocked_titan_indexer,
+    })?;
+    let app = create_app_mocked(db_pool, btc_indexer).await;
+    let test_server = TestServer::builder().http_transport().build(app.into_make_service())?;
+    tracing::info!("Serving local axum test server on {:?}", test_server.server_address());
+    Ok(test_server)
+}
+
 pub fn generate_mock_titan_indexer_tx_tracking() -> MockTitanIndexer {
     let generate_transaction = |tx_id: &Txid, index: u64| Transaction {
         txid: tx_id.clone(),
@@ -101,6 +131,74 @@ pub fn generate_mock_titan_indexer_tx_tracking() -> MockTitanIndexer {
                 let utxos = generate_transaction(tx_id, i);
                 i += 1;
                 Ok(generate_transaction(tx_id, i))
+            });
+            cloned_mocked_indexer
+                .expect_clone()
+                .returning(|| MockTitanIndexer::new());
+            cloned_mocked_indexer
+        });
+    };
+
+    debug!("Initializing mocked indexer");
+    let mut mocked_indexer = MockTitanIndexer::new();
+    generate_mocking_invocations(&mut mocked_indexer);
+    mocked_indexer
+}
+
+pub fn generate_mock_titan_indexer_wallet_tracking() -> MockTitanIndexer {
+    const TX_VALUE: u64 = 100;
+
+    let generate_transaction = |tx_id: &Txid, index: u64| Transaction {
+        txid: tx_id.clone(),
+        version: 0,
+        lock_time: 0,
+        input: vec![],
+        output: vec![],
+        status: TransactionStatus::confirmed(index, BlockHash::all_zeros()),
+        size: 0,
+        weight: 0,
+    };
+
+    let generate_utxos = |addr: &str, amount_of_utxos: u64| {
+        let generate_utxo = || AddressTxOut {
+            txid: Txid::from_str("f74516e3b24af90fc2da8251d2c1e3763252b15c7aec3c1a42dde7116138caee").unwrap(),
+            vout: 0,
+            value: 100,
+            runes: vec![],
+            risky_runes: vec![],
+            spent: SpentStatus::Unspent,
+            status: TransactionStatus::confirmed(100, BlockHash::all_zeros()),
+        };
+        let mut utxos = vec![];
+        for j in 0..amount_of_utxos {
+            let mut utxo = generate_utxo();
+            utxo.status = TransactionStatus::confirmed(j as u64, BlockHash::all_zeros());
+            utxos.push(utxo);
+        }
+        utxos
+    };
+    let generate_mocking_invocations = |indexer: &mut MockTitanIndexer| {
+        let mut i = 3;
+        indexer.expect_get_address().returning(move |addr| {
+            let utxos = generate_utxos(addr, i);
+            i += 1;
+            Ok(AddressData {
+                value: i * TX_VALUE,
+                runes: vec![],
+                outputs: utxos,
+            })
+        });
+        indexer.expect_clone().returning(move || {
+            let mut cloned_mocked_indexer = MockTitanIndexer::new();
+            let mut i = 0;
+            cloned_mocked_indexer.expect_get_address().returning(move |addr| {
+                let utxos = generate_utxos(addr, i);
+                i += 1;
+                Ok(AddressData {
+                    value: i * TX_VALUE,
+                    runes: vec![],
+                    outputs: utxos,
+                })
             });
             cloned_mocked_indexer
                 .expect_clone()

@@ -10,7 +10,7 @@ services:
     ports:
       - "8080:8080"
     entrypoint: spark-helper
-#    entrypoint: tail -f /dev/null
+    #    entrypoint: tail -f /dev/null
     volumes:
       - ./configuration/production.toml:/configuration/production.toml
 
@@ -18,7 +18,7 @@ services:
     image: postgres:17.5-alpine3.22
     restart: always
     ports:
-      -   "5432:5432"
+      - "5432:5432"
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}

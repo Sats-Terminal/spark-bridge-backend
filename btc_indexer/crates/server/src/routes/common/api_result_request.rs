@@ -88,7 +88,7 @@ impl<'a, T: Deserialize<'a> + Serialize + Clone> From<crate::error::Result<T>> f
 }
 
 /// Uses result from indexer and builds Json encoded string as response
-fn result_into_json<T: Serialize>(res: crate::error::Result<T>) -> String {
+fn _result_into_json<T: Serialize>(res: crate::error::Result<T>) -> String {
     match res {
         Ok(v) => ApiResponse::ok(&v).encode_string_json(),
         Err(e) => {

@@ -34,12 +34,12 @@ pub const BITCOIN_RPC_PASSWORD: &str = "BITCOIN_RPC_PASSWORD";
 /// let config = ServerConfig::init_config(ConfigVariant::Local);
 /// assert!(config.is_ok())
 /// ```
-/// Example of using production configuration:
-/// ```rust
-/// use config_parser::config::{ConfigVariant, DEFAULT_APP_PRODUCTION_CONFIG_NAME, ServerConfig};
-/// let config = ServerConfig::init_config(ConfigVariant::Production);
-/// assert!(config.is_ok())
-/// ```
+// Example of using production configuration:
+// ```
+// use config_parser::config::{ConfigVariant, DEFAULT_APP_PRODUCTION_CONFIG_NAME, ServerConfig};
+// let config = ServerConfig::init_config(ConfigVariant::Production);
+// assert!(config.is_ok())
+// ```
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ServerConfig {
     #[serde(rename(deserialize = "application"))]

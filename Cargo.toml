@@ -13,37 +13,36 @@ authors = ["DistributedLabs"]
 readme = "Readme.md"
 
 [workspace.dependencies]
-actix-web = { version = "4.11.0" }
-async-trait = { version = "0.1.88" }
 anyhow = { version = "1.0.98" }
+async-trait = { version = "0.1.88" }
+axum = { version = "0.8.4", features = ["macros"] }
+axum-test = { version = "18.0.0" }
+bitcoin = { version = "0.32.7" }
+bitcoincore-rpc = { version = "0.19.0" }
+btc_indexer = { path = "./btc_indexer/crates/btc_indexer" }
+btc_indexer_internals = { path = "./btc_indexer/crates/indexer_internals" }
+btc_indexer_server = { path = "./btc_indexer/crates/server", features = ["swagger"] }
 config = { version = "0.15.13" }
 config_parser = { path = "./btc_indexer/crates/config_parser" }
 dotenv = { version = "0.15.0" }
 global_utils = { path = "./crates/global_utils" }
+mockall = { version = "0.13.1" }
+ordinals = { version = "0.0.15" }
+persistent_storage = { path = "./btc_indexer/crates/persistent_storage" }
+reqwest = { version = "0.12.23" }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = { version = "1.0.143" }
-strum = { version = "0.27", features = ["derive"] }
 sqlx = { version = "0.8.6", features = ["json", "runtime-tokio", "postgres"] }
+strum = { version = "0.27", features = ["derive"] }
 thiserror = { version = "2.0.12" }
+titan-client = { version = "0.1.43" }
+titan-types = { version = "0.1.28" }
 tokio = { version = "1.45.0", features = ["full"] }
+tokio-util = { version = "0.7.16" }
 tracing = { version = "0.1.41", features = [] }
 tracing-appender = { version = "0.2.3" }
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+url = { version = "2.5.6", features = ["serde"] }
 utoipa = { version = "5.4.0" }
 utoipa-swagger-ui = { version = "9.0.2" }
-btc_indexer = { path = "./btc_indexer/crates/btc_indexer" }
-persistent_storage = { path = "./btc_indexer/crates/persistent_storage" }
-tokio-util = { version = "0.7.16" }
-titan-client = { version = "0.1.43" }
-titan-types = { version = "0.1.28" }
-bitcoincore-rpc = { version = "0.19.0" }
-bitcoin = { version = "0.32.7" }
-ordinals = { version = "0.0.15" }
-mockall = { version = "0.13.1" }
-reqwest = { version = "0.12.23" }
-axum = { version = "0.8.4", features = ["macros"] }
-btc_indexer_server = { path = "./btc_indexer/crates/server", features = ["swagger"] }
-btc_indexer_internals = { path = "./btc_indexer/crates/indexer_internals" }
 uuid = { version = "1.18.0", features = ["serde"] }
-axum-test = { version = "18.0.0" }
-url = { version = "2.5.6" , features = ["serde"]}

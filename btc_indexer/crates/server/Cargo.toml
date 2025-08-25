@@ -12,30 +12,30 @@ swagger = []
 
 [dependencies]
 axum = { workspace = true }
-serde = { workspace = true }
-tokio = { workspace = true }
-utoipa = { workspace = true }
-utoipa-swagger-ui = { workspace = true, features = ["axum"] }
+bitcoin = { workspace = true }
+btc_indexer_internals = { workspace = true }
+config_parser = { workspace = true }
 persistent_storage = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+titan-client = { workspace = true }
+tokio = { workspace = true }
+tokio-util = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
-config_parser = { workspace = true }
-btc_indexer_internals = { workspace = true }
-thiserror = { workspace = true }
+url = { workspace = true }
+utoipa = { workspace = true }
+utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 uuid = { workspace = true }
-bitcoin = { workspace = true }
-serde_json = { workspace = true }
-titan-client = { workspace = true }
-tokio-util = { workspace = true }
-reqwest = { workspace = true }
-url = { workspace = true}
 
 [dev-dependencies]
 anyhow = { workspace = true }
+async-trait = { workspace = true }
+axum-test = { workspace = true }
+bitcoincore-rpc = { workspace = true }
 dotenv = { workspace = true }
 global_utils = { workspace = true }
-axum-test = { workspace = true }
-titan-types = {workspace = true}
-mockall = {workspace = true}
-async-trait = {workspace = true}
-bitcoincore-rpc = {workspace = true}
+mockall = { workspace = true }
+titan-types = { workspace = true }

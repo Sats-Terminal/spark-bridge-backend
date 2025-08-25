@@ -8,14 +8,14 @@ readme.workspace = true
 
 [dependencies]
 async-trait = { workspace = true }
-tracing = { workspace = true }
-thiserror = { workspace = true }
+config_parser = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true }
-config_parser = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
 dotenv = { workspace = true }
-global_utils = { workspace = true }
 tokio = { workspace = true }
+global_utils = { workspace = true }

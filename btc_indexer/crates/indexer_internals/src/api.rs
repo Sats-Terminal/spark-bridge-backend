@@ -1,9 +1,10 @@
 use async_trait::async_trait;
 use bitcoincore_rpc::{RawTx, bitcoin, json};
+use serde::{Deserialize, Serialize};
 use titan_client::AddressData;
 use titan_types::Transaction;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AccountReplenishmentEvent {
     pub address: String,
     pub account_data: AddressData,

@@ -1,28 +1,13 @@
 use std::{
-    net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4},
+    net::{Ipv4Addr, SocketAddr, SocketAddrV4},
     str::FromStr,
 };
 
-use axum::{
-    Router,
-    extract::{Json, State},
-    routing::post,
-};
 use bitcoin::Txid;
-use btc_indexer_internals::indexer::BtcIndexer;
-use config_parser::config::ServerConfig;
-use persistent_storage::init::PersistentRepoShared;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use tracing::info;
 use url::Url;
-use utoipa::{
-    OpenApi, PartialSchema, ToSchema, openapi,
-    openapi::{Object, SchemaFormat},
-};
-use utoipa_swagger_ui::SwaggerUi;
-
-use crate::{AppState, error::ServerError};
+use utoipa::{PartialSchema, ToSchema, openapi};
 
 #[derive(Serialize, ToSchema)]
 #[schema(example = json!({ }))]
@@ -36,9 +21,10 @@ impl PartialSchema for SocketAddrWrapped {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         utoipa::openapi::ObjectBuilder::new()
             .schema_type(utoipa::openapi::schema::SchemaType::Type(openapi::schema::Type::String))
-            .example(Some(json!(&SocketAddr::V4(
-                (SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 8080))
-            ))))
+            .examples(Some(json!(&SocketAddr::V4(SocketAddrV4::new(
+                Ipv4Addr::new(127, 0, 0, 1),
+                8080
+            )))))
             .into()
     }
 }
@@ -57,7 +43,7 @@ impl PartialSchema for TxIdWrapped {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         utoipa::openapi::ObjectBuilder::new()
             .schema_type(utoipa::openapi::schema::SchemaType::Type(openapi::schema::Type::String))
-            .example(Some(json!(&TxIdWrapped(
+            .examples(Some(json!(&TxIdWrapped(
                 Txid::from_str("fb0c9ab881331ec7acdd85d79e3197dcaf3f95055af1703aeee87e0d853e81ec",).unwrap()
             ))))
             .into()
@@ -78,7 +64,7 @@ impl PartialSchema for UrlWrapped {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         utoipa::openapi::ObjectBuilder::new()
             .schema_type(utoipa::openapi::schema::SchemaType::Type(openapi::schema::Type::String))
-            .example(Some(json!(&Url::from_str("localhost:8080").unwrap())))
+            .examples(Some(json!(&Url::from_str("localhost:8080").unwrap())))
             .into()
     }
 }

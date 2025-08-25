@@ -3,9 +3,11 @@
 Uses Titan verifier for verifying transactions in Bitcoin network.
 
 ### Docker draft deployment
+
 [Docker setup][1]
 
 ### How to run?
+
 ```bash
   cargo run --features swagger
 ```

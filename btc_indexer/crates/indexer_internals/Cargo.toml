@@ -8,21 +8,22 @@ readme.workspace = true
 
 [dependencies]
 async-trait = { workspace = true }
-tokio = { workspace = true }
-tokio-util = { workspace = true }
-thiserror = { workspace = true }
-titan-client = { workspace = true }
-titan-types = { workspace = true }
 bitcoincore-rpc = { workspace = true }
 config_parser = { workspace = true }
 ordinals = { workspace = true }
-tracing = { workspace = true }
 persistent_storage = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+titan-client = { workspace = true }
+titan-types = { workspace = true }
+tokio = { workspace = true }
+tokio-util = { workspace = true }
+tracing = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
-dotenv = { workspace = true }
-mockall = { workspace = true }
 bitcoin = { workspace = true }
-reqwest = { workspace = true }
+dotenv = { workspace = true }
 global_utils = { workspace = true }
+mockall = { workspace = true }
+reqwest = { workspace = true }

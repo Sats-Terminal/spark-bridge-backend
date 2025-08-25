@@ -6,14 +6,18 @@ rust-version.workspace = true
 authors.workspace = true
 readme.workspace = true
 
+[features]
+default = []
+swagger = ["btc_indexer_server/swagger"]
+
 [dependencies]
 anyhow = { workspace = true }
+axum = { workspace = true }
+btc_indexer_internals = { workspace = true }
+btc_indexer_server = { workspace = true }
+config_parser = { workspace = true }
+dotenv = { workspace = true }
 global_utils = { workspace = true }
+persistent_storage = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
-axum = { workspace = true }
-dotenv = { workspace = true }
-config_parser = { workspace = true }
-persistent_storage = { workspace = true }
-btc_indexer_server = { workspace = true }
-btc_indexer_internals = { workspace = true }

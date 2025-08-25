@@ -4,9 +4,8 @@ mod init_tests {
 
     use config_parser::config::PostgresDbCredentials;
     use global_utils::logger::{LoggerGuard, init_logger};
-    use persistent_storage::init::{PostgresPool, PostgresRepo};
+    use persistent_storage::init::PostgresRepo;
     use sqlx::Connection;
-    use tracing::info;
 
     static TEST_LOGGER: LazyLock<LoggerGuard> = LazyLock::new(|| init_logger());
 

@@ -1,31 +1,20 @@
-use std::{str::FromStr, sync::Arc};
+use std::sync::Arc;
 
-use axum::{
-    Router, debug_handler,
-    extract::{Json, State},
-    response::IntoResponse,
-    routing::post,
-};
-use bitcoin::Txid;
-use btc_indexer_internals::{api::BtcIndexerApi, error::BtcIndexerError, indexer::BtcIndexer};
-use config_parser::config::ServerConfig;
-use persistent_storage::init::{PersistentRepoShared, PersistentRepoTrait};
-use reqwest::{Body, Client, Request, Response};
+use axum::extract::{Json, State};
+use btc_indexer_internals::{api::BtcIndexerApi, indexer::BtcIndexer};
+use persistent_storage::init::PersistentRepoShared;
 use serde::{Deserialize, Serialize};
-use titan_client::{TitanApi, TitanClient, Transaction};
-use tokio::sync::oneshot::{Receiver, error::RecvError};
+use titan_client::{TitanApi, Transaction};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, instrument, trace};
-use url::Url;
-use utoipa::{OpenApi, ToSchema};
-use utoipa_swagger_ui::SwaggerUi;
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::{
     AppState,
-    common::{Empty, SocketAddrWrapped, TxIdWrapped, UrlWrapped},
+    common::{Empty, TxIdWrapped, UrlWrapped},
     error::ServerError,
-    routes::common::api_result_request::{ApiResponse, ApiResponseOwned},
+    routes::common::api_result_request::ApiResponseOwned,
 };
 
 const PATH_TO_LOG: &str = "btc_indexer_server:track_tx";
@@ -52,7 +41,7 @@ pub struct TrackTxRequest {
 )]
 #[instrument(skip(state))]
 pub async fn handler(
-    State(mut state): State<AppState<impl titan_client::TitanApi>>,
+    State(state): State<AppState<impl titan_client::TitanApi>>,
     Json(payload): Json<TrackTxRequest>,
 ) -> Result<Json<Empty>, ServerError> {
     info!("Received track tx: {:?}", payload);
@@ -105,9 +94,9 @@ pub(crate) fn spawn_tx_tracking_task(
     (uuid, cancellation_token)
 }
 
-#[instrument(level = "trace", skip(db, indexer, payload), fields(tx_id=payload.tx_id.0.to_string()) ret)]
+#[instrument(level = "trace", skip(_db, indexer, payload), fields(tx_id=payload.tx_id.0.to_string()) ret)]
 async fn _retrieve_tx_info_result(
-    db: PersistentRepoShared,
+    _db: PersistentRepoShared,
     indexer: Arc<BtcIndexer<impl TitanApi>>,
     payload: &TrackTxRequest,
     cancellation_token: CancellationToken,
@@ -121,8 +110,8 @@ async fn _retrieve_tx_info_result(
             info!("[{PATH_TO_LOG}] Position manager signal listener cancelled");
             Err(ServerError::TaskCancelled(PATH_TO_LOG.to_string()))
         }
-        maybe_confirmed_tx = oneshot_receiver => {
-            Ok(maybe_confirmed_tx?)
+        confirmed_tx = oneshot_receiver => {
+            Ok(confirmed_tx?)
         }
     }
 }
