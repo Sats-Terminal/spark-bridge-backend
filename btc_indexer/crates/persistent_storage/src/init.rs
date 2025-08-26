@@ -49,7 +49,6 @@ impl PostgresRepoTesting {
 }
 
 #[async_trait]
-#[async_trait]
 impl PersistentRepoTrait for PostgresRepoTesting {
     async fn get_conn(&self) -> crate::error::Result<PersistentDbConn> {
         Ok(self.pool.acquire().await?)

@@ -19,19 +19,19 @@ docker/build:
 
 ## Open db from docker
 docker/up:
-	docker-compose -f ./infrastructure/docker-compose.yml up -d --build
+	docker-compose --env-file ./.env -f ./infrastructure/docker-compose.yml up -d --build
 
 ## Close db from docker
 docker/down:
-	docker-compose -f ./infrastructure/docker-compose.yml down spark-helper-service
+	docker-compose --env-file ./.env -f ./infrastructure/docker-compose.yml down spark-helper-service
 
 ## Open db from docker
 docker/db/up:
-	docker compose -f ./infrastructure/docker-compose.yml up persistent-db-storage -d
+	docker compose --env-file ./.env -f ./infrastructure/docker-compose.yml up persistent-db-storage -d
 
 ## Close db from docker
 docker/db/down:
-	docker compose -f ./infrastructure/docker-compose.yml down -v persistent-db-storage
+	docker compose --env-file ./.env -f ./infrastructure/docker-compose.yml down  -v persistent-db-storage
 
 ## Format code
 fmt:

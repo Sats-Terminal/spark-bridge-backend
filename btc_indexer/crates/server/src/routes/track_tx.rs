@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use axum::extract::{Json, State};
 use btc_indexer_internals::{api::BtcIndexerApi, indexer::BtcIndexer};
+use global_utils::common_types::{TxIdWrapped, UrlWrapped};
 use persistent_storage::init::PersistentRepoShared;
 use serde::{Deserialize, Serialize};
 use titan_client::{TitanApi, Transaction};
@@ -10,12 +11,7 @@ use tracing::{debug, error, info, instrument, trace};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::{
-    AppState,
-    common::{Empty, TxIdWrapped, UrlWrapped},
-    error::ServerError,
-    routes::common::api_result_request::ApiResponseOwned,
-};
+use crate::{AppState, common::Empty, error::ServerError, routes::common::api_result_request::ApiResponseOwned};
 
 const PATH_TO_LOG: &str = "btc_indexer_server:track_tx";
 

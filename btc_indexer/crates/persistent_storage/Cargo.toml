@@ -13,6 +13,11 @@ serde_json = { workspace = true }
 sqlx = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
+uuid = { workspace = true }
+serde = { workspace = true }
+global_utils = { workspace = true }
+url = { workspace = true }
+bitcoin = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }

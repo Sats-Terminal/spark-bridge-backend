@@ -5,6 +5,7 @@ use btc_indexer_internals::{
     api::{AccountReplenishmentEvent, BtcIndexerApi},
     indexer::BtcIndexer,
 };
+use global_utils::common_types::UrlWrapped;
 use persistent_storage::init::PersistentRepoShared;
 use serde::{Deserialize, Serialize};
 use titan_client::TitanApi;
@@ -13,12 +14,7 @@ use tracing::{debug, error, info, instrument, trace};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::{
-    AppState,
-    common::{Empty, UrlWrapped},
-    error::ServerError,
-    routes::common::api_result_request::ApiResponseOwned,
-};
+use crate::{AppState, common::Empty, error::ServerError, routes::common::api_result_request::ApiResponseOwned};
 
 const PATH_TO_LOG: &str = "btc_indexer_server:track_wallet";
 

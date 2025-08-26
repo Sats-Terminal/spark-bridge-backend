@@ -1,4 +1,5 @@
-#[cfg(test)]
+mod utils;
+
 mod init_tests {
     use std::sync::LazyLock;
 
@@ -7,12 +8,12 @@ mod init_tests {
     use persistent_storage::init::PostgresRepo;
     use sqlx::Connection;
 
-    static TEST_LOGGER: LazyLock<LoggerGuard> = LazyLock::new(|| init_logger());
+    use crate::utils::TEST_LOGGER;
 
     #[tokio::test]
     pub async fn test_invocation() -> anyhow::Result<()> {
-        let _ = *TEST_LOGGER;
         let _ = dotenv::dotenv();
+        let _ = *TEST_LOGGER;
         let db_entity = PostgresRepo::from_config(PostgresDbCredentials::new()?).await?;
         let mut conn = db_entity.pool.acquire().await?;
         assert_eq!(conn.ping().await?, ());
