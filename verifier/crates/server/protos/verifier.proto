@@ -1,0 +1,16 @@
+// Proto for verifier server
+
+syntax = "proto3";
+
+service VerifierService {
+    // Health check endpoint
+    rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+message HealthCheckRequest {
+    string message = 1;
+}
+
+message HealthCheckResponse {
+    string message = 1;
+}

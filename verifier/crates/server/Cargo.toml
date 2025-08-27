@@ -1,0 +1,5 @@
+[package]
+name = "verifier-server"
+edition = "2024"
+
+[dependencies]
