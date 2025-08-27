@@ -1,0 +1,6 @@
+[package]
+name = "verifier-main"
+edition = "2024"
+
+[dependencies]
+verifier-protos = { path = "../../crates/server-protos" }

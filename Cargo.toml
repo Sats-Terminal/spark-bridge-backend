@@ -2,7 +2,8 @@
 resolver = "3"
 members = [
     "crates/*",
-    "verifier/crates/*"
+    "verifier/crates/*",
+    "verifier/apps/*"
 ]
 
 [workspace.package]
@@ -16,5 +17,12 @@ tracing = { version = "0.1.41", features = [] }
 tracing-appender = { version = "0.2.3" }
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 
+tonic = { version = "0.12.3" }
+tonic-build = { version = "0.12.3", features = ["prost"] }
+prost = "0.13.5"
+
 # Verifier crates
-verifier-server = { path = "verifier/crates/server" }
+verifier-protos = { path = "verifier/crates/server-protos" }
+
+# Verifier apps
+verifier-main = { path = "verifier/apps/main" }

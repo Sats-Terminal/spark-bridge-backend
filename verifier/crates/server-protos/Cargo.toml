@@ -1,0 +1,10 @@
+[package]
+name = "verifier-protos"
+edition = "2024"
+
+[dependencies]
+tonic = { workspace = true }
+prost = { workspace = true }
+
+[build-dependencies]
+tonic-build = { workspace = true }
