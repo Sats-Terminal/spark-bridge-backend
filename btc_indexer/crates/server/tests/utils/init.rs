@@ -6,9 +6,9 @@ use std::{
 
 use axum_test::TestServer;
 use btc_indexer_internals::indexer::{BtcIndexer, IndexerParams};
-use config_parser::config::{BtcRpcCredentials, ConfigVariant, PostgresDbCredentials, ServerConfig};
+use config_parser::config::{BtcRpcCredentials, ConfigVariant, ServerConfig};
 use global_utils::logger::{LoggerGuard, init_logger};
-use persistent_storage::init::PostgresRepo;
+use persistent_storage::{config::PostgresDbCredentials, init::PostgresRepo};
 use tracing::{info, instrument};
 use url::Url;
 

@@ -1,11 +1,13 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use config_parser::config::{PostgresDbCredentials, PostgresDbTestingCredentials};
 use sqlx::{PgPool, Pool, Postgres, pool::PoolConnection};
 use tracing::{instrument, trace};
 
-use crate::error::{DbError, DbInitError};
+use crate::{
+    config::{PostgresDbCredentials, PostgresDbTestingCredentials},
+    error::{DbError, DbInitError},
+};
 
 pub type PostgresPool = Pool<Postgres>;
 pub type PersistentDbConn = PoolConnection<Postgres>;
@@ -40,7 +42,7 @@ impl PostgresRepoTesting {
     }
 
     pub fn into_shared(self) -> PersistentRepoShared {
-        std::sync::Arc::new(Box::new(self))
+        Arc::new(Box::new(self))
     }
 
     pub async fn ping(conn: &mut PersistentDbConn) -> Result<(), DbError> {
@@ -68,7 +70,7 @@ impl PostgresRepo {
     }
 
     pub fn into_shared(self) -> PersistentRepoShared {
-        std::sync::Arc::new(Box::new(self))
+        Arc::new(Box::new(self))
     }
 
     pub async fn ping(conn: &mut PersistentDbConn) -> Result<(), DbError> {

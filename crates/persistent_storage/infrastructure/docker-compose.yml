@@ -1,0 +1,18 @@
+name: runes-spark-bridge
+services:
+
+  persistent-db-storage:
+    image: postgres:17.5-alpine3.22
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - PGDATA=/pgdata
+    volumes:
+      - service-data:/pgdata
+
+volumes:
+  service-data:

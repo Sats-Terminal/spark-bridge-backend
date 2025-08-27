@@ -3,9 +3,8 @@ mod utils;
 mod init_tests {
     use std::sync::LazyLock;
 
-    use config_parser::config::PostgresDbCredentials;
     use global_utils::logger::{LoggerGuard, init_logger};
-    use persistent_storage::init::PostgresRepo;
+    use persistent_storage::{config::PostgresDbCredentials, init::PostgresRepo};
     use sqlx::Connection;
 
     use crate::utils::TEST_LOGGER;

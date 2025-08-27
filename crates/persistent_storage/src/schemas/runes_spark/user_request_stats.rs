@@ -173,7 +173,7 @@ impl<'a> Update {
 }
 
 impl UserRequestStats {
-    #[instrument(skip(conn), level = "debug")]
+    #[instrument(skip(conn), level = "trace")]
     pub async fn insert(self, conn: &mut PersistentDbConn) -> crate::error::Result<()> {
         let mut transaction = conn.begin().await?;
         sqlx::query(&format!(
@@ -190,7 +190,7 @@ impl UserRequestStats {
         Ok(())
     }
 
-    #[instrument(skip(conn), level = "debug")]
+    #[instrument(skip(conn), level = "trace")]
     pub async fn update(conn: &mut PersistentDbConn, uuid: &Uuid, update: &Update) -> crate::error::Result<u64> {
         let sets = update.get_params_sets();
         if sets.is_empty() {
@@ -211,7 +211,7 @@ impl UserRequestStats {
         Ok(result.rows_affected())
     }
 
-    #[instrument(skip(conn), level = "debug")]
+    #[instrument(skip(conn), level = "trace")]
     pub async fn remove(conn: &mut PersistentDbConn, filter: Option<&Filter>) -> crate::error::Result<u64> {
         match filter {
             None => Self::remove_all(conn).await,
@@ -219,7 +219,7 @@ impl UserRequestStats {
         }
     }
 
-    #[instrument(skip(conn), level = "debug")]
+    #[instrument(skip(conn), level = "trace")]
     pub async fn remove_all(conn: &mut PersistentDbConn) -> crate::error::Result<u64> {
         let mut transaction = conn.begin().await?;
         let result = sqlx::query(&format!("DELETE FROM {DB_NAME}"))
@@ -229,7 +229,7 @@ impl UserRequestStats {
         Ok(result.rows_affected())
     }
 
-    #[instrument(skip(conn), level = "debug")]
+    #[instrument(skip(conn), level = "trace")]
     pub async fn remove_with_filter(conn: &mut PersistentDbConn, filter: &Filter) -> crate::error::Result<u64> {
         let conditions = filter.get_params_sets();
         if conditions.is_empty() {
@@ -245,7 +245,7 @@ impl UserRequestStats {
         Ok(result.rows_affected())
     }
 
-    #[instrument(skip(conn), level = "debug")]
+    #[instrument(skip(conn), level = "trace")]
     pub async fn filter(
         conn: &mut PersistentDbConn,
         filter: Option<&Filter>,
@@ -256,7 +256,7 @@ impl UserRequestStats {
         }
     }
 
-    #[instrument(skip(conn), level = "debug")]
+    #[instrument(skip(conn), level = "trace")]
     pub async fn get_all(conn: &mut PersistentDbConn) -> crate::error::Result<Vec<UserRequestStats>> {
         let mut transaction = conn.begin().await?;
         let results = sqlx::query_as::<_, UserRequestStats>(&format!(
@@ -268,7 +268,7 @@ impl UserRequestStats {
         Ok(results)
     }
 
-    #[instrument(skip(conn), level = "debug")]
+    #[instrument(skip(conn), level = "trace")]
     pub async fn get_with_filter(
         conn: &mut PersistentDbConn,
         filter: &Filter,
@@ -291,7 +291,7 @@ impl UserRequestStats {
         Ok(results)
     }
 
-    #[instrument(skip(conn), level = "debug")]
+    #[instrument(skip(conn), level = "trace")]
     pub async fn count(conn: &mut PersistentDbConn, filter: Option<&Filter>) -> crate::error::Result<u64> {
         match filter {
             None => Self::count_all(conn).await,
@@ -299,7 +299,7 @@ impl UserRequestStats {
         }
     }
 
-    #[instrument(skip(conn), level = "debug")]
+    #[instrument(skip(conn), level = "trace")]
     pub async fn count_all(conn: &mut PersistentDbConn) -> crate::error::Result<u64> {
         let mut transaction = conn.begin().await?;
         let sql = format!("SELECT COUNT(*) FROM {DB_NAME}");
@@ -309,7 +309,7 @@ impl UserRequestStats {
         Ok(count as u64)
     }
 
-    #[instrument(skip(conn), level = "debug")]
+    #[instrument(skip(conn), level = "trace")]
     pub async fn count_with_filter(conn: &mut PersistentDbConn, filter: &Filter) -> crate::error::Result<u64> {
         let conditions = filter.get_params_sets();
         if conditions.is_empty() {

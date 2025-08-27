@@ -11,9 +11,9 @@ use btc_indexer_internals::{
     api::BtcIndexerApi,
     indexer::{BtcIndexer, IndexerParams, IndexerParamsWithApi},
 };
-use config_parser::config::{BtcRpcCredentials, ConfigVariant, PostgresDbCredentials, ServerConfig};
+use config_parser::config::{BtcRpcCredentials, ConfigVariant, ServerConfig};
 use global_utils::logger::{LoggerGuard, init_logger};
-use persistent_storage::init::PostgresRepo;
+use persistent_storage::{config::PostgresDbCredentials, init::PostgresRepo};
 use titan_client::{Error, TitanApi};
 use titan_types::{
     AddressData, AddressTxOut, Block, BlockTip, InscriptionId, MempoolEntry, Pagination, PaginationResponse,

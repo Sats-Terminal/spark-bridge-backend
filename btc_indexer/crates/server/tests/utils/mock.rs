@@ -11,10 +11,13 @@ use bitcoin::{BlockHash, OutPoint, hashes::Hash};
 use bitcoincore_rpc::{RawTx, bitcoin::Txid};
 use btc_indexer_internals::indexer::{BtcIndexer, IndexerParams, IndexerParamsWithApi};
 use btc_indexer_server::AppState;
-use config_parser::config::{BtcRpcCredentials, ConfigVariant, PostgresDbCredentials, ServerConfig};
+use config_parser::config::{BtcRpcCredentials, ConfigVariant, ServerConfig};
 use global_utils::logger::{LoggerGuard, init_logger};
 use mockall::mock;
-use persistent_storage::init::{PersistentRepoShared, PostgresRepo};
+use persistent_storage::{
+    config::PostgresDbCredentials,
+    init::{PersistentRepoShared, PostgresRepo},
+};
 use reqwest::header::HeaderMap;
 use titan_client::{Error, TitanApi, TitanClient};
 use titan_types::{

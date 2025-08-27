@@ -1,9 +1,9 @@
 use std::{net::IpAddr, str::FromStr};
 
 use btc_indexer_internals::indexer::{BtcIndexer, IndexerParams};
-use config_parser::config::{BtcRpcCredentials, ConfigVariant, PostgresDbCredentials, ServerConfig};
+use config_parser::config::{BtcRpcCredentials, ConfigVariant, ServerConfig};
 use global_utils::logger::init_logger;
-use persistent_storage::init::PostgresRepo;
+use persistent_storage::{config::PostgresDbCredentials, init::PostgresRepo};
 use tokio::net::TcpListener;
 
 #[tokio::main]

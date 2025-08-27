@@ -7,7 +7,7 @@ mod mocked_tx_tracking {
     use bitcoin::Txid;
     use btc_indexer_internals::indexer::{BtcIndexer, IndexerParams, IndexerParamsWithApi};
     use btc_indexer_server::routes::track_tx::TrackTxRequest;
-    use config_parser::config::{ConfigVariant, PostgresDbCredentials, ServerConfig};
+    use config_parser::config::{ConfigVariant, ServerConfig};
     use global_utils::common_types::{TxIdWrapped, UrlWrapped};
     use tracing::{info, instrument};
 
