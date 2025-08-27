@@ -11,6 +11,7 @@ use sqlx::{
     encode::IsNull,
     error::BoxDynError,
     postgres::{PgTypeInfo, PgValueRef},
+    types::Uuid,
 };
 use url::Url;
 use utoipa::{PartialSchema, openapi};
@@ -37,7 +38,7 @@ impl utoipa::ToSchema for SocketAddrWrapped {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 #[serde(transparent)]
 pub struct TxIdWrapped(pub Txid);
 
@@ -58,7 +59,7 @@ impl utoipa::ToSchema for TxIdWrapped {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 #[serde(transparent)]
 pub struct UrlWrapped(pub Url);
 
@@ -94,4 +95,8 @@ impl utoipa::ToSchema for UrlWrapped {
     fn name() -> std::borrow::Cow<'static, str> {
         std::borrow::Cow::Borrowed("Url")
     }
+}
+
+pub fn get_uuid() -> Uuid {
+    Uuid::new_v4()
 }

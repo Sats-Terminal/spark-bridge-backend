@@ -8,7 +8,10 @@ use sqlx::{
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::schemas::common::{ValuesMaxCapacity, ValuesToModifyInit};
+use crate::{
+    init::PersistentDbConn,
+    schemas::common::{ValuesMaxCapacity, ValuesToModifyInit},
+};
 
 const DB_NAME: &str = "runes_spark.user_request_stats";
 
@@ -67,7 +70,7 @@ impl<'a> Filter {
         conditions
     }
 
-    fn bind_params(&'a self, mut query: Query<'a, Postgres, PgArguments>) -> Query<Postgres, PgArguments> {
+    fn bind_params(&'a self, mut query: Query<'a, Postgres, PgArguments>) -> Query<'a, Postgres, PgArguments> {
         if let Some(uuid) = self.uuid {
             query = query.bind(uuid);
         }
@@ -113,7 +116,7 @@ impl<'a> Update {
         sets
     }
 
-    fn bind_params(&'a self, mut query: Query<'a, Postgres, PgArguments>) -> Query<Postgres, PgArguments> {
+    fn bind_params(&'a self, mut query: Query<'a, Postgres, PgArguments>) -> Query<'a, Postgres, PgArguments> {
         if let Some(status) = self.status {
             query = query.bind(status);
         }
@@ -129,7 +132,7 @@ impl<'a> Update {
 
 impl UserRequestStats {
     #[instrument(skip(conn), level = "debug")]
-    pub async fn insert(self, mut conn: sqlx::PgConnection) -> crate::error::Result<()> {
+    pub async fn insert(self, conn: &mut PersistentDbConn) -> crate::error::Result<()> {
         let mut transaction = conn.begin().await?;
         sqlx::query(&format!(
             "INSERT INTO {DB_NAME} (uuid, status, error, created_at, updated_at) VALUES ($1, $2, $3, $4, $5)"
@@ -146,7 +149,7 @@ impl UserRequestStats {
     }
 
     #[instrument(skip(conn), level = "debug")]
-    pub async fn update(mut conn: sqlx::PgConnection, uuid: &Uuid, update: &Update) -> crate::error::Result<u64> {
+    pub async fn update(conn: &mut PersistentDbConn, uuid: &Uuid, update: &Update) -> crate::error::Result<u64> {
         let sets = update.get_params_sets();
         if sets.is_empty() {
             return Ok(0);
@@ -167,7 +170,7 @@ impl UserRequestStats {
     }
 
     #[instrument(skip(conn), level = "debug")]
-    pub async fn remove(conn: &mut sqlx::PgConnection, filter: Option<&Filter>) -> crate::error::Result<u64> {
+    pub async fn remove(conn: &mut PersistentDbConn, filter: Option<&Filter>) -> crate::error::Result<u64> {
         match filter {
             None => Self::remove_all(conn).await,
             Some(f) => Self::remove_with_filter(conn, f).await,
@@ -175,7 +178,7 @@ impl UserRequestStats {
     }
 
     #[instrument(skip(conn), level = "debug")]
-    async fn remove_all(conn: &mut sqlx::PgConnection) -> crate::error::Result<u64> {
+    async fn remove_all(conn: &mut PersistentDbConn) -> crate::error::Result<u64> {
         let mut transaction = conn.begin().await?;
         let result = sqlx::query(&format!("DELETE FROM {DB_NAME}"))
             .execute(&mut *transaction)
@@ -185,7 +188,7 @@ impl UserRequestStats {
     }
 
     #[instrument(skip(conn), level = "debug")]
-    async fn remove_with_filter(conn: &mut sqlx::PgConnection, filter: &Filter) -> crate::error::Result<u64> {
+    async fn remove_with_filter(conn: &mut PersistentDbConn, filter: &Filter) -> crate::error::Result<u64> {
         let conditions = filter.get_params_sets();
         if conditions.is_empty() {
             return Self::remove_all(conn).await;
@@ -202,7 +205,7 @@ impl UserRequestStats {
 
     #[instrument(skip(conn), level = "debug")]
     pub async fn filter(
-        mut conn: sqlx::PgConnection,
+        conn: &mut PersistentDbConn,
         filter: Option<&Filter>,
     ) -> crate::error::Result<Vec<UserRequestStats>> {
         match filter {
@@ -212,7 +215,7 @@ impl UserRequestStats {
     }
 
     #[instrument(skip(conn), level = "debug")]
-    async fn get_all(mut conn: sqlx::PgConnection) -> crate::error::Result<Vec<UserRequestStats>> {
+    async fn get_all(conn: &mut PersistentDbConn) -> crate::error::Result<Vec<UserRequestStats>> {
         let mut transaction = conn.begin().await?;
         let results = sqlx::query_as::<_, UserRequestStats>(&format!(
             "SELECT uuid, status, error, created_at, updated_at FROM {DB_NAME}"
@@ -225,7 +228,7 @@ impl UserRequestStats {
 
     #[instrument(skip(conn), level = "debug")]
     async fn get_with_filter(
-        mut conn: sqlx::PgConnection,
+        conn: &mut PersistentDbConn,
         filter: &Filter,
     ) -> crate::error::Result<Vec<UserRequestStats>> {
         let conditions = filter.get_params_sets();

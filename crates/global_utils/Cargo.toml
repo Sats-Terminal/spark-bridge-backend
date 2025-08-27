@@ -13,3 +13,4 @@ url = { workspace = true }
 serde_json = { workspace = true }
 bitcoin = { workspace = true }
 sqlx = { workspace = true }
+uuid = { workspace = true}

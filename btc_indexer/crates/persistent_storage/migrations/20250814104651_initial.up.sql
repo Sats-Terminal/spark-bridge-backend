@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS runes_spark.btc_indexer_work_checkpoint
 (
     uuid         UUID UNIQUE              NOT NULL,
     status       STATUS_BTC_INDEXER       NOT NULL,
-    task         JSON                     NOT NULL,
+    task         JSONB                    NOT NULL,
     created_at   TIMESTAMP WITH TIME ZONE NOT NULL,
     callback_url TEXT NOT NULL,
     error        TEXT,
