@@ -163,13 +163,13 @@ impl Update {
     fn get_params_sets(&self) -> Vec<String> {
         const DEFAULT_INIT_PARAM: usize = 1;
         let (mut sets, mut get_condition_closure) = Filter::init_values_to_modify(DEFAULT_INIT_PARAM);
-        if let Some(status) = &self.status {
+        if self.status.is_some() {
             sets.push(get_condition_closure("status"));
         }
-        if let Some(error) = &self.error {
+        if self.error.is_some() {
             sets.push(get_condition_closure("error"));
         }
-        if let Some(updated_at) = &self.updated_at {
+        if self.updated_at.is_some() {
             sets.push(get_condition_closure("updated_at"));
         }
         sets
@@ -321,6 +321,7 @@ impl BtcIndexerWorkCheckpoint {
         }
     }
 
+    #[instrument(skip(conn), level = "debug")]
     pub async fn count_all(conn: &mut PersistentDbConn) -> crate::error::Result<u64> {
         let mut transaction = conn.begin().await?;
         let sql = format!("SELECT COUNT(*) FROM {DB_NAME}");
@@ -330,6 +331,7 @@ impl BtcIndexerWorkCheckpoint {
         Ok(count as u64)
     }
 
+    #[instrument(skip(conn), level = "debug")]
     pub async fn count_with_filter(conn: &mut PersistentDbConn, filter: &Filter) -> crate::error::Result<u64> {
         let conditions = filter.get_params_sets();
         if conditions.is_empty() {
