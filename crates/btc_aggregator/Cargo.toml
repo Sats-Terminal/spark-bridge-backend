@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-btc-signer = { path = "../btc_signer" }
 tokio = { workspace = true }
 async-trait = { workspace = true }
 secp256k1 = { workspace = true }
@@ -17,6 +16,9 @@ bincode = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true }
 config = { workspace = true }
+
+btc-signer-types = { path = "../btc_signer_types" }
+btc-signer = { path = "../btc_signer" }
 
 [lib]
 name = "btc_aggregator"

@@ -7,9 +7,9 @@ use tracing::{info, warn, error};
 use uuid::Uuid;
 
 use btc_signer::{
-    Signer, ParticipantId, KeyShare, PublicKeyPackage, NonceShare,
-    PartialSignature, SigningPackage, DkgRound1Package, DkgRound2Package, FrostSignature
+    Signer
 };
+use btc_signer_types::types::{DkgRound1Package, DkgRound2Package, FrostSignature, KeyShare, NonceShare, PartialSignature, ParticipantId, PublicKeyPackage, SigningPackage};
 use crate::{
     session::{SigningSession, SessionState},
     config::AggregatorConfig,
@@ -275,7 +275,7 @@ impl FrostAggregator {
             if let Some(signer) = signers.get(participant_id) {
                 let nonce_share = NonceShare::commitment_only(
                     participant_id.clone(),
-                    btc_signer::NonceCommitment {
+                    btc_signer_types::types::NonceCommitment {
                         hiding_commitment: secp256k1::PublicKey::from_slice(&[
                             0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,

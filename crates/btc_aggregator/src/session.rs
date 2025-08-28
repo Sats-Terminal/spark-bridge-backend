@@ -1,10 +1,7 @@
 use std::collections::HashMap;
 use std::time::{SystemTime, Duration};
 use serde::{Deserialize, Serialize};
-use btc_signer::{
-    ParticipantId, KeyShare, PublicKeyPackage, NonceShare, PartialSignature,
-    SigningCommitments, DkgRound1Package, DkgRound2Package, FrostSignature
-};
+use btc_signer_types::types::{DkgRound1Package, DkgRound2Package, FrostSignature, KeyShare, NonceShare, PartialSignature, ParticipantId, PublicKeyPackage, SigningCommitments};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum SessionState {

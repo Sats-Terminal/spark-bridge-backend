@@ -1,0 +1,13 @@
+[package]
+name = "btc-signer-types"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = { workspace = true }
+thiserror = { workspace = true }
+secp256k1 = { workspace = true }
+
+[lib]
+name = "btc_signer_types"
+path = "src/lib.rs"

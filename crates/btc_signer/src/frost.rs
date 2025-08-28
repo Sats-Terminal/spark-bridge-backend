@@ -11,11 +11,12 @@ use k256::EncodedPoint as K256EncodedPoint;
 use serde::Serialize;
 use sha2::Digest;
 
+use btc_signer_types::types::{DkgRound1Package, DkgRound2Package, KeyShare, NonceCommitment, NonceShare, PartialSignature, ParticipantId, PublicKeyPackage, SigningPackage};
+
 use crate::{
     api::Signer,
     config::SignerConfig,
     errors::{Result, SignerError},
-    types::*,
 };
 
 type FrostError = frost::Error;

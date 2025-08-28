@@ -1,10 +1,13 @@
+use secp256k1::ecdsa::Signature;
+
 #[cfg(test)]
 mod tests {
     use btc_aggregator::{AggregatorConfig, AggregatorError, FrostAggregator};
-    use btc_signer::{FrostSigner, PartialSignature, ParticipantId, PublicKeyPackage, Signer, SignerConfig};
+    use btc_signer::{FrostSigner, Signer, SignerConfig};
     use std::collections::HashMap;
     use std::sync::Arc;
     use std::time::Duration;
+    use btc_signer_types::types::{PartialSignature, ParticipantId, PublicKeyPackage};
 
     async fn create_test_aggregator() -> FrostAggregator {
         let config = AggregatorConfig {
@@ -451,3 +454,4 @@ mod tests {
         }
     }
 }
+
