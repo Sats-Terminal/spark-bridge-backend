@@ -23,6 +23,13 @@ tonic = { version = "0.12.3" }
 tonic-build = { version = "0.12.3", features = ["prost"] }
 prost = "0.13.5"
 
+axum = { version = "0.8.4" }
+serde = { version = "1.0.219", features = ["derive"] }
+toml = { version = "0.9.5" }
+tokio = { version = "1.47.1", features = ["full"] }
+eyre = { version = "0.6.12" }
+log = { version = "0.4.27" }
+
 # Verifier crates
 verifier-protos = { path = "verifier/crates/server-protos" }
 
@@ -31,6 +38,10 @@ verifier-main = { path = "verifier/apps/main" }
 
 # Gateway crates
 gateway-server = { path = "gateway/crates/server" }
+gateway-common = { path = "gateway/crates/common" }
 
 # Gateway apps
 gateway-main = { path = "gateway/apps/main" }
+
+# Global crates
+global-utils = { path = "crates/global_utils" }

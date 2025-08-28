@@ -3,3 +3,8 @@ name = "gateway-server"
 edition = "2024"
 
 [dependencies]
+axum = { workspace = true }
+serde = { workspace = true }
+gateway-common = { workspace = true }
+tokio = { workspace = true }
+eyre = { workspace = true }
