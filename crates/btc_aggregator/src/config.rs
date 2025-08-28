@@ -4,6 +4,11 @@ use std::time::Duration;
 use crate::errors::AggregatorError;
 use crate::errors::Result;
 
+const ENV_AGGREGATOR_THRESHOLD: &str = "AGGREGATOR_THRESHOLD";
+const ENV_AGGREGATOR_TOTAL_PARTICIPANTS: &str = "AGGREGATOR_TOTAL_PARTICIPANTS";
+const ENV_AGGREGATOR_TIMEOUT: &str = "AGGREGATOR_TIMEOUT";
+const ENV_AGGREGATOR_MAX_SESSIONS: &str = "AGGREGATOR_MAX_SESSIONS";
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AggregatorConfig {
     pub threshold: u32,
@@ -58,32 +63,32 @@ impl AggregatorConfig {
     }
 
     pub fn from_env() -> Result<Self> {
-        let threshold = std::env::var("AGGREGATOR_THRESHOLD")
+        let threshold = std::env::var(ENV_AGGREGATOR_THRESHOLD)
             .unwrap_or_else(|_| "2".to_string())
             .parse()
             .map_err(|_| AggregatorError::ConfigError {
-                reason: "Invalid AGGREGATOR_THRESHOLD value".to_string(),
+                reason: format!("Invalid {ENV_AGGREGATOR_THRESHOLD} value"),
             })?;
 
-        let total_participants = std::env::var("AGGREGATOR_TOTAL_PARTICIPANTS")
+        let total_participants = std::env::var(ENV_AGGREGATOR_TOTAL_PARTICIPANTS)
             .unwrap_or_else(|_| "3".to_string())
             .parse()
             .map_err(|_| AggregatorError::ConfigError {
-                reason: "Invalid AGGREGATOR_TOTAL_PARTICIPANTS value".to_string(),
+                reason: format!("Invalid {ENV_AGGREGATOR_TOTAL_PARTICIPANTS} value"),
             })?;
 
-        let timeout_secs = std::env::var("AGGREGATOR_TIMEOUT")
+        let timeout_secs = std::env::var(ENV_AGGREGATOR_TIMEOUT)
             .unwrap_or_else(|_| "3600".to_string())
             .parse()
             .map_err(|_| AggregatorError::ConfigError {
-                reason: "Invalid AGGREGATOR_TIMEOUT value".to_string(),
+                reason: format!("Invalid {ENV_AGGREGATOR_TIMEOUT} value"),
             })?;
 
-        let max_sessions = std::env::var("AGGREGATOR_MAX_SESSIONS")
+        let max_sessions = std::env::var(ENV_AGGREGATOR_MAX_SESSIONS)
             .unwrap_or_else(|_| "100".to_string())
             .parse()
             .map_err(|_| AggregatorError::ConfigError {
-                reason: "Invalid AGGREGATOR_MAX_SESSIONS value".to_string(),
+                reason: format!("Invalid {ENV_AGGREGATOR_MAX_SESSIONS} value"),
             })?;
 
         Ok(Self {
