@@ -52,3 +52,35 @@ pub async fn handler_exit_spark(Json(request): Json<ExitSparkRequest>) -> Result
         message: "success".to_string(),
     }))
 }
+
+#[derive(Deserialize)]
+pub struct NotifyRunesAddressRequest {
+    pub user_id: String,
+}
+
+#[derive(Serialize)]
+pub struct NotifyRunesAddressResponse {
+    pub message: String,
+}
+
+pub async fn handler_notify_runes_address(Json(request): Json<NotifyRunesAddressRequest>) -> Result<Json<NotifyRunesAddressResponse>, GatewayError> {
+    Ok(Json(NotifyRunesAddressResponse {
+        message: "success".to_string(),
+    }))
+}
+
+#[derive(Deserialize)]
+pub struct NotifySparkAddressRequest {
+    pub user_id: String,
+}
+
+#[derive(Serialize)]
+pub struct NotifySparkAddressResponse {
+    pub message: String,
+}
+
+pub async fn handler_notify_spark_address(Json(request): Json<NotifySparkAddressRequest>) -> Result<Json<NotifySparkAddressResponse>, GatewayError> {
+    Ok(Json(NotifySparkAddressResponse {
+        message: "success".to_string(),
+    }))
+}
