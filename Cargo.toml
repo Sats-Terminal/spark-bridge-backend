@@ -3,7 +3,9 @@ resolver = "3"
 members = [
     "crates/*",
     "verifier/crates/*",
-    "verifier/apps/*"
+    "verifier/apps/*",
+    "gateway/crates/*",
+    "gateway/apps/*"
 ]
 
 [workspace.package]
@@ -26,3 +28,9 @@ verifier-protos = { path = "verifier/crates/server-protos" }
 
 # Verifier apps
 verifier-main = { path = "verifier/apps/main" }
+
+# Gateway crates
+gateway-server = { path = "gateway/crates/server" }
+
+# Gateway apps
+gateway-main = { path = "gateway/apps/main" }
