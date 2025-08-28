@@ -1,24 +1,36 @@
 [workspace]
 resolver = "3"
 members = [
+    # global
     "crates/*",
+
+    # verifier
     "verifier/crates/*",
     "verifier/apps/*",
+    # gateway
     "gateway/crates/*",
-    "gateway/apps/*"
+    "gateway/apps/*",
+
+    # spark-balance-checker
+    "spark_balance_checker/crates/*",
+    "spark_balance_checker/apps/*",
+
 ]
 
 [workspace.package]
 version = "0.1.0"
+edition = "2024"
 rust-version = "1.89.0"
 authors = ["DistributedLabs"]
 readme = "Readme.md"
 
 [workspace.dependencies]
+# global dependencies
 tracing = { version = "0.1.41", features = [] }
 tracing-appender = { version = "0.2.3" }
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 
+# Core dependencies
 axum = { version = "0.8.4" }
 serde = { version = "1.0.219", features = ["derive"] }
 toml = { version = "0.9.5" }
@@ -26,6 +38,23 @@ tokio = { version = "1.47.1", features = ["full"] }
 eyre = { version = "0.6.12" }
 log = { version = "0.4.27" }
 thiserror = { version = "2.0.16" }
+
+# Tonic and gRPC dependencies
+tonic = { version = "0.12.3", features = ["tls-native-roots"] }
+env_logger = "0.11.8"
+bech32 = "0.11.0"
+hex = "0.4.3"
+http = "1.3.1"
+prost = "0.13.5"
+prost-wkt-types = "0.6.1"
+prost-wkt = "0.6.1"
+prost-wkt-build = "0.6.1"
+tonic-build = { version = "0.12.3", features = ["prost"] }
+
+# Global crates
+global-utils = { path = "crates/global_utils" }
+spark-protos = { path = "./crates/spark-protos-rpc" }
+spark-client = { path = "./crates/spark_client" }
 
 # Verifier crates
 verifier-common = { path = "verifier/crates/common" }
@@ -41,5 +70,13 @@ gateway-common = { path = "gateway/crates/common" }
 # Gateway apps
 gateway-main = { path = "gateway/apps/main" }
 
-# Global crates
-global-utils = { path = "crates/global_utils" }
+# Spark balance checker crates
+spark-balance-checker-common = { path = "./spark_balance_checker/crates/common" }
+spark-balance-checker-server = { path = "./spark_balance_checker/crates/server" }
+
+# Spark balance checker apps
+spark-balance-checker-main = { path = "./spark_balance_checker/apps/main" }
+
+# API documentation
+utoipa = { version = "5.4.0" }
+utoipa-swagger-ui = { version = "9.0.2" }
