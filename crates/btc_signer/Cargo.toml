@@ -4,17 +4,14 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-tokio = { workspace = true }
 async-trait = { workspace = true }
 secp256k1 = { workspace = true }
 rand = { workspace = true }
 sha2 = { workspace = true }
-curve25519-dalek = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true }
 hex = { workspace = true }
 bincode = { workspace = true }
-tracing = { workspace = true }
 frost-secp256k1 = { workspace = true }
 rand_core = { workspace = true }
 serde_json = { workspace = true }
@@ -22,6 +19,3 @@ k256 = { workspace = true }
 
 btc-signer-types = { path = "../btc_signer_types" }
 
-[lib]
-name = "btc_signer"
-path = "src/lib.rs"

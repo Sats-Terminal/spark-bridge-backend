@@ -6,9 +6,7 @@ use secp256k1::{Secp256k1, Scalar, schnorr};
 use tracing::{info, warn, error};
 use uuid::Uuid;
 
-use btc_signer::{
-    Signer
-};
+use btc_signer::api::Signer;
 use btc_signer_types::types::{DkgRound1Package, DkgRound2Package, FrostSignature, KeyShare, NonceShare, PartialSignature, ParticipantId, PublicKeyPackage, SigningPackage};
 use crate::{
     session::{SigningSession, SessionState},

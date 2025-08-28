@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use crate::{Result, AggregatorError};
+
+use crate::errors::AggregatorError;
+use crate::errors::Result;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AggregatorConfig {

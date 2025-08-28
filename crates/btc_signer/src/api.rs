@@ -1,8 +1,6 @@
 use async_trait::async_trait;
 use btc_signer_types::types::{DkgRound1Package, DkgRound2Package, KeyShare, NonceShare, PartialSignature, ParticipantId, PublicKeyPackage, SigningPackage};
-use crate::{
-    Result
-};
+use crate::errors::Result;
 
 #[async_trait]
 pub trait Signer: Send + Sync {

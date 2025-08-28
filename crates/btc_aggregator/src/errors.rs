@@ -1,9 +1,10 @@
 use thiserror::Error;
+use btc_signer::errors::SignerError;
 
 #[derive(Error, Debug)]
 pub enum AggregatorError {
     #[error("Signer error: {0}")]
-    SignerError(#[from] btc_signer::SignerError),
+    SignerError(#[from] SignerError),
 
     #[error("Cryptographic error: {0}")]
     CryptoError(#[from] secp256k1::Error),

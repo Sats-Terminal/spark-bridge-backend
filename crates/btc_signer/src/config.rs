@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use btc_signer_types::types::ParticipantId;
-use crate::{Result, SignerError};
+
+use crate::errors::Result;
+use crate::errors::SignerError;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignerConfig {
