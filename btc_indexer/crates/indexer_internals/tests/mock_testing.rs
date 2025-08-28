@@ -12,7 +12,10 @@ use btc_indexer_internals::{
     indexer::{BtcIndexer, IndexerParams, IndexerParamsWithApi},
 };
 use config_parser::config::{BtcRpcCredentials, ConfigVariant, ServerConfig};
-use global_utils::logger::{LoggerGuard, init_logger};
+use global_utils::{
+    common_types::get_uuid,
+    logger::{LoggerGuard, init_logger},
+};
 use persistent_storage::{config::PostgresDbCredentials, init::PostgresRepo};
 use titan_client::{Error, TitanApi};
 use titan_types::{
@@ -51,6 +54,8 @@ async fn test_retrieving_of_finalized_account_data() -> anyhow::Result<()> {
     const MAX_I_INDEX: u64 = 5;
     const TX_VALUE: u64 = 100;
     const ADDR: &str = "<some_account>";
+
+    let uuid = get_uuid();
 
     dotenv::dotenv()?;
     let _logger_guard = &*TEST_LOGGER;
@@ -128,7 +133,7 @@ async fn test_retrieving_of_finalized_account_data() -> anyhow::Result<()> {
         titan_api_client: mocked_indexer,
     })?;
     debug!("Tracking account changes..");
-    let oneshot = indexer.track_account_changes(ADDR)?;
+    let oneshot = indexer.track_account_changes(ADDR, uuid).await?;
     debug!("Receiving oneshot event..");
     let result = oneshot.await?;
     debug!("Event: {result:?}");
@@ -145,6 +150,7 @@ async fn test_retrieving_of_finalized_tx() -> anyhow::Result<()> {
     const MAX_I_INDEX: u64 = 5;
 
     let tx_id = Txid::from_str("f74516e3b24af90fc2da8251d2c1e3763252b15c7aec3c1a42dde7116138caee")?;
+    let uuid = get_uuid();
 
     dotenv::dotenv()?;
     let _logger_guard = &*TEST_LOGGER;
@@ -203,7 +209,7 @@ async fn test_retrieving_of_finalized_tx() -> anyhow::Result<()> {
         titan_api_client: mocked_indexer,
     })?;
     debug!("Tracking tx changes..");
-    let oneshot = indexer.track_tx_changes(tx_id)?;
+    let oneshot = indexer.track_tx_changes(tx_id, uuid).await?;
     debug!("Receiving oneshot event..");
     let result = oneshot.await?;
     debug!("Event: {result:?}");

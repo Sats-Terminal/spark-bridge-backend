@@ -1,8 +1,6 @@
 mod utils;
 
 mod mocked_tx_tracking {
-    use std::str::FromStr;
-
     use axum_test::TestServer;
     use btc_indexer_internals::indexer::{BtcIndexer, IndexerParams, IndexerParamsWithApi};
     use btc_indexer_server::routes::track_wallet::TrackWalletRequest;
@@ -11,7 +9,6 @@ mod mocked_tx_tracking {
     use persistent_storage::init::PostgresRepo;
     use tracing::{info, instrument};
 
-    use super::*;
     use crate::utils::{
         init::{TEST_LOGGER, obtain_random_localhost_socket_addr},
         mock::{

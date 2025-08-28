@@ -40,6 +40,6 @@ pub async fn create_app(db_pool: PersistentRepoShared, btc_indexer: BtcIndexer<T
 
     #[cfg(feature = "swagger")]
     let app = app.merge(SwaggerUi::new("/swagger-ui/").url("/api-docs/openapi.json", ApiDoc::openapi()));
-
+    //todo: spawn initial task to renew unfinished ones
     app
 }

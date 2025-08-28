@@ -11,7 +11,6 @@ mod mocked_tx_tracking {
     use global_utils::common_types::{TxIdWrapped, UrlWrapped};
     use tracing::{info, instrument};
 
-    use super::*;
     use crate::utils::{
         init::{TEST_LOGGER, obtain_random_localhost_socket_addr},
         mock::{

@@ -3,6 +3,7 @@ use bitcoincore_rpc::{RawTx, bitcoin, json};
 use serde::{Deserialize, Serialize};
 use titan_client::AddressData;
 use titan_types::Transaction;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AccountReplenishmentEvent {
@@ -13,14 +14,16 @@ pub struct AccountReplenishmentEvent {
 #[async_trait]
 pub trait BtcIndexerApi: Send + Sync {
     /// Tracks changes of transaction, whether it's confirmed
-    fn track_tx_changes(
+    async fn track_tx_changes(
         &self,
         tx_id: bitcoin::Txid,
+        uuid: Uuid,
     ) -> crate::error::Result<tokio::sync::oneshot::Receiver<Transaction>>;
     /// Tracks changes of runes balance on account (from empty -> to filled with checked utxos )
-    fn track_account_changes(
+    async fn track_account_changes(
         &self,
-        tx_id: impl AsRef<str>,
+        account_id: impl AsRef<str> + Send,
+        uuid: Uuid,
     ) -> crate::error::Result<tokio::sync::oneshot::Receiver<AccountReplenishmentEvent>>;
     fn get_tx_info(&self, tx_id: bitcoin::Txid) -> crate::error::Result<bitcoin::transaction::Transaction>;
     fn get_blockchain_info(&self) -> crate::error::Result<json::GetBlockchainInfoResult>;

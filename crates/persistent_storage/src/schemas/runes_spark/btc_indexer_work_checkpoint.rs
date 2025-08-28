@@ -107,7 +107,7 @@ impl Filter {
         conditions
     }
 
-    fn bind_params<'a>(&'a self, mut query: Query<'a, Postgres, PgArguments>) -> Query<Postgres, PgArguments> {
+    fn bind_params<'a>(&'a self, mut query: Query<'a, Postgres, PgArguments>) -> Query<'a, Postgres, PgArguments> {
         if let Some(uuid) = self.uuid {
             query = query.bind(uuid);
         }

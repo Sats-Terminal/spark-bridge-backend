@@ -15,10 +15,12 @@ axum = { workspace = true }
 bitcoin = { workspace = true }
 btc_indexer_internals = { workspace = true }
 config_parser = { workspace = true }
+global_utils = { workspace = true }
 persistent_storage = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+sqlx = { workspace = true }
 thiserror = { workspace = true }
 titan-client = { workspace = true }
 tokio = { workspace = true }
@@ -29,7 +31,6 @@ url = { workspace = true }
 utoipa = { workspace = true }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 uuid = { workspace = true }
-global_utils = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }

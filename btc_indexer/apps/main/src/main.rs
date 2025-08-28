@@ -34,6 +34,7 @@ async fn main() -> anyhow::Result<()> {
     #[cfg(feature = "swagger")]
     tracing::info!("Swagger UI available at {:?}/swagger-ui/", addr_to_listen);
 
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(listener, app).await?;
+
     Ok(())
 }

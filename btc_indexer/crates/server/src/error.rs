@@ -1,4 +1,5 @@
 use btc_indexer_internals::error::BtcIndexerError;
+use persistent_storage::error::DbError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -15,6 +16,8 @@ pub enum ServerError {
     OneshotRecvError(#[from] tokio::sync::oneshot::error::RecvError),
     #[error("Your task was cancelled, msg: {0}")]
     TaskCancelled(String),
+    #[error("Database error, msg: {0}")]
+    DbError(#[from] DbError),
 }
 
 mod response_conversion {
@@ -31,11 +34,12 @@ mod response_conversion {
         pub fn into_status_msg_tuple(self) -> (StatusCode, String) {
             match self {
                 ServerError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
-                ServerError::InternalError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
                 ServerError::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
+                ServerError::InternalError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg.to_string()),
                 ServerError::BtcIndexerError(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
                 ServerError::OneshotRecvError(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
                 ServerError::TaskCancelled(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+                ServerError::DbError(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
             }
         }
     }

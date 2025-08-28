@@ -2,9 +2,17 @@ use std::sync::Arc;
 
 use axum::extract::{Json, State};
 use btc_indexer_internals::{api::BtcIndexerApi, indexer::BtcIndexer};
-use global_utils::common_types::{TxIdWrapped, UrlWrapped};
-use persistent_storage::init::PersistentRepoShared;
+use global_utils::common_types::{TxIdWrapped, UrlWrapped, get_uuid};
+use persistent_storage::{
+    error::DbError,
+    init::PersistentRepoShared,
+    schemas::runes_spark::btc_indexer_work_checkpoint::{BtcIndexerWorkCheckpoint, StatusBtcIndexer, Task, Update},
+};
 use serde::{Deserialize, Serialize};
+use sqlx::{
+    Row,
+    types::{Json as SqlxJson, chrono::Utc},
+};
 use titan_client::{TitanApi, Transaction};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, instrument, trace};
@@ -41,9 +49,25 @@ pub async fn handler(
     Json(payload): Json<TrackTxRequest>,
 ) -> Result<Json<Empty>, ServerError> {
     info!("Received track tx: {:?}", payload);
-    //todo: save state of program before handling requests
+    let uuid = get_uuid();
+    {
+        // Insert value in db to save info about processing some value
+        let mut conn = state.persistent_storage.get_conn().await?;
+        let time_now = Utc::now();
+        BtcIndexerWorkCheckpoint {
+            uuid,
+            status: StatusBtcIndexer::Created,
+            task: SqlxJson::from(Task::TrackTx(payload.tx_id.clone())),
+            created_at: time_now.clone(),
+            callback_url: payload.callback_url.clone(),
+            error: None,
+            updated_at: time_now,
+        }
+        .insert(&mut conn)
+        .await?;
+    }
 
-    let (uuid, cancellation_token) = spawn_tx_tracking_task(state.clone(), payload);
+    let cancellation_token = spawn_tx_tracking_task(state.clone(), payload, uuid).await?;
     {
         let mut write_guard = state.cached_tasks.write().await;
         write_guard.insert(uuid, cancellation_token);
@@ -53,11 +77,11 @@ pub async fn handler(
 
 /// Spawns tracking task for tracking whether we receive event from indexer_internals and send via reqwest msg about completion
 #[instrument(skip(app_state))]
-pub(crate) fn spawn_tx_tracking_task(
+pub(crate) async fn spawn_tx_tracking_task(
     app_state: AppState<impl titan_client::TitanApi>,
     payload: TrackTxRequest,
-) -> (Uuid, CancellationToken) {
-    let uuid = Uuid::new_v4();
+    uuid: Uuid,
+) -> Result<CancellationToken, DbError> {
     let cancellation_token = CancellationToken::new();
     tokio::task::spawn({
         let local_cancellation_token = cancellation_token.child_token();
@@ -66,6 +90,7 @@ pub(crate) fn spawn_tx_tracking_task(
                 app_state.persistent_storage,
                 app_state.btc_indexer,
                 &payload,
+                uuid,
                 local_cancellation_token,
             )
             .await;
@@ -83,24 +108,64 @@ pub(crate) fn spawn_tx_tracking_task(
                 .await
                 .inspect_err(|e| error!("[{PATH_TO_LOG}] Receive error on sending response: {:?}", e))
                 .inspect(|r| debug!("[{PATH_TO_LOG}] (Finishing task execution) Receive response: {r:?}"));
-            //todo: update query in db | mark as resolved
             app_state.cached_tasks.write().await.remove(&uuid);
         }
     });
-    (uuid, cancellation_token)
+    Ok(cancellation_token)
 }
 
-#[instrument(level = "trace", skip(_db, indexer, payload), fields(tx_id=payload.tx_id.0.to_string()) ret)]
+#[instrument(level = "trace", skip(db, indexer, payload), fields(tx_id=payload.tx_id.0.to_string()) ret)]
 async fn _retrieve_tx_info_result(
-    _db: PersistentRepoShared,
+    db: PersistentRepoShared,
     indexer: Arc<BtcIndexer<impl TitanApi>>,
     payload: &TrackTxRequest,
+    uuid: Uuid,
     cancellation_token: CancellationToken,
 ) -> crate::error::Result<Transaction> {
-    let oneshot_receiver = indexer.track_tx_changes(payload.tx_id.0).inspect_err(|e| {
-        //todo: maybe handle error somehow | ?notify about error and retry signing? | ?return error to url?
-        error!("Occurred error on signing on tx updates via channel, err: {e}")
-    })?;
+    let confirmed_tx = _inner_retrieve_tx_info_result(indexer, payload, uuid, cancellation_token).await;
+    {
+        let mut conn = db.get_conn().await?;
+        let time_now = Utc::now();
+        match confirmed_tx.as_ref() {
+            Ok(_) => {
+                BtcIndexerWorkCheckpoint::update(
+                    &mut conn,
+                    &uuid,
+                    &Update {
+                        status: Some(StatusBtcIndexer::FinishedSuccess),
+                        error: None,
+                        updated_at: Some(time_now),
+                    },
+                )
+                .await?;
+            }
+            Err(e) => {
+                BtcIndexerWorkCheckpoint::update(
+                    &mut conn,
+                    &uuid,
+                    &Update {
+                        status: Some(StatusBtcIndexer::FinishedError),
+                        error: Some(e.to_string()),
+                        updated_at: Some(time_now),
+                    },
+                )
+                .await?;
+            }
+        }
+    }
+    confirmed_tx
+}
+
+async fn _inner_retrieve_tx_info_result(
+    indexer: Arc<BtcIndexer<impl TitanApi>>,
+    payload: &TrackTxRequest,
+    uuid: Uuid,
+    cancellation_token: CancellationToken,
+) -> Result<Transaction, ServerError> {
+    let oneshot_receiver = indexer
+        .track_tx_changes(payload.tx_id.0, uuid)
+        .await
+        .inspect_err(|e| error!("[{PATH_TO_LOG}] Occurred error on signing on tx updates via channel, err: {e}"))?;
     tokio::select! {
         _ = cancellation_token.cancelled() => {
             info!("[{PATH_TO_LOG}] Position manager signal listener cancelled");

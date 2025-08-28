@@ -5,9 +5,14 @@ use btc_indexer_internals::{
     api::{AccountReplenishmentEvent, BtcIndexerApi},
     indexer::BtcIndexer,
 };
-use global_utils::common_types::UrlWrapped;
-use persistent_storage::init::PersistentRepoShared;
+use global_utils::common_types::{UrlWrapped, get_uuid};
+use persistent_storage::{
+    error::DbError,
+    init::PersistentRepoShared,
+    schemas::runes_spark::btc_indexer_work_checkpoint::{BtcIndexerWorkCheckpoint, StatusBtcIndexer, Task, Update},
+};
 use serde::{Deserialize, Serialize};
+use sqlx::types::{Json as SqlxJson, chrono::Utc};
 use titan_client::TitanApi;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, instrument, trace};
@@ -44,9 +49,24 @@ pub async fn handler(
     Json(payload): Json<TrackWalletRequest>,
 ) -> Result<Json<Empty>, ServerError> {
     info!("Received TrackWalletRequest: {:?}", payload);
-    //todo: save state of program before handling requests
-
-    let (uuid, cancellation_token) = spawn_wallet_tracking_task(state.clone(), payload);
+    let uuid = get_uuid();
+    {
+        // Insert value in db to save info about processing some value
+        let mut conn = state.persistent_storage.get_conn().await?;
+        let time_now = Utc::now();
+        BtcIndexerWorkCheckpoint {
+            uuid,
+            status: StatusBtcIndexer::Created,
+            task: SqlxJson::from(Task::TrackWallet(payload.wallet_id.clone())),
+            created_at: time_now.clone(),
+            callback_url: payload.callback_url.clone(),
+            error: None,
+            updated_at: time_now,
+        }
+        .insert(&mut conn)
+        .await?;
+    }
+    let cancellation_token = spawn_wallet_tracking_task(state.clone(), payload, uuid).await?;
     {
         let mut write_guard = state.cached_tasks.write().await;
         write_guard.insert(uuid, cancellation_token);
@@ -56,11 +76,11 @@ pub async fn handler(
 
 /// Spawns tracking task for tracking whether we receive event from indexer_internals and send via reqwest msg about completion
 #[instrument(skip(app_state))]
-pub(crate) fn spawn_wallet_tracking_task(
-    app_state: AppState<impl titan_client::TitanApi>,
+pub(crate) async fn spawn_wallet_tracking_task(
+    app_state: AppState<impl TitanApi>,
     payload: TrackWalletRequest,
-) -> (Uuid, CancellationToken) {
-    let uuid = Uuid::new_v4();
+    uuid: Uuid,
+) -> Result<CancellationToken, DbError> {
     let cancellation_token = CancellationToken::new();
     tokio::task::spawn({
         let local_cancellation_token = cancellation_token.child_token();
@@ -69,6 +89,7 @@ pub(crate) fn spawn_wallet_tracking_task(
                 app_state.persistent_storage,
                 app_state.btc_indexer,
                 &payload,
+                uuid,
                 local_cancellation_token,
             )
             .await;
@@ -86,24 +107,64 @@ pub(crate) fn spawn_wallet_tracking_task(
                 .await
                 .inspect_err(|e| error!("[{PATH_TO_LOG}] Receive error on sending response: {:?}", e))
                 .inspect(|r| debug!("[{PATH_TO_LOG}] (Finishing task execution) Receive response: {r:?}"));
-            //todo: update query in db | mark as resolved
             app_state.cached_tasks.write().await.remove(&uuid);
         }
     });
-    (uuid, cancellation_token)
+    Ok(cancellation_token)
 }
 
-#[instrument(level = "trace", skip(_db, indexer, payload), fields(tx_id=payload.wallet_id) ret)]
+#[instrument(level = "trace", skip(db, indexer, payload), fields(tx_id=payload.wallet_id) ret)]
 async fn _retrieve_account_info_result(
-    _db: PersistentRepoShared,
+    db: PersistentRepoShared,
     indexer: Arc<BtcIndexer<impl TitanApi>>,
     payload: &TrackWalletRequest,
+    uuid: Uuid,
     cancellation_token: CancellationToken,
 ) -> crate::error::Result<AccountReplenishmentEvent> {
-    let oneshot_receiver = indexer.track_account_changes(&payload.wallet_id).inspect_err(|e| {
-        //todo: maybe handle error somehow | ?notify about error and retry signing? | ?return error to url?
-        error!("Occurred error on signing on tx updates via channel, err: {e}")
-    })?;
+    let confirmed_wallet_info = _inner_retrieve_account_info_result(indexer, &payload, uuid, cancellation_token).await;
+    {
+        let mut conn = db.get_conn().await?;
+        let time_now = Utc::now();
+        match confirmed_wallet_info.as_ref() {
+            Ok(_) => {
+                BtcIndexerWorkCheckpoint::update(
+                    &mut conn,
+                    &uuid,
+                    &Update {
+                        status: Some(StatusBtcIndexer::FinishedSuccess),
+                        error: None,
+                        updated_at: Some(time_now),
+                    },
+                )
+                .await?;
+            }
+            Err(e) => {
+                BtcIndexerWorkCheckpoint::update(
+                    &mut conn,
+                    &uuid,
+                    &Update {
+                        status: Some(StatusBtcIndexer::FinishedError),
+                        error: Some(e.to_string()),
+                        updated_at: Some(time_now),
+                    },
+                )
+                .await?;
+            }
+        }
+    }
+    confirmed_wallet_info
+}
+
+async fn _inner_retrieve_account_info_result(
+    indexer: Arc<BtcIndexer<impl TitanApi>>,
+    payload: &&TrackWalletRequest,
+    uuid: Uuid,
+    cancellation_token: CancellationToken,
+) -> Result<AccountReplenishmentEvent, ServerError> {
+    let oneshot_receiver = indexer
+        .track_account_changes(&payload.wallet_id, uuid)
+        .await
+        .inspect_err(|e| error!("[{PATH_TO_LOG}] Occurred error on signing on tx updates via channel, err: {e}"))?;
     tokio::select! {
         _ = cancellation_token.cancelled() => {
             info!("[{PATH_TO_LOG}] Position manager signal listener cancelled");
