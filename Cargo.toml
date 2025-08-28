@@ -19,19 +19,17 @@ tracing = { version = "0.1.41", features = [] }
 tracing-appender = { version = "0.2.3" }
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 
-tonic = { version = "0.12.3" }
-tonic-build = { version = "0.12.3", features = ["prost"] }
-prost = "0.13.5"
-
 axum = { version = "0.8.4" }
 serde = { version = "1.0.219", features = ["derive"] }
 toml = { version = "0.9.5" }
 tokio = { version = "1.47.1", features = ["full"] }
 eyre = { version = "0.6.12" }
 log = { version = "0.4.27" }
+thiserror = { version = "2.0.16" }
 
 # Verifier crates
-verifier-protos = { path = "verifier/crates/server-protos" }
+verifier-common = { path = "verifier/crates/common" }
+verifier-server = { path = "verifier/crates/server" }
 
 # Verifier apps
 verifier-main = { path = "verifier/apps/main" }

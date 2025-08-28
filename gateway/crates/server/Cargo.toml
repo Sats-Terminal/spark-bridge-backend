@@ -8,3 +8,4 @@ serde = { workspace = true }
 gateway-common = { workspace = true }
 tokio = { workspace = true }
 eyre = { workspace = true }
+thiserror = { workspace = true }

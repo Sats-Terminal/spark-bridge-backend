@@ -1,10 +1,12 @@
-use gateway_common::config::ServerConfig;
+use verifier_common::config::ServerConfig;
 use crate::router::create_router;
-use tokio::{net::TcpListener, task::JoinHandle};
-use eyre::{eyre, Result};
+use tokio;
+use tokio::task::JoinHandle;
+use tokio::net::TcpListener;
+use eyre::{Result, eyre};
 
 pub struct Server {
-    config: ServerConfig
+    config: ServerConfig,
 }
 
 impl Server {
@@ -16,10 +18,11 @@ impl Server {
         let address = self.config.address.clone();
 
         let app = create_router();
-            
+
         let listener = TcpListener::bind(address)
             .await
             .map_err(|e| eyre!("Failed to bind to address: {}", e))?;
+
 
         let server_handle: JoinHandle<Result<()>> = tokio::spawn(async move {
             axum::serve(listener, app)

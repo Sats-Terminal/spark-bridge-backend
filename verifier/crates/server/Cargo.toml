@@ -1,0 +1,11 @@
+[package]
+name = "verifier-server"
+edition = "2024"
+
+[dependencies]
+axum = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+verifier-common = { workspace = true }
+eyre = { workspace = true }

@@ -10,8 +10,9 @@ async fn main() {
 
     let config = GatewayConfig::new(None);
     let server = Server::new(config.server);
-    let server_handle = server.spawn().await;
+    let server_handle = server.spawn().await.unwrap();
 
     log::info!("Server started");
     let _ = server_handle.await.unwrap();
+    log::info!("Server stopped");
 }

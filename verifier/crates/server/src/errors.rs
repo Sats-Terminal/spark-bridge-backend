@@ -1,3 +1,4 @@
+use thiserror::Error;
 use axum::{
     response::{
         IntoResponse,
@@ -5,18 +6,17 @@ use axum::{
     },
     http::StatusCode,
 };
-use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum GatewayError {
-    #[error("Bad request: {0}")]
+pub enum VerifierError {
+    #[error("Internal server error: {0}")]
     BadRequest(String),
 }
 
-impl IntoResponse for GatewayError {
+impl IntoResponse for VerifierError {
     fn into_response(self) -> Response {
         match self {
-            GatewayError::BadRequest(message) => (StatusCode::BAD_REQUEST, message).into_response(),
+            VerifierError::BadRequest(message) => (StatusCode::BAD_REQUEST, message).into_response(),
         }
     }
 }

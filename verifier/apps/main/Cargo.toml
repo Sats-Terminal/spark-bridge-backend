@@ -3,4 +3,8 @@ name = "verifier-main"
 edition = "2024"
 
 [dependencies]
-verifier-protos = { path = "../../crates/server-protos" }
+verifier-common = { workspace = true }
+verifier-server = { workspace = true }
+tokio = { workspace = true }
+global-utils = { workspace = true }
+log = { workspace = true }
