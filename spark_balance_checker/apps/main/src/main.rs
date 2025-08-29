@@ -2,8 +2,7 @@ use env_logger;
 use log;
 use spark_balance_checker_common::config::Config;
 use spark_balance_checker_server::server::create_app;
-use tokio;
-use tokio::net::TcpListener;
+use tokio::{self, net::TcpListener};
 
 #[tokio::main]
 async fn main() {

@@ -17,7 +17,3 @@ help:
 ## Format code
 fmt:
 	cargo +nightly fmt --all
-
-## Cleans whole directory from temporary files
-clean:
-	cargo clean --manifest-path $(CORE_CARGO_TOML)
