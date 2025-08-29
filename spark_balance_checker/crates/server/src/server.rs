@@ -4,8 +4,7 @@ use axum::{
     routing::post,
 };
 use serde::{Deserialize, Serialize};
-use spark_balance_checker_common::config::Config;
-use spark_balance_checker_common::error::ServerError;
+use spark_balance_checker_common::{config::Config, error::ServerError};
 use spark_client::client::SparkRpcClient;
 use utoipa::{OpenApi, ToSchema};
 use utoipa_swagger_ui::SwaggerUi;
@@ -24,7 +23,7 @@ impl AppState {
 }
 
 #[derive(Deserialize, ToSchema)]
-#[schema(example = json!({ 
+#[schema(example = json!({
     "spark_address": "sprt1pgss8fxt9jxuv4dgjwrg539s6u06ueausq076xvfej7wdah0htvjlxunt9fa4n", 
     "rune_id": "btknrt1p2sy7a8cx5pqfm3u4p2qfqa475fgwj3eg5d03hhk47t66605zf6qg52vj2" 
 }))]

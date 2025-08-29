@@ -1,8 +1,9 @@
-use crate::common::{config::SparkConfig, error::SparkClientError};
-use spark_protos::spark::spark_service_client::SparkServiceClient;
 use std::str::FromStr;
-use tonic::transport::Channel;
-use tonic::transport::{Certificate, ClientTlsConfig, Uri};
+
+use spark_protos::spark::spark_service_client::SparkServiceClient;
+use tonic::transport::{Certificate, Channel, ClientTlsConfig, Uri};
+
+use crate::common::{config::SparkConfig, error::SparkClientError};
 
 pub(crate) struct SparkConnectionPool {
     config: SparkConfig,
@@ -61,10 +62,11 @@ impl SparkConnectionPool {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::common::config::SparkOperatorConfig;
     use env_logger;
     use tokio;
+
+    use super::*;
+    use crate::common::config::SparkOperatorConfig;
 
     fn init_logger() {
         let _ = env_logger::builder()

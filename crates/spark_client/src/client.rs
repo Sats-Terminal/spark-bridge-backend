@@ -1,15 +1,18 @@
-use crate::common::{config::SparkConfig, error::SparkClientError};
-use crate::connection::SparkConnectionPool;
-use crate::utils::spark_address::Network;
-use crate::utils::spark_address::decode_spark_address;
+use std::{future::Future, sync::Arc};
+
 use hex;
 use log;
-use spark_protos::spark::spark_service_client::SparkServiceClient;
-use spark_protos::spark::{QueryTokenOutputsRequest, QueryTokenOutputsResponse};
-use std::future::Future;
-use std::sync::Arc;
+use spark_protos::spark::{
+    QueryTokenOutputsRequest, QueryTokenOutputsResponse, spark_service_client::SparkServiceClient,
+};
 use tokio::sync::Mutex;
 use tonic::transport::Channel;
+
+use crate::{
+    common::{config::SparkConfig, error::SparkClientError},
+    connection::SparkConnectionPool,
+    utils::spark_address::{Network, decode_spark_address},
+};
 
 const N_QUERY_RETRIES: usize = 3;
 const N_OPERATOR_SWITCHES: usize = 2;

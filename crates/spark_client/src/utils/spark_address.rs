@@ -1,6 +1,7 @@
-use crate::common::error::SparkClientError;
 use bech32::Bech32m;
 use hex;
+
+use crate::common::error::SparkClientError;
 
 // FIXME: ensure proper sequence of network types
 /// Networks supported by Spark.
