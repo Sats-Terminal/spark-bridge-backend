@@ -2,7 +2,7 @@ use std::{net::IpAddr, str::FromStr};
 
 use btc_indexer_internals::indexer::{BtcIndexer, IndexerParams};
 use config_parser::config::{BtcRpcCredentials, ConfigVariant, ServerConfig};
-use global_utils::logger::init_logger;
+use global_utils::{env_parser::lookup_ip_addr, logger::init_logger};
 use persistent_storage::{config::PostgresDbCredentials, init::PostgresRepo};
 use tokio::net::TcpListener;
 
@@ -21,7 +21,7 @@ async fn main() -> anyhow::Result<()> {
     let app = btc_indexer_server::create_app(db_pool, btc_indexer).await;
 
     let addr_to_listen = (
-        IpAddr::from_str(&app_config.app_config.http_server_ip)?,
+        lookup_ip_addr(&app_config.app_config.http_server_ip)?,
         app_config.app_config.http_server_port,
     );
     let listener = TcpListener::bind(addr_to_listen).await?;

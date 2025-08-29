@@ -6,7 +6,10 @@ use std::{
 
 use bitcoincore_rpc::{Auth, bitcoin::Network};
 use config::{Config, Environment};
-use global_utils::{env_parser, env_parser::EnvParser};
+use global_utils::{
+    env_parser,
+    env_parser::{EnvParser, lookup_ip_addr},
+};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, info, instrument};
 
@@ -143,10 +146,11 @@ impl BtcRpcCredentials {
         }
     }
 
+    #[instrument(level = "trace", ret)]
     pub fn new() -> crate::error::Result<Self> {
         Ok(Self {
             url: SocketAddr::new(
-                IpAddr::from_str(&env_parser::obtain_env_value(BITCOIN_RPC_HOST)?)?,
+                lookup_ip_addr(&env_parser::obtain_env_value(BITCOIN_RPC_HOST)?)?,
                 u16::from_str(&env_parser::obtain_env_value(BITCOIN_RPC_PORT)?).map_err(|e| {
                     ConfigParserError::ParseIntError {
                         var_name: BITCOIN_RPC_PORT.to_string(),

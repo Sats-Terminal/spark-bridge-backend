@@ -1,4 +1,4 @@
-use std::{env::VarError, net::AddrParseError, num::ParseIntError};
+use std::{env::VarError, io, net::AddrParseError, num::ParseIntError};
 
 use bitcoincore_rpc::bitcoin::network::ParseNetworkError;
 use config::ConfigError;

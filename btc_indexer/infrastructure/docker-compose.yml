@@ -9,12 +9,12 @@ services:
     environment:
       - RUST_LOG=trace
       - APP_ENVIRONMENT=production
-      - BITCOIN_NETWORK=${BITCOIN_NETWORK}
+      - BITCOIN_NETWORK=${BITCOIN_NETWORK:-regtest}
       - BITCOIN_RPC_HOST=bitcoind
-      - BITCOIN_RPC_PORT=${BITCOIN_RPC_PORT}
-      - BITCOIN_RPC_USERNAME=${BITCOIN_RPC_USERNAME}
-      - BITCOIN_RPC_PASSWORD=${BITCOIN_RPC_PASSWORD}
-      - DATABASE_URL=${DATABASE_URL}
+      - BITCOIN_RPC_PORT=${BITCOIN_RPC_PORT:-18443}
+      - BITCOIN_RPC_USERNAME=${BITCOIN_RPC_USERNAME:-bitcoin}
+      - BITCOIN_RPC_PASSWORD=${BITCOIN_RPC_PASSWORD:-bitcoinpass}
+      - DATABASE_URL=${DATABASE_URL:-postgres://admin_manager:password@persistent-db-storage:5432/production_db_name}
     networks:
       titan-network:
         ipv4_address: 172.28.0.4
@@ -27,7 +27,7 @@ services:
       - titan
       - bitcoind
     volumes:
-      - ./configuration/production.toml:/configuration/production.toml
+      - ./configuration/production.toml:/configuration_indexer/production.toml
 
   persistent-db-storage:
     image: postgres:17.5-alpine3.22
@@ -38,9 +38,9 @@ services:
     ports:
       - "5432:5432"
     environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER:-admin_manager}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
+      - POSTGRES_DB=${POSTGRES_DB:-production_db_name}
       - PGDATA=/pgdata
     volumes:
       - service-data:/pgdata
