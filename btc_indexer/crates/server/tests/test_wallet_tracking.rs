@@ -6,7 +6,6 @@ mod mocked_tx_tracking {
     use btc_indexer_server::routes::track_wallet::TrackWalletRequest;
     use config_parser::config::{BtcRpcCredentials, ConfigVariant, ServerConfig};
     use global_utils::common_types::UrlWrapped;
-    use persistent_storage::init::PostgresRepo;
     use tracing::{info, instrument};
 
     use crate::utils::{

@@ -11,8 +11,8 @@ async-trait = { workspace = true }
 bitcoincore-rpc = { workspace = true }
 config_parser = { workspace = true }
 global_utils = { workspace = true }
+local_db_store_indexer = { workspace = true }
 ordinals = { workspace = true }
-persistent_storage = { workspace = true }
 serde = { workspace = true }
 sqlx = { workspace = true }
 thiserror = { workspace = true }

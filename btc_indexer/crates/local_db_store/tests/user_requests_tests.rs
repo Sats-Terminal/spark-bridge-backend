@@ -1,15 +1,12 @@
 mod utils;
 
 mod test_user_requests {
-    use std::str::FromStr;
-
-    use global_utils::common_types::{UrlWrapped, get_uuid};
-    use persistent_storage::{
-        init::PersistentDbConn,
-        schemas::runes_spark::user_request_stats::{Filter, StatusTransferring, Update, UserRequestStats},
+    use global_utils::common_types::get_uuid;
+    use local_db_store_indexer::schemas::runes_spark::user_request_stats::{
+        Filter, StatusTransferring, Update, UserRequestStats,
     };
+    use persistent_storage::init::PersistentDbConn;
     use sqlx::types::chrono::Utc;
-    use url::Url;
 
     use crate::utils::{TEST_LOGGER, vecs_equal_unordered};
 

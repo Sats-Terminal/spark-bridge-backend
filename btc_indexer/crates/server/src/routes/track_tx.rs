@@ -3,9 +3,9 @@ use std::sync::Arc;
 use axum::extract::{Json, State};
 use btc_indexer_internals::{api::BtcIndexerApi, indexer::BtcIndexer};
 use global_utils::common_types::{TxIdWrapped, UrlWrapped, get_uuid};
-use persistent_storage::{
+use local_db_store_indexer::{
+    PersistentRepoTrait,
     error::DbError,
-    init::PersistentRepoShared,
     schemas::runes_spark::btc_indexer_work_checkpoint::{BtcIndexerWorkCheckpoint, StatusBtcIndexer, Task, Update},
 };
 use serde::{Deserialize, Serialize};
@@ -44,8 +44,8 @@ pub struct TrackTxRequest {
     ),
 )]
 #[instrument(skip(state))]
-pub async fn handler(
-    State(state): State<AppState<impl titan_client::TitanApi>>,
+pub async fn handler<T: titan_client::TitanApi, Db: PersistentRepoTrait + Clone + 'static>(
+    State(state): State<AppState<T, Db>>,
     Json(payload): Json<TrackTxRequest>,
 ) -> Result<Json<Empty>, ServerError> {
     info!("Received track tx: {:?}", payload);
@@ -77,8 +77,8 @@ pub async fn handler(
 
 /// Spawns tracking task for tracking whether we receive event from indexer_internals and send via reqwest msg about completion
 #[instrument(skip(app_state))]
-pub(crate) async fn spawn_tx_tracking_task(
-    app_state: AppState<impl titan_client::TitanApi>,
+pub(crate) async fn spawn_tx_tracking_task<T: titan_client::TitanApi, Db: PersistentRepoTrait + Clone + 'static>(
+    app_state: AppState<T, Db>,
     payload: TrackTxRequest,
     uuid: Uuid,
 ) -> Result<CancellationToken, DbError> {
@@ -115,9 +115,9 @@ pub(crate) async fn spawn_tx_tracking_task(
 }
 
 #[instrument(level = "trace", skip(db, indexer, payload), fields(tx_id=payload.tx_id.0.to_string()) ret)]
-async fn _retrieve_tx_info_result(
-    db: PersistentRepoShared,
-    indexer: Arc<BtcIndexer<impl TitanApi>>,
+async fn _retrieve_tx_info_result<T: titan_client::TitanApi, Db: PersistentRepoTrait + Clone + 'static>(
+    db: Db,
+    indexer: Arc<BtcIndexer<T, Db>>,
     payload: &TrackTxRequest,
     uuid: Uuid,
     cancellation_token: CancellationToken,
@@ -156,8 +156,8 @@ async fn _retrieve_tx_info_result(
     confirmed_tx
 }
 
-async fn _inner_retrieve_tx_info_result(
-    indexer: Arc<BtcIndexer<impl TitanApi>>,
+async fn _inner_retrieve_tx_info_result<T: titan_client::TitanApi, Db: PersistentRepoTrait + Clone + 'static>(
+    indexer: Arc<BtcIndexer<T, Db>>,
     payload: &TrackTxRequest,
     uuid: Uuid,
     cancellation_token: CancellationToken,

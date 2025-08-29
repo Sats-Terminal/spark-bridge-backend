@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use axum::{Router, routing::post};
 use btc_indexer_internals::indexer::BtcIndexer;
-use persistent_storage::init::PersistentRepoShared;
+use local_db_store_indexer::init::LocalDbIndexer;
 use titan_client::TitanClient;
 use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
@@ -14,10 +14,10 @@ use uuid::Uuid;
 pub type CachedTasks = Arc<RwLock<HashMap<Uuid, CancellationToken>>>;
 
 #[derive(Clone)]
-pub struct AppState<C> {
+pub struct AppState<C, Db> {
     pub http_client: reqwest::Client,
-    pub persistent_storage: PersistentRepoShared,
-    pub btc_indexer: Arc<BtcIndexer<C>>,
+    pub persistent_storage: Db,
+    pub btc_indexer: Arc<BtcIndexer<C, Db>>,
     pub cached_tasks: CachedTasks,
 }
 
@@ -26,7 +26,7 @@ pub struct AppState<C> {
 struct ApiDoc;
 
 #[instrument(skip(db_pool, btc_indexer))]
-pub async fn create_app(db_pool: PersistentRepoShared, btc_indexer: BtcIndexer<TitanClient>) -> Router {
+pub async fn create_app(db_pool: LocalDbIndexer, btc_indexer: BtcIndexer<TitanClient, LocalDbIndexer>) -> Router {
     let state = AppState {
         http_client: reqwest::Client::new(),
         persistent_storage: db_pool,

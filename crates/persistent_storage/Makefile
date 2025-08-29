@@ -14,17 +14,6 @@ help:
         { lastLine = $$0 }' $(MAKEFILE_LIST) | sort -u
 	@printf "\n"
 
-docker/build:
-	docker build . -t spark_test_helper:image
-
-## Open db from docker
-docker/up:
-	docker-compose --env-file ./.env -f ./infrastructure/docker-compose.yml up -d --build
-
-## Close db from docker
-docker/down:
-	docker-compose --env-file ./.env -f ./infrastructure/docker-compose.yml down spark-helper-service
-
 ## Open db from docker
 docker/db/up:
 	docker compose --env-file ./.env -f ./infrastructure/docker-compose.yml up persistent-db-storage -d
@@ -36,7 +25,3 @@ docker/db/down:
 ## Format code
 fmt:
 	cargo +nightly fmt --all
-
-## Cleans whole directory from temporary files
-clean:
-	cargo clean --manifest-path $(CORE_CARGO_TOML)

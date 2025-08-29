@@ -16,7 +16,7 @@ bitcoin = { workspace = true }
 btc_indexer_internals = { workspace = true }
 config_parser = { workspace = true }
 global_utils = { workspace = true }
-persistent_storage = { workspace = true }
+local_db_store_indexer = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

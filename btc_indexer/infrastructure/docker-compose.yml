@@ -14,7 +14,11 @@ services:
       - BITCOIN_RPC_PORT=${BITCOIN_RPC_PORT:-18443}
       - BITCOIN_RPC_USERNAME=${BITCOIN_RPC_USERNAME:-bitcoin}
       - BITCOIN_RPC_PASSWORD=${BITCOIN_RPC_PASSWORD:-bitcoinpass}
-      - DATABASE_URL=${DATABASE_URL:-postgres://admin_manager:password@persistent-db-storage:5432/production_db_name}
+      - POSTGRES_USER=${POSTGRES_USER:-admin_manager}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
+      - POSTGRES_HOST=persistent-db-storage
+      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
+      - POSTGRES_DB=${POSTGRES_DB:-production_db_name}
     networks:
       titan-network:
         ipv4_address: 172.28.0.4
@@ -40,6 +44,8 @@ services:
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-admin_manager}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
+      - POSTGRES_HOST=persistent-db-storage
+      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
       - POSTGRES_DB=${POSTGRES_DB:-production_db_name}
       - PGDATA=/pgdata
     volumes:
