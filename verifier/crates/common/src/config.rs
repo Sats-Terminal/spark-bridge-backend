@@ -10,6 +10,7 @@ pub struct VerifierConfig {
     pub btc_indexer: BtcIndexerConfig,
     #[serde(rename = "spark-balance-checker")]
     pub spark_balance_checker: SparkBalanceCheckerConfig,
+    pub storage: PostgresConfig,
 }
 
 #[derive(Debug, Deserialize)]
@@ -25,6 +26,11 @@ pub struct BtcIndexerConfig {
 #[derive(Debug, Deserialize)]
 pub struct SparkBalanceCheckerConfig {
     pub address: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PostgresConfig {
+    pub url: String,
 }
 
 impl VerifierConfig {

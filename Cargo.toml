@@ -86,6 +86,7 @@ spark-client = { path = "./crates/spark_client" }
 # Verifier crates
 verifier-common = { path = "verifier/crates/common" }
 verifier-server = { path = "verifier/crates/server" }
+verifier-storage = { path = "verifier/crates/storage" }
 
 # Verifier apps
 verifier-main = { path = "verifier/apps/main" }
