@@ -13,11 +13,8 @@ use btc_indexer_internals::indexer::{BtcIndexer, IndexerParams, IndexerParamsWit
 use btc_indexer_server::AppState;
 use config_parser::config::{BtcRpcCredentials, ConfigVariant, ServerConfig};
 use global_utils::logger::{LoggerGuard, init_logger};
+use local_db_store_indexer::{PostgresDbCredentials, init::LocalDbIndexer};
 use mockall::mock;
-use persistent_storage::{
-    config::PostgresDbCredentials,
-    init::{PersistentRepoShared, PostgresRepo},
-};
 use reqwest::header::HeaderMap;
 use titan_client::{Error, TitanApi, TitanClient};
 use titan_types::{
@@ -88,11 +85,11 @@ pub async fn init_mocked_test_server(
     let _logger_guard = &*TEST_LOGGER;
     let (btc_creds, postgres_creds, config_variant) = (
         BtcRpcCredentials::new()?,
-        PostgresDbCredentials::new()?,
+        PostgresDbCredentials::from_envs()?,
         ConfigVariant::Local,
     );
     let app_config = ServerConfig::init_config(config_variant)?;
-    let db_pool = PostgresRepo::from_config(postgres_creds).await?.into_shared();
+    let db_pool = LocalDbIndexer::from_config(postgres_creds).await?;
     let mocked_titan_indexer = generate_mocked_titan_indexer();
     let btc_indexer = BtcIndexer::new(IndexerParamsWithApi {
         indexer_params: IndexerParams {
@@ -217,7 +214,10 @@ pub fn generate_mock_titan_indexer_wallet_tracking() -> MockTitanIndexer {
 }
 
 #[instrument(skip(db_pool, btc_indexer))]
-pub async fn create_app_mocked(db_pool: PersistentRepoShared, btc_indexer: BtcIndexer<MockTitanIndexer>) -> Router {
+pub async fn create_app_mocked(
+    db_pool: LocalDbIndexer,
+    btc_indexer: BtcIndexer<MockTitanIndexer, LocalDbIndexer>,
+) -> Router {
     let state = AppState {
         http_client: reqwest::Client::new(),
         persistent_storage: db_pool,

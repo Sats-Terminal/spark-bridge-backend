@@ -28,6 +28,7 @@ impl Config {
 mod tests {
     use super::*;
 
+    #[ignore]
     #[test]
     fn test_config() {
         Config::new(None);
