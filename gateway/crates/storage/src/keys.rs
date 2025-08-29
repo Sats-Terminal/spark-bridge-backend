@@ -1,25 +1,26 @@
-use crate::models::Request;
-use crate::traits::RequestStorage;
+use crate::models::Key;
+use crate::traits::KeyStorage;
 use crate::errors::DatabaseError;
 use uuid::Uuid;
 use crate::Storage;
+use sqlx;
 
-impl RequestStorage for Storage {
-    async fn insert_request(&self, request: Request) -> Result<(), DatabaseError> {
+impl KeyStorage for Storage {
+    async fn insert_key(&self, key: Key) -> Result<(), DatabaseError> {
         let pool = self.pool.lock().unwrap();
         let _ = sqlx::query!(
-            "INSERT INTO requests (request_id) VALUES ($1)",
-            request.request_id
+            "INSERT INTO keys (key_id) VALUES ($1)",
+            key.key_id
         ).execute(&*pool).await.map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
 
         Ok(())
     }
 
-    async fn get_request(&self, request_id: Uuid) -> Result<Request, DatabaseError> {
+    async fn get_key(&self, key_id: Uuid) -> Result<Key, DatabaseError> {
         let pool = self.pool.lock().unwrap();
         let result = sqlx::query!(
-            "SELECT * FROM requests WHERE request_id = $1 LIMIT 1",
-            request_id
+            "SELECT * FROM keys WHERE key_id = $1 LIMIT 1",
+            key_id
         ).fetch_one(&*pool).await.map_err(|e| {
             match e {
                 sqlx::Error::RowNotFound => DatabaseError::NotFound(e.to_string()),
@@ -27,9 +28,9 @@ impl RequestStorage for Storage {
             }
         })?;
 
-        Ok(Request {
-            request_id: result.request_id,
+        Ok(Key {
             key_id: result.key_id,
         })
     }
 }
+
