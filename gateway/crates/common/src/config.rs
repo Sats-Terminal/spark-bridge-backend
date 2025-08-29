@@ -15,6 +15,7 @@ pub struct ServerConfig {
 
 #[derive(Deserialize, Debug)]
 pub struct VerifierConfig {
+    pub id: u64,
     pub address: String,
 }
 

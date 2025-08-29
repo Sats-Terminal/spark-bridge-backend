@@ -2,10 +2,13 @@
 address = "127.0.0.1:3000"
 
 [[verifiers]]
+id = 0
 address = "http://localhost:3001"
 
 [[verifiers]]
+id = 1
 address = "http://localhost:3002"
 
 [[verifiers]]
+id = 2
 address = "http://localhost:3003"
