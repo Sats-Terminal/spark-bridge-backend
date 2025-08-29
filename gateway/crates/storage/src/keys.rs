@@ -1,13 +1,13 @@
 use sqlx;
 use uuid::Uuid;
 
-use crate::{Storage, errors::DatabaseError, models::Key, traits::KeyStorage};
+use crate::{errors::DatabaseError, models::Key, traits::KeyStorage};
+use persistent_storage::init::PostgresRepo;
 
-impl KeyStorage for Storage {
+impl KeyStorage for PostgresRepo {
     async fn insert_key(&self, key: Key) -> Result<(), DatabaseError> {
-        let pool = self.pool.lock().unwrap();
         let _ = sqlx::query!("INSERT INTO keys (key_id) VALUES ($1)", key.key_id)
-            .execute(&*pool)
+            .execute(&self.pool)
             .await
             .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
 
@@ -15,9 +15,8 @@ impl KeyStorage for Storage {
     }
 
     async fn get_key(&self, key_id: Uuid) -> Result<Key, DatabaseError> {
-        let pool = self.pool.lock().unwrap();
         let result = sqlx::query!("SELECT * FROM keys WHERE key_id = $1 LIMIT 1", key_id)
-            .fetch_one(&*pool)
+            .fetch_one(&self.pool)
             .await
             .map_err(|e| match e {
                 sqlx::Error::RowNotFound => DatabaseError::NotFound(e.to_string()),

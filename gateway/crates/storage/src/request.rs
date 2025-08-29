@@ -1,12 +1,11 @@
 use uuid::Uuid;
+use persistent_storage::init::PostgresRepo;
+use crate::{errors::DatabaseError, models::Request, traits::RequestStorage};
 
-use crate::{Storage, errors::DatabaseError, models::Request, traits::RequestStorage};
-
-impl RequestStorage for Storage {
+impl RequestStorage for PostgresRepo {
     async fn insert_request(&self, request: Request) -> Result<(), DatabaseError> {
-        let pool = self.pool.lock().unwrap();
         let _ = sqlx::query!("INSERT INTO requests (request_id) VALUES ($1)", request.request_id)
-            .execute(&*pool)
+            .execute(&self.pool)
             .await
             .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
 
@@ -14,9 +13,8 @@ impl RequestStorage for Storage {
     }
 
     async fn get_request(&self, request_id: Uuid) -> Result<Request, DatabaseError> {
-        let pool = self.pool.lock().unwrap();
         let result = sqlx::query!("SELECT * FROM requests WHERE request_id = $1 LIMIT 1", request_id)
-            .fetch_one(&*pool)
+            .fetch_one(&self.pool)
             .await
             .map_err(|e| match e {
                 sqlx::Error::RowNotFound => DatabaseError::NotFound(e.to_string()),
