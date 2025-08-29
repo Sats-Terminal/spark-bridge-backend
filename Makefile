@@ -17,3 +17,8 @@ help:
 ## Format code
 fmt:
 	cargo +nightly fmt --all
+
+test:
+	cargo test --test test_tx_tracking mocked_tx_tracking --no-fail-fast && \
+	cargo test --test mock_testing mock_testing --no-fail-fast && \
+	cargo test --no-fail-fast

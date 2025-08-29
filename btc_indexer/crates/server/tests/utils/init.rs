@@ -8,7 +8,7 @@ use axum_test::TestServer;
 use btc_indexer_internals::indexer::{BtcIndexer, IndexerParams};
 use config_parser::config::{BtcRpcCredentials, ConfigVariant, ServerConfig};
 use global_utils::logger::{LoggerGuard, init_logger};
-use persistent_storage::{config::PostgresDbCredentials, init::PostgresRepo};
+use local_db_store_indexer::{PostgresDbCredentials, init::LocalDbIndexer};
 use tracing::{info, instrument};
 use url::Url;
 
@@ -20,11 +20,11 @@ pub async fn init_test_server() -> anyhow::Result<TestServer> {
     let _logger_guard = &*TEST_LOGGER;
     let (btc_creds, postgres_creds, config_variant) = (
         BtcRpcCredentials::new()?,
-        PostgresDbCredentials::new()?,
+        PostgresDbCredentials::from_envs()?,
         ConfigVariant::Local,
     );
     let app_config = ServerConfig::init_config(config_variant)?;
-    let db_pool = PostgresRepo::from_config(postgres_creds).await?.into_shared();
+    let db_pool = LocalDbIndexer::from_config(postgres_creds).await?;
     let btc_indexer = BtcIndexer::with_api(IndexerParams {
         btc_rpc_creds: btc_creds,
         db_pool: db_pool.clone(),

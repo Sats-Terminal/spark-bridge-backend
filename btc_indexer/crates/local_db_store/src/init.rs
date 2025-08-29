@@ -8,6 +8,7 @@ use persistent_storage::{
 };
 use tracing::instrument;
 
+/// Has to be understood as "LocalDb - Indexer"
 #[derive(Clone)]
 pub struct LocalDbIndexer {
     pub postgres_repo: PersistentRepoShared,
