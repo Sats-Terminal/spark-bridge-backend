@@ -1,6 +1,9 @@
-use crate::models::{Request, Key};
-use crate::errors::DatabaseError;
 use uuid::Uuid;
+
+use crate::{
+    errors::DatabaseError,
+    models::{Key, Request},
+};
 
 pub trait RequestStorage {
     async fn insert_request(&self, request: Request) -> Result<(), DatabaseError>;

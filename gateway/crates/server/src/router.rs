@@ -1,14 +1,7 @@
-use axum::{
-    routing::{
-        Router,
-        post,
-    }
-};
+use axum::routing::{Router, post};
+
 use crate::handlers::{
-    handler_get_runes_address,
-    handler_bridge_runes,
-    handler_exit_spark,
-    handler_notify_runes_address,
+    handler_bridge_runes, handler_exit_spark, handler_get_runes_address, handler_notify_runes_address,
     handler_notify_spark_address,
 };
 

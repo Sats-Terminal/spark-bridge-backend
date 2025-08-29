@@ -6,5 +6,5 @@ edition = "2024"
 gateway-server = { workspace = true }
 gateway-common = { workspace = true }
 tokio = { workspace = true }
-global-utils = { workspace = true }
+global_utils = { workspace = true }
 log = { workspace = true }

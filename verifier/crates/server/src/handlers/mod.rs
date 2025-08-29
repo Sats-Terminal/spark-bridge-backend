@@ -1,4 +1,4 @@
-pub mod types;
-pub mod dkg;
-pub mod watchers;
 pub mod address;
+pub mod dkg;
+pub mod types;
+pub mod watchers;

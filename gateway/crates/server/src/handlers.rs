@@ -1,9 +1,7 @@
-use axum::{
-    extract::Json,
-    
-};
-use crate::errors::GatewayError;
+use axum::extract::Json;
 use serde::{Deserialize, Serialize};
+
+use crate::errors::GatewayError;
 
 #[derive(Deserialize)]
 pub struct GetRunesAddressRequest {
@@ -16,7 +14,9 @@ pub struct GetRunesAddressResponse {
     pub address: String,
 }
 
-pub async fn handler_get_runes_address(Json(request): Json<GetRunesAddressRequest>) -> Result<Json<GetRunesAddressResponse>, GatewayError> {
+pub async fn handler_get_runes_address(
+    Json(request): Json<GetRunesAddressRequest>,
+) -> Result<Json<GetRunesAddressResponse>, GatewayError> {
     Ok(Json(GetRunesAddressResponse {
         address: format!("user_id: {}", request.user_id),
     }))
@@ -32,7 +32,9 @@ pub struct BridgeRunesToSparkResponse {
     pub message: String,
 }
 
-pub async fn handler_bridge_runes(Json(request): Json<BridgeRunesToSparkRequest>) -> Result<Json<BridgeRunesToSparkResponse>, GatewayError> {
+pub async fn handler_bridge_runes(
+    Json(request): Json<BridgeRunesToSparkRequest>,
+) -> Result<Json<BridgeRunesToSparkResponse>, GatewayError> {
     Ok(Json(BridgeRunesToSparkResponse {
         message: "success".to_string(),
     }))
@@ -48,7 +50,9 @@ pub struct ExitSparkResponse {
     pub message: String,
 }
 
-pub async fn handler_exit_spark(Json(request): Json<ExitSparkRequest>) -> Result<Json<ExitSparkResponse>, GatewayError> {
+pub async fn handler_exit_spark(
+    Json(request): Json<ExitSparkRequest>,
+) -> Result<Json<ExitSparkResponse>, GatewayError> {
     Ok(Json(ExitSparkResponse {
         message: "success".to_string(),
     }))
@@ -64,7 +68,9 @@ pub struct NotifyRunesAddressResponse {
     pub message: String,
 }
 
-pub async fn handler_notify_runes_address(Json(request): Json<NotifyRunesAddressRequest>) -> Result<Json<NotifyRunesAddressResponse>, GatewayError> {
+pub async fn handler_notify_runes_address(
+    Json(request): Json<NotifyRunesAddressRequest>,
+) -> Result<Json<NotifyRunesAddressResponse>, GatewayError> {
     Ok(Json(NotifyRunesAddressResponse {
         message: "success".to_string(),
     }))
@@ -80,7 +86,9 @@ pub struct NotifySparkAddressResponse {
     pub message: String,
 }
 
-pub async fn handler_notify_spark_address(Json(request): Json<NotifySparkAddressRequest>) -> Result<Json<NotifySparkAddressResponse>, GatewayError> {
+pub async fn handler_notify_spark_address(
+    Json(request): Json<NotifySparkAddressRequest>,
+) -> Result<Json<NotifySparkAddressResponse>, GatewayError> {
     Ok(Json(NotifySparkAddressResponse {
         message: "success".to_string(),
     }))

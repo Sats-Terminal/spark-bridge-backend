@@ -1,10 +1,11 @@
+use eyre::{Result, eyre};
 use gateway_common::config::ServerConfig;
-use crate::router::create_router;
 use tokio::{net::TcpListener, task::JoinHandle};
-use eyre::{eyre, Result};
+
+use crate::router::create_router;
 
 pub struct Server {
-    config: ServerConfig
+    config: ServerConfig,
 }
 
 impl Server {
@@ -16,7 +17,7 @@ impl Server {
         let address = self.config.address.clone();
 
         let app = create_router();
-            
+
         let listener = TcpListener::bind(address)
             .await
             .map_err(|e| eyre!("Failed to bind to address: {}", e))?;

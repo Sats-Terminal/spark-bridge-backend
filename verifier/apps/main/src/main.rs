@@ -1,8 +1,8 @@
-use verifier_common::config::VerifierConfig;
-use verifier_server::server::Server;
-use tokio;
 use global_utils::logger::init_logger;
 use log;
+use tokio;
+use verifier_common::config::VerifierConfig;
+use verifier_server::server::Server;
 
 #[tokio::main]
 async fn main() {

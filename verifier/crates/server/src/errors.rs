@@ -1,11 +1,8 @@
-use thiserror::Error;
 use axum::{
-    response::{
-        IntoResponse,
-        Response,
-    },
     http::StatusCode,
+    response::{IntoResponse, Response},
 };
+use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum VerifierError {

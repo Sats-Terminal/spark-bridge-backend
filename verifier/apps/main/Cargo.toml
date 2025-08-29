@@ -6,5 +6,5 @@ edition = "2024"
 verifier-common = { workspace = true }
 verifier-server = { workspace = true }
 tokio = { workspace = true }
-global-utils = { workspace = true }
+global_utils = { workspace = true }
 log = { workspace = true }

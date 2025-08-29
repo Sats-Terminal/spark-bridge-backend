@@ -1,8 +1,8 @@
 use gateway_common::config::GatewayConfig;
 use gateway_server::server::Server;
-use tokio;
 use global_utils::logger::init_logger;
 use log;
+use tokio;
 
 #[tokio::main]
 async fn main() {

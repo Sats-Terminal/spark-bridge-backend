@@ -1,8 +1,6 @@
+use gateway_storage::{Storage, models::Key, traits::KeyStorage};
 use tokio;
-use gateway_storage::Storage;
 use uuid::Uuid;
-use gateway_storage::models::Key;
-use gateway_storage::traits::KeyStorage;
 
 #[tokio::test]
 async fn test() {
@@ -10,9 +8,7 @@ async fn test() {
     let storage = Storage::new(url).await.unwrap();
 
     let key_id = Uuid::new_v4();
-    let key = Key {
-        key_id,
-    };
+    let key = Key { key_id };
 
     storage.insert_key(key).await.unwrap();
 
