@@ -1,15 +1,13 @@
 use tokio;
 use gateway_storage::Storage;
-use sqlx::PgPool;
 use uuid::Uuid;
 use gateway_storage::models::Key;
 use gateway_storage::traits::KeyStorage;
 
 #[tokio::test]
 async fn test() {
-    let url = "postgresql://postgres:postgres@localhost:5433/postgres";
-    let pool = PgPool::connect(url).await.unwrap();
-    let storage = Storage::new(pool);
+    let url = "postgresql://postgres:postgres@localhost:5433/postgres".to_string();
+    let storage = Storage::new(url).await.unwrap();
 
     let key_id = Uuid::new_v4();
     let key = Key {

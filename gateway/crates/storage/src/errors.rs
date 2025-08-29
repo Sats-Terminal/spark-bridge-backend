@@ -6,4 +6,6 @@ pub enum DatabaseError {
     BadRequest(String),
     #[error("Not found: {0}")]
     NotFound(String),
+    #[error("Failed to connect to database: {0}")]
+    ConnectionError(String),
 }

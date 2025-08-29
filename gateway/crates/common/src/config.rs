@@ -11,6 +11,7 @@ pub struct GatewayConfig {
 #[derive(Deserialize, Debug)]
 pub struct ServerConfig {
     pub address: String,
+    pub database_url: String,
 }
 
 #[derive(Deserialize, Debug)]
