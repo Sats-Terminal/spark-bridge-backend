@@ -13,7 +13,7 @@ mod init_tests {
     pub async fn pg_conn_health_check() -> anyhow::Result<()> {
         let _ = dotenv::dotenv();
         let _ = *TEST_LOGGER;
-        let db_entity = PostgresRepo::from_config(PostgresDbCredentials::new()?).await?;
+        let db_entity = PostgresRepo::from_config(PostgresDbCredentials::from_db_url()?).await?;
         let mut conn = db_entity.pool.acquire().await?;
         assert_eq!(conn.ping().await?, ());
         Ok(())

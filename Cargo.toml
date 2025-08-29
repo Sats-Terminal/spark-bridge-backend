@@ -38,6 +38,7 @@ global_utils = { path = "./crates/global_utils" }
 hex = "0.4.3"
 http = "1.3.1"
 log = "0.4.27"
+local_db_store_indexer = { path = "./btc_indexer/crates/local_db_store" }
 mockall = { version = "0.13.1" }
 ordinals = { version = "0.0.15" }
 persistent_storage = { path = "./crates/persistent_storage" }

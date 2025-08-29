@@ -5,12 +5,10 @@ mod test_btc_indexer_requests {
 
     use bitcoin::Txid;
     use global_utils::common_types::{TxIdWrapped, UrlWrapped, get_uuid};
-    use persistent_storage::{
-        init::PersistentDbConn,
-        schemas::runes_spark::btc_indexer_work_checkpoint::{
-            BtcIndexerWorkCheckpoint, Filter, StatusBtcIndexer, Task, Update,
-        },
+    use local_db_store_indexer::schemas::runes_spark::btc_indexer_work_checkpoint::{
+        BtcIndexerWorkCheckpoint, Filter, StatusBtcIndexer, Task, Update,
     };
+    use persistent_storage::init::PersistentDbConn;
     use sqlx::{
         Row,
         types::{Json, chrono::Utc},

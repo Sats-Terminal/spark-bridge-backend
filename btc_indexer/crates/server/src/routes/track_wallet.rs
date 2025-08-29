@@ -6,9 +6,9 @@ use btc_indexer_internals::{
     indexer::BtcIndexer,
 };
 use global_utils::common_types::{UrlWrapped, get_uuid};
-use persistent_storage::{
+use local_db_store_indexer::{
+    PersistentRepoTrait,
     error::DbError,
-    init::PersistentRepoShared,
     schemas::runes_spark::btc_indexer_work_checkpoint::{BtcIndexerWorkCheckpoint, StatusBtcIndexer, Task, Update},
 };
 use serde::{Deserialize, Serialize};
@@ -45,7 +45,7 @@ pub struct TrackWalletRequest {
 )]
 #[instrument(skip(state))]
 pub async fn handler(
-    State(state): State<AppState<impl titan_client::TitanApi>>,
+    State(state): State<AppState<impl titan_client::TitanApi, impl PersistentRepoTrait + Clone + 'static>>,
     Json(payload): Json<TrackWalletRequest>,
 ) -> Result<Json<Empty>, ServerError> {
     info!("Received TrackWalletRequest: {:?}", payload);
@@ -76,8 +76,8 @@ pub async fn handler(
 
 /// Spawns tracking task for tracking whether we receive event from indexer_internals and send via reqwest msg about completion
 #[instrument(skip(app_state))]
-pub(crate) async fn spawn_wallet_tracking_task(
-    app_state: AppState<impl TitanApi>,
+pub(crate) async fn spawn_wallet_tracking_task<T: TitanApi, Db: PersistentRepoTrait + Clone + 'static>(
+    app_state: AppState<T, Db>,
     payload: TrackWalletRequest,
     uuid: Uuid,
 ) -> Result<CancellationToken, DbError> {
@@ -86,7 +86,7 @@ pub(crate) async fn spawn_wallet_tracking_task(
         let local_cancellation_token = cancellation_token.child_token();
         async move {
             let response = _retrieve_account_info_result(
-                app_state.persistent_storage,
+                app_state.persistent_storage.clone(),
                 app_state.btc_indexer,
                 &payload,
                 uuid,
@@ -114,9 +114,9 @@ pub(crate) async fn spawn_wallet_tracking_task(
 }
 
 #[instrument(level = "trace", skip(db, indexer, payload), fields(tx_id=payload.wallet_id) ret)]
-async fn _retrieve_account_info_result(
-    db: PersistentRepoShared,
-    indexer: Arc<BtcIndexer<impl TitanApi>>,
+async fn _retrieve_account_info_result<T: TitanApi, Db: PersistentRepoTrait + Clone>(
+    db: Db,
+    indexer: Arc<BtcIndexer<T, Db>>,
     payload: &TrackWalletRequest,
     uuid: Uuid,
     cancellation_token: CancellationToken,
@@ -155,8 +155,8 @@ async fn _retrieve_account_info_result(
     confirmed_wallet_info
 }
 
-async fn _inner_retrieve_account_info_result(
-    indexer: Arc<BtcIndexer<impl TitanApi>>,
+async fn _inner_retrieve_account_info_result<T: TitanApi, Db: PersistentRepoTrait>(
+    indexer: Arc<BtcIndexer<T, Db>>,
     payload: &&TrackWalletRequest,
     uuid: Uuid,
     cancellation_token: CancellationToken,

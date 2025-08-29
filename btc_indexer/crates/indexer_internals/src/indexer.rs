@@ -4,9 +4,10 @@ use async_trait::async_trait;
 use bitcoincore_rpc::{Client, RawTx, RpcApi, bitcoin, json};
 use config_parser::config::{BtcIndexerParams, BtcRpcCredentials};
 use global_utils::common_types::{TxIdWrapped, UrlWrapped, get_uuid};
-use persistent_storage::{
-    init::PersistentRepoShared,
-    schemas::runes_spark::btc_indexer_work_checkpoint::{BtcIndexerWorkCheckpoint, StatusBtcIndexer, Task, Update},
+use local_db_store_indexer::{
+    PersistentRepoTrait,
+    init::LocalDbIndexer,
+    schemas::runes_spark::btc_indexer_work_checkpoint::{BtcIndexerWorkCheckpoint, StatusBtcIndexer, Update},
 };
 use sqlx::types::{Json, chrono::Utc};
 use titan_client::{TitanApi, TitanClient};
@@ -22,29 +23,29 @@ const BTC_INDEXER_LOG_PATH: &str = "btc_indexer";
 const TX_TRACKING_LOG_PATH: &str = "btc_indexer:tx_tracking";
 const ACCOUNT_TRACKING_LOG_PATH: &str = "btc_indexer:account_tracking";
 
-pub struct BtcIndexer<C> {
+pub struct BtcIndexer<C, Db> {
     btc_indexer_params: BtcIndexerParams,
     //todo: maybe move into traits?
-    persistent_storage: PersistentRepoShared,
+    persistent_storage: Db,
     indexer_client: C,
     btc_core: Arc<Client>,
     cancellation_token: CancellationToken,
 }
 
-pub struct IndexerParamsWithApi<C> {
-    pub indexer_params: IndexerParams,
+pub struct IndexerParamsWithApi<C, Db> {
+    pub indexer_params: IndexerParams<Db>,
     pub titan_api_client: C,
 }
 
-pub struct IndexerParams {
+pub struct IndexerParams<Db> {
     pub btc_rpc_creds: BtcRpcCredentials,
-    pub db_pool: PersistentRepoShared,
+    pub db_pool: Db,
     pub btc_indexer_params: BtcIndexerParams,
 }
 
-impl BtcIndexer<TitanClient> {
+impl BtcIndexer<TitanClient, LocalDbIndexer> {
     #[instrument(skip(params))]
-    pub fn with_api(params: IndexerParams) -> crate::error::Result<Self> {
+    pub fn with_api(params: IndexerParams<LocalDbIndexer>) -> crate::error::Result<Self> {
         let titan_api_client = TitanClient::new(&params.btc_rpc_creds.url.to_string());
         Self::new(IndexerParamsWithApi {
             indexer_params: params,
@@ -53,7 +54,7 @@ impl BtcIndexer<TitanClient> {
     }
 }
 
-impl<C: Clone> Clone for BtcIndexer<C> {
+impl<C: Clone, Db: Clone> Clone for BtcIndexer<C, Db> {
     fn clone(&self) -> Self {
         BtcIndexer {
             btc_indexer_params: self.btc_indexer_params.clone(),
@@ -65,9 +66,9 @@ impl<C: Clone> Clone for BtcIndexer<C> {
     }
 }
 
-impl<C: TitanApi> BtcIndexer<C> {
+impl<C: TitanApi, Db: PersistentRepoTrait> BtcIndexer<C, Db> {
     #[instrument(skip(params))]
-    pub fn new(params: IndexerParamsWithApi<C>) -> crate::error::Result<Self> {
+    pub fn new(params: IndexerParamsWithApi<C, Db>) -> crate::error::Result<Self> {
         let cancellation_token = CancellationToken::new();
         let btc_rpc_client = Arc::new(Client::new(
             &params.indexer_params.btc_rpc_creds.url.to_string(),
@@ -191,7 +192,7 @@ impl<C: TitanApi> BtcIndexer<C> {
 }
 
 #[async_trait]
-impl<C: TitanApi> BtcIndexerApi for BtcIndexer<C> {
+impl<C: TitanApi, Db: PersistentRepoTrait> BtcIndexerApi for BtcIndexer<C, Db> {
     #[instrument(level = "debug", skip(self))]
     async fn track_tx_changes(
         &self,
@@ -248,7 +249,7 @@ impl<C: TitanApi> BtcIndexerApi for BtcIndexer<C> {
     }
 }
 
-impl<C> Drop for BtcIndexer<C> {
+impl<C, Db> Drop for BtcIndexer<C, Db> {
     #[instrument(skip(self))]
     fn drop(&mut self) {
         debug!("[{BTC_INDEXER_LOG_PATH}] Closing indexer");
