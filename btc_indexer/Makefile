@@ -14,16 +14,17 @@ help:
         { lastLine = $$0 }' $(MAKEFILE_LIST) | sort -u
 	@printf "\n"
 
+## Build indexer docker image
 docker/build:
-	docker build . -t spark_test_helper:image
+	docker build -f ./infrastructure/Dockerfile ./../ -t btc_indexer:image
 
-## Open db from docker
+## Open indexer from docker
 docker/up:
 	docker-compose --env-file ./.env -f ./infrastructure/docker-compose.yml up -d --build
 
-## Close db from docker
+## Close indexer from docker
 docker/down:
-	docker-compose --env-file ./.env -f ./infrastructure/docker-compose.yml down spark-helper-service
+	docker-compose --env-file ./.env -f ./infrastructure/docker-compose.yml down btc_indexer
 
 ## Open db from docker
 docker/db/up:

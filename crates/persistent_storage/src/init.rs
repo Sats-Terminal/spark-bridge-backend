@@ -32,7 +32,7 @@ pub trait PersistentRepoTrait: Send + Sync {
 impl PostgresRepoTesting {
     #[instrument(level = "trace", ret)]
     pub async fn from_config(creds: PostgresDbTestingCredentials) -> Result<Self, DbInitError> {
-        trace!("Creating Redis connection pool with creds: {:?}", creds);
+        trace!("Creating PG(testing) connection pool with creds: {:?}", creds);
         let pool = PgPool::connect(&creds.url)
             .await
             .map_err(|x| DbInitError::FailedToEstablishDbConn(x, creds.url.clone()))?;
@@ -60,7 +60,7 @@ impl PersistentRepoTrait for PostgresRepoTesting {
 impl PostgresRepo {
     #[instrument(level = "trace", ret)]
     pub async fn from_config(creds: PostgresDbCredentials) -> Result<Self, DbInitError> {
-        trace!("Creating Redis connection pool with creds: {:?}", creds);
+        trace!("Creating PG (production) connection pool with creds: {:?}", creds);
         let pool = PgPool::connect(&creds.url)
             .await
             .map_err(|x| DbInitError::FailedToEstablishDbConn(x, creds.url.clone()))?;

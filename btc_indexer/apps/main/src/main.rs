@@ -8,14 +8,10 @@ use tokio::net::TcpListener;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    dotenv::dotenv()?;
     let _logger_guard = init_logger();
-    let (btc_creds, postgres_creds, config_variant) = (
-        BtcRpcCredentials::new()?,
-        PostgresDbCredentials::new()?,
-        ConfigVariant::init(),
-    );
-    let app_config = ServerConfig::init_config(config_variant)?;
+    let app_config = ServerConfig::init_config(ConfigVariant::Production)?;
+    // let app_config = ServerConfig::init_config(ConfigVariant::init())?;
+    let (btc_creds, postgres_creds) = (BtcRpcCredentials::new()?, PostgresDbCredentials::new()?);
     let db_pool = PostgresRepo::from_config(postgres_creds).await?.into_shared();
     let btc_indexer = BtcIndexer::with_api(IndexerParams {
         btc_rpc_creds: btc_creds,
