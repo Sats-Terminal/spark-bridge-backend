@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Deserialize)]
 pub struct GetRunesAddressRequest {
     pub user_id: String,
+    pub rune_id: String,
 }
 
 #[derive(Serialize)]

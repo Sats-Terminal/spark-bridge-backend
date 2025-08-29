@@ -35,3 +35,19 @@ pub async fn handler_watch_runes_address(Json(request): Json<WatchRunesAddressRe
         partial_address: "0x1234567890".to_string(),
     }))
 }
+
+#[derive(Deserialize)]
+pub struct GetPublicKeyPackageRequest {
+    pub key_id: String,
+}
+
+#[derive(Serialize)]
+pub struct GetPublicKeyPackageResponse {
+    pub public_key_package: String,
+}
+
+pub async fn handler_get_public_key_package(Json(request): Json<GetPublicKeyPackageRequest>) -> Result<Json<GetPublicKeyPackageResponse>, VerifierError> {
+    Ok(Json(GetPublicKeyPackageResponse {
+        public_key_package: "0x1234567890".to_string(),
+    }))
+}
