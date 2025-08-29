@@ -50,6 +50,8 @@ prost-wkt-types = "0.6.1"
 prost-wkt = "0.6.1"
 prost-wkt-build = "0.6.1"
 tonic-build = { version = "0.12.3", features = ["prost"] }
+sqlx = { version = "0.8.4", features = ["postgres", "runtime-tokio", "uuid"]}
+uuid = { version = "1.18.0", features = ["v4"] }
 
 # Global crates
 global-utils = { path = "crates/global_utils" }
