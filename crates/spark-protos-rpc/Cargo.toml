@@ -1,0 +1,22 @@
+[package]
+name = "spark-protos"
+version = "0.1.12"
+edition = "2024"
+
+[package.metadata.cargo-machete]
+ignored = ["prost-wkt", "prost-wkt-types", "serde", "tonic"]
+
+[features]
+default = ["client"]
+client = []
+
+[dependencies]
+serde = { workspace = true }
+tonic = { workspace = true }
+prost = { workspace = true }
+prost-wkt-types = { workspace = true }
+prost-wkt = { workspace = true }
+
+[build-dependencies]
+prost-wkt-build = { workspace = true }
+tonic-build = { workspace = true }
