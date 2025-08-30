@@ -1,0 +1,5 @@
+[package]
+name = "gateway-flow-processor"
+edition = "2024"
+
+[dependencies]
