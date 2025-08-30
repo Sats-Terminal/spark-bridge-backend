@@ -6,7 +6,8 @@ use persistent_storage::init::PostgresRepo;
 
 impl KeyStorage for PostgresRepo {
     async fn insert_key(&self, key: Key) -> Result<(), DatabaseError> {
-        let _ = sqlx::query!("INSERT INTO keys (key_id) VALUES ($1)", key.key_id)
+        let _ = sqlx::query("INSERT INTO keys (key_id) VALUES ($1)")
+            .bind(key.key_id)
             .execute(&self.pool)
             .await
             .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
@@ -15,7 +16,8 @@ impl KeyStorage for PostgresRepo {
     }
 
     async fn get_key(&self, key_id: Uuid) -> Result<Key, DatabaseError> {
-        let result = sqlx::query!("SELECT * FROM keys WHERE key_id = $1 LIMIT 1", key_id)
+        let result: (Uuid, ) = sqlx::query_as("SELECT * FROM keys WHERE key_id = $1 LIMIT 1")
+            .bind(key_id)
             .fetch_one(&self.pool)
             .await
             .map_err(|e| match e {
@@ -23,6 +25,6 @@ impl KeyStorage for PostgresRepo {
                 _ => DatabaseError::BadRequest(e.to_string()),
             })?;
 
-        Ok(Key { key_id: result.key_id })
+        Ok(Key { key_id: result.0 })
     }
 }
