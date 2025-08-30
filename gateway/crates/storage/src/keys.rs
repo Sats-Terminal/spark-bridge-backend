@@ -16,7 +16,7 @@ impl KeyStorage for PostgresRepo {
     }
 
     async fn get_key(&self, key_id: Uuid) -> Result<Key, DatabaseError> {
-        let result: (Uuid, ) = sqlx::query_as("SELECT * FROM keys WHERE key_id = $1 LIMIT 1")
+        let result: (Uuid,) = sqlx::query_as("SELECT * FROM keys WHERE key_id = $1 LIMIT 1")
             .bind(key_id)
             .fetch_one(&self.pool)
             .await
