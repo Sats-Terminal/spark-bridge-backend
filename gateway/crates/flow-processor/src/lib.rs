@@ -1,10 +1,10 @@
 pub mod types;
-pub mod flow_executor;
+pub mod flow_processor;
 pub mod flow_sender;
 pub mod errors;
 pub mod flow_router;
 
-use crate::flow_executor::FlowProcessor;
+use crate::flow_processor::FlowProcessor;
 use crate::flow_sender::FlowSender;
 
 use tokio::sync::mpsc;
