@@ -9,3 +9,4 @@ thiserror = { workspace = true }
 persistent_storage = { workspace = true }
 tracing = { workspace = true }
 global_utils = { workspace = true }
+tokio-util = { workspace = true }

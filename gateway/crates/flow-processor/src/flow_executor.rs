@@ -1,12 +1,14 @@
 use tokio;
 use tokio::sync::{mpsc, oneshot};
 use tokio::time::Duration;
+use tokio::task::JoinHandle;
 use crate::types::*;
 use crate::errors::FlowProcessorError;
 use persistent_storage::init::PostgresRepo;
 use tracing;
 use std::collections::HashMap;
 use uuid::Uuid;
+use tokio_util::sync::CancellationToken;
 
 #[derive(Clone)]
 pub struct FlowProcessorState {
@@ -15,55 +17,96 @@ pub struct FlowProcessorState {
 
 pub struct FlowProcessor {
     pub tx_receiver: mpsc::Receiver<(FlowProcessorMessage, OneshotFlowProcessorSender)>,
+    pub flow_receiver: mpsc::Receiver<Uuid>,
+    pub flow_sender: mpsc::Sender<Uuid>,
     pub state: FlowProcessorState,
-    flows_in_progress: HashMap<Uuid, (OneshotFlowProcessorReceiver, OneshotFlowProcessorSender)>,
+    pub flows: HashMap<Uuid, JoinHandle<()>>,
+    pub cancellation_token: CancellationToken,
 }
 
 impl FlowProcessor {
     pub fn new(
         tx_receiver: mpsc::Receiver<(FlowProcessorMessage, OneshotFlowProcessorSender)>,
-        storage: PostgresRepo
+        storage: PostgresRepo,
+        cancellation_token: CancellationToken
     ) -> Self {
-        Self { tx_receiver, state: FlowProcessorState { storage }, flows_in_progress: HashMap::new() }
+        let (flow_sender, flow_receiver) = mpsc::channel::<Uuid>(1000);
+        Self { 
+            tx_receiver, 
+            flow_receiver, 
+            flow_sender, 
+            state: FlowProcessorState { storage }, 
+            flows: HashMap::new(),
+            cancellation_token
+        }
     }
 
     pub async fn run(&mut self) {
         loop {
-            let wrapper = self.tx_receiver.recv().await;
-            
-            match wrapper {
-                None => {
-                    panic!("Channel closed unexpectedly");
-                }
-                Some(wrapper) => {
-                    tracing::info!("[main] Received message");
-
-                    let (message, response_sender) = wrapper;
-
-                    let (router_sender, router_receiver) = oneshot::channel::<Result<FlowProcessorResponse, FlowProcessorError>>();
-
-                    let flow_id = uuid::Uuid::new_v4();
-                    self.flows_in_progress.insert(flow_id, (router_receiver, response_sender));
-                    
-                    let mut router = FlowProcessorRouter::new(self.state.clone(), flow_id);
-                    tokio::task::spawn(async move {
-                        tracing::info!("[main] Running flow for id {}", flow_id);
-                        router.run(message, router_sender).await;
-                        tracing::info!("[main] Flow for id {} finished", flow_id);
-                    });
-                }
-            }
-
-            let ids = self.flows_in_progress.keys().cloned().collect::<Vec<_>>();
-            for flow_id in ids {
-                if let Some((mut receiver, sender)) = self.flows_in_progress.remove(&flow_id) {
-                    if let Ok(message) = receiver.try_recv() {
-                        tracing::info!("[main] Sending response for id {}", flow_id);
-                        let _ = sender.send(message).map_err(|_| {
-                            tracing::error!("[main] Failed to send response for id {}", flow_id);
-                        });
-                        self.flows_in_progress.remove(&flow_id);
+            tokio::select! {
+                flow = self.flow_receiver.recv() => {
+                    match flow {
+                        None => {
+                            tracing::error!("[main] Task channel closed unexpectedly");
+                            break;
+                        }
+                        Some(flow_id) => {
+                            tracing::info!("[main] Received task for id {}", flow_id);
+                            let _ = self.flows.remove(&flow_id);
+                        }
                     }
+                }
+                wrapper = self.tx_receiver.recv() => {
+                    match wrapper {
+                        None => {
+                            tracing::error!("[main] Message channel closed unexpectedly");
+                            break;
+                        }
+                        Some(wrapper) => {
+                            tracing::info!("[main] Received message");
+        
+                            let (message, response_sender) = wrapper;
+        
+                            let flow_id = uuid::Uuid::new_v4();
+                            
+                            let router = FlowProcessorRouter::new(
+                                self.state.clone(), 
+                                flow_id,
+                                response_sender,
+                                self.flow_sender.clone()
+                            );
+        
+                            let handle = tokio::task::spawn(async move {
+                                tracing::info!("[main] Running flow for id {}", flow_id);
+                                router.run(message).await;
+                                tracing::info!("[main] Flow for id {} finished", flow_id);
+                            });
+        
+                            self.flows.insert(flow_id, handle);
+                        }
+                    }
+                }
+                _ = self.cancellation_token.cancelled() => {
+                    tracing::info!("[main] Shutting down flow processor");
+
+                    for i in 0..10 {
+                        if self.flows.is_empty() {
+                            break;
+                        }
+                        while let Some(flow_id) = self.flow_receiver.recv().await {
+                            let _ = self.flows.remove(&flow_id);
+                        }
+                        tokio::time::sleep(Duration::from_secs(1)).await;
+                        tracing::info!("[main] Waiting flows to finish {}/10", i);
+                    }
+                    
+                    for (flow_id, handle) in self.flows.iter() {
+                        let _ = handle.abort();
+                        tracing::info!("[main] Aborted flow for id {}", flow_id);
+                    }
+
+                    self.flows.clear();
+                    break;
                 }
             }
         }
@@ -73,17 +116,21 @@ impl FlowProcessor {
 struct FlowProcessorRouter {
     state: FlowProcessorState,
     flow_id: Uuid,
+    response_sender: OneshotFlowProcessorSender,
+    task_sender: mpsc::Sender<Uuid>,
 }
 
 impl FlowProcessorRouter {
     fn new(
         state: FlowProcessorState,
-        flow_id: Uuid
+        flow_id: Uuid,
+        response_sender: OneshotFlowProcessorSender,
+        task_sender: mpsc::Sender<Uuid>
     ) -> Self {
-        Self { state, flow_id }
+        Self { state, flow_id, response_sender, task_sender }
     }
 
-    async fn run(&mut self, message: FlowProcessorMessage, response_sender: oneshot::Sender<Result<FlowProcessorResponse, FlowProcessorError>>) {
+    async fn run(mut self, message: FlowProcessorMessage) {
         let response = match message {
             FlowProcessorMessage::RunDkgFlow(request) => {
                 let response = self.run_dkg_flow(request).await;
@@ -107,11 +154,13 @@ impl FlowProcessorRouter {
             }
         };
 
-        tracing::info!("[router] Attempting to send response for flow id {}", self.flow_id);
-        let _ = response_sender.send(response).map_err(|_| {
+        let _ = self.response_sender.send(response).map_err(|_| {
             tracing::error!("[router] Failed to send response for flow id {}", self.flow_id);
         });
-        tracing::info!("[router] Finished sending response for flow id {}", self.flow_id);
+
+        let _ = self.task_sender.send(self.flow_id).await.map_err(|_| {
+            tracing::error!("[router] Failed to send task for flow id {}", self.flow_id);
+        });
     }
 
     async fn run_dkg_flow(&mut self, request: DkgFlowRequest) -> Result<DkgFlowResponse, FlowProcessorError> {

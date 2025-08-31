@@ -8,10 +8,12 @@ use crate::flow_sender::FlowSender;
 
 use tokio::sync::mpsc;
 use persistent_storage::init::PostgresRepo;
+use tokio_util::sync::CancellationToken;
 
 pub fn create_flow_processor(storage: PostgresRepo) -> (FlowProcessor, FlowSender) {
     let (tx_sender, tx_receiver) = mpsc::channel(1000);
-    let flow_processor = FlowProcessor::new(tx_receiver, storage);
-    let flow_sender = FlowSender::new(tx_sender);
+    let cancellation_token = CancellationToken::new();
+    let flow_processor = FlowProcessor::new(tx_receiver, storage, cancellation_token.clone());
+    let flow_sender = FlowSender::new(tx_sender, cancellation_token);
     (flow_processor, flow_sender)
 }

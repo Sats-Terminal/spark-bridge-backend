@@ -2,18 +2,24 @@ use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use crate::types::*;
 use crate::errors::FlowProcessorError;
+use tokio_util::sync::CancellationToken;
 
 pub trait TypedMessageSender<S, R> {
     async fn send(&self, message: S) -> Result<R, FlowProcessorError>;
 }
 
+#[derive(Clone)]
 pub struct FlowSender {
     tx_sender: mpsc::Sender<(FlowProcessorMessage, OneshotFlowProcessorSender)>,
+    cancellation_token: CancellationToken,
 }
 
 impl FlowSender {
-    pub fn new(tx_sender: mpsc::Sender<(FlowProcessorMessage, OneshotFlowProcessorSender)>) -> Self {
-        Self { tx_sender }
+    pub fn new(
+        tx_sender: mpsc::Sender<(FlowProcessorMessage, OneshotFlowProcessorSender)>,
+        cancellation_token: CancellationToken
+    ) -> Self {
+        Self { tx_sender, cancellation_token }
     }
 
     pub async fn send_messsage(&self, message: FlowProcessorMessage) -> Result<FlowProcessorResponse, FlowProcessorError> {
@@ -30,6 +36,9 @@ impl FlowSender {
         }
     }
     
+    pub async fn shutdown(&self) {
+        self.cancellation_token.cancel();
+    }
 }
 
 impl TypedMessageSender<DkgFlowRequest, DkgFlowResponse> for FlowSender {
