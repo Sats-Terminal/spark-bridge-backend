@@ -6,15 +6,14 @@ edition = "2021"
 [dependencies]
 tokio = { workspace = true }
 secp256k1 = { workspace = true }
-rand = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true }
 bincode = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true }
 
-btc-signer-types = { path = "../btc_signer_types" }
 btc-signer = { path = "../btc_signer" }
+frost-secp256k1 = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }

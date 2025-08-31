@@ -1,32 +1,45 @@
 use async_trait::async_trait;
-use btc_signer_types::types::{DkgRound1Package, DkgRound2Package, KeyShare, NonceShare, PartialSignature, ParticipantId, PublicKeyPackage, SigningPackage};
+use frost::keys::dkg::round1;
+use frost::keys::{
+    KeyPackage, PublicKeyPackage,
+};
+use frost::round2::SignatureShare;
+use frost::SigningPackage;
+use frost_secp256k1 as frost;
+use frost_secp256k1::keys::dkg::round2;
+use frost_secp256k1::Identifier;
+use secp256k1::PublicKey;
+use std::collections::BTreeMap;
+
 use crate::errors::Result;
 
 #[async_trait]
 pub trait Signer: Send + Sync {
-    fn get_participant_id(&self) -> &ParticipantId;
+    fn get_participant_id(&self) -> &Identifier;
 
-    async fn get_public_key_share(&self) -> Result<secp256k1::PublicKey>;
+    async fn get_public_key_share(&self) -> Result<PublicKey>;
 
-    async fn dkg_round_1(&mut self) -> Result<DkgRound1Package>;
+    async fn dkg_round_1(&mut self) -> Result<round1::Package>;
 
     async fn dkg_round_2(
         &mut self,
-        round1_packages: &[DkgRound1Package]
-    ) -> Result<DkgRound2Package>;
+        round1_packages: &BTreeMap<Identifier, round1::Package>,
+    ) -> Result<BTreeMap<Identifier, round2::Package>>;
 
     async fn finalize_dkg(
         &mut self,
-        round1_packages: &[DkgRound1Package],
-        round2_packages: &[DkgRound2Package],
-    ) -> Result<(KeyShare, PublicKeyPackage)>;
+        round1_packages: &BTreeMap<Identifier, round1::Package>,
+        round2_packages: &BTreeMap<Identifier, round2::Package>,
+    ) -> Result<(KeyPackage, PublicKeyPackage)>;
 
-    async fn generate_nonce_share(&mut self) -> Result<NonceShare>;
+    async fn generate_nonce_share(&mut self) -> Result<frost::round1::SigningNonces>;
 
     async fn create_partial_signature(
         &self,
         signing_package: &SigningPackage,
-    ) -> Result<PartialSignature>;
+        nonces: &frost::round1::SigningNonces,
+        key_package: &KeyPackage,
+    ) -> Result<SignatureShare>;
 
     async fn get_intermediate_values(&self, message: &[u8]) -> Result<Vec<u8>>;
 }
