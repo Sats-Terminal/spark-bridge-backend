@@ -91,9 +91,9 @@ impl FlowProcessor {
 
                     for i in 0..10 {
                         if self.flows.is_empty() {
-                            break;
+                            return;
                         }
-                        while let Some(flow_id) = self.flow_receiver.recv().await {
+                        while let Ok(flow_id) = self.flow_receiver.try_recv() {
                             let _ = self.flows.remove(&flow_id);
                         }
                         tokio::time::sleep(Duration::from_secs(1)).await;
@@ -192,7 +192,7 @@ impl FlowProcessorRouter {
 
         tracing::info!("[router] [{}] Testing flow finished", self.flow_id);
         Ok(TestingResponse {
-            message: format!("message for {}", self.flow_id),
+            message: request.message,
         })
     }
 }

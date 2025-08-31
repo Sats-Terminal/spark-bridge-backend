@@ -44,7 +44,7 @@ pub struct ExitSparkResponse {
 }
 
 pub struct TestingRequest {
-    pub thread_name: String,
+    pub message: String,
     pub n_seconds: u64,
     pub n_runs: u64,
 }

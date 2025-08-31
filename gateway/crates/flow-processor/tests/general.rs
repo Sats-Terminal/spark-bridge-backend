@@ -20,7 +20,7 @@ async fn test_1() {
     });
 
     let testing_request = TestingRequest {
-        thread_name: "test".to_string(),
+        message: "test".to_string(),
         n_seconds: 1,
         n_runs: 1,
     };
@@ -69,4 +69,64 @@ async fn test_2() {
     tx2.send("2".to_string()).await.unwrap();
 
     let _ = task.await.unwrap();
+}
+
+#[tokio::test]
+async fn test_3() {
+    let _guard = init_logger();
+
+    tracing::info!("Testing flow processor");
+
+    let url = "postgresql://postgres:postgres@localhost:5433/postgres".to_string();
+    let storage = PostgresRepo::from_config(PostgresDbCredentials { url }).await.unwrap();
+    let (mut flow_processor, flow_sender) = create_flow_processor(storage);
+
+    let flow_processor_task = tokio::task::spawn(async move {
+        flow_processor.run().await;
+    });
+
+    let flow_sender_1 = flow_sender.clone();
+    let flow_sender_2 = flow_sender.clone();
+    let flow_sender_3 = flow_sender.clone();
+
+    let testing_request_1 = TestingRequest {
+        message: "test_1".to_string(),
+        n_seconds: 1,
+        n_runs: 10,
+    };
+    
+    let testing_request_2 = TestingRequest {
+        message: "test_2".to_string(),
+        n_seconds: 2,
+        n_runs: 5,
+    };
+
+    let testing_request_3 = TestingRequest {
+        message: "test_3".to_string(),
+        n_seconds: 3,
+        n_runs: 3,
+    };
+
+    let task_1 = tokio::spawn(async move {
+        let testing_response_1 = flow_sender_1.send(testing_request_1).await.unwrap();
+        println!("Testing response 1: {:?}", testing_response_1.message);
+    });
+    let task_2 = tokio::spawn(async move {
+        let testing_response_2 = flow_sender_2.send(testing_request_2).await.unwrap();
+        println!("Testing response 2: {:?}", testing_response_2.message);
+    });
+    let task_3 = tokio::spawn(async move {
+        let testing_response_3 = flow_sender_3.send(testing_request_3).await.unwrap();
+        println!("Testing response 3: {:?}", testing_response_3.message);
+    });
+    
+    tokio::time::sleep(tokio::time::Duration::from_secs(8)).await;
+
+    flow_sender.shutdown().await;
+
+    for task in [task_1, task_2, task_3] {
+        task.await.unwrap();
+    }
+
+    flow_processor_task.await.unwrap();
 }
