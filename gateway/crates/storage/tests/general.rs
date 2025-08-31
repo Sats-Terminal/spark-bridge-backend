@@ -10,9 +10,7 @@ use uuid::Uuid;
 #[tokio::test]
 async fn test() {
     let url = "postgresql://postgres:postgres@localhost:5433/postgres".to_string();
-    let storage = PostgresRepo::from_config(PostgresDbCredentials { url })
-        .await
-        .unwrap();
+    let storage = PostgresRepo::from_config(PostgresDbCredentials { url }).await.unwrap();
 
     let key_id = Uuid::new_v4();
     let key = Key { key_id };

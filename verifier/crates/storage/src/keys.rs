@@ -1,6 +1,6 @@
+use crate::errors::DatabaseError;
 use crate::{models::Key, traits::KeyStorage};
 use persistent_storage::init::PostgresRepo;
-use crate::errors::DatabaseError;
 use sqlx::{self, Row};
 use uuid::Uuid;
 
@@ -12,7 +12,10 @@ impl KeyStorage for PostgresRepo {
             .await
             .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
 
-        Ok(Key { key_id: result.0, metadata: result.1 })
+        Ok(Key {
+            key_id: result.0,
+            metadata: result.1,
+        })
     }
 
     async fn create_key(&self, key: &Key) -> Result<(), DatabaseError> {

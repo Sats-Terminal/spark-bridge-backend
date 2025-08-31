@@ -1,5 +1,5 @@
-use persistent_storage::init::{PostgresRepo, PersistentRepoTrait};
-use crate::{models::Key, errors::DatabaseError};
+use crate::{errors::DatabaseError, models::Key};
+use persistent_storage::init::{PersistentRepoTrait, PostgresRepo};
 use uuid::Uuid;
 
 pub trait KeyStorage {

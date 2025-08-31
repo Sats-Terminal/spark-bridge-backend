@@ -1,14 +1,14 @@
-pub mod types;
-pub mod flow_processor;
-pub mod flow_sender;
 pub mod errors;
+pub mod flow_processor;
 pub mod flow_router;
+pub mod flow_sender;
+pub mod types;
 
 use crate::flow_processor::FlowProcessor;
 use crate::flow_sender::FlowSender;
 
-use tokio::sync::mpsc;
 use persistent_storage::init::PostgresRepo;
+use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
 pub fn create_flow_processor(storage: PostgresRepo) -> (FlowProcessor, FlowSender) {

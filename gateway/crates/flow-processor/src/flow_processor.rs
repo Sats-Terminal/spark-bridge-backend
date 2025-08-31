@@ -1,15 +1,17 @@
+use crate::flow_router::FlowProcessorRouter;
+use crate::types::*;
+use persistent_storage::init::PostgresRepo;
+use std::collections::HashMap;
 use tokio;
 use tokio::sync::mpsc;
-use tokio::time::Duration;
 use tokio::task::JoinHandle;
-use crate::types::*;
-use crate::flow_router::FlowProcessorRouter;
-use persistent_storage::init::PostgresRepo;
-use tracing;
-use std::collections::HashMap;
-use uuid::Uuid;
+use tokio::time::Duration;
 use tokio_util::sync::CancellationToken;
+use tracing;
+use uuid::Uuid;
 
+// This is core struct that handles flows execution
+// For each request it creates a thread that runs the flow
 pub struct FlowProcessor {
     pub tx_receiver: mpsc::Receiver<(FlowProcessorMessage, OneshotFlowProcessorSender)>,
     pub flow_receiver: mpsc::Receiver<Uuid>,
@@ -23,16 +25,16 @@ impl FlowProcessor {
     pub fn new(
         tx_receiver: mpsc::Receiver<(FlowProcessorMessage, OneshotFlowProcessorSender)>,
         storage: PostgresRepo,
-        cancellation_token: CancellationToken
+        cancellation_token: CancellationToken,
     ) -> Self {
         let (flow_sender, flow_receiver) = mpsc::channel::<Uuid>(1000);
-        Self { 
-            tx_receiver, 
-            flow_receiver, 
-            flow_sender, 
-            storage, 
+        Self {
+            tx_receiver,
+            flow_receiver,
+            flow_sender,
+            storage,
             flows: HashMap::new(),
-            cancellation_token
+            cancellation_token,
         }
     }
 
@@ -59,24 +61,24 @@ impl FlowProcessor {
                         }
                         Some(wrapper) => {
                             tracing::info!("[main] Received message");
-        
+
                             let (message, response_sender) = wrapper;
-        
+
                             let flow_id = uuid::Uuid::new_v4();
-                            
+
                             let router = FlowProcessorRouter::new(
-                                self.storage.clone(), 
+                                self.storage.clone(),
                                 flow_id,
                                 response_sender,
                                 self.flow_sender.clone()
                             );
-        
+
                             let handle = tokio::task::spawn(async move {
                                 tracing::info!("[main] Running flow for id {}", flow_id);
                                 router.run(message).await;
                                 tracing::info!("[main] Flow for id {} finished", flow_id);
                             });
-        
+
                             self.flows.insert(flow_id, handle);
                         }
                     }
@@ -94,7 +96,7 @@ impl FlowProcessor {
                         tokio::time::sleep(Duration::from_secs(1)).await;
                         tracing::info!("[main] Waiting flows to finish {}/10", i);
                     }
-                    
+
                     for (flow_id, handle) in self.flows.iter() {
                         let _ = handle.abort();
                         tracing::info!("[main] Aborted flow for id {}", flow_id);

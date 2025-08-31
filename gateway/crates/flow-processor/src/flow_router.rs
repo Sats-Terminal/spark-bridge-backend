@@ -1,12 +1,13 @@
-use tokio::sync::mpsc;
-use uuid::Uuid;
-use crate::types::*;
 use crate::errors::FlowProcessorError;
-use tracing;
-use tokio::time::Duration;
+use crate::types::*;
 use persistent_storage::init::PostgresRepo;
+use tokio::sync::mpsc;
+use tokio::time::Duration;
+use tracing;
+use uuid::Uuid;
 
-
+// This struct is used to route the message to the correct flow
+// This struct instance is created for each message that is sent to the flow processor
 pub struct FlowProcessorRouter {
     storage: PostgresRepo,
     flow_id: Uuid,
@@ -19,9 +20,14 @@ impl FlowProcessorRouter {
         storage: PostgresRepo,
         flow_id: Uuid,
         response_sender: OneshotFlowProcessorSender,
-        task_sender: mpsc::Sender<Uuid>
+        task_sender: mpsc::Sender<Uuid>,
     ) -> Self {
-        Self { storage, flow_id, response_sender, task_sender }
+        Self {
+            storage,
+            flow_id,
+            response_sender,
+            task_sender,
+        }
     }
 
     pub async fn run(mut self, message: FlowProcessorMessage) {
@@ -63,13 +69,19 @@ impl FlowProcessorRouter {
         })
     }
 
-    async fn run_bridge_runes_flow(&mut self, request: BridgeRunesRequest) -> Result<BridgeRunesResponse, FlowProcessorError> {
+    async fn run_bridge_runes_flow(
+        &mut self,
+        request: BridgeRunesRequest,
+    ) -> Result<BridgeRunesResponse, FlowProcessorError> {
         Ok(BridgeRunesResponse {
             message: format!("message for {}", request.request_id),
         })
     }
 
-    async fn run_exit_spark_flow(&mut self, request: ExitSparkRequest) -> Result<ExitSparkResponse, FlowProcessorError> {
+    async fn run_exit_spark_flow(
+        &mut self,
+        request: ExitSparkRequest,
+    ) -> Result<ExitSparkResponse, FlowProcessorError> {
         Ok(ExitSparkResponse {
             message: format!("message for {}", request.request_id),
         })
@@ -77,11 +89,19 @@ impl FlowProcessorRouter {
 
     async fn run_testing_flow(&mut self, request: TestingRequest) -> Result<TestingResponse, FlowProcessorError> {
         let mut cur_time = 0;
-        tracing::info!("[router] [{}] Testing flow running for {} seconds", self.flow_id, cur_time);
+        tracing::info!(
+            "[router] [{}] Testing flow running for {} seconds",
+            self.flow_id,
+            cur_time
+        );
         for _ in 0..request.n_runs {
             tokio::time::sleep(Duration::from_secs(request.n_seconds)).await;
             cur_time += request.n_seconds;
-            tracing::info!("[router] [{}] Testing flow running for {} seconds", self.flow_id, cur_time);
+            tracing::info!(
+                "[router] [{}] Testing flow running for {} seconds",
+                self.flow_id,
+                cur_time
+            );
         }
 
         tracing::info!("[router] [{}] Testing flow finished", self.flow_id);

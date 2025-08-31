@@ -1,6 +1,6 @@
+use crate::errors::FlowProcessorError;
 use tokio::sync::oneshot;
 use uuid::Uuid;
-use crate::errors::FlowProcessorError;
 
 pub type OneshotFlowProcessorSender = oneshot::Sender<Result<FlowProcessorResponse, FlowProcessorError>>;
 pub type OneshotFlowProcessorReceiver = oneshot::Receiver<Result<FlowProcessorResponse, FlowProcessorError>>;

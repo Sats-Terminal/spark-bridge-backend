@@ -1,9 +1,9 @@
-use tokio;
 use gateway_flow_processor::create_flow_processor;
-use persistent_storage::{init::PostgresRepo, config::PostgresDbCredentials};
-use gateway_flow_processor::types::TestingRequest;
 use gateway_flow_processor::flow_sender::TypedMessageSender;
+use gateway_flow_processor::types::TestingRequest;
 use global_utils::logger::init_logger;
+use persistent_storage::{config::PostgresDbCredentials, init::PostgresRepo};
+use tokio;
 
 #[tokio::test]
 async fn test_1() {
@@ -40,7 +40,6 @@ async fn test_1() {
 
     flow_processor_task.await.unwrap();
 }
-
 
 #[tokio::test]
 async fn test_2() {
@@ -94,7 +93,7 @@ async fn test_3() {
         n_seconds: 1,
         n_runs: 10,
     };
-    
+
     let testing_request_2 = TestingRequest {
         message: "test_2".to_string(),
         n_seconds: 2,
@@ -119,7 +118,7 @@ async fn test_3() {
         let testing_response_3 = flow_sender_3.send(testing_request_3).await.unwrap();
         println!("Testing response 3: {:?}", testing_response_3.message);
     });
-    
+
     tokio::time::sleep(tokio::time::Duration::from_secs(8)).await;
 
     flow_sender.shutdown().await;
