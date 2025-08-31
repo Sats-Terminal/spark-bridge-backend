@@ -2,6 +2,7 @@ pub mod types;
 pub mod flow_executor;
 pub mod flow_sender;
 pub mod errors;
+pub mod flow_router;
 
 use crate::flow_executor::FlowProcessor;
 use crate::flow_sender::FlowSender;
