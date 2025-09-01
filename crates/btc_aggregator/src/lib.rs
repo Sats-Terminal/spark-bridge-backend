@@ -4,3 +4,4 @@ pub mod errors;
 pub mod config;
 
 pub mod traits;
+mod agg_trait;

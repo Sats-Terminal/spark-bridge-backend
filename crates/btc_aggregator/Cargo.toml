@@ -17,6 +17,9 @@ frost-secp256k1 = { workspace = true }
 futures = { workspace = true }
 rand = { workspace = true }
 proptest = { workspace = true }
+async-trait = "0.1.89"
+frost-secp256k1-tr = "2.2.0"
+reqwest = "0.12.23"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }

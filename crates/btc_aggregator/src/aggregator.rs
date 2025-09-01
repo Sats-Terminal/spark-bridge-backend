@@ -1,5 +1,5 @@
 use frost_secp256k1::keys::PublicKeyPackage;
-use frost_secp256k1::round1::SigningNonces;
+use frost_secp256k1::round1::{SigningCommitments, SigningNonces};
 use frost_secp256k1::round2::SignatureShare;
 use frost_secp256k1::{Identifier, Signature, SigningPackage};
 use std::collections::{BTreeMap, HashMap};
@@ -258,119 +258,7 @@ impl FrostAggregator {
         info!("Started signing session: {}", session_id);
         Ok(session_id)
     }
-
-    pub async fn collect_nonce_shares(&self, session_id: &str) -> Result<Vec<SigningNonces>> {
-        let participants = {
-            let sessions = self.sessions.read().await;
-            let session = sessions.get(session_id)
-                .ok_or_else(|| AggregatorError::SessionNotFound { id: session_id.to_string() })?;
-            if !matches!(session.state, SessionState::NonceGeneration) {
-                return Err(AggregatorError::InvalidSessionState { state: format!("{:?}", session.state) });
-            }
-            session.participants.clone()
-        };
-
-        let signers = self.signers.read().await;
-        let mut nonces = Vec::new();
-
-        for participant_id in &participants {
-            if let Some(signer) = signers.get(participant_id) {
-                let mut signer_guard = signer.lock().await;
-                let nonce = signer_guard.generate_nonce_share().await?;
-
-                nonces.push(nonce.clone());
-
-                let nonce_share = NonceShare {
-                    participant_id: participant_id.clone(),
-                    commitment: nonce.commitments().deref().clone(),
-                    secret: nonce,
-                };
-
-                let mut sessions = self.sessions.write().await;
-                if let Some(session) = sessions.get_mut(session_id) {
-                    session.add_nonce_share(nonce_share);
-                }
-            }
-        }
-
-        Ok(nonces)
-    }
-
-    pub async fn collect_partial_signatures(&self, session_id: &str) -> Result<Vec<SignatureShare>> {
-        let (participants, message, public_key_package, nonces, nonce_shares) = {
-            let sessions = self.sessions.read().await;
-            let session = sessions.get(session_id)
-                .ok_or_else(|| AggregatorError::SessionNotFound { id: session_id.to_string() })?;
-            if !matches!(session.state, SessionState::Signing) {
-                return Err(AggregatorError::InvalidSessionState { state: format!("{:?}", session.state) });
-            }
-            let message = session.message.as_ref().ok_or_else(|| AggregatorError::Internal("No message".to_string()))?;
-            let public_key_package = session.public_key_package.as_ref().ok_or_else(|| AggregatorError::Internal("No public key package".to_string()))?;
-
-            let nonces: Vec<SigningNonces> = session.nonce_shares.values()
-                .map(|ns| ns.secret.clone())
-                .collect();
-
-            (
-                session.participants.clone(),
-                message.clone(),
-                public_key_package.clone(),
-                nonces,
-                session.nonce_shares.clone()
-            )
-        };
-
-        let commitments: BTreeMap<Identifier, _> = nonce_shares.iter()
-            .map(|(id, nonce_share)| (*id, nonce_share.commitment.clone()))
-            .collect();
-
-        let signing_package = SigningPackage::new(
-            commitments,
-            &message,
-        );
-
-        let signers = self.signers.read().await;
-        let mut partials = Vec::new();
-
-        for (i, participant_id) in participants.iter().enumerate() {
-            if let Some(signer) = signers.get(participant_id) {
-
-                let key_package = {
-                    let sessions = self.sessions.read().await;
-                    let session = sessions.get(session_id).unwrap();
-                    session.key_packages.get(participant_id)
-                        .ok_or_else(|| AggregatorError::Internal("No key package found".to_string()))?
-                        .clone()
-                };
-
-                let signer_guard = signer.lock().await;
-                let sig_share = signer_guard.create_partial_signature(
-                    &signing_package,
-                    &nonces[i],
-                    &key_package,
-                ).await?;
-
-                partials.push(sig_share.clone());
-
-                let partial_sig = PartialSignature {
-                    participant_id: participant_id.clone(),
-                    signature: sig_share,
-                };
-
-                let mut sessions = self.sessions.write().await;
-                if let Some(session) = sessions.get_mut(session_id) {
-                    session.add_partial_signature(partial_sig);
-                }
-            }
-        }
-
-        let mut sessions = self.sessions.write().await;
-        if let Some(session) = sessions.get_mut(session_id) {
-            session.state = SessionState::SignatureAggregation;
-        }
-
-        Ok(partials)
-    }
+    
 
     pub async fn aggregate_signatures(&self, session_id: &str, partial_signatures: &[SignatureShare]) -> Result<Signature> {
         let mut sessions = self.sessions.write().await;

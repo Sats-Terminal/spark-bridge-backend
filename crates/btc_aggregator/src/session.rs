@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use std::time::{Duration, SystemTime};
 
 use frost_secp256k1::keys::KeyPackage;
-use frost_secp256k1::round1::{SigningCommitments, SigningNonces};
+use frost_secp256k1::round1::SigningCommitments;
 use frost_secp256k1::round2::SignatureShare;
 use frost_secp256k1::{keys::{dkg::{round1, round2}, PublicKeyPackage, SigningShare}, Identifier, Signature};
 
@@ -24,8 +24,7 @@ pub enum SessionState {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NonceShare {
     pub participant_id: Identifier,
-    pub commitment: SigningCommitments, 
-    pub secret: SigningNonces,
+    pub commitment: SigningCommitments,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
