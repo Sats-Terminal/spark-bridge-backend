@@ -1,0 +1,10 @@
+[package]
+name = "gateway-main"
+edition = "2024"
+
+[dependencies]
+gateway-server = { workspace = true }
+gateway-common = { workspace = true }
+tokio = { workspace = true }
+global_utils = { workspace = true }
+log = { workspace = true }

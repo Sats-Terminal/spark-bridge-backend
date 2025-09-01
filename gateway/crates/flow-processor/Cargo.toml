@@ -1,0 +1,12 @@
+[package]
+name = "gateway-flow-processor"
+edition = "2024"
+
+[dependencies]
+tokio = { workspace = true }
+uuid = { workspace = true }
+thiserror = { workspace = true }
+persistent_storage = { workspace = true }
+tracing = { workspace = true }
+global_utils = { workspace = true }
+tokio-util = { workspace = true }

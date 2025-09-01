@@ -1,0 +1,10 @@
+[package]
+name = "verifier-main"
+edition = "2024"
+
+[dependencies]
+verifier-common = { workspace = true }
+verifier-server = { workspace = true }
+tokio = { workspace = true }
+global_utils = { workspace = true }
+log = { workspace = true }
