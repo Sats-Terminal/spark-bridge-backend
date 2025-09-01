@@ -8,7 +8,7 @@ use tokio;
 #[tokio::test]
 async fn test_1() {
     let _guard = init_logger();
-
+    //todo: fix tests & make more flexible
     tracing::info!("Testing flow processor");
 
     let url = "postgresql://postgres:postgres@localhost:5433/postgres".to_string();
@@ -44,7 +44,7 @@ async fn test_1() {
 #[tokio::test]
 async fn test_2() {
     let _guard = init_logger();
-
+    //todo: fix tests & make more flexible
     let (tx1, mut rx1) = tokio::sync::mpsc::channel::<String>(10);
     let (tx2, mut rx2) = tokio::sync::mpsc::channel::<String>(10);
 
@@ -73,7 +73,7 @@ async fn test_2() {
 #[tokio::test]
 async fn test_3() {
     let _guard = init_logger();
-
+    //todo: fix tests & make more flexible
     tracing::info!("Testing flow processor");
 
     let url = "postgresql://postgres:postgres@localhost:5433/postgres".to_string();
