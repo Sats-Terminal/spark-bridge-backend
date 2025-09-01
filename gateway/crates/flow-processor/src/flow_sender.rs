@@ -89,17 +89,3 @@ impl TypedMessageSender<ExitSparkRequest, ExitSparkResponse> for FlowSender {
         }
     }
 }
-
-impl TypedMessageSender<TestingRequest, TestingResponse> for FlowSender {
-    async fn send(&self, testing_message: TestingRequest) -> Result<TestingResponse, FlowProcessorError> {
-        let response = self
-            .send_messsage(FlowProcessorMessage::Testing(testing_message))
-            .await?;
-        match response {
-            FlowProcessorResponse::Testing(response) => Ok(response),
-            _ => Err(FlowProcessorError::InvalidResponseType(
-                "Invalid response type".to_string(),
-            )),
-        }
-    }
-}

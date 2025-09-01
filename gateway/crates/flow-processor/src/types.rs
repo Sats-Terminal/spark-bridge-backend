@@ -9,14 +9,12 @@ pub enum FlowProcessorMessage {
     RunDkgFlow(DkgFlowRequest),
     BridgeRunes(BridgeRunesRequest),
     ExitSpark(ExitSparkRequest),
-    Testing(TestingRequest),
 }
 
 pub enum FlowProcessorResponse {
     RunDkgFlow(DkgFlowResponse),
     BridgeRunes(BridgeRunesResponse),
     ExitSpark(ExitSparkResponse),
-    Testing(TestingResponse),
 }
 
 pub struct DkgFlowRequest {
@@ -40,15 +38,5 @@ pub struct ExitSparkRequest {
 }
 
 pub struct ExitSparkResponse {
-    pub message: String,
-}
-
-pub struct TestingRequest {
-    pub message: String,
-    pub n_seconds: u64,
-    pub n_runs: u64,
-}
-
-pub struct TestingResponse {
     pub message: String,
 }

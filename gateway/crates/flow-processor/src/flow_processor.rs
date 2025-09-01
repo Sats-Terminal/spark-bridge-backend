@@ -19,6 +19,7 @@ pub struct FlowProcessor {
     pub storage: PostgresRepo,
     pub flows: HashMap<Uuid, JoinHandle<()>>,
     pub cancellation_token: CancellationToken,
+    pub cancellation_retries: u64,
 }
 
 impl FlowProcessor {
@@ -26,6 +27,7 @@ impl FlowProcessor {
         tx_receiver: mpsc::Receiver<(FlowProcessorMessage, OneshotFlowProcessorSender)>,
         storage: PostgresRepo,
         cancellation_token: CancellationToken,
+        cancellation_retries: u64,
     ) -> Self {
         let (flow_sender, flow_receiver) = mpsc::channel::<Uuid>(1000);
         Self {
@@ -35,6 +37,7 @@ impl FlowProcessor {
             storage,
             flows: HashMap::new(),
             cancellation_token,
+            cancellation_retries,
         }
     }
 
@@ -86,7 +89,7 @@ impl FlowProcessor {
                 _ = self.cancellation_token.cancelled() => {
                     tracing::info!("[main] Shutting down flow processor");
 
-                    for i in 0..10 {
+                    for i in 0..self.cancellation_retries {
                         if self.flows.is_empty() {
                             return;
                         }
@@ -94,7 +97,7 @@ impl FlowProcessor {
                             let _ = self.flows.remove(&flow_id);
                         }
                         tokio::time::sleep(Duration::from_secs(1)).await;
-                        tracing::info!("[main] Waiting flows to finish {}/10", i);
+                        tracing::info!("[main] Waiting flows to finish {}/{}", i + 1, self.cancellation_retries);
                     }
 
                     for (flow_id, handle) in self.flows.iter() {
