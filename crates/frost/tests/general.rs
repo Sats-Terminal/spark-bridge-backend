@@ -55,6 +55,9 @@ fn test_flow() -> Result<()> {
     // ------------ DKG Validate ------------
     let public_key_package = public_key_packages.get(&signers[0].get_identifier()).unwrap().clone();
 
+    let public_key_encoded = hex::encode(public_key_package.verifying_key().serialize()?);
+    println!("Public key encoded: {}", public_key_encoded);
+
     public_key_packages.iter().for_each(|(_, other_public_key_package)| {
         assert_eq!(&public_key_package, other_public_key_package);
     });
@@ -62,6 +65,9 @@ fn test_flow() -> Result<()> {
     // ------------ Setup Aggregator ------------
     let message = generate_random_messsage();
     let mut aggregator = Aggregator::new(public_key_package.clone(), message);
+
+    let message_encoded = hex::encode(message);
+    println!("Message encoded: {}", message_encoded);
 
     // ------------ Signing Round 1 ------------
     let mut signing_commitments = BTreeMap::new();
@@ -79,6 +85,9 @@ fn test_flow() -> Result<()> {
         signature_shares.insert(signer_i.get_identifier(), signature_share);
     }
     let group_signature = aggregator.aggregate_part2(signature_shares)?;
+
+    let group_signature_encoded = hex::encode(group_signature.serialize()?);
+    println!("Group signature encoded: {}", group_signature_encoded);
 
     // ------------ Signing Validate ------------
 
