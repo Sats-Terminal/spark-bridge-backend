@@ -1,0 +1,9 @@
+[package]
+name = "frost-lib"
+edition = "2024"
+
+[dependencies]
+frost-secp256k1 = { workspace = true }
+eyre = { workspace = true }
+rand_core = { workspace = true }
+hex = { workspace = true }
