@@ -1,0 +1,220 @@
+use frost_secp256k1_tr::Identifier;
+use secp256k1::PublicKey;
+use crate::config::AggregatorConfig;
+use crate::traits::*;
+use crate::errors::AggregatorError;
+use std::collections::BTreeMap;
+use std::sync::Arc;
+use tokio::sync::Mutex;
+use frost_secp256k1_tr::keys;
+use frost_secp256k1_tr::Signature;
+use frost_secp256k1_tr::keys::PublicKeyPackage;
+use frost_secp256k1_tr::SigningPackage;
+
+#[derive(Clone)]
+pub struct FrostAggregator {
+    config: AggregatorConfig,
+    verifiers: BTreeMap<Identifier, Arc<dyn SignerClient>>,
+    user_storage: Arc<dyn AggregatorUserStorage>,
+}
+
+impl FrostAggregator {
+    pub fn new(
+        config: AggregatorConfig, 
+        verifiers: BTreeMap<Identifier, Arc<dyn SignerClient>>, 
+        user_storage: Arc<dyn AggregatorUserStorage>
+    ) -> Self {
+        Self {
+            config,
+            verifiers,
+            user_storage,
+        }
+    }
+
+    async fn dkg_round_1(&self, user_id: String) -> Result<(), AggregatorError> {
+        let state = self.user_storage.get_user_state(user_id.clone()).await?;
+
+        match state {
+            Some(_) => {
+                return Err(AggregatorError::InvalidUserState("User state is not None".to_string()));
+            }
+            None => {
+                let signer_clients_request = DkgRound1Request {
+                    user_id: user_id.clone(),
+                };
+                
+                let mut verifier_responses = BTreeMap::new();
+                for (verifier_id, signer_client) in &self.verifiers {
+                    let response = signer_client.dkg_round_1(signer_clients_request.clone()).await?;
+                    verifier_responses.insert(*verifier_id, response.round1_package);
+                }
+        
+                self.user_storage.set_user_state(user_id.clone(), AggregatorUserState::DkgRound1 { round1_packages: verifier_responses }).await?;
+        
+                Ok(())
+            }
+        }
+    }
+
+    async fn dkg_round_2(&self, user_id: String) -> Result<(), AggregatorError> {
+        let state = self.user_storage.get_user_state(user_id.clone()).await?;
+
+        match state {
+            Some(AggregatorUserState::DkgRound1 { round1_packages }) => {
+                let mut verifier_responses = BTreeMap::new();
+
+                for (verifier_id, signer_client) in &self.verifiers {
+                    let mut packages = round1_packages.clone();
+                    packages.remove(verifier_id);
+                    let signer_requests = DkgRound2Request {
+                        user_id: user_id.clone(),
+                        round1_packages: packages,
+                    };
+                    let response = signer_client.dkg_round_2(signer_requests.clone()).await?;
+                    for (receiver_identifier, round2_package) in response.round2_packages {
+                        verifier_responses.entry(receiver_identifier)
+                            .or_insert(BTreeMap::new())
+                            .insert(*verifier_id, round2_package);
+                    }
+                }
+
+                self.user_storage
+                    .set_user_state(user_id.clone(), AggregatorUserState::DkgRound2 { 
+                        round1_packages: round1_packages, 
+                        round2_packages: verifier_responses 
+                    }).await?;
+                Ok(())
+            }
+            _ => {
+                return Err(AggregatorError::InvalidUserState("User state is not DkgRound2".to_string()));
+            }
+        }
+    }
+
+    async fn dkg_finalize(&self, user_id: String) -> Result<(), AggregatorError> {
+        let state = self.user_storage.get_user_state(user_id.clone()).await?;
+
+        match state {
+            Some(AggregatorUserState::DkgRound2 { round1_packages, round2_packages }) => {
+                let mut public_key_packages = vec![];
+
+                for (verifier_id, signer_client) in &self.verifiers {
+                    let mut verifier_round1_packages = round1_packages.clone();
+                    verifier_round1_packages.remove(verifier_id);
+                    let request = DkgFinalizeRequest {
+                        user_id: user_id.clone(),
+                        round1_packages: verifier_round1_packages,
+                        round2_packages: round2_packages.get(verifier_id).ok_or(AggregatorError::Internal("Round2 packages not found".to_string()))?.clone(),
+                    };
+                    let response = signer_client.dkg_finalize(request.clone()).await?;
+                    let public_key_package = response.public_key_package;
+                    public_key_packages.push(public_key_package);
+                }
+
+                let public_key_package = public_key_packages[0].clone();
+                for _public_key_package in public_key_packages {
+                    if public_key_package != _public_key_package {
+                        return Err(AggregatorError::Internal("Public key packages are not equal".to_string()));
+                    }
+                }
+
+                self.user_storage.set_user_state(user_id.clone(), AggregatorUserState::DkgFinalized { public_key_package: public_key_package.clone() }).await?;
+
+                Ok(())
+            }
+            _ => {
+                return Err(AggregatorError::InvalidUserState("User state is not DkgFinalized".to_string()));
+            }
+        }
+    }
+
+    pub async fn run_dkg_flow(&self, user_id: String) -> Result<keys::PublicKeyPackage, AggregatorError> {
+        self.dkg_round_1(user_id.clone()).await?;
+        self.dkg_round_2(user_id.clone()).await?;
+        self.dkg_finalize(user_id.clone()).await?;
+
+        let state = self.user_storage.get_user_state(user_id.clone()).await?;
+        match state {
+            Some(AggregatorUserState::DkgFinalized { public_key_package }) => {
+                Ok(public_key_package)
+            }
+            _ => {
+                return Err(AggregatorError::InvalidUserState("User state is not DkgFinalized".to_string()));
+            }
+        }
+    }
+
+    async fn sign_round_1(&self, user_id: String, message: &[u8]) -> Result<(), AggregatorError> {
+        let state = self.user_storage.get_user_state(user_id.clone()).await?;
+
+        match state {
+            Some(AggregatorUserState::DkgFinalized { public_key_package }) => {
+                let mut commitments = BTreeMap::new();
+                for (verifier_id, signer_client) in &self.verifiers {
+                    let request = SignRound1Request {
+                        user_id: user_id.clone(),
+                    };
+                    let response = signer_client.sign_round_1(request).await?;
+                    commitments.insert(*verifier_id, response.commitments);
+                }
+
+                let signing_package = SigningPackage::new(commitments.clone(), message);
+                self.user_storage.set_user_state(user_id.clone(), AggregatorUserState::SigningRound1 { signing_package, public_key_package }).await?;
+
+                Ok(())
+            }
+            _ => {
+                return Err(AggregatorError::InvalidUserState("User state is not DkgFinalized".to_string()));
+            }
+        }
+    }
+
+    async fn sign_round_2(&self, user_id: String, message: &[u8]) -> Result<(), AggregatorError> {
+        let state = self.user_storage.get_user_state(user_id.clone()).await?;
+
+        match state {
+            Some(AggregatorUserState::SigningRound1 { signing_package, public_key_package }) => {
+                let mut signature_shares = BTreeMap::new();
+                for (verifier_id, signer_client) in &self.verifiers {
+                    let request = SignRound2Request {
+                        user_id: user_id.clone(),
+                        signing_package: signing_package.clone(),
+                    };
+                    let response = signer_client.sign_round_2(request).await?;
+                    signature_shares.insert(*verifier_id, response.signature_share);
+                }
+
+                let signature = frost_secp256k1_tr::aggregate(&signing_package, &signature_shares, &public_key_package)
+                    .map_err(|e| AggregatorError::Internal(format!("Signature aggregation failed: {:?}", e)))?;
+
+                let is_valid = public_key_package.verifying_key().verify(message, &signature).is_ok();
+                if !is_valid {
+                    return Err(AggregatorError::Internal("Signature is not valid".to_string()));
+                }
+
+                self.user_storage.set_user_state(user_id.clone(), AggregatorUserState::SigningRound2 { signature, public_key_package }).await?;
+
+                Ok(())
+            }
+            _ => {
+                return Err(AggregatorError::InvalidUserState("User state is not DkgFinalized".to_string()));
+            }
+        }
+    }
+
+    pub async fn run_signing_flow(&self, user_id: String, message: &[u8]) -> Result<Signature, AggregatorError> {
+        self.sign_round_1(user_id.clone(), message).await?;
+        self.sign_round_2(user_id.clone(), message).await?;
+
+        let state = self.user_storage.get_user_state(user_id.clone()).await?;
+        match state {
+            Some(AggregatorUserState::SigningRound2 { signature, public_key_package }) => {
+                self.user_storage.set_user_state(user_id.clone(), AggregatorUserState::DkgFinalized { public_key_package }).await?;
+                Ok(signature)
+            }
+            _ => {
+                return Err(AggregatorError::InvalidUserState("User state is not DkgFinalized".to_string()));
+            }
+        }
+    }
+}
