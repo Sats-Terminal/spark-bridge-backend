@@ -127,13 +127,6 @@ impl Signer {
 
 }
 
-pub fn generate_random_messsage() -> [u8; 32] {
-    let mut rng = OsRng;
-    let mut message = [0; 32];
-    rng.fill_bytes(&mut message);
-    message
-}
-
 pub struct Aggregator {
     public_key_package: PublicKeyPackage,
     message: [u8; 32],

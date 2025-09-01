@@ -1,8 +1,15 @@
 use eyre::{Result};
-use frost_lib::{Signer, generate_random_messsage, Aggregator};
+use frost_lib::{Signer, Aggregator};
 use std::collections::BTreeMap;
 use frost_secp256k1_tr::Identifier;
+use rand_core::{OsRng, RngCore};
 
+pub fn generate_random_messsage() -> [u8; 32] {
+    let mut rng = OsRng;
+    let mut message = [0; 32];
+    rng.fill_bytes(&mut message);
+    message
+}
 
 #[test]
 fn test_flow() -> Result<()> {
