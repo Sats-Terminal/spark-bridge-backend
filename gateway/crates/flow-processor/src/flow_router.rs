@@ -47,11 +47,6 @@ impl FlowProcessorRouter {
                 let answer = response.map(|response| FlowProcessorResponse::ExitSpark(response));
                 answer
             }
-            FlowProcessorMessage::Testing(request) => {
-                let response = self.run_testing_flow(request).await;
-                let answer = response.map(|response| FlowProcessorResponse::Testing(response));
-                answer
-            }
         };
 
         let _ = self.response_sender.send(response).map_err(|_| {
@@ -84,29 +79,6 @@ impl FlowProcessorRouter {
     ) -> Result<ExitSparkResponse, FlowProcessorError> {
         Ok(ExitSparkResponse {
             message: format!("message for {}", request.request_id),
-        })
-    }
-
-    async fn run_testing_flow(&mut self, request: TestingRequest) -> Result<TestingResponse, FlowProcessorError> {
-        let mut cur_time = 0;
-        tracing::info!(
-            "[router] [{}] Testing flow running for {} seconds",
-            self.flow_id,
-            cur_time
-        );
-        for _ in 0..request.n_runs {
-            tokio::time::sleep(Duration::from_secs(request.n_seconds)).await;
-            cur_time += request.n_seconds;
-            tracing::info!(
-                "[router] [{}] Testing flow running for {} seconds",
-                self.flow_id,
-                cur_time
-            );
-        }
-
-        tracing::info!("[router] [{}] Testing flow finished", self.flow_id);
-        Ok(TestingResponse {
-            message: request.message,
         })
     }
 }

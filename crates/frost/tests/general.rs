@@ -1,8 +1,8 @@
-use eyre::{Result};
-use frost_lib::{Signer, Aggregator};
-use std::collections::BTreeMap;
+use eyre::Result;
+use frost_lib::{Aggregator, Signer};
 use frost_secp256k1_tr::Identifier;
 use rand_core::{OsRng, RngCore};
+use std::collections::BTreeMap;
 
 pub fn generate_random_messsage() -> [u8; 32] {
     let mut rng = OsRng;
@@ -17,14 +17,11 @@ fn test_flow() -> Result<()> {
     let min_signers = 2;
     let max_signers = 3;
 
-    let mut signers = (1..(max_signers+1))
+    let mut signers = (1..(max_signers + 1))
         .map(|i| Signer::new(i, max_signers, min_signers))
         .collect::<Vec<_>>();
 
-    let identifiers = signers
-        .iter()
-        .map(|signer| signer.get_identifier())
-        .collect::<Vec<_>>();
+    let identifiers = signers.iter().map(|signer| signer.get_identifier()).collect::<Vec<_>>();
 
     // ------------ DKG Round 1 ------------
     let mut round1_packages = BTreeMap::<Identifier, BTreeMap<Identifier, _>>::new();
@@ -34,7 +31,8 @@ fn test_flow() -> Result<()> {
             if i == j {
                 continue;
             }
-            round1_packages.entry(identifier_j.clone())
+            round1_packages
+                .entry(identifier_j.clone())
                 .or_insert(BTreeMap::new())
                 .insert(signer_i.get_identifier(), round1_package.clone());
         }
@@ -44,9 +42,10 @@ fn test_flow() -> Result<()> {
     let mut round2_packages = BTreeMap::<Identifier, BTreeMap<Identifier, _>>::new();
     for signer_i in signers.iter_mut() {
         let new_round2_packages = signer_i.dkg_part2(round1_packages.get(&signer_i.get_identifier()).unwrap())?;
-        
+
         for (receiver_identidier, package) in new_round2_packages {
-            round2_packages.entry(receiver_identidier)
+            round2_packages
+                .entry(receiver_identidier)
                 .or_insert(BTreeMap::new())
                 .insert(signer_i.get_identifier(), package);
         }
