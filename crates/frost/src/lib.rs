@@ -1,4 +1,4 @@
-use frost_secp256k1::{
+use frost_secp256k1_tr::{
         keys::{dkg::{
         part1, part2, part3, 
         round1::{Package as Round1Package, SecretPackage as Round1SecretPackage},
@@ -150,7 +150,7 @@ impl Aggregator {
     }
 
     pub fn aggregate_part1(&mut self, signing_commitments: BTreeMap<Identifier, SigningCommitments>) -> Result<SigningPackage> {
-        let signing_package = frost_secp256k1::SigningPackage::new(
+        let signing_package = frost_secp256k1_tr::SigningPackage::new(
             signing_commitments,
             &self.message,
         );
@@ -162,7 +162,7 @@ impl Aggregator {
 
     pub fn aggregate_part2(&mut self, signature_shares: BTreeMap<Identifier, SignatureShare>) -> Result<Signature> {
         let signing_package = self.signing_package.clone().ok_or(eyre!("Signing package not found"))?;
-        let group_signature = frost_secp256k1::aggregate(
+        let group_signature = frost_secp256k1_tr::aggregate(
             &signing_package,
             &signature_shares,
             &self.public_key_package,

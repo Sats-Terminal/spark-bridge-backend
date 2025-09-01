@@ -1,7 +1,7 @@
 use eyre::{Result};
 use frost_lib::{Signer, generate_random_messsage, Aggregator};
 use std::collections::BTreeMap;
-use frost_secp256k1::Identifier;
+use frost_secp256k1_tr::Identifier;
 
 
 #[test]
@@ -91,7 +91,7 @@ fn test_flow() -> Result<()> {
     assert!(is_signature_valid);
 
     let signature_length = group_signature.serialize()?.len();
-    assert_eq!(signature_length, 65);
+    assert_eq!(signature_length, 64);
 
     Ok(())
 }
