@@ -1,9 +1,21 @@
-use crate::errors::DatabaseError;
-use crate::{models::Key, traits::KeyStorage};
-use persistent_storage::init::PostgresRepo;
-use sqlx::{self, Row};
 use uuid::Uuid;
 
+#[derive(Debug, Clone)]
+pub struct Key {
+    pub key_id: Uuid,
+    pub metadata: String,
+}
+
+use crate::error::DatabaseError;
+use persistent_storage::init::{PersistentRepoTrait, PostgresRepo};
+
+#[async_trait::async_trait]
+pub trait KeyStorage {
+    async fn get_key(&self, key_id: &Uuid) -> Result<Key, DatabaseError>;
+    async fn create_key(&self, key: &Key) -> Result<(), DatabaseError>;
+}
+
+#[async_trait::async_trait]
 impl KeyStorage for PostgresRepo {
     async fn get_key(&self, key_id: &Uuid) -> Result<Key, DatabaseError> {
         let result: (Uuid, String) = sqlx::query_as("SELECT key_id, metadata FROM keys WHERE key_id = $1")

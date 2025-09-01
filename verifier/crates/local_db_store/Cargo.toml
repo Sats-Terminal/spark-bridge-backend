@@ -1,8 +1,10 @@
 [package]
-name = "verifier-storage"
+name = "verifier_local_db_store"
 edition = "2024"
 
 [dependencies]
+async-trait = { workspace = true }
+tracing = { workspace = true }
 persistent_storage = { workspace = true }
 thiserror = { workspace = true }
 uuid = { workspace = true }

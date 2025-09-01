@@ -4,8 +4,10 @@ use std::{
     str::FromStr,
 };
 
+use crate::error::ConfigParserError;
 use bitcoincore_rpc::{Auth, bitcoin::Network};
 use config::{Config, Environment};
+use global_utils::config_variant::ConfigVariant;
 use global_utils::{
     env_parser,
     env_parser::{EnvParser, lookup_ip_addr},
@@ -13,16 +15,11 @@ use global_utils::{
 use serde::{Deserialize, Serialize};
 use tracing::{debug, info, instrument};
 
-use crate::error::ConfigParserError;
-
 const CONFIG_FOLDER_NAME: &str = "../../infrastructure/configuration";
 const PRODUCTION_CONFIG_FOLDER_NAME: &str = "configuration_indexer";
 const CARGO_MANIFEST_DIR: &str = "CARGO_MANIFEST_DIR";
-pub const APP_CONFIGURATION_NAME: &str = "APP_ENVIRONMENT";
 pub const SSH_PRIVATE_KEY_PATH: &str = "SSH_PRIVATE_KEY_PATH";
-pub const DEFAULT_APP_PRODUCTION_CONFIG_NAME: &str = "production";
 const DEFAULT_APP_LOCAL_BASE_FILENAME: &str = "base.toml";
-pub const DEFAULT_APP_LOCAL_CONFIG_NAME: &str = "local";
 pub const BITCOIN_NETWORK: &str = "BITCOIN_NETWORK";
 pub const BITCOIN_RPC_HOST: &str = "BITCOIN_RPC_HOST";
 pub const BITCOIN_RPC_PORT: &str = "BITCOIN_RPC_PORT";
@@ -70,15 +67,6 @@ pub struct BtcIndexerParams {
     pub update_interval_millis: u64,
 }
 
-#[derive(Debug, Copy, Clone, strum::Display, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum ConfigVariant {
-    #[strum(serialize = "production")]
-    Production,
-    #[strum(serialize = "local")]
-    Local,
-}
-
 impl AppConfig {
     #[inline]
     pub fn get_app_binding_url(&self) -> crate::error::Result<SocketAddr> {
@@ -116,20 +104,6 @@ impl ServerConfig {
             .add_source(Environment::with_prefix("config").separator("_").keep_prefix(false))
             .build()?
             .try_deserialize::<ServerConfig>()?)
-    }
-}
-
-impl ConfigVariant {
-    #[instrument(level = "trace", ret)]
-    pub fn init() -> ConfigVariant {
-        info!("{:?}", std::env::var(APP_CONFIGURATION_NAME));
-        if let Ok(x) = std::env::var(APP_CONFIGURATION_NAME)
-            && x == crate::config::ConfigVariant::Production.to_string()
-        {
-            ConfigVariant::Production
-        } else {
-            ConfigVariant::Local
-        }
     }
 }
 

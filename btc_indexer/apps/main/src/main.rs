@@ -1,7 +1,8 @@
 use std::{net::IpAddr, str::FromStr};
 
 use btc_indexer_internals::indexer::{BtcIndexer, IndexerParams};
-use config_parser::config::{BtcRpcCredentials, ConfigVariant, ServerConfig};
+use config_parser::config::{BtcRpcCredentials, ServerConfig};
+use global_utils::config_variant::ConfigVariant;
 use global_utils::{env_parser::lookup_ip_addr, logger::init_logger};
 use local_db_store_indexer::{PostgresDbCredentials, init::LocalDbIndexer};
 use tokio::net::TcpListener;

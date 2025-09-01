@@ -1,5 +1,5 @@
 [package]
-name = "verifier-server"
+name = "verifier_server"
 edition = "2024"
 
 [dependencies]
@@ -7,5 +7,7 @@ axum = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
-verifier-common = { workspace = true }
-eyre = { workspace = true }
+verifier_config_parser = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+verifier_local_db_store = { workspace = true }

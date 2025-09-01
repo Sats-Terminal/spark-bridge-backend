@@ -4,7 +4,7 @@ mod mocked_tx_tracking {
     use axum_test::TestServer;
     use btc_indexer_internals::indexer::{BtcIndexer, IndexerParams, IndexerParamsWithApi};
     use btc_indexer_server::routes::track_wallet::TrackWalletRequest;
-    use config_parser::config::{BtcRpcCredentials, ConfigVariant, ServerConfig};
+    use config_parser::config::{BtcRpcCredentials, ServerConfig};
     use global_utils::common_types::UrlWrapped;
     use tracing::{info, instrument};
 

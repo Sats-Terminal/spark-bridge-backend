@@ -10,7 +10,7 @@ use btc_indexer_internals::{
     api::BtcIndexerApi,
     indexer::{BtcIndexer, IndexerParams, IndexerParamsWithApi},
 };
-use config_parser::config::{BtcRpcCredentials, ConfigVariant, ServerConfig};
+use config_parser::config::{BtcRpcCredentials, ServerConfig};
 use global_utils::{
     common_types::get_uuid,
     logger::{LoggerGuard, init_logger},
@@ -26,6 +26,7 @@ use crate::utils::{
 };
 
 mod mock_testing {
+    use global_utils::config_variant::ConfigVariant;
     use local_db_store_indexer::init::LocalDbIndexer;
 
     use super::*;

@@ -1,10 +1,13 @@
 [package]
-name = "verifier-main"
+name = "verifier_main"
 edition = "2024"
 
 [dependencies]
-verifier-common = { workspace = true }
-verifier-server = { workspace = true }
+anyhow = { workspace = true }
+axum= { workspace = true }
+verifier_local_db_store = { workspace = true }
+verifier_config_parser = { workspace = true }
+verifier_server = { workspace = true }
 tokio = { workspace = true }
 global_utils = { workspace = true }
-log = { workspace = true }
+tracing = { workspace = true }
