@@ -127,7 +127,8 @@ impl SigningSession {
 
         self.dkg_round1_packages.insert(participant_id, package);
 
-        if self.dkg_round1_packages.len() >= self.threshold as usize {
+        // Меняем состояние только когда все участники добавили пакеты
+        if self.dkg_round1_packages.len() == self.participants.len() {
             self.state = SessionState::DkgRound2;
         }
 
@@ -145,7 +146,8 @@ impl SigningSession {
 
         self.dkg_round2_packages.insert(participant_id, package);
 
-        if self.dkg_round2_packages.len() >= self.threshold as usize {
+        // Меняем состояние только когда все участники добавили пакеты
+        if self.dkg_round2_packages.len() == self.participants.len() {
             self.state = SessionState::DkgFinalization;
         }
 

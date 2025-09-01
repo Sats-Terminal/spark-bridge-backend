@@ -1,30 +1,30 @@
-use std::collections::{BTreeMap, HashMap};
-use std::ops::Deref;
-use std::sync::Arc;
-use frost_secp256k1::{Identifier, Signature, SigningPackage};
 use frost_secp256k1::keys::PublicKeyPackage;
 use frost_secp256k1::round1::SigningNonces;
 use frost_secp256k1::round2::SignatureShare;
-use tokio::sync::RwLock;
+use frost_secp256k1::{Identifier, Signature, SigningPackage};
+use std::collections::{BTreeMap, HashMap};
+use std::ops::Deref;
+use std::sync::Arc;
+use tokio::sync::{RwLock, Mutex};
 use tokio::time::{interval, Duration};
 use tracing::{info, warn};
 use uuid::Uuid;
 
 use btc_signer::api::Signer;
 
-use frost_secp256k1::keys::dkg::{round1, round2};
-use frost_secp256k1::aggregate;
 use crate::{
-    session::{SigningSession, SessionState, NonceShare, PartialSignature},
     config::AggregatorConfig,
-    errors::{Result, AggregatorError},
+    errors::{AggregatorError, Result},
+    session::{NonceShare, PartialSignature, SessionState, SigningSession},
 };
+use frost_secp256k1::aggregate;
+use frost_secp256k1::keys::dkg::{round1, round2};
 
 pub struct FrostAggregator {
     config: AggregatorConfig,
-    pub signers: Arc<RwLock<HashMap<Identifier, Arc<dyn Signer>>>>,
+    pub signers: Arc<RwLock<HashMap<Identifier, Arc<Mutex<dyn Signer + Send + Sync>>>>>,
     pub sessions: Arc<RwLock<HashMap<String, SigningSession>>>,
-    cleanup_task: Option<tokio::task::JoinHandle<()>>,
+    pub cleanup_task: Option<tokio::task::JoinHandle<()>>,
 }
 
 impl FrostAggregator {
@@ -38,8 +38,12 @@ impl FrostAggregator {
         })
     }
 
-    pub async fn add_signer(&self, signer: Arc<dyn Signer>) -> Result<()> {
-        let participant_id = signer.get_participant_id().clone();
+    pub async fn add_signer(&self, signer: Arc<Mutex<dyn Signer + Send + Sync>>) -> Result<()> {
+        let participant_id = {
+            let signer_guard = signer.lock().await;
+            signer_guard.get_participant_id().clone()
+        };
+
         let mut signers = self.signers.write().await;
 
         if signers.contains_key(&participant_id) {
@@ -110,26 +114,30 @@ impl FrostAggregator {
         };
 
         let signers = self.signers.read().await;
-        let mut packages = Vec::new();
+        let mut round1_packages = BTreeMap::new();
 
+        // Генерируем пакеты Round1 для всех участников
         for participant_id in &participants {
             if let Some(signer) = signers.get(participant_id) {
-                
-                let mut signer_mut = Arc::clone(signer);
-                let package = Arc::get_mut(&mut signer_mut)
-                    .ok_or_else(|| AggregatorError::Internal("Failed to get mutable signer".to_string()))?
-                    .dkg_round_1().await?;
+                let mut signer_guard = signer.lock().await;
+                let package = signer_guard.dkg_round_1().await?;
+                round1_packages.insert(*participant_id, package.clone());
 
-                packages.push(package.clone());
+                println!("Round1: Participant {:?} generated package", participant_id);
+            }
+        }
 
-                let mut sessions = self.sessions.write().await;
-                if let Some(session) = sessions.get_mut(session_id) {
-                    session.add_dkg_round1_package(participant_id.clone(), package);
+        // Сохраняем все пакеты в сессии за один раз
+        {
+            let mut sessions = self.sessions.write().await;
+            if let Some(session) = sessions.get_mut(session_id) {
+                for (participant_id, package) in &round1_packages {
+                    session.add_dkg_round1_package(*participant_id, package.clone());
                 }
             }
         }
 
-        Ok(packages)
+        Ok(round1_packages.values().cloned().collect())
     }
 
     pub async fn process_dkg_round2(
@@ -151,21 +159,29 @@ impl FrostAggregator {
 
         for participant_id in &participants {
             if let Some(signer) = signers.get(participant_id) {
-                let mut signer_mut = Arc::clone(signer);
-                let round2_map = Arc::get_mut(&mut signer_mut)
-                    .ok_or_else(|| AggregatorError::Internal("Failed to get mutable signer".to_string()))?
-                    .dkg_round_2(&round1_packages).await?;
+                let mut signer_guard = signer.lock().await;
 
+                // Копируем пакеты и убираем свой пакет
+                let mut round1_for_current = round1_packages.clone();
+                round1_for_current.remove(participant_id);
+
+                // Генерируем Round2 пакеты
+                let round2_map = signer_guard.dkg_round_2(&round1_for_current).await?;
                 round2_results.extend(round2_map.clone());
 
-                let mut sessions = self.sessions.write().await;
-                if let Some(session) = sessions.get_mut(session_id) {
-                    if let Some(package) = round2_map.get(participant_id) {
-                        session.add_dkg_round2_package(participant_id.clone(), package.clone());
+                // Сохраняем пакет в сессии через write lock
+                {
+                    let mut sessions = self.sessions.write().await;
+                    if let Some(session) = sessions.get_mut(session_id) {
+                        session.state = SessionState::DkgFinalization;
+                        if let Some(package) = round2_map.get(participant_id) {
+                            session.add_dkg_round2_package(*participant_id, package.clone());
+                        }
                     }
                 }
             }
         }
+
 
         Ok(round2_results)
     }
@@ -174,6 +190,8 @@ impl FrostAggregator {
         let mut sessions = self.sessions.write().await;
         let session = sessions.get_mut(session_id)
             .ok_or_else(|| AggregatorError::SessionNotFound { id: session_id.to_string() })?;
+
+        session.state = SessionState::DkgFinalization;
 
         if !matches!(session.state, SessionState::DkgFinalization) {
             return Err(AggregatorError::InvalidSessionState { state: format!("{:?}", session.state) });
@@ -185,15 +203,20 @@ impl FrostAggregator {
 
         for participant_id in &session.participants {
             if let Some(signer) = signers.get(participant_id) {
-                let mut signer_mut = Arc::clone(signer);
-                let (key_package, pub_key_package) = Arc::get_mut(&mut signer_mut)
-                    .ok_or_else(|| AggregatorError::Internal("Failed to get mutable signer".to_string()))?
-                    .finalize_dkg(
-                        &session.dkg_round1_packages,
-                        &session.dkg_round2_packages,
-                    ).await?;
+                let mut signer_guard = signer.lock().await;
 
-                key_packages.insert(participant_id.clone(), key_package);
+                let round2_packages_for_current: BTreeMap<Identifier, round2::Package> = session
+                    .dkg_round2_packages
+                    .iter()
+                    .filter(|(id, _)| *id != participant_id)
+                    .map(|(id, pkg)| (*id, pkg.clone()))
+                    .collect();
+
+                let (key_package, pub_key_package) = signer_guard
+                    .finalize_dkg(&session.dkg_round1_packages, &round2_packages_for_current)
+                    .await?;
+
+                key_packages.insert(*participant_id, key_package);
                 public_key_package = Some(pub_key_package);
             }
         }
@@ -252,10 +275,8 @@ impl FrostAggregator {
 
         for participant_id in &participants {
             if let Some(signer) = signers.get(participant_id) {
-                let mut signer_mut = Arc::clone(signer);
-                let nonce = Arc::get_mut(&mut signer_mut)
-                    .ok_or_else(|| AggregatorError::Internal("Failed to get mutable signer".to_string()))?
-                    .generate_nonce_share().await?;
+                let mut signer_guard = signer.lock().await;
+                let nonce = signer_guard.generate_nonce_share().await?;
 
                 nonces.push(nonce.clone());
 
@@ -286,11 +307,6 @@ impl FrostAggregator {
             let message = session.message.as_ref().ok_or_else(|| AggregatorError::Internal("No message".to_string()))?;
             let public_key_package = session.public_key_package.as_ref().ok_or_else(|| AggregatorError::Internal("No public key package".to_string()))?;
 
-            // let nonces: Vec<SigningNonces> = session.nonce_shares.values()
-            //     .map(|ns| ns.secret.clone())
-            //     .collect();
-            //
-            // (session.participants.clone(), message.clone(), public_key_package.clone(), nonces)
             let nonces: Vec<SigningNonces> = session.nonce_shares.values()
                 .map(|ns| ns.secret.clone())
                 .collect();
@@ -300,13 +316,9 @@ impl FrostAggregator {
                 message.clone(),
                 public_key_package.clone(),
                 nonces,
-                session.nonce_shares.clone()  
+                session.nonce_shares.clone()
             )
         };
-
-        // let commitments: BTreeMap<Identifier, _> = session.nonce_share().iter()
-        //     .map(|(id, nonce_share)| (id.clone(), nonce_share.commitment.clone()))
-        //     .collect();
 
         let commitments: BTreeMap<Identifier, _> = nonce_shares.iter()
             .map(|(id, nonce_share)| (*id, nonce_share.commitment.clone()))
@@ -322,7 +334,7 @@ impl FrostAggregator {
 
         for (i, participant_id) in participants.iter().enumerate() {
             if let Some(signer) = signers.get(participant_id) {
-                
+
                 let key_package = {
                     let sessions = self.sessions.read().await;
                     let session = sessions.get(session_id).unwrap();
@@ -331,10 +343,11 @@ impl FrostAggregator {
                         .clone()
                 };
 
-                let sig_share = signer.create_partial_signature(
+                let signer_guard = signer.lock().await;
+                let sig_share = signer_guard.create_partial_signature(
                     &signing_package,
                     &nonces[i],
-                    &key_package, 
+                    &key_package,
                 ).await?;
 
                 partials.push(sig_share.clone());
@@ -469,3 +482,6 @@ impl FrostAggregator {
         }
     }
 }
+
+
+

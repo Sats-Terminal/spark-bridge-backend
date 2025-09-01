@@ -10,12 +10,18 @@ use frost_secp256k1::keys::dkg::round2;
 use frost_secp256k1::Identifier;
 use secp256k1::PublicKey;
 use std::collections::BTreeMap;
-
+use frost_secp256k1::round1::SigningNonces;
 use crate::errors::Result;
 
 #[async_trait]
 pub trait Signer: Send + Sync {
     fn get_participant_id(&self) -> &Identifier;
+
+    fn set_participant_id(&mut self, id: Identifier);
+
+    fn set_total_participants(&mut self, total: u16);
+
+    fn set_threshold(&mut self, threshold: u16);
 
     async fn get_public_key_share(&self) -> Result<PublicKey>;
 
@@ -32,14 +38,16 @@ pub trait Signer: Send + Sync {
         round2_packages: &BTreeMap<Identifier, round2::Package>,
     ) -> Result<(KeyPackage, PublicKeyPackage)>;
 
-    async fn generate_nonce_share(&mut self) -> Result<frost::round1::SigningNonces>;
+    async fn generate_nonce_share(&mut self) -> Result<SigningNonces>;
 
     async fn create_partial_signature(
         &self,
         signing_package: &SigningPackage,
-        nonces: &frost::round1::SigningNonces,
+        nonces: &SigningNonces,
         key_package: &KeyPackage,
     ) -> Result<SignatureShare>;
 
     async fn get_intermediate_values(&self, message: &[u8]) -> Result<Vec<u8>>;
+
+
 }
