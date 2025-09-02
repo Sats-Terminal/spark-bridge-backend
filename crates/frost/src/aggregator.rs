@@ -29,9 +29,7 @@ impl FrostAggregator {
         let state = self.user_storage.get_user_state(user_id.clone()).await?;
 
         match state {
-            Some(_) => {
-                Err(AggregatorError::InvalidUserState("User state is not None".to_string()))
-            }
+            Some(_) => Err(AggregatorError::InvalidUserState("User state is not None".to_string())),
             None => {
                 let signer_clients_request = DkgRound1Request {
                     user_id: user_id.clone(),
@@ -42,7 +40,7 @@ impl FrostAggregator {
 
                 for (verifier_id, signer_client) in self.verifiers.clone() {
                     let verifier_signer_clients_request = signer_clients_request.clone();
-                    let join_handle = async move{
+                    let join_handle = async move {
                         (
                             verifier_id,
                             signer_client.dkg_round_1(verifier_signer_clients_request).await,
@@ -86,12 +84,7 @@ impl FrostAggregator {
                         user_id: user_id.clone(),
                         round1_packages: packages,
                     };
-                    let join_handle = async move {
-                        (
-                            verifier_id,
-                            signer_client.dkg_round_2(signer_requests).await,
-                        )
-                    };
+                    let join_handle = async move { (verifier_id, signer_client.dkg_round_2(signer_requests).await) };
                     join_handles.push(join_handle);
                 }
 
@@ -117,11 +110,9 @@ impl FrostAggregator {
                     .await?;
                 Ok(())
             }
-            _ => {
-                Err(AggregatorError::InvalidUserState(
-                    "User state is not DkgRound2".to_string(),
-                ))
-            }
+            _ => Err(AggregatorError::InvalidUserState(
+                "User state is not DkgRound2".to_string(),
+            )),
         }
     }
 
@@ -147,12 +138,7 @@ impl FrostAggregator {
                             .ok_or(AggregatorError::Internal("Round2 packages not found".to_string()))?
                             .clone(),
                     };
-                    let join_handle = async move {
-                        (
-                            verifier_id,
-                            signer_client.dkg_finalize(request).await,
-                        )
-                    };
+                    let join_handle = async move { (verifier_id, signer_client.dkg_finalize(request).await) };
                     join_handles.push(join_handle);
                 }
 
@@ -183,11 +169,9 @@ impl FrostAggregator {
 
                 Ok(())
             }
-            _ => {
-                Err(AggregatorError::InvalidUserState(
-                    "User state is not DkgFinalized".to_string(),
-                ))
-            }
+            _ => Err(AggregatorError::InvalidUserState(
+                "User state is not DkgFinalized".to_string(),
+            )),
         }
     }
 
@@ -199,11 +183,9 @@ impl FrostAggregator {
         let state = self.user_storage.get_user_state(user_id.clone()).await?;
         match state {
             Some(AggregatorUserState::DkgFinalized { public_key_package }) => Ok(public_key_package),
-            _ => {
-                Err(AggregatorError::InvalidUserState(
-                    "User state is not DkgFinalized".to_string(),
-                ))
-            }
+            _ => Err(AggregatorError::InvalidUserState(
+                "User state is not DkgFinalized".to_string(),
+            )),
         }
     }
 
@@ -219,12 +201,7 @@ impl FrostAggregator {
                     let request = SignRound1Request {
                         user_id: user_id.clone(),
                     };
-                    let join_handle = async move {
-                        (
-                            verifier_id,
-                            signer_client.sign_round_1(request).await,
-                        )
-                    };
+                    let join_handle = async move { (verifier_id, signer_client.sign_round_1(request).await) };
                     join_handles.push(join_handle);
                 }
 
@@ -248,11 +225,9 @@ impl FrostAggregator {
 
                 Ok(())
             }
-            _ => {
-                Err(AggregatorError::InvalidUserState(
-                    "User state is not DkgFinalized".to_string(),
-                ))
-            }
+            _ => Err(AggregatorError::InvalidUserState(
+                "User state is not DkgFinalized".to_string(),
+            )),
         }
     }
 
@@ -272,12 +247,7 @@ impl FrostAggregator {
                         user_id: user_id.clone(),
                         signing_package: signing_package.clone(),
                     };
-                    let join_handle = async move {
-                        (
-                            verifier_id,
-                            signer_client.sign_round_2(request).await,
-                        )
-                    };
+                    let join_handle = async move { (verifier_id, signer_client.sign_round_2(request).await) };
                     join_handles.push(join_handle);
                 }
 
@@ -307,11 +277,9 @@ impl FrostAggregator {
 
                 Ok(())
             }
-            _ => {
-                Err(AggregatorError::InvalidUserState(
-                    "User state is not DkgFinalized".to_string(),
-                ))
-            }
+            _ => Err(AggregatorError::InvalidUserState(
+                "User state is not DkgFinalized".to_string(),
+            )),
         }
     }
 
@@ -333,11 +301,9 @@ impl FrostAggregator {
                     .await?;
                 Ok(signature)
             }
-            _ => {
-                Err(AggregatorError::InvalidUserState(
-                    "User state is not DkgFinalized".to_string(),
-                ))
-            }
+            _ => Err(AggregatorError::InvalidUserState(
+                "User state is not DkgFinalized".to_string(),
+            )),
         }
     }
 }
