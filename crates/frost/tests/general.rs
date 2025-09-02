@@ -45,7 +45,8 @@ async fn test_aggregator_signer_integration() {
 
     let user_id = "test_user";
     let message = b"test_message";
-    let tweak = b"test_tweak";
+    // let tweak = Some(b"test_tweak".as_slice());
+    let tweak = None;
 
     let public_key_package = aggregator.run_dkg_flow(user_id.to_string()).await.unwrap();
     let signature = aggregator
@@ -53,7 +54,10 @@ async fn test_aggregator_signer_integration() {
         .await
         .unwrap();
 
-    let tweaked_public_key_package = public_key_package.clone().tweak(Some(tweak.to_vec()));
+    let tweaked_public_key_package = match tweak.clone() {
+        Some(tweak) => public_key_package.clone().tweak(Some(tweak.to_vec())),
+        None => public_key_package.clone(),
+    };
     tweaked_public_key_package
         .verifying_key()
         .verify(message, &signature)

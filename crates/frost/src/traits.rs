@@ -50,7 +50,7 @@ pub struct DkgFinalizeResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignRound1Request {
     pub user_id: String,
-    pub tweak: Vec<u8>,
+    pub tweak: Option<Vec<u8>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -96,13 +96,13 @@ pub enum AggregatorUserState {
         public_key_package: PublicKeyPackage,
     },
     SigningRound1 {
-        tweak: Vec<u8>,
+        tweak: Option<Vec<u8>>,
         message: Vec<u8>,
         signing_package: SigningPackage,
         public_key_package: PublicKeyPackage,
     },
     SigningRound2 {
-        tweak: Vec<u8>,
+        tweak: Option<Vec<u8>>,
         message: Vec<u8>,
         public_key_package: PublicKeyPackage,
         signature: Signature,
@@ -129,12 +129,12 @@ pub enum SignerUserState {
     },
     SigningRound1 {
         key_package: KeyPackage,
-        tweak: Vec<u8>,
+        tweak: Option<Vec<u8>>,
         nonces: SigningNonces,
     },
     SigningRound2 {
         key_package: KeyPackage,
-        tweak: Vec<u8>,
+        tweak: Option<Vec<u8>>,
         signature_share: SignatureShare,
     },
 }

@@ -189,7 +189,7 @@ impl FrostAggregator {
         }
     }
 
-    async fn sign_round_1(&self, user_id: String, message: &[u8], tweak: &[u8]) -> Result<(), AggregatorError> {
+    async fn sign_round_1(&self, user_id: String, message: &[u8], tweak: Option<&[u8]>) -> Result<(), AggregatorError> {
         let state = self.user_storage.get_user_state(user_id.clone()).await?;
 
         match state {
@@ -200,7 +200,7 @@ impl FrostAggregator {
                 for (verifier_id, signer_client) in self.verifiers.clone() {
                     let request = SignRound1Request {
                         user_id: user_id.clone(),
-                        tweak: tweak.to_vec(),
+                        tweak: tweak.map(|t| t.to_vec()),
                     };
                     let join_handle = async move { (verifier_id, signer_client.sign_round_1(request).await) };
                     join_handles.push(join_handle);
@@ -218,7 +218,7 @@ impl FrostAggregator {
                     .set_user_state(
                         user_id.clone(),
                         AggregatorUserState::SigningRound1 {
-                            tweak: tweak.to_vec(),
+                            tweak: tweak.map(|t| t.to_vec()),
                             message: message.to_vec(),
                             signing_package,
                             public_key_package,
@@ -244,7 +244,10 @@ impl FrostAggregator {
                 signing_package,
                 public_key_package,
             }) => {
-                let tweaked_public_key_package = public_key_package.clone().tweak(Some(tweak.clone()));
+                let tweaked_public_key_package = match tweak.clone() {
+                    Some(tweak) => public_key_package.clone().tweak(Some(tweak.to_vec())),
+                    None => public_key_package.clone(),
+                };
                 let mut signature_shares = BTreeMap::new();
                 let mut join_handles = vec![];
 
@@ -279,7 +282,7 @@ impl FrostAggregator {
                     .set_user_state(
                         user_id.clone(),
                         AggregatorUserState::SigningRound2 {
-                            tweak: tweak.to_vec(),
+                            tweak: tweak.map(|t| t.to_vec()),
                             message: message.to_vec(),
                             signature,
                             public_key_package,
@@ -299,7 +302,7 @@ impl FrostAggregator {
         &self,
         user_id: String,
         message: &[u8],
-        tweak: &[u8],
+        tweak: Option<&[u8]>,
     ) -> Result<Signature, AggregatorError> {
         self.sign_round_1(user_id.clone(), message, tweak).await?;
         self.sign_round_2(user_id.clone()).await?;

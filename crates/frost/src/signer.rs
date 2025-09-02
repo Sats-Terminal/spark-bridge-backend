@@ -125,7 +125,10 @@ impl FrostSigner {
 
         match state {
             Some(SignerUserState::DkgFinalized { key_package }) => {
-                let tweak_key_package = key_package.clone().tweak(Some(tweak.clone()));
+                let tweak_key_package = match tweak.clone() {
+                    Some(tweak) => key_package.clone().tweak(Some(tweak.to_vec())),
+                    None => key_package.clone(),
+                };
                 let (nonces, commitments) =
                     frost_secp256k1_tr::round1::commit(tweak_key_package.signing_share(), &mut OsRng);
 
@@ -159,7 +162,10 @@ impl FrostSigner {
                 tweak,
                 nonces,
             }) => {
-                let tweak_key_package = key_package.clone().tweak(Some(tweak.clone()));
+                let tweak_key_package = match tweak.clone() {
+                    Some(tweak) => key_package.clone().tweak(Some(tweak.to_vec())),
+                    None => key_package.clone(),
+                };
                 let signature_share =
                     frost_secp256k1_tr::round2::sign(&request.signing_package, &nonces, &tweak_key_package)
                         .map_err(|e| SignerError::Internal(format!("Sign round2 failed: {e}")))?;
