@@ -1,11 +1,11 @@
 [package]
-name = "gateway-server"
+name = "gateway_server"
 edition = "2024"
 
 [dependencies]
 axum = { workspace = true }
+anyhow = { workspace = true }
 serde = { workspace = true }
-gateway-common = { workspace = true }
-tokio = { workspace = true }
-eyre = { workspace = true }
 thiserror = { workspace = true }
+persistent_storage = { workspace = true }
+tracing = { workspace = true }

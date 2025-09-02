@@ -76,7 +76,7 @@ uuid = { version = "1.18.0", features = ["serde", "v4"] }
 
 
 ####### Global Crates #######
-global_utils = { path = "crates/global_utils" }
+global_utils = { path = "./crates/global_utils" }
 spark-protos = { path = "./crates/spark-protos-rpc" }
 spark-client = { path = "./crates/spark_client" }
 persistent_storage = { path = "./crates/persistent_storage" }
@@ -85,9 +85,9 @@ frost-lib = { path = "./crates/frost" }
 
 ####### Verifier #######
 # Verifier crates
-verifier_local_db_store = { path = "verifier/crates/local_db_store" }
-verifier_server = { path = "verifier/crates/server" }
-verifier_config_parser = { path = "verifier/crates/config_parser" }
+verifier_local_db_store = { path = "./verifier/crates/local_db_store" }
+verifier_server = { path = "./verifier/crates/server" }
+verifier_config_parser = { path = "./verifier/crates/config_parser" }
 
 # Verifier apps
 verifier-main = { path = "verifier/apps/main" }
@@ -95,13 +95,13 @@ verifier-main = { path = "verifier/apps/main" }
 
 ####### Gateway #######
 # Gateway crates
-gateway-server = { path = "gateway/crates/server" }
-gateway-common = { path = "gateway/crates/common" }
-gateway-storage = { path = "gateway/crates/storage" }
-gateway-flow-processor = { path = "gateway/crates/flow-processor" }
+gateway_server = { path = "gateway/crates/server" }
+gateway_config_parser = { path = "gateway/crates/config_parser" }
+gateway_local_db_store = { path = "gateway/crates/local_db_store" }
+gateway_flow_processor = { path = "gateway/crates/flow_processor" }
 
 # Gateway apps
-gateway-main = { path = "gateway/apps/main" }
+gateway_main = { path = "gateway/apps/main" }
 
 
 ####### Spark Balance Checker #######

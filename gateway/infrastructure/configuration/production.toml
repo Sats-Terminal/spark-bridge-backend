@@ -1,0 +1,15 @@
+[application]
+http_server_ip = "0.0.0.0"
+http_server_port = 8060
+
+[[verifiers_config]]
+id = 0
+address = "http://localhost:3001"
+
+[[verifiers_config]]
+id = 1
+address = "http://localhost:3002"
+
+[[verifiers_config]]
+id = 2
+address = "http://localhost:3003"

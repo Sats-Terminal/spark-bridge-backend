@@ -1,5 +1,4 @@
-use crate::handlers::dkg::{handler_get_round_1_package, handler_get_round_2_package, handler_get_round_3_package};
-use crate::handlers::watchers::{handler_watch_runes_address, handler_watch_spark_address};
+use crate::handlers;
 use axum::Router;
 use axum::handler::Handler;
 use axum::routing::post;
@@ -14,10 +13,25 @@ pub struct AppState {
 pub async fn create_app(db_pool: PersistentRepoShared) -> anyhow::Result<Router> {
     let state = AppState { db_pool };
     Ok(Router::new()
-        .route("/api/gateway/watch-spark-address", post(handler_watch_spark_address))
-        .route("/api/gateway/watch-runes-address", post(handler_watch_runes_address))
-        .route("/api/gateway/get-round-1-package", post(handler_get_round_1_package))
-        .route("/api/gateway/get-round-2-package", post(handler_get_round_2_package))
-        .route("/api/gateway/get-round-3-package", post(handler_get_round_3_package))
+        .route(
+            "/api/gateway/watch-spark-address",
+            post(handlers::watch_spark_address::handle),
+        )
+        .route(
+            "/api/gateway/watch-runes-address",
+            post(handlers::watch_runes_address::handle),
+        )
+        .route(
+            "/api/gateway/get-round-1-package",
+            post(handlers::get_round_1_package::handle),
+        )
+        .route(
+            "/api/gateway/get-round-2-package",
+            post(handlers::get_round_2_package::handle),
+        )
+        .route(
+            "/api/gateway/get-round-3-package",
+            post(handlers::get_round_3_package::handle),
+        )
         .with_state(state))
 }

@@ -1,14 +1,14 @@
-name: runes-spark-bridge_verifier
+name: runes-spark-bridge_gateway
 services:
 
   persistent-db-storage:
     image: postgres:17.5-alpine3.22
     restart: always
     networks:
-      verifier-network:
+      gateway-network:
         ipv4_address: 172.28.0.2
     ports:
-      - "5433:5432"
+      - "5434:5432"
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-admin_manager}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
@@ -19,28 +19,28 @@ services:
     volumes:
       - service-data:/pgdata
 
-  verifier-service:
+  gateway-service:
     build:
       context: ./../../
-      dockerfile: ./verifier/infrastructure/Dockerfile
+      dockerfile: ./gateway/infrastructure/Dockerfile
     restart: always
     networks:
-      verifier-network:
+      gateway-network:
         ipv4_address: 172.28.0.3
     environment:
       - RUST_LOG=trace
       - APP_ENVIRONMENT=production
       - DATABASE_URL=postgres://${POSTGRES_USER:-admin_manager}:${POSTGRES_PASSWORD:-password}@persistent-db-storage:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-production_db_name}
     ports:
-      - "8080:8070"
-    entrypoint: sh -c "sqlx migrate run && verifier_main"
+      - "8080:8060"
+    entrypoint: sh -c "sqlx migrate run && gateway_main"
     depends_on:
       - persistent-db-storage
     volumes:
-      - ./configuration/production.toml:/configuration_verifier/production.toml
+      - ./configuration/production.toml:/configuration_gateway/production.toml
 
 networks:
-  verifier-network:
+  gateway-network:
     ipam:
       driver: default
       config:
