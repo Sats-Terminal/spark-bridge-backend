@@ -22,14 +22,21 @@ pub struct AppConfig {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub struct VerifierConfig {
-    pub id: u64,
+    pub id: u16,
     pub address: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
+pub struct AggregatorConfig {
+    pub threshold: u16,
+    pub total_participants: u16,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
 #[serde(transparent)]
-pub struct VerifiersConfig(Vec<VerifierConfig>);
+pub struct VerifiersConfig(pub Vec<VerifierConfig>);
 
 /// Struct used for initialization of different kinds of configurations
 ///
@@ -53,6 +60,8 @@ pub struct ServerConfig {
     pub server: AppConfig,
     #[serde(rename = "verifiers_config")]
     pub verifiers: VerifiersConfig,
+    #[serde(rename = "aggregator_config")]
+    pub aggregator: AggregatorConfig,
 }
 
 pub fn get_cargo_manifest_dir() -> String {

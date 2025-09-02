@@ -8,6 +8,9 @@ use persistent_storage::init::PostgresRepo;
 use tokio;
 use tokio::net::TcpListener;
 use tracing::instrument;
+use gateway_flow_processor::create_flow_processor;
+use frost::aggregator::FrostAggregator;
+use gateway_utils::aggregator::create_aggregator_from_config;
 
 #[instrument(level = "debug", ret)]
 #[tokio::main]
@@ -15,9 +18,13 @@ async fn main() -> anyhow::Result<()> {
     let _logger_guard = init_logger();
 
     let app_config = ServerConfig::init_config(ConfigVariant::init())?;
+    let frost_aggregator = create_aggregator_from_config(app_config.clone());
     let postgres_creds = PostgresDbCredentials::from_db_url()?;
-    let db_pool = PostgresRepo::from_config(postgres_creds).await?.into_shared();
-    let app = gateway_server::init::create_app(db_pool).await?;
+    let db_pool = PostgresRepo::from_config(postgres_creds).await?;
+
+    let (flow_processor, flow_sender) = create_flow_processor(db_pool.clone(), 10, frost_aggregator);
+
+    let app = gateway_server::init::create_app(flow_sender).await?;
 
     let addr_to_listen = (lookup_ip_addr(&app_config.server.ip)?, app_config.server.port);
     let listener = TcpListener::bind(addr_to_listen)

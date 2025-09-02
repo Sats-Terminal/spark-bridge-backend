@@ -22,16 +22,16 @@ pub async fn create_app(db_pool: PersistentRepoShared) -> anyhow::Result<Router>
             post(handlers::watch_runes_address::handle),
         )
         .route(
-            "/api/gateway/get-round-1-package",
-            post(handlers::get_round_1_package::handle),
+            "/api/gateway/dkg-round-1",
+            post(handlers::dkg_round_1::handle),
         )
         .route(
-            "/api/gateway/get-round-2-package",
-            post(handlers::get_round_2_package::handle),
+            "/api/gateway/dkg-round-2",
+            post(handlers::dkg_round_2::handle),
         )
         .route(
-            "/api/gateway/get-round-3-package",
-            post(handlers::get_round_3_package::handle),
+            "/api/gateway/dkg-finalize",
+            post(handlers::dkg_finalize::handle),
         )
         .with_state(state))
 }

@@ -2,7 +2,8 @@ use crate::errors::FlowProcessorError;
 use crate::types::*;
 use persistent_storage::init::PostgresRepo;
 use tokio::sync::mpsc;
-use tokio::time::Duration;
+use frost::aggregator::FrostAggregator;
+use frost::utils::convert_public_key_package;
 use tracing;
 use uuid::Uuid;
 
@@ -13,6 +14,7 @@ pub struct FlowProcessorRouter {
     flow_id: Uuid,
     response_sender: OneshotFlowProcessorSender,
     task_sender: mpsc::Sender<Uuid>,
+    frost_aggregator: FrostAggregator,
 }
 
 impl FlowProcessorRouter {
@@ -21,12 +23,14 @@ impl FlowProcessorRouter {
         flow_id: Uuid,
         response_sender: OneshotFlowProcessorSender,
         task_sender: mpsc::Sender<Uuid>,
+        frost_aggregator: FrostAggregator,
     ) -> Self {
         Self {
             storage,
             flow_id,
             response_sender,
             task_sender,
+            frost_aggregator,
         }
     }
 
@@ -59,8 +63,15 @@ impl FlowProcessorRouter {
     }
 
     async fn run_dkg_flow(&mut self, request: DkgFlowRequest) -> Result<DkgFlowResponse, FlowProcessorError> {
+        let public_key_package = self.frost_aggregator
+            .run_dkg_flow(request.user_public_key).await
+            .map_err(|e| FlowProcessorError::FrostAggregatorError(e.to_string()))?;
+
+        let public_key = convert_public_key_package(public_key_package)
+            .map_err(|e| FlowProcessorError::InvalidDataError(e.to_string()))?;
+
         Ok(DkgFlowResponse {
-            public_key: format!("[router] public_key for {}", request.request_id),
+            public_key: public_key.to_string(),
         })
     }
 
