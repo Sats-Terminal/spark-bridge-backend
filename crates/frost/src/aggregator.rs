@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use frost_secp256k1_tr::{Identifier, Signature, SigningPackage, keys, keys::PublicKeyPackage};
-use tokio::sync::Mutex;
+use frost_secp256k1_tr::{Identifier, Signature, SigningPackage, keys};
+use tokio::task::JoinHandle;
 
 use crate::{config::AggregatorConfig, errors::AggregatorError, traits::*};
 
@@ -38,9 +38,22 @@ impl FrostAggregator {
                 };
 
                 let mut verifier_responses = BTreeMap::new();
-                for (verifier_id, signer_client) in &self.verifiers {
-                    let response = signer_client.dkg_round_1(signer_clients_request.clone()).await?;
-                    verifier_responses.insert(*verifier_id, response.round1_package);
+                let mut join_handles = vec![];
+
+                for (verifier_id, signer_client) in self.verifiers.clone() {
+                    let verifier_signer_clients_request = signer_clients_request.clone();
+                    let join_handle: JoinHandle<(Identifier, Result<DkgRound1Response, AggregatorError>)> = tokio::spawn(async move {
+                        (
+                            verifier_id,
+                            signer_client.dkg_round_1(verifier_signer_clients_request).await
+                        )
+                    });
+                    join_handles.push(join_handle);
+                }
+
+                for join_handle in join_handles {
+                    let (verifier_id, response) = join_handle.await.map_err(|e| AggregatorError::Internal(format!("Join error: {:?}", e)))?;
+                    verifier_responses.insert(verifier_id, response?.round1_package);
                 }
 
                 self.user_storage
@@ -63,20 +76,31 @@ impl FrostAggregator {
         match state {
             Some(AggregatorUserState::DkgRound1 { round1_packages }) => {
                 let mut verifier_responses = BTreeMap::new();
+                let mut join_handles = vec![];
 
-                for (verifier_id, signer_client) in &self.verifiers {
+                for (verifier_id, signer_client) in self.verifiers.clone() {
                     let mut packages = round1_packages.clone();
-                    packages.remove(verifier_id);
+                    packages.remove(&verifier_id);
                     let signer_requests = DkgRound2Request {
                         user_id: user_id.clone(),
                         round1_packages: packages,
                     };
-                    let response = signer_client.dkg_round_2(signer_requests.clone()).await?;
-                    for (receiver_identifier, round2_package) in response.round2_packages {
+                    let join_handle: JoinHandle<(Identifier, Result<DkgRound2Response, AggregatorError>)> = tokio::spawn(async move {
+                        (
+                            verifier_id,
+                            signer_client.dkg_round_2(signer_requests).await
+                        )
+                    });
+                    join_handles.push(join_handle);
+                }
+
+                for join_handle in join_handles {
+                    let (verifier_id, response) = join_handle.await.map_err(|e| AggregatorError::Internal(format!("Join error: {:?}", e)))?;
+                    for (receiver_identifier, round2_package) in response?.round2_packages {
                         verifier_responses
                             .entry(receiver_identifier)
                             .or_insert(BTreeMap::new())
-                            .insert(*verifier_id, round2_package);
+                            .insert(verifier_id, round2_package);
                     }
                 }
 
@@ -108,20 +132,31 @@ impl FrostAggregator {
                 round2_packages,
             }) => {
                 let mut public_key_packages = vec![];
+                let mut join_handles = vec![];
 
-                for (verifier_id, signer_client) in &self.verifiers {
+                for (verifier_id, signer_client) in self.verifiers.clone() {
                     let mut verifier_round1_packages = round1_packages.clone();
-                    verifier_round1_packages.remove(verifier_id);
+                    verifier_round1_packages.remove(&verifier_id);
                     let request = DkgFinalizeRequest {
                         user_id: user_id.clone(),
                         round1_packages: verifier_round1_packages,
                         round2_packages: round2_packages
-                            .get(verifier_id)
+                            .get(&verifier_id)
                             .ok_or(AggregatorError::Internal("Round2 packages not found".to_string()))?
                             .clone(),
                     };
-                    let response = signer_client.dkg_finalize(request.clone()).await?;
-                    let public_key_package = response.public_key_package;
+                    let join_handle: JoinHandle<(Identifier, Result<DkgFinalizeResponse, AggregatorError>)> = tokio::spawn(async move {
+                        (
+                            verifier_id,
+                            signer_client.dkg_finalize(request).await
+                        )
+                    });
+                    join_handles.push(join_handle);
+                }
+
+                for join_handle in join_handles {
+                    let (verifier_id, response) = join_handle.await.map_err(|e| AggregatorError::Internal(format!("Join error: {:?}", e)))?;
+                    let public_key_package = response?.public_key_package;
                     public_key_packages.push(public_key_package);
                 }
 
@@ -175,15 +210,28 @@ impl FrostAggregator {
         match state {
             Some(AggregatorUserState::DkgFinalized { public_key_package }) => {
                 let mut commitments = BTreeMap::new();
-                for (verifier_id, signer_client) in &self.verifiers {
+                let mut join_handles = vec![];
+
+                for (verifier_id, signer_client) in self.verifiers.clone() {
                     let request = SignRound1Request {
                         user_id: user_id.clone(),
                     };
-                    let response = signer_client.sign_round_1(request).await?;
-                    commitments.insert(*verifier_id, response.commitments);
+                    let join_handle: JoinHandle<(Identifier, Result<SignRound1Response, AggregatorError>)> = tokio::spawn(async move {
+                        (
+                            verifier_id,
+                            signer_client.sign_round_1(request).await
+                        )
+                    });
+                    join_handles.push(join_handle);
+                }
+
+                for join_handle in join_handles {
+                    let (verifier_id, response) = join_handle.await.map_err(|e| AggregatorError::Internal(format!("Join error: {:?}", e)))?;
+                    commitments.insert(verifier_id, response?.commitments);
                 }
 
                 let signing_package = SigningPackage::new(commitments.clone(), message);
+                
                 self.user_storage
                     .set_user_state(
                         user_id.clone(),
@@ -213,13 +261,25 @@ impl FrostAggregator {
                 public_key_package,
             }) => {
                 let mut signature_shares = BTreeMap::new();
-                for (verifier_id, signer_client) in &self.verifiers {
+                let mut join_handles = vec![];
+
+                for (verifier_id, signer_client) in self.verifiers.clone() {
                     let request = SignRound2Request {
                         user_id: user_id.clone(),
                         signing_package: signing_package.clone(),
                     };
-                    let response = signer_client.sign_round_2(request).await?;
-                    signature_shares.insert(*verifier_id, response.signature_share);
+                    let join_handle: JoinHandle<(Identifier, Result<SignRound2Response, AggregatorError>)> = tokio::spawn(async move {
+                        (
+                            verifier_id,
+                            signer_client.sign_round_2(request).await
+                        )
+                    });
+                    join_handles.push(join_handle);
+                }
+
+                for join_handle in join_handles {
+                    let (verifier_id, response) = join_handle.await.map_err(|e| AggregatorError::Internal(format!("Join error: {:?}", e)))?;
+                    signature_shares.insert(verifier_id, response?.signature_share);
                 }
 
                 let signature = frost_secp256k1_tr::aggregate(&signing_package, &signature_shares, &public_key_package)

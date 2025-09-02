@@ -70,7 +70,7 @@ pub struct SignRound2Response {
 }
 
 #[async_trait]
-pub trait SignerClient {
+pub trait SignerClient: Send + Sync {
     async fn dkg_round_1(&self, request: DkgRound1Request) -> Result<DkgRound1Response, AggregatorError>;
 
     async fn dkg_round_2(&self, request: DkgRound2Request) -> Result<DkgRound2Response, AggregatorError>;
