@@ -1,9 +1,13 @@
 [package]
-name = "frost-lib"
+name = "frost"
 edition = "2024"
 
 [dependencies]
+tokio = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+tracing = { workspace = true }
 frost-secp256k1-tr = { workspace = true }
-eyre = { workspace = true }
+async-trait = { workspace = true }
 rand_core = { workspace = true }
-hex = { workspace = true }
+futures = { workspace = true }
