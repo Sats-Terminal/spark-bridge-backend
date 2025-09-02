@@ -2,16 +2,14 @@ use crate::handlers;
 use axum::Router;
 use axum::handler::Handler;
 use axum::routing::post;
-use persistent_storage::init::PersistentRepoShared;
 use tracing::instrument;
+use crate::state::AppState;
+use frost::signer::FrostSigner;
 
-#[derive(Clone)]
-pub struct AppState {
-    db_pool: PersistentRepoShared,
-}
-#[instrument(level = "debug", skip(db_pool), ret)]
-pub async fn create_app(db_pool: PersistentRepoShared) -> anyhow::Result<Router> {
-    let state = AppState { db_pool };
+
+#[instrument(level = "debug", skip(frost_signer), ret)]
+pub async fn create_app(frost_signer: FrostSigner) -> anyhow::Result<Router> {
+    let state = AppState { frost_signer };
     Ok(Router::new()
         .route(
             "/api/gateway/watch-spark-address",

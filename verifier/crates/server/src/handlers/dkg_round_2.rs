@@ -1,21 +1,14 @@
 use crate::errors::VerifierError;
 use axum::Json;
-use serde::{Deserialize, Serialize};
+use crate::state::AppState;
+use axum::extract::State;
+use frost::traits::{DkgRound2Request, DkgRound2Response};
 
-#[derive(Deserialize)]
-pub struct GetRound2PackageRequest {
-    pub metadata: String,
-}
-
-#[derive(Serialize)]
-pub struct GetRound2PackageResponse {
-    pub round_2_package: String,
-}
 
 pub async fn handle(
-    Json(request): Json<GetRound2PackageRequest>,
-) -> Result<Json<GetRound2PackageResponse>, VerifierError> {
-    Ok(Json(GetRound2PackageResponse {
-        round_2_package: "0x1234567890".to_string(),
-    }))
+    State(state): State<AppState>,
+    Json(request): Json<DkgRound2Request>,
+) -> Result<Json<DkgRound2Response>, VerifierError> {
+    let response = state.frost_signer.dkg_round_2(request).await?;
+    Ok(Json(response))
 }

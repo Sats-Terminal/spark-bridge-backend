@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::str::FromStr;
 use tracing::{debug, instrument, trace};
+use frost::config::SignerConfig;
 
 const CONFIG_FOLDER_NAME: &str = "../../infrastructure/configuration";
 const PRODUCTION_CONFIG_FOLDER_NAME: &str = "configuration_verifier";
@@ -55,6 +56,7 @@ pub struct ServerConfig {
     pub btc_indexer: BtcIndexerConfig,
     #[serde(rename = "spark_balance_checker_url_config")]
     pub spark_balance_checker: SparkBalanceCheckerConfig,
+    pub frost_signer: SignerConfig,
 }
 
 pub fn get_cargo_manifest_dir() -> String {

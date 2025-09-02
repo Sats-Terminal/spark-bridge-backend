@@ -8,6 +8,7 @@ use tokio::net::TcpListener;
 use tracing::instrument;
 use verifier_config_parser::config::ServerConfig;
 use verifier_local_db_store::PostgresDbCredentials;
+use verifier_utils::frost_signer::create_frost_signer;
 
 #[instrument(level = "debug", ret)]
 #[tokio::main]
@@ -17,7 +18,8 @@ async fn main() -> anyhow::Result<()> {
     let app_config = ServerConfig::init_config(ConfigVariant::init())?;
     let postgres_creds = PostgresDbCredentials::from_db_url()?;
     let db_pool = PostgresRepo::from_config(postgres_creds).await?.into_shared();
-    let app = verifier_server::init::create_app(db_pool).await?;
+    let frost_signer = create_frost_signer(app_config.frost_signer);
+    let app = verifier_server::init::create_app(frost_signer).await?;
 
     let addr_to_listen = (lookup_ip_addr(&app_config.server.ip)?, app_config.server.port);
     let listener = TcpListener::bind(addr_to_listen)

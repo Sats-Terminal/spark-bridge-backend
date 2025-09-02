@@ -89,6 +89,7 @@ frost = { path = "./crates/frost" }
 verifier_local_db_store = { path = "./verifier/crates/local_db_store" }
 verifier_server = { path = "./verifier/crates/server" }
 verifier_config_parser = { path = "./verifier/crates/config_parser" }
+verifier_utils = { path = "./verifier/crates/utils" }
 
 # Verifier apps
 verifier-main = { path = "verifier/apps/main" }
