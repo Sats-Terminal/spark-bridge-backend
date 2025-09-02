@@ -56,9 +56,10 @@ prost-wkt-types = "0.6.1"
 rand_core = { version = "0.6.4", features = ["getrandom"] }
 reqwest = { version = "0.12.23" }
 serde = { version = "1.0", features = ["derive"] }
-serde_json = { version = "1.0.143" , features = ["raw_value"]}
+serde_json = { version = "1.0.143", features = ["raw_value"] }
 sqlx = { version = "0.8.6", features = ["json", "runtime-tokio", "postgres", "chrono", "json", "derive", "uuid", "macros"] }
 strum = { version = "0.27", features = ["derive"] }
+thiserror = { version = "2.0.16" }
 titan-client = { version = "0.1.43" }
 titan-types = { version = "0.1.28" }
 tokio = { version = "1.45.0", features = ["full"] }
@@ -69,7 +70,6 @@ tonic-build = { version = "0.12.3", features = ["prost"] }
 tracing = { version = "0.1.41", features = [] }
 tracing-appender = { version = "0.2.3" }
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
-thiserror = { version = "2.0.16" }
 url = { version = "2.5.6", features = ["serde"] }
 utoipa = { version = "5.4.0" }
 utoipa-swagger-ui = { version = "9.0.2" }
@@ -77,7 +77,7 @@ uuid = { version = "1.18.0", features = ["serde", "v4"] }
 
 
 ####### Global Crates #######
-global_utils = { path = "crates/global_utils" }
+global_utils = { path = "./crates/global_utils" }
 spark-protos = { path = "./crates/spark-protos-rpc" }
 spark-client = { path = "./crates/spark_client" }
 persistent_storage = { path = "./crates/persistent_storage" }
@@ -86,9 +86,9 @@ frost = { path = "./crates/frost" }
 
 ####### Verifier #######
 # Verifier crates
-verifier-common = { path = "verifier/crates/common" }
-verifier-server = { path = "verifier/crates/server" }
-verifier-storage = { path = "verifier/crates/storage" }
+verifier_local_db_store = { path = "./verifier/crates/local_db_store" }
+verifier_server = { path = "./verifier/crates/server" }
+verifier_config_parser = { path = "./verifier/crates/config_parser" }
 
 # Verifier apps
 verifier-main = { path = "verifier/apps/main" }
@@ -96,13 +96,13 @@ verifier-main = { path = "verifier/apps/main" }
 
 ####### Gateway #######
 # Gateway crates
-gateway-server = { path = "gateway/crates/server" }
-gateway-common = { path = "gateway/crates/common" }
-gateway-storage = { path = "gateway/crates/storage" }
-gateway-flow-processor = { path = "gateway/crates/flow-processor" }
+gateway_server = { path = "gateway/crates/server" }
+gateway_config_parser = { path = "gateway/crates/config_parser" }
+gateway_local_db_store = { path = "gateway/crates/local_db_store" }
+gateway_flow_processor = { path = "gateway/crates/flow_processor" }
 
 # Gateway apps
-gateway-main = { path = "gateway/apps/main" }
+gateway_main = { path = "gateway/apps/main" }
 
 
 ####### Spark Balance Checker #######

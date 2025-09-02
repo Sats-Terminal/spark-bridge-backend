@@ -1,10 +1,13 @@
 [package]
-name = "gateway-main"
+name = "gateway_main"
 edition = "2024"
 
 [dependencies]
-gateway-server = { workspace = true }
-gateway-common = { workspace = true }
-tokio = { workspace = true }
+anyhow = { workspace = true }
+axum = { workspace = true }
+gateway_config_parser = { workspace = true }
+gateway_server = { workspace = true }
 global_utils = { workspace = true }
-log = { workspace = true }
+persistent_storage = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }

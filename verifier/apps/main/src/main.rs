@@ -1,19 +1,29 @@
+use anyhow::anyhow;
+use global_utils::config_variant::ConfigVariant;
+use global_utils::env_parser::lookup_ip_addr;
 use global_utils::logger::init_logger;
-use log;
+use persistent_storage::init::PostgresRepo;
 use tokio;
-use verifier_common::config::VerifierConfig;
-use verifier_server::server::Server;
+use tokio::net::TcpListener;
+use tracing::instrument;
+use verifier_config_parser::config::ServerConfig;
+use verifier_local_db_store::PostgresDbCredentials;
 
+#[instrument(level = "debug", ret)]
 #[tokio::main]
-async fn main() {
-    let _guard = init_logger();
+async fn main() -> anyhow::Result<()> {
+    let _logger_guard = init_logger();
 
-    let config = VerifierConfig::new(None);
+    let app_config = ServerConfig::init_config(ConfigVariant::init())?;
+    let postgres_creds = PostgresDbCredentials::from_db_url()?;
+    let db_pool = PostgresRepo::from_config(postgres_creds).await?.into_shared();
+    let app = verifier_server::init::create_app(db_pool).await?;
 
-    let server = Server::new(config.server);
-    let server_handle = server.spawn().await.unwrap();
-
-    log::info!("Server started");
-    let _ = server_handle.await.unwrap();
-    log::info!("Server stopped");
+    let addr_to_listen = (lookup_ip_addr(&app_config.server.ip)?, app_config.server.port);
+    let listener = TcpListener::bind(addr_to_listen)
+        .await
+        .map_err(|e| anyhow!("Failed to bind to address: {}", e))?;
+    Ok(axum::serve(listener, app)
+        .await
+        .map_err(|e| anyhow!("Failed to serve: {}", e))?)
 }

@@ -1,7 +1,0 @@
-[package]
-name = "verifier-common"
-edition = "2024"
-
-[dependencies]
-toml = { workspace = true }
-serde = { workspace = true }

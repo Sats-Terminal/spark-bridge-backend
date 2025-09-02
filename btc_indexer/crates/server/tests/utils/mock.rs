@@ -4,6 +4,7 @@ use std::{
     sync::{Arc, LazyLock},
 };
 
+use crate::utils::init::TEST_LOGGER;
 use async_trait::async_trait;
 use axum::{Router, routing::post};
 use axum_test::TestServer;
@@ -11,7 +12,8 @@ use bitcoin::{BlockHash, OutPoint, hashes::Hash};
 use bitcoincore_rpc::{RawTx, bitcoin::Txid};
 use btc_indexer_internals::indexer::{BtcIndexer, IndexerParams, IndexerParamsWithApi};
 use btc_indexer_server::AppState;
-use config_parser::config::{BtcRpcCredentials, ConfigVariant, ServerConfig};
+use config_parser::config::{BtcRpcCredentials, ServerConfig};
+use global_utils::config_variant::ConfigVariant;
 use global_utils::logger::{LoggerGuard, init_logger};
 use local_db_store_indexer::{PostgresDbCredentials, init::LocalDbIndexer};
 use mockall::mock;
@@ -23,8 +25,6 @@ use titan_types::{
 };
 use tracing::{debug, info, instrument};
 use utoipa_swagger_ui::SwaggerUi;
-
-use crate::utils::init::TEST_LOGGER;
 
 mock! {
     pub TitanIndexer {}

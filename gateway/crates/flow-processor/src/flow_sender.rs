@@ -5,6 +5,7 @@ use tokio::sync::oneshot;
 use tokio_util::sync::CancellationToken;
 
 // This trait is used in order to send typed messages to the flow processor
+#[async_trait::async_trait]
 pub trait TypedMessageSender<S, R> {
     async fn send(&self, message: S) -> Result<R, FlowProcessorError>;
 }
@@ -48,6 +49,8 @@ impl FlowSender {
     }
 }
 
+#[async_trait::async_trait]
+
 impl TypedMessageSender<DkgFlowRequest, DkgFlowResponse> for FlowSender {
     async fn send(&self, dkg_message: DkgFlowRequest) -> Result<DkgFlowResponse, FlowProcessorError> {
         let response = self
@@ -62,6 +65,7 @@ impl TypedMessageSender<DkgFlowRequest, DkgFlowResponse> for FlowSender {
     }
 }
 
+#[async_trait::async_trait]
 impl TypedMessageSender<BridgeRunesRequest, BridgeRunesResponse> for FlowSender {
     async fn send(&self, bridge_runes_message: BridgeRunesRequest) -> Result<BridgeRunesResponse, FlowProcessorError> {
         let response = self
@@ -76,6 +80,7 @@ impl TypedMessageSender<BridgeRunesRequest, BridgeRunesResponse> for FlowSender 
     }
 }
 
+#[async_trait::async_trait]
 impl TypedMessageSender<ExitSparkRequest, ExitSparkResponse> for FlowSender {
     async fn send(&self, exit_spark_message: ExitSparkRequest) -> Result<ExitSparkResponse, FlowProcessorError> {
         let response = self

@@ -1,0 +1,11 @@
+[package]
+name = "verifier_config_parser"
+edition = "2024"
+
+[dependencies]
+serde = { workspace = true }
+config = { workspace = true }
+tracing = { workspace = true }
+global_utils = { workspace = true }
+thiserror = { workspace = true }
+dotenv = { workspace = true }

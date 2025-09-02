@@ -1,0 +1,7 @@
+BEGIN TRANSACTION;
+
+DROP TABLE IF EXISTS gateway.requests;
+
+DROP TABLE IF EXISTS gateway.keys;
+
+COMMIT;

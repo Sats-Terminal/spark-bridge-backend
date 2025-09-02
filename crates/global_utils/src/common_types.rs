@@ -38,9 +38,27 @@ impl utoipa::ToSchema for SocketAddrWrapped {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
-#[serde(transparent)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TxIdWrapped(pub Txid);
+
+impl serde::Serialize for TxIdWrapped {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.0.to_string())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for TxIdWrapped {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Txid::from_str(&s).map(TxIdWrapped).map_err(serde::de::Error::custom)
+    }
+}
 
 impl PartialSchema for TxIdWrapped {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {

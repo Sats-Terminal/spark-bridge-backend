@@ -1,0 +1,11 @@
+BEGIN TRANSACTION;
+
+CREATE SCHEMA verifier;
+
+CREATE TABLE IF NOT EXISTS verifier.keys
+(
+    key_id   UUID         NOT NULL PRIMARY KEY,
+    metadata VARCHAR(255) NOT NULL
+);
+
+COMMIT;
