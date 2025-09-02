@@ -122,6 +122,46 @@ services:
     volumes:
       - ./../../verifier/infrastructure/configuration/production.toml:/configuration_verifier/production.toml
 
+# ====== Verifier 3 ======
+  persistent-db-storage_verifier_3:
+    image: postgres:17.5-alpine3.22
+    restart: always
+    networks:
+      verifier3-network:
+        ipv4_address: 172.31.0.2
+    ports:
+      - "5483:5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-admin_manager}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
+      - POSTGRES_HOST=persistent-db-storage_verifier_3
+      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
+      - POSTGRES_DB=${POSTGRES_DB:-production_db_name}
+      - PGDATA=/pgdata
+    volumes:
+      - service-data_verifier_3:/pgdata
+
+  verifier3-service:
+    build:
+      context: ./../../
+      dockerfile: ./verifier/infrastructure/Dockerfile
+    restart: always
+    networks:
+      verifier3-network:
+        ipv4_address: 172.31.0.3
+    environment:
+      - RUST_LOG=trace
+      - APP_ENVIRONMENT=production
+      - DATABASE_URL=postgres://${POSTGRES_USER:-admin_manager}:${POSTGRES_PASSWORD:-password}@persistent-db-storage_verifier_3:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-production_db_name}
+    ports:
+      - "8083:8070"
+    entrypoint: sh -c "sqlx migrate run && verifier_main"
+#    entrypoint: tail -f /dev/null
+    depends_on:
+      - persistent-db-storage_verifier_3
+    volumes:
+      - ./../../verifier/infrastructure/configuration/production.toml:/configuration_verifier/production.toml
+
 networks:
   gateway-network:
     ipam:
@@ -141,8 +181,15 @@ networks:
       config:
         - subnet: 172.30.0.0/24
           gateway: 172.30.0.1
+  verifier3-network:
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.31.0.0/24
+          gateway: 172.31.0.1
 
 volumes:
   service-data_gateway:
   service-data_verifier_1:
   service-data_verifier_2:
+  service-data_verifier_3:
