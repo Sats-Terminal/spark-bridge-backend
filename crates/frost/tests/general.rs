@@ -1,13 +1,7 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use frost::{
-    aggregator::FrostAggregator,
-    config::*,
-    mocks::*,
-    signer::FrostSigner,
-    traits::{SignerClient, *},
-};
-use frost_secp256k1_tr::Identifier;
+use frost::{aggregator::FrostAggregator, config::*, mocks::*, signer::FrostSigner, traits::SignerClient};
+use frost_secp256k1_tr::{Identifier, keys::Tweak};
 
 fn create_signer(identifier: u16) -> FrostSigner {
     FrostSigner::new(
@@ -51,9 +45,17 @@ async fn test_aggregator_signer_integration() {
 
     let user_id = "test_user";
     let message = b"test_message";
+    let tweak = b"test_tweak";
 
     let public_key_package = aggregator.run_dkg_flow(user_id.to_string()).await.unwrap();
-    let signature = aggregator.run_signing_flow(user_id.to_string(), message).await.unwrap();
+    let signature = aggregator
+        .run_signing_flow(user_id.to_string(), message, tweak)
+        .await
+        .unwrap();
 
-    public_key_package.verifying_key().verify(message, &signature).unwrap();
+    let tweaked_public_key_package = public_key_package.clone().tweak(Some(tweak.to_vec()));
+    tweaked_public_key_package
+        .verifying_key()
+        .verify(message, &signature)
+        .unwrap();
 }
