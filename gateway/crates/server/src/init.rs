@@ -4,14 +4,12 @@ use axum::handler::Handler;
 use axum::routing::post;
 use persistent_storage::init::PersistentRepoShared;
 use tracing::instrument;
+use crate::state::AppState;
+use gateway_flow_processor::flow_sender::FlowSender;
 
-#[derive(Clone)]
-pub struct AppState {
-    db_pool: PersistentRepoShared,
-}
-#[instrument(level = "debug", skip(db_pool), ret)]
-pub async fn create_app(db_pool: PersistentRepoShared) -> anyhow::Result<Router> {
-    let state = AppState { db_pool };
+#[instrument(level = "debug", skip(flow_sender), ret)]
+pub async fn create_app(flow_sender: FlowSender) -> anyhow::Result<Router> {
+    let state = AppState { flow_sender };
     Ok(Router::new()
         .route("/api/user/runes-address", post(handlers::get_runes_address::handle))
         .route("/api/user/bridge-runes", post(handlers::bridge_runes::handle))
