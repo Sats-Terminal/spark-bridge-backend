@@ -1,11 +1,12 @@
-use frost::mocks::*;
-use frost::traits::*;
-use frost::config::*;
-use frost::aggregator::FrostAggregator;
-use frost::signer::FrostSigner;
-use std::sync::Arc;
-use std::collections::BTreeMap;
-use frost::traits::SignerClient;
+use std::{collections::BTreeMap, sync::Arc};
+
+use frost::{
+    aggregator::FrostAggregator,
+    config::*,
+    mocks::*,
+    signer::FrostSigner,
+    traits::{SignerClient, *},
+};
 use frost_secp256k1_tr::Identifier;
 
 fn create_signer(identifier: u16) -> FrostSigner {
@@ -14,8 +15,8 @@ fn create_signer(identifier: u16) -> FrostSigner {
             identifier,
             threshold: 2,
             total_participants: 3,
-        }, 
-        Arc::new(MockSignerUserStorage::new())
+        },
+        Arc::new(MockSignerUserStorage::new()),
     )
 }
 
@@ -28,7 +29,7 @@ async fn test_aggregator_signer_integration() {
     let mock_signer_client1 = MockSignerClient::new(signer1);
     let mock_signer_client2 = MockSignerClient::new(signer2);
     let mock_signer_client3 = MockSignerClient::new(signer3);
-    
+
     let identifier_1: Identifier = 1.try_into().unwrap();
     let identifier_2: Identifier = 2.try_into().unwrap();
     let identifier_3: Identifier = 3.try_into().unwrap();
@@ -45,7 +46,7 @@ async fn test_aggregator_signer_integration() {
             verifier_identifiers: vec![1, 2, 3],
         },
         verifiers_map,
-        Arc::new(MockAggregatorUserStorage::new())
+        Arc::new(MockAggregatorUserStorage::new()),
     );
 
     let user_id = "test_user";
@@ -55,5 +56,4 @@ async fn test_aggregator_signer_integration() {
     let signature = aggregator.run_signing_flow(user_id.to_string(), message).await.unwrap();
 
     public_key_package.verifying_key().verify(message, &signature).unwrap();
-    
 }

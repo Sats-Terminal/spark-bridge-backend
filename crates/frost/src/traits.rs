@@ -1,15 +1,18 @@
+use std::collections::{BTreeMap, HashMap};
 
-use frost_secp256k1_tr::keys::dkg::{round1, round2};
-use frost_secp256k1_tr::keys::{KeyPackage, PublicKeyPackage};
-use frost_secp256k1_tr::round1::SigningCommitments;
-use frost_secp256k1_tr::round2::SignatureShare;
-use frost_secp256k1_tr::{Identifier, Signature, SigningPackage};
-use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 use async_trait::async_trait;
-use crate::errors::{SignerError, AggregatorError};
-use frost_secp256k1_tr::round1::SigningNonces;
-use std::collections::HashMap;
+use frost_secp256k1_tr::{
+    Identifier, Signature, SigningPackage,
+    keys::{
+        KeyPackage, PublicKeyPackage,
+        dkg::{round1, round2},
+    },
+    round1::{SigningCommitments, SigningNonces},
+    round2::SignatureShare,
+};
+use serde::{Deserialize, Serialize};
+
+use crate::errors::{AggregatorError, SignerError};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DkgRound1Request {
@@ -82,22 +85,22 @@ pub trait SignerClient {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AggregatorUserState {
     DkgRound1 {
-        round1_packages: BTreeMap<Identifier, round1::Package>
+        round1_packages: BTreeMap<Identifier, round1::Package>,
     },
     DkgRound2 {
         round1_packages: BTreeMap<Identifier, round1::Package>,
-        round2_packages: BTreeMap<Identifier, BTreeMap<Identifier, round2::Package>>
+        round2_packages: BTreeMap<Identifier, BTreeMap<Identifier, round2::Package>>,
     },
     DkgFinalized {
-        public_key_package: PublicKeyPackage
+        public_key_package: PublicKeyPackage,
     },
     SigningRound1 {
         signing_package: SigningPackage,
-        public_key_package: PublicKeyPackage
+        public_key_package: PublicKeyPackage,
     },
     SigningRound2 {
         public_key_package: PublicKeyPackage,
-        signature: Signature
+        signature: Signature,
     },
 }
 

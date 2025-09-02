@@ -1,11 +1,14 @@
-use crate::traits::*;
-use crate::errors::{SignerError, AggregatorError};
-use std::collections::BTreeMap;
-use std::sync::Arc;
-use tokio::sync::Mutex;
+use std::{collections::BTreeMap, sync::Arc};
+
 use async_trait::async_trait;
-use crate::signer::FrostSigner;
 use frost_secp256k1_tr::Identifier;
+use tokio::sync::Mutex;
+
+use crate::{
+    errors::{AggregatorError, SignerError},
+    signer::FrostSigner,
+    traits::*,
+};
 
 pub struct MockSignerUserStorage {
     user_states: Arc<Mutex<BTreeMap<String, SignerUserState>>>,
@@ -69,23 +72,37 @@ impl MockSignerClient {
 #[async_trait]
 impl SignerClient for MockSignerClient {
     async fn dkg_round_1(&self, request: DkgRound1Request) -> Result<DkgRound1Response, AggregatorError> {
-        self.signer.dkg_round_1(request).await.map_err(|e| AggregatorError::SignerError(e))
+        self.signer
+            .dkg_round_1(request)
+            .await
+            .map_err(|e| AggregatorError::SignerError(e))
     }
 
     async fn dkg_round_2(&self, request: DkgRound2Request) -> Result<DkgRound2Response, AggregatorError> {
-        self.signer.dkg_round_2(request).await.map_err(|e| AggregatorError::SignerError(e))
+        self.signer
+            .dkg_round_2(request)
+            .await
+            .map_err(|e| AggregatorError::SignerError(e))
     }
 
     async fn dkg_finalize(&self, request: DkgFinalizeRequest) -> Result<DkgFinalizeResponse, AggregatorError> {
-        self.signer.dkg_finalize(request).await.map_err(|e| AggregatorError::SignerError(e))
+        self.signer
+            .dkg_finalize(request)
+            .await
+            .map_err(|e| AggregatorError::SignerError(e))
     }
 
     async fn sign_round_1(&self, request: SignRound1Request) -> Result<SignRound1Response, AggregatorError> {
-        self.signer.sign_round_1(request).await.map_err(|e| AggregatorError::SignerError(e))
+        self.signer
+            .sign_round_1(request)
+            .await
+            .map_err(|e| AggregatorError::SignerError(e))
     }
 
     async fn sign_round_2(&self, request: SignRound2Request) -> Result<SignRound2Response, AggregatorError> {
-        self.signer.sign_round_2(request).await.map_err(|e| AggregatorError::SignerError(e))
+        self.signer
+            .sign_round_2(request)
+            .await
+            .map_err(|e| AggregatorError::SignerError(e))
     }
 }
-

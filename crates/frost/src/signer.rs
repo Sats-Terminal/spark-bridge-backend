@@ -1,14 +1,14 @@
-use crate::config::SignerConfig;
-use crate::errors::SignerError;
-use crate::traits::*;
 use std::sync::Arc;
+
 use frost_secp256k1_tr::Identifier;
 use rand_core::OsRng;
+
+use crate::{config::SignerConfig, errors::SignerError, traits::*};
 
 #[derive(Clone)]
 pub struct FrostSigner {
     config: SignerConfig,
-    user_storage: Arc<dyn SignerUserStorage>,
+    user_storage: Arc<dyn SignerUserStorage>, // TODO: implement signer storage
     identifier: Identifier,
 }
 
@@ -32,14 +32,26 @@ impl FrostSigner {
                     self.config.total_participants,
                     self.config.threshold,
                     &mut OsRng,
-                ).map_err(|e| SignerError::Internal(format!("DKG round1 failed: {e}")))?;
+                )
+                .map_err(|e| SignerError::Internal(format!("DKG round1 failed: {e}")))?;
 
-                self.user_storage.set_user_state(user_id.clone(), SignerUserState::DkgRound1 { round1_secret_package: secret_package }).await?;
+                self.user_storage
+                    .set_user_state(
+                        user_id.clone(),
+                        SignerUserState::DkgRound1 {
+                            round1_secret_package: secret_package,
+                        },
+                    )
+                    .await?;
 
-                Ok(DkgRound1Response { round1_package: package })
+                Ok(DkgRound1Response {
+                    round1_package: package,
+                })
             }
             _ => {
-                return Err(SignerError::InvalidUserState("User state is not SigningRound1".to_string()));
+                return Err(SignerError::InvalidUserState(
+                    "User state is not SigningRound1".to_string(),
+                ));
             }
         }
     }
@@ -50,20 +62,28 @@ impl FrostSigner {
 
         match state {
             Some(SignerUserState::DkgRound1 { round1_secret_package }) => {
-                let (secret_package, packages) = frost_secp256k1_tr::keys::dkg::part2(
-                    round1_secret_package.clone(),
-                    &request.round1_packages
-                ).map_err(|e| SignerError::Internal(format!("DKG round2 failed: {e}")))?;
+                let (secret_package, packages) =
+                    frost_secp256k1_tr::keys::dkg::part2(round1_secret_package.clone(), &request.round1_packages)
+                        .map_err(|e| SignerError::Internal(format!("DKG round2 failed: {e}")))?;
 
-                self.user_storage.set_user_state(user_id.clone(), SignerUserState::DkgRound2 { 
-                    round2_secret_package: secret_package, 
-                    round1_packages: request.round1_packages
-                }).await?;
+                self.user_storage
+                    .set_user_state(
+                        user_id.clone(),
+                        SignerUserState::DkgRound2 {
+                            round2_secret_package: secret_package,
+                            round1_packages: request.round1_packages,
+                        },
+                    )
+                    .await?;
 
-                Ok(DkgRound2Response { round2_packages: packages })
+                Ok(DkgRound2Response {
+                    round2_packages: packages,
+                })
             }
             _ => {
-                return Err(SignerError::InvalidUserState("User state is not SigningRound1".to_string()));
+                return Err(SignerError::InvalidUserState(
+                    "User state is not SigningRound1".to_string(),
+                ));
             }
         }
     }
@@ -73,18 +93,26 @@ impl FrostSigner {
         let state = self.user_storage.get_user_state(user_id.clone()).await?;
 
         match state {
-            Some(SignerUserState::DkgRound2 { round2_secret_package, round1_packages }) => {
+            Some(SignerUserState::DkgRound2 {
+                round2_secret_package,
+                round1_packages,
+            }) => {
                 let (key_package, public_key_package) = frost_secp256k1_tr::keys::dkg::part3(
-                    &round2_secret_package, 
-                    &round1_packages, 
-                    &request.round2_packages
-                ).map_err(|e| SignerError::Internal(format!("DKG finalize failed: {e}")))?;
+                    &round2_secret_package,
+                    &round1_packages,
+                    &request.round2_packages,
+                )
+                .map_err(|e| SignerError::Internal(format!("DKG finalize failed: {e}")))?;
 
-                self.user_storage.set_user_state(user_id.clone(), SignerUserState::DkgFinalized { key_package }).await?;
+                self.user_storage
+                    .set_user_state(user_id.clone(), SignerUserState::DkgFinalized { key_package })
+                    .await?;
                 Ok(DkgFinalizeResponse { public_key_package })
             }
             _ => {
-                return Err(SignerError::InvalidUserState("User state is not SigningRound1".to_string()));
+                return Err(SignerError::InvalidUserState(
+                    "User state is not SigningRound1".to_string(),
+                ));
             }
         }
     }
@@ -97,11 +125,15 @@ impl FrostSigner {
             Some(SignerUserState::DkgFinalized { key_package }) => {
                 let (nonces, commitments) = frost_secp256k1_tr::round1::commit(key_package.signing_share(), &mut OsRng);
 
-                self.user_storage.set_user_state(user_id.clone(), SignerUserState::SigningRound1 { key_package, nonces }).await?;
+                self.user_storage
+                    .set_user_state(user_id.clone(), SignerUserState::SigningRound1 { key_package, nonces })
+                    .await?;
                 Ok(SignRound1Response { user_id, commitments })
             }
             _ => {
-                return Err(SignerError::InvalidUserState("User state is not SigningRound1".to_string()));
+                return Err(SignerError::InvalidUserState(
+                    "User state is not SigningRound1".to_string(),
+                ));
             }
         }
     }
@@ -112,19 +144,33 @@ impl FrostSigner {
 
         match state {
             Some(SignerUserState::SigningRound1 { key_package, nonces }) => {
-                let signature_share = frost_secp256k1_tr::round2::sign(
-                    &request.signing_package, 
-                    &nonces,
-                    &key_package,
-                ).map_err(|e| SignerError::Internal(format!("Sign round2 failed: {e}")))?;
+                let signature_share = frost_secp256k1_tr::round2::sign(&request.signing_package, &nonces, &key_package)
+                    .map_err(|e| SignerError::Internal(format!("Sign round2 failed: {e}")))?;
 
-                self.user_storage.set_user_state(user_id.clone(), SignerUserState::SigningRound2 { key_package: key_package.clone(), signature_share }).await?;
+                self.user_storage
+                    .set_user_state(
+                        user_id.clone(),
+                        SignerUserState::SigningRound2 {
+                            key_package: key_package.clone(),
+                            signature_share,
+                        },
+                    )
+                    .await?;
 
-                self.user_storage.set_user_state(user_id.clone(), SignerUserState::DkgFinalized { key_package: key_package.clone() }).await?;
+                self.user_storage
+                    .set_user_state(
+                        user_id.clone(),
+                        SignerUserState::DkgFinalized {
+                            key_package: key_package.clone(),
+                        },
+                    )
+                    .await?;
                 Ok(SignRound2Response { signature_share })
             }
             _ => {
-                return Err(SignerError::InvalidUserState("User state is not SigningRound1".to_string()));
+                return Err(SignerError::InvalidUserState(
+                    "User state is not SigningRound1".to_string(),
+                ));
             }
         }
     }
