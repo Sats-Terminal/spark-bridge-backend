@@ -42,17 +42,20 @@ impl FrostAggregator {
 
                 for (verifier_id, signer_client) in self.verifiers.clone() {
                     let verifier_signer_clients_request = signer_clients_request.clone();
-                    let join_handle: JoinHandle<(Identifier, Result<DkgRound1Response, AggregatorError>)> = tokio::spawn(async move {
-                        (
-                            verifier_id,
-                            signer_client.dkg_round_1(verifier_signer_clients_request).await
-                        )
-                    });
+                    let join_handle: JoinHandle<(Identifier, Result<DkgRound1Response, AggregatorError>)> =
+                        tokio::spawn(async move {
+                            (
+                                verifier_id,
+                                signer_client.dkg_round_1(verifier_signer_clients_request).await,
+                            )
+                        });
                     join_handles.push(join_handle);
                 }
 
                 for join_handle in join_handles {
-                    let (verifier_id, response) = join_handle.await.map_err(|e| AggregatorError::Internal(format!("Join error: {:?}", e)))?;
+                    let (verifier_id, response) = join_handle
+                        .await
+                        .map_err(|e| AggregatorError::Internal(format!("Join error: {:?}", e)))?;
                     verifier_responses.insert(verifier_id, response?.round1_package);
                 }
 
@@ -85,17 +88,15 @@ impl FrostAggregator {
                         user_id: user_id.clone(),
                         round1_packages: packages,
                     };
-                    let join_handle: JoinHandle<(Identifier, Result<DkgRound2Response, AggregatorError>)> = tokio::spawn(async move {
-                        (
-                            verifier_id,
-                            signer_client.dkg_round_2(signer_requests).await
-                        )
-                    });
+                    let join_handle: JoinHandle<(Identifier, Result<DkgRound2Response, AggregatorError>)> =
+                        tokio::spawn(async move { (verifier_id, signer_client.dkg_round_2(signer_requests).await) });
                     join_handles.push(join_handle);
                 }
 
                 for join_handle in join_handles {
-                    let (verifier_id, response) = join_handle.await.map_err(|e| AggregatorError::Internal(format!("Join error: {:?}", e)))?;
+                    let (verifier_id, response) = join_handle
+                        .await
+                        .map_err(|e| AggregatorError::Internal(format!("Join error: {:?}", e)))?;
                     for (receiver_identifier, round2_package) in response?.round2_packages {
                         verifier_responses
                             .entry(receiver_identifier)
@@ -145,17 +146,15 @@ impl FrostAggregator {
                             .ok_or(AggregatorError::Internal("Round2 packages not found".to_string()))?
                             .clone(),
                     };
-                    let join_handle: JoinHandle<(Identifier, Result<DkgFinalizeResponse, AggregatorError>)> = tokio::spawn(async move {
-                        (
-                            verifier_id,
-                            signer_client.dkg_finalize(request).await
-                        )
-                    });
+                    let join_handle: JoinHandle<(Identifier, Result<DkgFinalizeResponse, AggregatorError>)> =
+                        tokio::spawn(async move { (verifier_id, signer_client.dkg_finalize(request).await) });
                     join_handles.push(join_handle);
                 }
 
                 for join_handle in join_handles {
-                    let (verifier_id, response) = join_handle.await.map_err(|e| AggregatorError::Internal(format!("Join error: {:?}", e)))?;
+                    let (verifier_id, response) = join_handle
+                        .await
+                        .map_err(|e| AggregatorError::Internal(format!("Join error: {:?}", e)))?;
                     let public_key_package = response?.public_key_package;
                     public_key_packages.push(public_key_package);
                 }
@@ -216,22 +215,20 @@ impl FrostAggregator {
                     let request = SignRound1Request {
                         user_id: user_id.clone(),
                     };
-                    let join_handle: JoinHandle<(Identifier, Result<SignRound1Response, AggregatorError>)> = tokio::spawn(async move {
-                        (
-                            verifier_id,
-                            signer_client.sign_round_1(request).await
-                        )
-                    });
+                    let join_handle: JoinHandle<(Identifier, Result<SignRound1Response, AggregatorError>)> =
+                        tokio::spawn(async move { (verifier_id, signer_client.sign_round_1(request).await) });
                     join_handles.push(join_handle);
                 }
 
                 for join_handle in join_handles {
-                    let (verifier_id, response) = join_handle.await.map_err(|e| AggregatorError::Internal(format!("Join error: {:?}", e)))?;
+                    let (verifier_id, response) = join_handle
+                        .await
+                        .map_err(|e| AggregatorError::Internal(format!("Join error: {:?}", e)))?;
                     commitments.insert(verifier_id, response?.commitments);
                 }
 
                 let signing_package = SigningPackage::new(commitments.clone(), message);
-                
+
                 self.user_storage
                     .set_user_state(
                         user_id.clone(),
@@ -268,17 +265,15 @@ impl FrostAggregator {
                         user_id: user_id.clone(),
                         signing_package: signing_package.clone(),
                     };
-                    let join_handle: JoinHandle<(Identifier, Result<SignRound2Response, AggregatorError>)> = tokio::spawn(async move {
-                        (
-                            verifier_id,
-                            signer_client.sign_round_2(request).await
-                        )
-                    });
+                    let join_handle: JoinHandle<(Identifier, Result<SignRound2Response, AggregatorError>)> =
+                        tokio::spawn(async move { (verifier_id, signer_client.sign_round_2(request).await) });
                     join_handles.push(join_handle);
                 }
 
                 for join_handle in join_handles {
-                    let (verifier_id, response) = join_handle.await.map_err(|e| AggregatorError::Internal(format!("Join error: {:?}", e)))?;
+                    let (verifier_id, response) = join_handle
+                        .await
+                        .map_err(|e| AggregatorError::Internal(format!("Join error: {:?}", e)))?;
                     signature_shares.insert(verifier_id, response?.signature_share);
                 }
 
