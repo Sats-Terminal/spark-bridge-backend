@@ -30,7 +30,7 @@ impl FrostAggregator {
 
         match state {
             Some(_) => {
-                return Err(AggregatorError::InvalidUserState("User state is not None".to_string()));
+                Err(AggregatorError::InvalidUserState("User state is not None".to_string()))
             }
             None => {
                 let signer_clients_request = DkgRound1Request {
@@ -117,9 +117,9 @@ impl FrostAggregator {
                 Ok(())
             }
             _ => {
-                return Err(AggregatorError::InvalidUserState(
+                Err(AggregatorError::InvalidUserState(
                     "User state is not DkgRound2".to_string(),
-                ));
+                ))
             }
         }
     }
@@ -180,9 +180,9 @@ impl FrostAggregator {
                 Ok(())
             }
             _ => {
-                return Err(AggregatorError::InvalidUserState(
+                Err(AggregatorError::InvalidUserState(
                     "User state is not DkgFinalized".to_string(),
-                ));
+                ))
             }
         }
     }
@@ -196,9 +196,9 @@ impl FrostAggregator {
         match state {
             Some(AggregatorUserState::DkgFinalized { public_key_package }) => Ok(public_key_package),
             _ => {
-                return Err(AggregatorError::InvalidUserState(
+                Err(AggregatorError::InvalidUserState(
                     "User state is not DkgFinalized".to_string(),
-                ));
+                ))
             }
         }
     }
@@ -242,9 +242,9 @@ impl FrostAggregator {
                 Ok(())
             }
             _ => {
-                return Err(AggregatorError::InvalidUserState(
+                Err(AggregatorError::InvalidUserState(
                     "User state is not DkgFinalized".to_string(),
-                ));
+                ))
             }
         }
     }
@@ -298,9 +298,9 @@ impl FrostAggregator {
                 Ok(())
             }
             _ => {
-                return Err(AggregatorError::InvalidUserState(
+                Err(AggregatorError::InvalidUserState(
                     "User state is not DkgFinalized".to_string(),
-                ));
+                ))
             }
         }
     }
@@ -324,9 +324,9 @@ impl FrostAggregator {
                 Ok(signature)
             }
             _ => {
-                return Err(AggregatorError::InvalidUserState(
+                Err(AggregatorError::InvalidUserState(
                     "User state is not DkgFinalized".to_string(),
-                ));
+                ))
             }
         }
     }
