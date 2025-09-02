@@ -4,14 +4,9 @@ edition = "2024"
 
 [dependencies]
 tokio = { workspace = true }
-secp256k1 = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true }
 tracing = { workspace = true }
-uuid = { workspace = true }
-
-frost-secp256k1 = { workspace = true }
-rand = { workspace = true }
-frost-secp256k1-tr = "2.2.0"
-async-trait = "0.1.89"
-rand_core = "0.6.4"
+frost-secp256k1-tr = { workspace = true }
+async-trait = { workspace = true }
+rand_core = { workspace = true }

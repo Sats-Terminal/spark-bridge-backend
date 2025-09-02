@@ -1,7 +1,6 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use frost_secp256k1_tr::{Identifier, Signature, SigningPackage, keys, keys::PublicKeyPackage};
-use secp256k1::PublicKey;
 use tokio::sync::Mutex;
 
 use crate::{config::AggregatorConfig, errors::AggregatorError, traits::*};
