@@ -1,5 +1,6 @@
 use crate::flow_router::FlowProcessorRouter;
 use crate::types::*;
+use global_utils::common_types::get_uuid;
 use persistent_storage::init::PostgresRepo;
 use std::collections::HashMap;
 use tokio;
@@ -67,7 +68,7 @@ impl FlowProcessor {
 
                             let (message, response_sender) = wrapper;
 
-                            let flow_id = uuid::Uuid::new_v4();
+                            let flow_id = get_uuid();
 
                             let router = FlowProcessorRouter::new(
                                 self.storage.clone(),

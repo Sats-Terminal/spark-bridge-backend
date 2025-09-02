@@ -2,6 +2,7 @@ use crate::{errors::DatabaseError, models::Request, traits::RequestStorage};
 use persistent_storage::init::PostgresRepo;
 use uuid::Uuid;
 
+#[async_trait::async_trait]
 impl RequestStorage for PostgresRepo {
     async fn insert_request(&self, request: Request) -> Result<(), DatabaseError> {
         let _ = sqlx::query("INSERT INTO requests (request_id, key_id) VALUES ($1, $2)")

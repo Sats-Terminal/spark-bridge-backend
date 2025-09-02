@@ -13,7 +13,7 @@ use sqlx::{
     Row,
     types::{Json as SqlxJson, chrono::Utc},
 };
-use titan_client::{TitanApi, Transaction};
+use titan_client::Transaction;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, instrument, trace};
 use utoipa::ToSchema;

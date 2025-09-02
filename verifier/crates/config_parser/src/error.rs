@@ -1,7 +1,5 @@
 use config::ConfigError;
-use global_utils::env_parser::EnvParserError;
 use std::net::AddrParseError;
-use std::num::ParseIntError;
 use thiserror::Error;
 
 pub type Result<T> = core::result::Result<T, ConfigParserError>;

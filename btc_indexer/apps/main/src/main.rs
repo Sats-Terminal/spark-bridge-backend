@@ -1,5 +1,3 @@
-use std::{net::IpAddr, str::FromStr};
-
 use btc_indexer_internals::indexer::{BtcIndexer, IndexerParams};
 use config_parser::config::{BtcRpcCredentials, ServerConfig};
 use global_utils::config_variant::ConfigVariant;

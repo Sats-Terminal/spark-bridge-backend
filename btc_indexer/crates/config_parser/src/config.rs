@@ -1,17 +1,10 @@
-use std::{
-    fmt::Debug,
-    net::{IpAddr, SocketAddr},
-    str::FromStr,
-};
+use std::{fmt::Debug, net::SocketAddr, str::FromStr};
 
 use crate::error::ConfigParserError;
 use bitcoincore_rpc::{Auth, bitcoin::Network};
 use config::{Config, Environment};
 use global_utils::config_variant::ConfigVariant;
-use global_utils::{
-    env_parser,
-    env_parser::{EnvParser, lookup_ip_addr},
-};
+use global_utils::{env_parser, env_parser::lookup_ip_addr};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, info, instrument};
 

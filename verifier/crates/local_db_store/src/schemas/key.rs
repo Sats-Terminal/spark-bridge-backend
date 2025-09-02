@@ -7,7 +7,7 @@ pub struct Key {
 }
 
 use crate::error::DatabaseError;
-use persistent_storage::init::{PersistentRepoTrait, PostgresRepo};
+use persistent_storage::init::PostgresRepo;
 
 #[async_trait::async_trait]
 pub trait KeyStorage {

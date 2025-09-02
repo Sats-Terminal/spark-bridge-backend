@@ -4,6 +4,7 @@ use uuid::Uuid;
 use crate::{errors::DatabaseError, models::Key, traits::KeyStorage};
 use persistent_storage::init::PostgresRepo;
 
+#[async_trait::async_trait]
 impl KeyStorage for PostgresRepo {
     async fn insert_key(&self, key: Key) -> Result<(), DatabaseError> {
         let _ = sqlx::query("INSERT INTO keys (key_id) VALUES ($1)")
