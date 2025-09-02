@@ -18,6 +18,7 @@ help:
 fmt:
 	cargo +nightly fmt --all
 
-## Cleans whole directory from temporary files
-clean:
-	cargo clean --manifest-path $(CORE_CARGO_TOML)
+test:
+	cargo test --test test_tx_tracking mocked_tx_tracking --no-fail-fast && \
+	cargo test --test mock_testing mock_testing --no-fail-fast && \
+	cargo test --no-fail-fast

@@ -1,0 +1,35 @@
+# !!! This file should be run from the root of the project !!!
+version: '3.8'
+
+name: runes-spark-bridge
+services:
+  postgres-gateway:
+    image: postgres:17.5-alpine3.22
+    restart: always
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+      - PGDATA=/pgdata
+    volumes:
+      - gateway-data:/pgdata
+
+  postgres-verifiers:
+    image: postgres:17.5-alpine3.22
+    restart: always
+    ports:
+      - "5434:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+      - PGDATA=/pgdata
+    volumes:
+      - verifier-data:/pgdata
+      - ./init-verifier-dbs.sh:/docker-entrypoint-initdb.d/init-verifier-dbs.sh
+
+volumes:
+  gateway-data:
+  verifier-data:

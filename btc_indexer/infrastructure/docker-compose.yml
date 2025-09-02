@@ -1,0 +1,124 @@
+name: runes-spark-bridge
+services:
+
+  btc-indexer-service:
+    build:
+      context: ./../../
+      dockerfile: ./btc_indexer/infrastructure/Dockerfile
+    restart: always
+    environment:
+      - RUST_LOG=trace
+      - APP_ENVIRONMENT=production
+      - BITCOIN_NETWORK=${BITCOIN_NETWORK:-regtest}
+      - BITCOIN_RPC_HOST=bitcoind
+      - BITCOIN_RPC_PORT=${BITCOIN_RPC_PORT:-18443}
+      - BITCOIN_RPC_USERNAME=${BITCOIN_RPC_USERNAME:-bitcoin}
+      - BITCOIN_RPC_PASSWORD=${BITCOIN_RPC_PASSWORD:-bitcoinpass}
+      - POSTGRES_USER=${POSTGRES_USER:-admin_manager}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
+      - POSTGRES_HOST=persistent-db-storage
+      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
+      - POSTGRES_DB=${POSTGRES_DB:-production_db_name}
+    networks:
+      titan-network:
+        ipv4_address: 172.28.0.4
+    ports:
+      - "8070:8070"
+    entrypoint: btc_indexer
+#    entrypoint: tail -f /dev/null
+    depends_on:
+      - persistent-db-storage
+      - titan
+      - bitcoind
+    volumes:
+      - ./configuration/production.toml:/configuration_indexer/production.toml
+
+  persistent-db-storage:
+    image: postgres:17.5-alpine3.22
+    restart: always
+    networks:
+      titan-network:
+        ipv4_address: 172.28.0.5
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-admin_manager}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
+      - POSTGRES_HOST=persistent-db-storage
+      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
+      - POSTGRES_DB=${POSTGRES_DB:-production_db_name}
+      - PGDATA=/pgdata
+    volumes:
+      - service-data:/pgdata
+
+# https://github.com/SaturnBTC/Titan/blob/master/docker-compose.yml
+
+  titan:
+    image: ghcr.io/${GITHUB_REPOSITORY:-saturnbtc/titan}:${DOCKER_TAG:-latest}
+    restart: always
+    depends_on:
+      bitcoind:
+        condition: service_healthy
+    ports:
+      - 0.0.0.0:${TITAN_TCP_PORT:-8080}:${TITAN_TCP_PORT:-8080}
+      - 0.0.0.0:${TITAN_HTTP_PORT:-3030}:${TITAN_HTTP_PORT:-3030}
+    networks:
+      titan-network:
+        ipv4_address: 172.28.0.2
+    environment:
+      - COMMIT_INTERVAL=${COMMIT_INTERVAL:-5}
+      - BITCOIN_RPC_URL=http://bitcoind:${BITCOIN_RPC_PORT:-18443}
+      - BITCOIN_RPC_USERNAME=${BITCOIN_RPC_USERNAME:-bitcoin}
+      - BITCOIN_RPC_PASSWORD=${BITCOIN_RPC_PASSWORD:-bitcoinpass}
+      - CHAIN=${BITCOIN_NETWORK:-regtest}
+      - HTTP_LISTEN=0.0.0.0:${TITAN_HTTP_PORT:-3030}
+      - TCP_ADDRESS=0.0.0.0:${TITAN_TCP_PORT:-8080}
+    volumes:
+      - "titan-data:/home/titan/data"
+
+  bitcoind:
+    image: bitcoin/bitcoin
+    ports:
+      - 0.0.0.0:${BITCOIN_RPC_PORT:-18443}:${BITCOIN_RPC_PORT:-18443}
+    volumes:
+      - "btcd-data:/var/lib/bitcoin-core"
+    networks:
+      titan-network:
+        ipv4_address: 172.28.0.3
+    command: |
+      -${BITCOIN_NETWORK:-regtest}
+      -rpcallowip=0.0.0.0/0
+      -datadir=/var/lib/bitcoin-core
+      -rpcbind=bitcoind
+      -rpcuser=${BITCOIN_RPC_USERNAME:-bitcoin}
+      -rpcpassword=${BITCOIN_RPC_PASSWORD:-bitcoinpass}
+      -fallbackfee=0.00000001
+      -txindex
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "bitcoin-cli",
+          "-${BITCOIN_NETWORK:-regtest}",
+          "-rpcconnect=bitcoind",
+          "-rpcport=${BITCOIN_RPC_PORT:-18443}",
+          "-rpcuser=${BITCOIN_RPC_USERNAME:-bitcoin}",
+          "-rpcpassword=${BITCOIN_RPC_PASSWORD:-bitcoinpass}",
+          "getblockchaininfo",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+networks:
+  titan-network:
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.0.0/24
+          gateway: 172.28.0.1
+
+volumes:
+  titan-data:
+  btcd-data:
+  service-data:

@@ -1,0 +1,32 @@
+[package]
+name = "btc_indexer_internals"
+edition = "2024"
+version.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+readme.workspace = true
+
+[dependencies]
+async-trait = { workspace = true }
+bitcoincore-rpc = { workspace = true }
+config_parser = { workspace = true }
+global_utils = { workspace = true }
+local_db_store_indexer = { workspace = true }
+ordinals = { workspace = true }
+serde = { workspace = true }
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+titan-client = { workspace = true }
+titan-types = { workspace = true }
+tokio = { workspace = true }
+tokio-util = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+anyhow = { workspace = true }
+bitcoin = { workspace = true }
+dotenv = { workspace = true }
+global_utils = { workspace = true }
+mockall = { workspace = true }
+reqwest = { workspace = true }
