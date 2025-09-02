@@ -93,34 +93,3 @@ impl ServerConfig {
             .try_deserialize::<ServerConfig>()?)
     }
 }
-
-#[cfg(test)]
-mod testing {
-    use super::*;
-    use crate::config::ServerConfig;
-    use global_utils::config_variant::ConfigVariant;
-    use global_utils::logger::init_logger;
-    #[test]
-    fn test() {
-        let guard = init_logger();
-        let config = ServerConfig::init_config(ConfigVariant::Local);
-        println!("{:?}", config);
-        let config = ServerConfig {
-            server: AppConfig {
-                ip: "".to_string(),
-                port: 0,
-            },
-            verifiers: VerifiersConfig(vec![
-                VerifierConfig {
-                    id: 0,
-                    address: "dfdfdf".to_string(),
-                },
-                VerifierConfig {
-                    id: 0,
-                    address: "dfdfdf".to_string(),
-                },
-            ]),
-        };
-        println!("{}", toml::ser::to_string_pretty(&config).unwrap());
-    }
-}
