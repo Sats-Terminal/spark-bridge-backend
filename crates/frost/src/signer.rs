@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
-use frost_secp256k1_tr::Identifier;
+use frost_secp256k1_tr::{Identifier, keys::Tweak};
+
 use rand_core::OsRng;
 
 use crate::{config::SignerConfig, errors::SignerError, traits::*};
@@ -119,14 +120,27 @@ impl FrostSigner {
 
     pub async fn sign_round_1(&self, request: SignRound1Request) -> Result<SignRound1Response, SignerError> {
         let user_id = request.user_id;
+        let tweak = request.tweak;
         let state = self.user_storage.get_user_state(user_id.clone()).await?;
 
         match state {
             Some(SignerUserState::DkgFinalized { key_package }) => {
-                let (nonces, commitments) = frost_secp256k1_tr::round1::commit(key_package.signing_share(), &mut OsRng);
+                let tweak_key_package = match tweak.clone() {
+                    Some(tweak) => key_package.clone().tweak(Some(tweak.to_vec())),
+                    None => key_package.clone(),
+                };
+                let (nonces, commitments) =
+                    frost_secp256k1_tr::round1::commit(tweak_key_package.signing_share(), &mut OsRng);
 
                 self.user_storage
-                    .set_user_state(user_id.clone(), SignerUserState::SigningRound1 { key_package, nonces })
+                    .set_user_state(
+                        user_id.clone(),
+                        SignerUserState::SigningRound1 {
+                            key_package: key_package,
+                            tweak: tweak,
+                            nonces,
+                        },
+                    )
                     .await?;
                 Ok(SignRound1Response { user_id, commitments })
             }
@@ -143,14 +157,24 @@ impl FrostSigner {
         let state = self.user_storage.get_user_state(user_id.clone()).await?;
 
         match state {
-            Some(SignerUserState::SigningRound1 { key_package, nonces }) => {
-                let signature_share = frost_secp256k1_tr::round2::sign(&request.signing_package, &nonces, &key_package)
-                    .map_err(|e| SignerError::Internal(format!("Sign round2 failed: {e}")))?;
+            Some(SignerUserState::SigningRound1 {
+                key_package,
+                tweak,
+                nonces,
+            }) => {
+                let tweak_key_package = match tweak.clone() {
+                    Some(tweak) => key_package.clone().tweak(Some(tweak.to_vec())),
+                    None => key_package.clone(),
+                };
+                let signature_share =
+                    frost_secp256k1_tr::round2::sign(&request.signing_package, &nonces, &tweak_key_package)
+                        .map_err(|e| SignerError::Internal(format!("Sign round2 failed: {e}")))?;
 
                 self.user_storage
                     .set_user_state(
                         user_id.clone(),
                         SignerUserState::SigningRound2 {
+                            tweak: tweak.clone(),
                             key_package: key_package.clone(),
                             signature_share,
                         },
