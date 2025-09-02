@@ -55,9 +55,10 @@ prost-wkt-types = "0.6.1"
 rand_core = { version = "0.6.4", features = ["getrandom"] }
 reqwest = { version = "0.12.23" }
 serde = { version = "1.0", features = ["derive"] }
-serde_json = { version = "1.0.143" , features = ["raw_value"]}
+serde_json = { version = "1.0.143", features = ["raw_value"] }
 sqlx = { version = "0.8.6", features = ["json", "runtime-tokio", "postgres", "chrono", "json", "derive", "uuid", "macros"] }
 strum = { version = "0.27", features = ["derive"] }
+thiserror = { version = "2.0.16" }
 titan-client = { version = "0.1.43" }
 titan-types = { version = "0.1.28" }
 tokio = { version = "1.45.0", features = ["full"] }
@@ -68,7 +69,6 @@ tonic-build = { version = "0.12.3", features = ["prost"] }
 tracing = { version = "0.1.41", features = [] }
 tracing-appender = { version = "0.2.3" }
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
-thiserror = { version = "2.0.16" }
 url = { version = "2.5.6", features = ["serde"] }
 utoipa = { version = "5.4.0" }
 utoipa-swagger-ui = { version = "9.0.2" }

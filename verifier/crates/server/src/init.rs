@@ -3,15 +3,15 @@ use crate::handlers::watchers::{handler_watch_runes_address, handler_watch_spark
 use axum::Router;
 use axum::handler::Handler;
 use axum::routing::post;
+use persistent_storage::init::PersistentRepoShared;
 use tracing::instrument;
-use verifier_local_db_store::init::LocalDbStorage;
 
 #[derive(Clone)]
 pub struct AppState {
-    db_pool: LocalDbStorage,
+    db_pool: PersistentRepoShared,
 }
-#[instrument(level = "debug", ret)]
-pub async fn create_app(db_pool: LocalDbStorage) -> anyhow::Result<Router> {
+#[instrument(level = "debug", skip(db_pool), ret)]
+pub async fn create_app(db_pool: PersistentRepoShared) -> anyhow::Result<Router> {
     let state = AppState { db_pool };
     Ok(Router::new()
         .route("/api/gateway/watch-spark-address", post(handler_watch_spark_address))

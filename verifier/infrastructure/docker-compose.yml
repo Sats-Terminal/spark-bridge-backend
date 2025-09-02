@@ -24,21 +24,16 @@ services:
       context: ./../../
       dockerfile: ./verifier/infrastructure/Dockerfile
     restart: always
-    environment:
-      - RUST_LOG=trace
-      - APP_ENVIRONMENT=production
-      - POSTGRES_USER=${POSTGRES_USER:-admin_manager}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
-      - POSTGRES_HOST=persistent-db-storage
-      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
-      - POSTGRES_DB=${POSTGRES_DB:-production_db_name}
     networks:
       verifier-network:
         ipv4_address: 172.28.0.3
+    environment:
+      - RUST_LOG=trace
+      - APP_ENVIRONMENT=production
+      - DATABASE_URL=postgres://${POSTGRES_USER:-admin_manager}:${POSTGRES_PASSWORD:-password}@persistent-db-storage:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-production_db_name}
     ports:
       - "8080:8070"
-    entrypoint: verifier_main
-    #    entrypoint: tail -f /dev/null
+    entrypoint: sh -c "sqlx migrate run && verifier_main"
     depends_on:
       - persistent-db-storage
     volumes:

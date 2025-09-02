@@ -3,11 +3,12 @@ name = "verifier_server"
 edition = "2024"
 
 [dependencies]
+anyhow = { workspace = true }
 axum = { workspace = true }
-tokio = { workspace = true }
+persistent_storage = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
-verifier_config_parser = { workspace = true }
-anyhow = { workspace = true }
+tokio = { workspace = true }
 tracing = { workspace = true }
+verifier_config_parser = { workspace = true }
 verifier_local_db_store = { workspace = true }
