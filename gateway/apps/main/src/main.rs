@@ -21,7 +21,7 @@ async fn main() -> anyhow::Result<()> {
     let postgres_creds = PostgresDbCredentials::from_db_url()?;
     let db_pool = PostgresRepo::from_config(postgres_creds).await?;
 
-    let (flow_processor, flow_sender) = create_flow_processor(db_pool.clone(), 10, frost_aggregator);
+    let (mut flow_processor, flow_sender) = create_flow_processor(db_pool.clone(), 10, frost_aggregator);
 
     let _ = tokio::spawn(async move {
         flow_processor.run().await;
