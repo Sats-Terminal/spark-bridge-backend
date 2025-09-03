@@ -16,9 +16,15 @@ use tracing::instrument;
 async fn main() -> anyhow::Result<()> {
     let _logger_guard = init_logger();
 
-    let app_config = ServerConfig::init_config(ConfigVariant::init())?;
+    let config_path = std::env::var("CONFIG_PATH").unwrap();
+
+    let app_config = ServerConfig::init_config(ConfigVariant::OnlyOneFilepath(config_path))?;
+    tracing::debug!("App config: {:?}", app_config);
+
     let frost_aggregator = create_aggregator_from_config(app_config.clone());
-    let postgres_creds = PostgresDbCredentials::from_db_url()?;
+
+    let postgres_url = std::env::var("DATABASE_URL").unwrap();
+    let postgres_creds = PostgresDbCredentials { url: postgres_url };
     let db_pool = PostgresRepo::from_config(postgres_creds).await?;
 
     let (mut flow_processor, flow_sender) = create_flow_processor(db_pool.clone(), 10, frost_aggregator);

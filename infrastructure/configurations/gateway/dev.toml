@@ -4,15 +4,15 @@ http_server_port = 8060
 
 [[verifiers_config]]
 id = 1
-address = "http://verifier1-service:8070"
+address = "http://localhost:8071"
 
 [[verifiers_config]]
 id = 2
-address = "http://verifier2-service:8070"
+address = "http://localhost:8072"
 
 [[verifiers_config]]
 id = 3
-address = "http://verifier3-service:8070"
+address = "http://localhost:8073"
 
 [aggregator_config]
 threshold = 2
