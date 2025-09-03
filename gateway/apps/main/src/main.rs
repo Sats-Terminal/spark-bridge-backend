@@ -24,6 +24,10 @@ async fn main() -> anyhow::Result<()> {
 
     let (flow_processor, flow_sender) = create_flow_processor(db_pool.clone(), 10, frost_aggregator);
 
+    let _ = tokio::spawn(async move {
+        flow_processor.run().await;
+    });
+
     let app = gateway_server::init::create_app(flow_sender).await?;
 
     let addr_to_listen = (lookup_ip_addr(&app_config.server.ip)?, app_config.server.port);
