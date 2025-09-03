@@ -11,7 +11,7 @@ use tokio::{self, net::TcpListener};
 async fn main() -> anyhow::Result<()> {
     let _logger_guard = init_logger();
     let config_variant = ConfigVariant::init();
-    let config = ServerConfig::init_config(config_variant)?;
+    let config = ServerConfig::init_config(config_variant.clone())?;
     let app = create_app(SparkConfig {
         operators: config.spark_operators,
         ca_pem: obtain_tonic_ca_cert(config_variant)?,

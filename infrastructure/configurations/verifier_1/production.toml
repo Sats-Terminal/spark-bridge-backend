@@ -7,3 +7,8 @@ address="localhost:8079"
 
 [spark_balance_checker_url_config]
 address="localhost:8078"
+
+[frost_signer]
+identifier = 1
+threshold = 2
+total_participants = 3

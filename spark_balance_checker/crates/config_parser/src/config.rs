@@ -12,7 +12,7 @@ use tracing::{debug, instrument, trace};
 const CONFIG_FOLDER_NAME: &str = "../../infrastructure/configuration";
 const PRODUCTION_CONFIG_FOLDER_NAME: &str = "configuration_spark_balance_checker";
 const CARGO_MANIFEST_DIR: &str = "CARGO_MANIFEST_DIR";
-const DEFAULT_APP_LOCAL_BASE_FILENAME: &str = "base.toml";
+const DEFAULT_APP_LOCAL_BASE_FILENAME: &str = "base";
 const DEFAULT_CA_FILENAME: &str = "ca.pem";
 
 /// Struct used for initialization of different kinds of configurations
@@ -58,42 +58,88 @@ impl ServerConfig {
     #[instrument(level = "debug", ret)]
     pub fn init_config(config_variant: ConfigVariant) -> crate::error::Result<Self> {
         trace!("Initializing, {config_variant}...");
-        let (folder_path, config_folder_name) = match config_variant {
-            ConfigVariant::Production => ("/".to_string(), PRODUCTION_CONFIG_FOLDER_NAME),
-            ConfigVariant::Local => {
-                let _ = dotenv::dotenv().ok();
-                (format!("{}/", get_cargo_manifest_dir()), CONFIG_FOLDER_NAME)
-            }
+        let format_name = |folder_path: &str, config_folder_name: &str, filename: &str| -> String {
+            format!("{folder_path}{config_folder_name}/{}.toml", filename)
         };
-        debug!("Configuration folder lookup path: {folder_path}");
-        let (path_to_base, path_to_another_config_to_merge) = (
-            format!("{folder_path}{config_folder_name}/{DEFAULT_APP_LOCAL_BASE_FILENAME}"),
-            format!("{folder_path}{config_folder_name}/{}.toml", config_variant),
-        );
-        trace!(
-            "Paths to resolve: path_to_base: '{path_to_base}', path_to_another_config: '{path_to_another_config_to_merge}'",
-        );
-        Ok(Config::builder()
-            .add_source(config::File::with_name(&path_to_base))
-            .add_source(config::File::with_name(&path_to_another_config_to_merge))
-            .add_source(Environment::with_prefix("config").separator("_").keep_prefix(false))
-            .build()?
-            .try_deserialize::<ServerConfig>()?)
+        let _ = dotenv::dotenv().ok();
+        let config = match &config_variant {
+            ConfigVariant::Production
+            | ConfigVariant::Local
+            | ConfigVariant::CustomFilepath(_)
+            | ConfigVariant::CustomName(_) => {
+                let (path_to_another_config_to_merge, path_to_base) = match config_variant {
+                    ConfigVariant::Production => {
+                        let (folder_path, config_folder_name) = ("/", PRODUCTION_CONFIG_FOLDER_NAME);
+                        (
+                            format_name(folder_path, config_folder_name, &config_variant.to_string()),
+                            format_name(folder_path, config_folder_name, DEFAULT_APP_LOCAL_BASE_FILENAME),
+                        )
+                    }
+                    ConfigVariant::Local => {
+                        let (folder_path, config_folder_name) =
+                            (format!("{}/", get_cargo_manifest_dir()), CONFIG_FOLDER_NAME);
+                        (
+                            format_name(&folder_path, config_folder_name, &config_variant.to_string()),
+                            format_name(&folder_path, config_folder_name, DEFAULT_APP_LOCAL_BASE_FILENAME),
+                        )
+                    }
+                    ConfigVariant::CustomFilepath(file_path) => {
+                        let (folder_path, config_folder_name) =
+                            (format!("{}/", get_cargo_manifest_dir()), CONFIG_FOLDER_NAME);
+                        (
+                            file_path,
+                            format_name(&folder_path, config_folder_name, DEFAULT_APP_LOCAL_BASE_FILENAME),
+                        )
+                    }
+                    ConfigVariant::CustomName(name) => {
+                        let (folder_path, config_folder_name) =
+                            (format!("{}/", get_cargo_manifest_dir()), CONFIG_FOLDER_NAME);
+                        (
+                            format_name(&folder_path, config_folder_name, &name),
+                            format_name(&folder_path, config_folder_name, DEFAULT_APP_LOCAL_BASE_FILENAME),
+                        )
+                    }
+                    ConfigVariant::OnlyOneFilepath(_) => unreachable!(),
+                };
+                Config::builder()
+                    .add_source(config::File::with_name(&path_to_base))
+                    .add_source(config::File::with_name(&path_to_another_config_to_merge))
+                    .add_source(Environment::with_prefix("config").separator("_").keep_prefix(false))
+                    .build()?
+                    .try_deserialize::<ServerConfig>()?
+            }
+            ConfigVariant::OnlyOneFilepath(filepath) => Config::builder()
+                .add_source(config::File::with_name(&filepath))
+                .add_source(Environment::with_prefix("config").separator("_").keep_prefix(false))
+                .build()?
+                .try_deserialize::<ServerConfig>()?,
+        };
+        Ok(config)
     }
 }
 
 pub fn obtain_tonic_ca_cert(config_variant: ConfigVariant) -> crate::error::Result<Certificate> {
     trace!("Initializing, {config_variant}...");
-    let (folder_path, config_folder_name) = match config_variant {
-        ConfigVariant::Production => ("/".to_string(), PRODUCTION_CONFIG_FOLDER_NAME),
+    let _ = dotenv::dotenv().ok();
+    let format_name = |folder_path: &str, config_folder_name: &str| -> String {
+        format!("{folder_path}{config_folder_name}/{DEFAULT_CA_FILENAME}")
+    };
+    let path_to_ca = match config_variant {
+        ConfigVariant::Production => {
+            let (folder_path, config_folder_name) = ("/", PRODUCTION_CONFIG_FOLDER_NAME);
+            format_name(folder_path, config_folder_name)
+        }
         ConfigVariant::Local => {
-            let _ = dotenv::dotenv().ok();
-            (format!("{}/", get_cargo_manifest_dir()), CONFIG_FOLDER_NAME)
+            let (folder_path, config_folder_name) = (format!("{}/", get_cargo_manifest_dir()), CONFIG_FOLDER_NAME);
+            format_name(&folder_path, config_folder_name)
+        }
+        ConfigVariant::CustomFilepath(filepath) | ConfigVariant::OnlyOneFilepath(filepath) => filepath,
+        ConfigVariant::CustomName(name) => {
+            let (folder_path, config_folder_name) = (format!("{}/", get_cargo_manifest_dir()), name);
+            format_name(&folder_path, &config_folder_name)
         }
     };
-    debug!("Configuration folder lookup path: {folder_path}");
-    let path_to_ca = format!("{folder_path}{config_folder_name}/{DEFAULT_CA_FILENAME}");
-    trace!("Path with certificate to resolve: path_to_ca: '{path_to_ca}'",);
+    debug!("Path with certificate to resolve: path_to_ca: '{path_to_ca}'",);
     let file = std::fs::read(path_to_ca.clone())
         .map_err(|err| ConfigParserError::FailedToOpenFile { err, path: path_to_ca })?;
     Ok(Certificate::from_pem(file))
