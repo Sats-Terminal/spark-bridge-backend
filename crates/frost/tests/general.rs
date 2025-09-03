@@ -16,8 +16,7 @@ fn create_signer(identifier: u16) -> FrostSigner {
     )
 }
 
-#[tokio::test]
-async fn test_aggregator_signer_integration() {
+fn helper_1() -> BTreeMap<Identifier, Arc<dyn SignerClient>> {
     let signer1 = create_signer(1);
     let signer2 = create_signer(2);
     let signer3 = create_signer(3);
@@ -29,11 +28,17 @@ async fn test_aggregator_signer_integration() {
     let identifier_1: Identifier = 1.try_into().unwrap();
     let identifier_2: Identifier = 2.try_into().unwrap();
     let identifier_3: Identifier = 3.try_into().unwrap();
-    let verifiers_map = BTreeMap::from([
+    
+    BTreeMap::from([
         (identifier_1, Arc::new(mock_signer_client1) as Arc<dyn SignerClient>),
         (identifier_2, Arc::new(mock_signer_client2) as Arc<dyn SignerClient>),
         (identifier_3, Arc::new(mock_signer_client3) as Arc<dyn SignerClient>),
-    ]);
+    ])
+}
+
+#[tokio::test]
+async fn test_aggregator_signer_integration() {
+    let verifiers_map = helper_1();
 
     let aggregator = FrostAggregator::new(
         AggregatorConfig {
@@ -80,22 +85,7 @@ fn create_signer_with_stores(identifier: u16) -> FrostSigner {
 }
 #[tokio::test]
 async fn test_parallel_signing_sessions_via_aggregator() {
-    let signer1 = create_signer_with_stores(1);
-    let signer2 = create_signer_with_stores(2);
-    let signer3 = create_signer_with_stores(3);
-
-    let mock_signer_client1 = MockSignerClient::new(signer1);
-    let mock_signer_client2 = MockSignerClient::new(signer2);
-    let mock_signer_client3 = MockSignerClient::new(signer3);
-
-    let identifier_1: Identifier = 1.try_into().unwrap();
-    let identifier_2: Identifier = 2.try_into().unwrap();
-    let identifier_3: Identifier = 3.try_into().unwrap();
-    let verifiers_map = BTreeMap::from([
-        (identifier_1, Arc::new(mock_signer_client1) as Arc<dyn SignerClient>),
-        (identifier_2, Arc::new(mock_signer_client2) as Arc<dyn SignerClient>),
-        (identifier_3, Arc::new(mock_signer_client3) as Arc<dyn SignerClient>),
-    ]);
+    let verifiers_map = helper_1();
 
     let aggregator = FrostAggregator::new(
         AggregatorConfig {
@@ -153,6 +143,26 @@ fn create_signer_with_stores_2(
     (signer, session_storage)
 }
 
+fn helper_2() -> BTreeMap<Identifier, Arc<dyn SignerClient>> {
+    let (signer1, session1) = create_signer_with_stores_2(1);
+    let (signer2, session2) = create_signer_with_stores_2(2);
+    let (signer3, session3) = create_signer_with_stores_2(3);
+
+    let mock_signer_client1 = MockSignerClient::new(signer1.clone());
+    let mock_signer_client2 = MockSignerClient::new(signer2.clone());
+    let mock_signer_client3 = MockSignerClient::new(signer3.clone());
+
+    let identifier_1: Identifier = 1.try_into().unwrap();
+    let identifier_2: Identifier = 2.try_into().unwrap();
+    let identifier_3: Identifier = 3.try_into().unwrap();
+
+    BTreeMap::from([
+        (identifier_1, Arc::new(mock_signer_client1) as Arc<dyn SignerClient>),
+        (identifier_2, Arc::new(mock_signer_client2) as Arc<dyn SignerClient>),
+        (identifier_3, Arc::new(mock_signer_client3) as Arc<dyn SignerClient>),
+    ])
+}
+
 #[tokio::test]
 async fn test_session_storage_in_signing_flow() {
     let (signer1, session1) = create_signer_with_stores_2(1);
@@ -166,7 +176,6 @@ async fn test_session_storage_in_signing_flow() {
     let identifier_1: Identifier = 1.try_into().unwrap();
     let identifier_2: Identifier = 2.try_into().unwrap();
     let identifier_3: Identifier = 3.try_into().unwrap();
-
     let verifiers_map = BTreeMap::from([
         (identifier_1, Arc::new(mock_signer_client1) as Arc<dyn SignerClient>),
         (identifier_2, Arc::new(mock_signer_client2) as Arc<dyn SignerClient>),
@@ -236,23 +245,7 @@ async fn test_session_storage_in_signing_flow() {
 
 #[tokio::test]
 async fn test_basic_signing_flow() {
-    let (signer1, _session1) = create_signer_with_stores_2(1);
-    let (signer2, _session2) = create_signer_with_stores_2(2);
-    let (signer3, _session3) = create_signer_with_stores_2(3);
-
-    let mock_signer_client1 = MockSignerClient::new(signer1.clone());
-    let mock_signer_client2 = MockSignerClient::new(signer2.clone());
-    let mock_signer_client3 = MockSignerClient::new(signer3.clone());
-
-    let identifier_1: Identifier = 1.try_into().unwrap();
-    let identifier_2: Identifier = 2.try_into().unwrap();
-    let identifier_3: Identifier = 3.try_into().unwrap();
-
-    let verifiers_map = BTreeMap::from([
-        (identifier_1, Arc::new(mock_signer_client1) as Arc<dyn SignerClient>),
-        (identifier_2, Arc::new(mock_signer_client2) as Arc<dyn SignerClient>),
-        (identifier_3, Arc::new(mock_signer_client3) as Arc<dyn SignerClient>),
-    ]);
+    let verifiers_map = helper_2();
 
     let aggregator = FrostAggregator::new(
         AggregatorConfig {
