@@ -147,7 +147,7 @@ fn create_signer_with_stores_2(
             total_participants: 3,
         },
         user_storage,
-        session_storage.clone(), // передаём внутрь FrostSigner
+        session_storage.clone(),
     );
 
     (signer, session_storage)
