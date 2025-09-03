@@ -2,7 +2,7 @@ use std::{collections::BTreeMap, sync::Arc};
 
 use frost_secp256k1_tr::{Identifier, Signature, SigningPackage, keys, keys::Tweak};
 use futures::future::join_all;
-
+use uuid::Uuid;
 use crate::{config::AggregatorConfig, errors::AggregatorError, traits::*};
 
 #[derive(Clone)]
@@ -189,7 +189,11 @@ impl FrostAggregator {
         }
     }
 
-    async fn sign_round_1(&self, user_id: String, message: &[u8], tweak: Option<&[u8]>) -> Result<(), AggregatorError> {
+    async fn sign_round_1(&self,
+                          user_id: String,
+                          session_id: String,
+                          message: &[u8],
+                          tweak: Option<&[u8]>) -> Result<(), AggregatorError> {
         let state = self.user_storage.get_user_state(user_id.clone()).await?;
 
         match state {
@@ -200,6 +204,7 @@ impl FrostAggregator {
                 for (verifier_id, signer_client) in self.verifiers.clone() {
                     let request = SignRound1Request {
                         user_id: user_id.clone(),
+                        session_id: session_id.clone(),
                         tweak: tweak.map(|t| t.to_vec()),
                     };
                     let join_handle = async move { (verifier_id, signer_client.sign_round_1(request).await) };
@@ -234,7 +239,7 @@ impl FrostAggregator {
         }
     }
 
-    async fn sign_round_2(&self, user_id: String) -> Result<(), AggregatorError> {
+    async fn sign_round_2(&self, user_id: String, session_id: String,) -> Result<(), AggregatorError> {
         let state = self.user_storage.get_user_state(user_id.clone()).await?;
 
         match state {
@@ -254,6 +259,7 @@ impl FrostAggregator {
                 for (verifier_id, signer_client) in self.verifiers.clone() {
                     let request = SignRound2Request {
                         user_id: user_id.clone(),
+                        session_id: session_id.clone(),
                         signing_package: signing_package.clone(),
                     };
                     let join_handle = async move { (verifier_id, signer_client.sign_round_2(request).await) };
@@ -304,8 +310,10 @@ impl FrostAggregator {
         message: &[u8],
         tweak: Option<&[u8]>,
     ) -> Result<Signature, AggregatorError> {
-        self.sign_round_1(user_id.clone(), message, tweak).await?;
-        self.sign_round_2(user_id.clone()).await?;
+        let session_id = Uuid::new_v4().to_string();
+
+        self.sign_round_1(user_id.clone(), session_id.clone(), message, tweak).await?;
+        self.sign_round_2(user_id.clone(), session_id.clone()).await?;
 
         let state = self.user_storage.get_user_state(user_id.clone()).await?;
         match state {

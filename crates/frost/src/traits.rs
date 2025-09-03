@@ -50,23 +50,27 @@ pub struct DkgFinalizeResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignRound1Request {
     pub user_id: String,
+    pub session_id: String,
     pub tweak: Option<Vec<u8>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignRound1Response {
     pub user_id: String,
+    pub session_id: String,
     pub commitments: SigningCommitments, // Only commitment
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignRound2Request {
     pub user_id: String,
+    pub session_id: String,
     pub signing_package: SigningPackage,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignRound2Response {
+    pub session_id: String,
     pub signature_share: SignatureShare,
 }
 
@@ -127,6 +131,10 @@ pub enum SignerUserState {
     DkgFinalized {
         key_package: KeyPackage,
     },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum SignerSessionState {
     SigningRound1 {
         key_package: KeyPackage,
         tweak: Option<Vec<u8>>,
@@ -143,4 +151,20 @@ pub enum SignerUserState {
 pub trait SignerUserStorage: Send + Sync {
     async fn get_user_state(&self, user_id: String) -> Result<Option<SignerUserState>, SignerError>;
     async fn set_user_state(&self, user_id: String, state: SignerUserState) -> Result<(), SignerError>;
+}
+
+#[async_trait]
+pub trait SignerSessionStorage: Send + Sync {
+    async fn get_session_state(
+        &self,
+        user_id: String,
+        session_id: String,
+    ) -> Result<Option<SignerSessionState>, SignerError>;
+
+    async fn set_session_state(
+        &self,
+        user_id: String,
+        session_id: String,
+        state: SignerSessionState,
+    ) -> Result<(), SignerError>;
 }
