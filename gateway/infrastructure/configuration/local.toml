@@ -11,3 +11,7 @@ address = "http://localhost:3002"
 [[verifiers_config]]
 id = 2
 address = "http://localhost:3003"
+
+[aggregator_config]
+threshold = 2
+total_participants = 3

@@ -7,7 +7,7 @@ pub const DEFAULT_APP_PRODUCTION_CONFIG_NAME: &str = "production";
 pub const DEFAULT_APP_LOCAL_CONFIG_NAME: &str = "local";
 
 /// Uses `json` to parse its configuration from String
-#[derive(Debug, Clone, strum::Display, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, strum::Display, Serialize, Deserialize, Default, Eq, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum ConfigVariant {
     /// This entry is using a `production` name for configuration to perform search for appropriate configs `[merges 'base.toml', and 'additional_file.toml']`
@@ -33,7 +33,15 @@ impl ConfigVariant {
     pub fn init() -> ConfigVariant {
         info!("{:?}", std::env::var(APP_CONFIGURATION_NAME));
         match std::env::var(APP_CONFIGURATION_NAME) {
-            Ok(app_config) => serde_json::from_str::<ConfigVariant>(&app_config).unwrap_or(ConfigVariant::default()),
+            Ok(app_config) => {
+                if app_config == ConfigVariant::Production.to_string() {
+                    ConfigVariant::Production
+                } else if app_config == ConfigVariant::Local.to_string() {
+                    ConfigVariant::Local
+                } else {
+                    serde_json::from_str::<ConfigVariant>(&app_config).unwrap_or(ConfigVariant::default())
+                }
+            }
             Err(_) => ConfigVariant::default(),
         }
     }

@@ -77,7 +77,9 @@ impl ServerConfig {
         let format_name = |folder_path: &str, config_folder_name: &str, filename: &str| -> String {
             format!("{folder_path}{config_folder_name}/{}.toml", filename)
         };
-        let _ = dotenv::dotenv().ok();
+        if config_variant != ConfigVariant::Production {
+            let _ = dotenv::dotenv().ok();
+        }
         let config = match &config_variant {
             ConfigVariant::Production
             | ConfigVariant::Local
@@ -125,11 +127,14 @@ impl ServerConfig {
                     .build()?
                     .try_deserialize::<ServerConfig>()?
             }
-            ConfigVariant::OnlyOneFilepath(filepath) => Config::builder()
-                .add_source(config::File::with_name(&filepath))
-                .add_source(Environment::with_prefix("config").separator("_").keep_prefix(false))
-                .build()?
-                .try_deserialize::<ServerConfig>()?,
+            ConfigVariant::OnlyOneFilepath(filepath) => {
+                debug!(onepath = %filepath);
+                Config::builder()
+                    .add_source(config::File::with_name(&filepath))
+                    .add_source(Environment::with_prefix("config").separator("_").keep_prefix(false))
+                    .build()?
+                    .try_deserialize::<ServerConfig>()?
+            }
         };
         Ok(config)
     }

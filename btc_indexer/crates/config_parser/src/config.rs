@@ -76,6 +76,9 @@ impl ServerConfig {
         let format_name = |folder_path: &str, config_folder_name: &str, filename: &str| -> String {
             format!("{folder_path}{config_folder_name}/{}.toml", filename)
         };
+        if config_variant != ConfigVariant::Production {
+            let _ = dotenv::dotenv().ok();
+        }
         let _ = dotenv::dotenv().ok();
         let config = match &config_variant {
             ConfigVariant::Production
@@ -116,6 +119,7 @@ impl ServerConfig {
                     }
                     ConfigVariant::OnlyOneFilepath(_) => unreachable!(),
                 };
+                debug!(path = %path_to_another_config_to_merge, config_path = %path_to_base);
                 Config::builder()
                     .add_source(config::File::with_name(&path_to_base))
                     .add_source(config::File::with_name(&path_to_another_config_to_merge))
@@ -123,11 +127,14 @@ impl ServerConfig {
                     .build()?
                     .try_deserialize::<ServerConfig>()?
             }
-            ConfigVariant::OnlyOneFilepath(filepath) => Config::builder()
-                .add_source(config::File::with_name(&filepath))
-                .add_source(Environment::with_prefix("config").separator("_").keep_prefix(false))
-                .build()?
-                .try_deserialize::<ServerConfig>()?,
+            ConfigVariant::OnlyOneFilepath(filepath) => {
+                debug!(onepath = %filepath);
+                Config::builder()
+                    .add_source(config::File::with_name(&filepath))
+                    .add_source(Environment::with_prefix("config").separator("_").keep_prefix(false))
+                    .build()?
+                    .try_deserialize::<ServerConfig>()?
+            }
         };
         Ok(config)
     }
