@@ -121,7 +121,9 @@ impl SparkRpcClient {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::config::{SparkConfig, SparkOperatorConfig};
+    use crate::common::config::{CaCertificate, SparkConfig, SparkOperatorConfig};
+    use global_utils::common_types::{Url, UrlWrapped};
+    use std::str::FromStr;
 
     fn init_logger() {
         let _ = env_logger::builder()
@@ -131,7 +133,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_get_balances_direct() {
+    async fn test_get_balances_direct() -> anyhow::Result<()> {
         init_logger();
         log::info!("Starting test");
 
@@ -140,14 +142,14 @@ mod tests {
 
         let config = SparkConfig {
             operators: vec![SparkOperatorConfig {
-                base_url: "https://0.spark.lightspark.com".to_string(),
+                base_url: UrlWrapped(Url::from_str("https://0.spark.lightspark.com")?),
             }],
-            ca_pem_path: "../../ca.pem".to_string(),
+            ca_pem: CaCertificate::from_path("../../spark_balance_checker/infrastructure/configuration/ca.pem")?.ca_pem,
         };
 
         let mut balance_checker = SparkRpcClient::new(config);
 
-        let response = balance_checker.get_token_outputs(address, rune_id).await.unwrap();
+        let response = balance_checker.get_token_outputs(address, rune_id).await?;
 
         for output in response.outputs_with_previous_transaction_data {
             if let Some(output) = output.output {
@@ -157,5 +159,6 @@ mod tests {
                 log::info!("amount: {:?}", amount);
             }
         }
+        Ok(())
     }
 }

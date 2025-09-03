@@ -58,7 +58,7 @@ pub async fn handler(
             uuid,
             status: StatusBtcIndexer::Created,
             task: SqlxJson::from(Task::TrackWallet(payload.wallet_id.clone())),
-            created_at: time_now.clone(),
+            created_at: time_now,
             callback_url: payload.callback_url.clone(),
             error: None,
             updated_at: time_now,

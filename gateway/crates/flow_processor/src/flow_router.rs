@@ -1,9 +1,9 @@
 use crate::errors::FlowProcessorError;
 use crate::types::*;
-use persistent_storage::init::PostgresRepo;
-use tokio::sync::mpsc;
 use frost::aggregator::FrostAggregator;
 use frost::utils::convert_public_key_package;
+use persistent_storage::init::PostgresRepo;
+use tokio::sync::mpsc;
 use tracing;
 use uuid::Uuid;
 
@@ -63,8 +63,10 @@ impl FlowProcessorRouter {
     }
 
     async fn run_dkg_flow(&mut self, request: DkgFlowRequest) -> Result<DkgFlowResponse, FlowProcessorError> {
-        let public_key_package = self.frost_aggregator
-            .run_dkg_flow(request.user_public_key).await
+        let public_key_package = self
+            .frost_aggregator
+            .run_dkg_flow(request.user_public_key)
+            .await
             .map_err(|e| FlowProcessorError::FrostAggregatorError(e.to_string()))?;
 
         let public_key = convert_public_key_package(public_key_package)

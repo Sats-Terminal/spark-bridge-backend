@@ -54,7 +54,7 @@ prost-wkt = "0.6.1"
 prost-wkt-build = "0.6.1"
 prost-wkt-types = "0.6.1"
 rand_core = { version = "0.6.4", features = ["getrandom"] }
-reqwest = { version = "0.12.23" }
+reqwest = { version = "0.12.23", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0.143", features = ["raw_value"] }
 sqlx = { version = "0.8.6", features = ["json", "runtime-tokio", "postgres", "chrono", "json", "derive", "uuid", "macros"] }
@@ -79,7 +79,7 @@ uuid = { version = "1.18.0", features = ["serde", "v4"] }
 ####### Global Crates #######
 global_utils = { path = "./crates/global_utils" }
 spark-protos = { path = "./crates/spark-protos-rpc" }
-spark-client = { path = "./crates/spark_client" }
+spark_client = { path = "./crates/spark_client" }
 persistent_storage = { path = "./crates/persistent_storage" }
 frost = { path = "./crates/frost" }
 
@@ -109,11 +109,11 @@ gateway_main = { path = "gateway/apps/main" }
 
 ####### Spark Balance Checker #######
 # Spark balance checker crates
-spark-balance-checker-common = { path = "./spark_balance_checker/crates/common" }
-spark-balance-checker-server = { path = "./spark_balance_checker/crates/server" }
+spark_balance_checker_config_parser = { path = "./spark_balance_checker/crates/config_parser" }
+spark_balance_checker_server = { path = "./spark_balance_checker/crates/server" }
 
 # Spark balance checker apps
-spark-balance-checker-main = { path = "./spark_balance_checker/apps/main" }
+spark_balance_checker_main = { path = "./spark_balance_checker/apps/main" }
 
 
 ####### Btc Indexer #######

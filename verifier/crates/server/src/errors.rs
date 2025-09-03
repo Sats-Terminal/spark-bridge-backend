@@ -2,8 +2,8 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use thiserror::Error;
 use frost::errors::SignerError;
+use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum VerifierError {

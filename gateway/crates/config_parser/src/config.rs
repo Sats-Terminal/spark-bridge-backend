@@ -8,7 +8,7 @@ use tracing::{debug, instrument, trace};
 const CONFIG_FOLDER_NAME: &str = "../../infrastructure/configuration";
 const PRODUCTION_CONFIG_FOLDER_NAME: &str = "configuration_gateway";
 const CARGO_MANIFEST_DIR: &str = "CARGO_MANIFEST_DIR";
-const DEFAULT_APP_LOCAL_BASE_FILENAME: &str = "base.toml";
+const DEFAULT_APP_LOCAL_BASE_FILENAME: &str = "base";
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
@@ -79,57 +79,68 @@ impl ServerConfig {
     #[instrument(level = "debug", ret)]
     pub fn init_config(config_variant: ConfigVariant) -> crate::error::Result<Self> {
         trace!("Initializing, {config_variant}...");
-        let (folder_path, config_folder_name) = match config_variant {
-            ConfigVariant::Production => ("/".to_string(), PRODUCTION_CONFIG_FOLDER_NAME),
-            ConfigVariant::Local => {
-                let _ = dotenv::dotenv().ok().unwrap();
-                (format!("{}/", get_cargo_manifest_dir()), CONFIG_FOLDER_NAME)
+        let format_name = |folder_path: &str, config_folder_name: &str, filename: &str| -> String {
+            format!("{folder_path}{config_folder_name}/{}.toml", filename)
+        };
+        if config_variant != ConfigVariant::Production {
+            let _ = dotenv::dotenv().ok();
+        }
+        let config = match &config_variant {
+            ConfigVariant::Production
+            | ConfigVariant::Local
+            | ConfigVariant::CustomFilepath(_)
+            | ConfigVariant::CustomName(_) => {
+                let (path_to_another_config_to_merge, path_to_base) = match config_variant {
+                    ConfigVariant::Production => {
+                        let (folder_path, config_folder_name) = ("/", PRODUCTION_CONFIG_FOLDER_NAME);
+                        (
+                            format_name(folder_path, config_folder_name, &config_variant.to_string()),
+                            format_name(folder_path, config_folder_name, DEFAULT_APP_LOCAL_BASE_FILENAME),
+                        )
+                    }
+                    ConfigVariant::Local => {
+                        let (folder_path, config_folder_name) =
+                            (format!("{}/", get_cargo_manifest_dir()), CONFIG_FOLDER_NAME);
+                        (
+                            format_name(&folder_path, config_folder_name, &config_variant.to_string()),
+                            format_name(&folder_path, config_folder_name, DEFAULT_APP_LOCAL_BASE_FILENAME),
+                        )
+                    }
+                    ConfigVariant::CustomFilepath(file_path) => {
+                        let (folder_path, config_folder_name) =
+                            (format!("{}/", get_cargo_manifest_dir()), CONFIG_FOLDER_NAME);
+                        (
+                            file_path,
+                            format_name(&folder_path, config_folder_name, DEFAULT_APP_LOCAL_BASE_FILENAME),
+                        )
+                    }
+                    ConfigVariant::CustomName(name) => {
+                        let (folder_path, config_folder_name) =
+                            (format!("{}/", get_cargo_manifest_dir()), CONFIG_FOLDER_NAME);
+                        (
+                            format_name(&folder_path, config_folder_name, &name),
+                            format_name(&folder_path, config_folder_name, DEFAULT_APP_LOCAL_BASE_FILENAME),
+                        )
+                    }
+                    ConfigVariant::OnlyOneFilepath(_) => unreachable!(),
+                };
+                debug!(path = %path_to_another_config_to_merge, config_path = %path_to_base);
+                Config::builder()
+                    .add_source(config::File::with_name(&path_to_base))
+                    .add_source(config::File::with_name(&path_to_another_config_to_merge))
+                    .add_source(Environment::with_prefix("config").separator("_").keep_prefix(false))
+                    .build()?
+                    .try_deserialize::<ServerConfig>()?
+            }
+            ConfigVariant::OnlyOneFilepath(filepath) => {
+                debug!(onepath = %filepath);
+                Config::builder()
+                    .add_source(config::File::with_name(&filepath))
+                    .add_source(Environment::with_prefix("config").separator("_").keep_prefix(false))
+                    .build()?
+                    .try_deserialize::<ServerConfig>()?
             }
         };
-        debug!("Configuration folder lookup path: {folder_path}");
-        let (path_to_base, path_to_another_config_to_merge) = (
-            format!("{folder_path}{config_folder_name}/{DEFAULT_APP_LOCAL_BASE_FILENAME}"),
-            format!("{folder_path}{config_folder_name}/{}.toml", config_variant),
-        );
-        trace!(
-            "Paths to resolve: path_to_base: '{path_to_base}', path_to_another_config: '{path_to_another_config_to_merge}'",
-        );
-        Ok(Config::builder()
-            .add_source(config::File::with_name(&path_to_base))
-            .add_source(config::File::with_name(&path_to_another_config_to_merge))
-            .add_source(Environment::with_prefix("config").separator("_").keep_prefix(false))
-            .build()?
-            .try_deserialize::<ServerConfig>()?)
-    }
-}
-
-#[cfg(test)]
-mod testing {
-    use super::*;
-    use crate::config::ServerConfig;
-    use global_utils::config_variant::ConfigVariant;
-    use global_utils::logger::init_logger;
-    #[test]
-    fn test() {
-        let guard = init_logger();
-        let config = ServerConfig::init_config(ConfigVariant::Local);
-        println!("{:?}", config);
-        let config = ServerConfig {
-            server: AppConfig {
-                ip: "".to_string(),
-                port: 0,
-            },
-            verifiers: VerifiersConfig(vec![
-                VerifierConfig {
-                    id: 0,
-                    address: "dfdfdf".to_string(),
-                },
-                VerifierConfig {
-                    id: 0,
-                    address: "dfdfdf".to_string(),
-                },
-            ]),
-        };
-        println!("{}", toml::ser::to_string_pretty(&config).unwrap());
+        Ok(config)
     }
 }

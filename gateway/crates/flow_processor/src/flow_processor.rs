@@ -1,5 +1,6 @@
 use crate::flow_router::FlowProcessorRouter;
 use crate::types::*;
+use frost::aggregator::FrostAggregator;
 use global_utils::common_types::get_uuid;
 use persistent_storage::init::PostgresRepo;
 use std::collections::HashMap;
@@ -10,7 +11,6 @@ use tokio::time::Duration;
 use tokio_util::sync::CancellationToken;
 use tracing;
 use uuid::Uuid;
-use frost::aggregator::FrostAggregator;
 
 // This is core struct that handles flows execution
 // For each request it creates a thread that runs the flow

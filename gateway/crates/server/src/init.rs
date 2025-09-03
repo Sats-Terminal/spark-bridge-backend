@@ -1,9 +1,9 @@
 use crate::handlers;
+use crate::state::AppState;
 use axum::Router;
 use axum::routing::post;
-use tracing::instrument;
-use crate::state::AppState;
 use gateway_flow_processor::flow_sender::FlowSender;
+use tracing::instrument;
 
 #[instrument(level = "debug", skip(flow_sender), ret)]
 pub async fn create_app(flow_sender: FlowSender) -> anyhow::Result<Router> {

@@ -1,6 +1,6 @@
 use crate::errors::VerifierError;
-use axum::Json;
 use crate::state::AppState;
+use axum::Json;
 use axum::extract::State;
 use tracing::instrument;
 use frost::traits::{DkgRound1Request, DkgRound1Response};

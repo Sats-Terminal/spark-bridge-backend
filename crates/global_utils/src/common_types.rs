@@ -13,7 +13,7 @@ use sqlx::{
     postgres::{PgTypeInfo, PgValueRef},
     types::Uuid,
 };
-use url::Url;
+pub use url::Url;
 use utoipa::{PartialSchema, openapi};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

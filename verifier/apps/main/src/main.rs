@@ -3,7 +3,6 @@ use global_utils::config_variant::ConfigVariant;
 use global_utils::env_parser::lookup_ip_addr;
 use global_utils::logger::init_logger;
 use persistent_storage::init::PostgresRepo;
-use tokio;
 use tokio::net::TcpListener;
 use tracing::instrument;
 use verifier_config_parser::config::ServerConfig;
@@ -25,7 +24,7 @@ async fn main() -> anyhow::Result<()> {
     let listener = TcpListener::bind(addr_to_listen)
         .await
         .map_err(|e| anyhow!("Failed to bind to address: {}", e))?;
-    Ok(axum::serve(listener, app)
+    axum::serve(listener, app)
         .await
-        .map_err(|e| anyhow!("Failed to serve: {}", e))?)
+        .map_err(|e| anyhow!("Failed to serve: {}", e))
 }

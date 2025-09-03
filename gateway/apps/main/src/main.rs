@@ -1,16 +1,15 @@
 use anyhow::anyhow;
+use frost::aggregator::FrostAggregator;
 use gateway_config_parser::config::ServerConfig;
+use gateway_flow_processor::create_flow_processor;
+use gateway_utils::aggregator::create_aggregator_from_config;
 use global_utils::config_variant::ConfigVariant;
 use global_utils::env_parser::lookup_ip_addr;
 use global_utils::logger::init_logger;
 use persistent_storage::config::PostgresDbCredentials;
 use persistent_storage::init::PostgresRepo;
-use tokio;
 use tokio::net::TcpListener;
 use tracing::instrument;
-use gateway_flow_processor::create_flow_processor;
-use frost::aggregator::FrostAggregator;
-use gateway_utils::aggregator::create_aggregator_from_config;
 
 #[instrument(level = "debug", ret)]
 #[tokio::main]
@@ -22,7 +21,7 @@ async fn main() -> anyhow::Result<()> {
     let postgres_creds = PostgresDbCredentials::from_db_url()?;
     let db_pool = PostgresRepo::from_config(postgres_creds).await?;
 
-    let (flow_processor, flow_sender) = create_flow_processor(db_pool.clone(), 10, frost_aggregator);
+    let (mut flow_processor, flow_sender) = create_flow_processor(db_pool.clone(), 10, frost_aggregator);
 
     let _ = tokio::spawn(async move {
         flow_processor.run().await;
@@ -34,7 +33,7 @@ async fn main() -> anyhow::Result<()> {
     let listener = TcpListener::bind(addr_to_listen)
         .await
         .map_err(|e| anyhow!("Failed to bind to address: {}", e))?;
-    Ok(axum::serve(listener, app)
+    axum::serve(listener, app)
         .await
-        .map_err(|e| anyhow!("Failed to serve: {}", e))?)
+        .map_err(|e| anyhow!("Failed to serve: {}", e))
 }

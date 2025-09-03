@@ -1,9 +1,9 @@
-use frost::traits::SignerClient as SignerClientTrait;
-use gateway_config_parser::config::VerifierConfig;
-use reqwest::{Url, Client};
-use frost::traits::*;
-use frost::errors::AggregatorError;
 use async_trait::async_trait;
+use frost::errors::AggregatorError;
+use frost::traits::SignerClient as SignerClientTrait;
+use frost::traits::*;
+use gateway_config_parser::config::VerifierConfig;
+use reqwest::{Client, Url};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
@@ -20,23 +20,37 @@ const SIGN_ROUND_2_PATH: &str = "/api/gateway/sign-round-2";
 
 impl SignerClient {
     pub fn new(config: VerifierConfig) -> Self {
-        Self { config, client: Client::new() }
+        Self {
+            config,
+            client: Client::new(),
+        }
     }
 
-    pub async fn send_request<T: Serialize, U: DeserializeOwned>(&self, url: Url, request: T) -> Result<U, AggregatorError> {
-        let response = self.client
+    pub async fn send_request<T: Serialize, U: DeserializeOwned>(
+        &self,
+        url: Url,
+        request: T,
+    ) -> Result<U, AggregatorError> {
+        let response = self
+            .client
             .post(url)
             .json(&request)
             .send()
             .await
             .map_err(|e| AggregatorError::Internal(format!("Failed to send HTTP request: {:?}", e)))?;
-            
+
         if response.status().is_success() {
-            let response: U = response.json().await
+            let response: U = response
+                .json()
+                .await
                 .map_err(|e| AggregatorError::Internal(format!("Failed to deserialize response: {:?}", e)))?;
             Ok(response)
         } else {
-            Err(AggregatorError::HttpError(format!("Failed to send HTTP request with status {}, error: {}", response.status(), response.text().await.unwrap_or_default())))
+            Err(AggregatorError::HttpError(format!(
+                "Failed to send HTTP request with status {}, error: {}",
+                response.status(),
+                response.text().await.unwrap_or_default()
+            )))
         }
     }
 
