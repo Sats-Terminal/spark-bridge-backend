@@ -1,7 +1,7 @@
 name: runes-spark-bridge
 services:
 
-  btc-indexer-service:
+  spark-balance-checker-service:
     build:
       context: ./../../
       dockerfile: ./spark_balance_checker/infrastructure/Dockerfile
@@ -10,29 +10,20 @@ services:
       - RUST_LOG=trace
       - APP_ENVIRONMENT=production
     networks:
-      titan-network:
-        ipv4_address: 172.28.0.2
+      spark-checker-network:
+        ipv4_address: 172.33.0.2
     ports:
       - "8070:8070"
-    entrypoint: btc_indexer
+    entrypoint: sh -c "spark_balance_checker_main"
 #    entrypoint: tail -f /dev/null
-    depends_on:
-      - persistent-db-storage
-      - titan
-      - bitcoind
     volumes:
-      - ./configuration/production.toml:/configuration_indexer/production.toml
-
+      - ./configuration/production.toml:/configuration_spark_balance_checker/production.toml
+      - ./configuration/ca.pem:/configuration_spark_balance_checker/ca.pem
 
 networks:
   spark-checker-network:
     ipam:
       driver: default
       config:
-        - subnet: 172.28.0.0/24
-          gateway: 172.28.0.1
-
-volumes:
-  titan-data:
-  btcd-data:
-  service-data:
+        - subnet: 172.33.0.0/24
+          gateway: 172.33.0.1

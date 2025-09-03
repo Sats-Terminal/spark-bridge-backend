@@ -13,6 +13,7 @@ const CONFIG_FOLDER_NAME: &str = "../../infrastructure/configuration";
 const PRODUCTION_CONFIG_FOLDER_NAME: &str = "configuration_spark_balance_checker";
 const CARGO_MANIFEST_DIR: &str = "CARGO_MANIFEST_DIR";
 const DEFAULT_APP_LOCAL_BASE_FILENAME: &str = "base.toml";
+const DEFAULT_CA_FILENAME: &str = "ca.pem";
 
 /// Struct used for initialization of different kinds of configurations
 ///
@@ -91,7 +92,7 @@ pub fn obtain_tonic_ca_cert(config_variant: ConfigVariant) -> crate::error::Resu
         }
     };
     debug!("Configuration folder lookup path: {folder_path}");
-    let path_to_ca = format!("{folder_path}{config_folder_name}/{DEFAULT_APP_LOCAL_BASE_FILENAME}");
+    let path_to_ca = format!("{folder_path}{config_folder_name}/{DEFAULT_CA_FILENAME}");
     trace!("Path with certificate to resolve: path_to_ca: '{path_to_ca}'",);
     let file = std::fs::read(path_to_ca.clone())
         .map_err(|err| ConfigParserError::FailedToOpenFile { err, path: path_to_ca })?;

@@ -14,8 +14,13 @@ pub struct AppState {
 #[openapi(paths(handlers::get_balance::handle))]
 struct ApiDoc;
 
-#[instrument(level = "debug", ret)]
+#[instrument(level = "debug", ret, skip(config), fields(operators=?config.operators))]
 pub async fn create_app(config: SparkConfig) -> Router {
+    info!(
+        "[spark_balance_checker] Creating app with obtained config: {:?}, {:02X?}",
+        config.operators,
+        hex::encode(config.ca_pem.as_ref())
+    );
     let state = AppState {
         client: SparkRpcClient::new(config),
     };

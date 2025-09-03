@@ -269,6 +269,27 @@ services:
       timeout: 5s
       retries: 10
 
+    # ===== Spark balance checker =====
+  spark-balance-checker-service:
+    build:
+      context: ./../
+      dockerfile: ./spark_balance_checker/infrastructure/Dockerfile
+    restart: always
+    environment:
+      - RUST_LOG=trace
+      - APP_ENVIRONMENT=production
+    networks:
+      spark-balance-checker-network:
+        ipv4_address: 172.33.0.2
+    ports:
+      - "8090:8070"
+    entrypoint: sh -c "spark_balance_checker_main"
+    #    entrypoint: tail -f /dev/null
+    volumes:
+      - ./configurations/spark_balance_checker/production.toml:/configuration_spark_balance_checker/production.toml
+      - ./configurations/spark_balance_checker/ca.pem:/configuration_spark_balance_checker/ca.pem
+
+
 networks:
   gateway-network:
     ipam:
@@ -300,6 +321,12 @@ networks:
       config:
         - subnet: 172.32.0.0/24
           gateway: 172.32.0.1
+  spark-balance-checker-network:
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.33.0.0/24
+          gateway: 172.33.0.1
 
 volumes:
   service-data_gateway:
