@@ -2,13 +2,16 @@ use crate::errors::VerifierError;
 use axum::Json;
 use crate::state::AppState;
 use axum::extract::State;
-
+use tracing::instrument;
 use frost::traits::{DkgRound1Request, DkgRound1Response};
 
+#[instrument(level = "debug", skip_all, ret)]
 pub async fn handle(
     State(state): State<AppState>,
     Json(request): Json<DkgRound1Request>,
 ) -> Result<Json<DkgRound1Response>, VerifierError> {
     let response = state.frost_signer.dkg_round_1(request).await?;
+    tracing::debug!("DKG round1 response: {:?}", response);
+
     Ok(Json(response))
 }
