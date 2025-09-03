@@ -6,12 +6,11 @@ use config::{Config, Environment};
 use global_utils::config_variant::ConfigVariant;
 use global_utils::{env_parser, env_parser::lookup_ip_addr};
 use serde::{Deserialize, Serialize};
-use tracing::{debug, info, instrument, trace};
+use tracing::{debug, instrument, trace};
 
 const CONFIG_FOLDER_NAME: &str = "../../infrastructure/configuration";
 const PRODUCTION_CONFIG_FOLDER_NAME: &str = "configuration_indexer";
 const CARGO_MANIFEST_DIR: &str = "CARGO_MANIFEST_DIR";
-pub const SSH_PRIVATE_KEY_PATH: &str = "SSH_PRIVATE_KEY_PATH";
 const DEFAULT_APP_LOCAL_BASE_FILENAME: &str = "base.toml";
 pub const BITCOIN_NETWORK: &str = "BITCOIN_NETWORK";
 pub const BITCOIN_RPC_HOST: &str = "BITCOIN_RPC_HOST";
@@ -77,7 +76,7 @@ impl ServerConfig {
         let (folder_path, config_folder_name) = match config_variant {
             ConfigVariant::Production => ("/".to_string(), PRODUCTION_CONFIG_FOLDER_NAME),
             ConfigVariant::Local => {
-                let _ = dotenv::dotenv().ok().unwrap();
+                let _ = dotenv::dotenv().ok();
                 (format!("{}/", get_cargo_manifest_dir()), CONFIG_FOLDER_NAME)
             }
         };

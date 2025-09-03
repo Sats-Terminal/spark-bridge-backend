@@ -9,10 +9,7 @@ use local_db_store_indexer::{
     schemas::runes_spark::btc_indexer_work_checkpoint::{BtcIndexerWorkCheckpoint, StatusBtcIndexer, Task, Update},
 };
 use serde::{Deserialize, Serialize};
-use sqlx::{
-    Row,
-    types::{Json as SqlxJson, chrono::Utc},
-};
+use sqlx::types::{Json as SqlxJson, chrono::Utc};
 use titan_client::Transaction;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, instrument, trace};
@@ -58,7 +55,7 @@ pub async fn handler<T: titan_client::TitanApi, Db: PersistentRepoTrait + Clone 
             uuid,
             status: StatusBtcIndexer::Created,
             task: SqlxJson::from(Task::TrackTx(payload.tx_id.clone())),
-            created_at: time_now.clone(),
+            created_at: time_now,
             callback_url: payload.callback_url.clone(),
             error: None,
             updated_at: time_now,

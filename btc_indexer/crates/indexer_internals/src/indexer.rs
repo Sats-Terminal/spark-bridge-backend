@@ -3,13 +3,12 @@ use std::{sync::Arc, time::Duration};
 use async_trait::async_trait;
 use bitcoincore_rpc::{Client, RawTx, RpcApi, bitcoin, json};
 use config_parser::config::{BtcIndexerParams, BtcRpcCredentials};
-use global_utils::common_types::{TxIdWrapped, UrlWrapped, get_uuid};
 use local_db_store_indexer::{
     PersistentRepoTrait,
     init::LocalDbIndexer,
     schemas::runes_spark::btc_indexer_work_checkpoint::{BtcIndexerWorkCheckpoint, StatusBtcIndexer, Update},
 };
-use sqlx::types::{Json, chrono::Utc};
+use sqlx::types::chrono::Utc;
 use titan_client::{TitanApi, TitanClient};
 use titan_types::{AddressTxOut, Transaction};
 use tokio::sync::oneshot;
@@ -178,7 +177,7 @@ impl<C: TitanApi, Db: PersistentRepoTrait> BtcIndexer<C, Db> {
             let mut conn = self.persistent_storage.get_conn().await?;
             BtcIndexerWorkCheckpoint::update(
                 &mut conn,
-                &uuid,
+                uuid,
                 &Update {
                     status: Some(StatusBtcIndexer::Processing),
                     error: None,

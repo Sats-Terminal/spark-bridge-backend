@@ -4,8 +4,12 @@ http_server_port = 8060
 
 [[verifiers_config]]
 id = 1
-address = "http://172.29.0.3:8070"
+address = "http://verifier1-service:8070"
 
 [[verifiers_config]]
 id = 2
-address = "http://172.30.0.3:8070"
+address = "http://verifier2-service:8070"
+
+[[verifiers_config]]
+id = 3
+address = "http://verifier3-service:8070"

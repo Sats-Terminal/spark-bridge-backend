@@ -23,7 +23,7 @@ impl Debug for LocalDbIndexer {
 impl LocalDbIndexer {
     #[instrument(level = "trace", ret)]
     pub async fn from_config(creds: PostgresDbCredentials) -> Result<Self, DbInitError> {
-        let mut pool = PostgresRepo::from_config(creds).await?;
+        let pool = PostgresRepo::from_config(creds).await?;
         sqlx::migrate!().run(&pool.pool).await?;
         Ok(Self {
             postgres_repo: pool.into_shared(),

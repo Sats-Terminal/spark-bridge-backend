@@ -2,7 +2,6 @@ use crate::errors::FlowProcessorError;
 use crate::types::*;
 use persistent_storage::init::PostgresRepo;
 use tokio::sync::mpsc;
-use tokio::time::Duration;
 use tracing;
 use uuid::Uuid;
 

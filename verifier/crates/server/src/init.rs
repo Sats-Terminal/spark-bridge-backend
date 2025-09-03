@@ -1,6 +1,5 @@
 use crate::handlers;
 use axum::Router;
-use axum::handler::Handler;
 use axum::routing::post;
 use persistent_storage::init::PersistentRepoShared;
 use tracing::instrument;

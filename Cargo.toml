@@ -79,7 +79,7 @@ uuid = { version = "1.18.0", features = ["serde", "v4"] }
 ####### Global Crates #######
 global_utils = { path = "./crates/global_utils" }
 spark-protos = { path = "./crates/spark-protos-rpc" }
-spark-client = { path = "./crates/spark_client" }
+spark_client = { path = "./crates/spark_client" }
 persistent_storage = { path = "./crates/persistent_storage" }
 frost = { path = "./crates/frost" }
 
@@ -107,11 +107,11 @@ gateway_main = { path = "gateway/apps/main" }
 
 ####### Spark Balance Checker #######
 # Spark balance checker crates
-spark-balance-checker-common = { path = "./spark_balance_checker/crates/common" }
-spark-balance-checker-server = { path = "./spark_balance_checker/crates/server" }
+spark_balance_checker_config_parser = { path = "./spark_balance_checker/crates/config_parser" }
+spark_balance_checker_server = { path = "./spark_balance_checker/crates/server" }
 
 # Spark balance checker apps
-spark-balance-checker-main = { path = "./spark_balance_checker/apps/main" }
+spark_balance_checker_main = { path = "./spark_balance_checker/apps/main" }
 
 
 ####### Btc Indexer #######
