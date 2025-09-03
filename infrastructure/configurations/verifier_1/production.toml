@@ -3,10 +3,10 @@ http_server_ip = "0.0.0.0"
 http_server_port = 8070
 
 [btc_indexer_url_config]
-address="localhost:8079"
+address="btc-indexer-service:8070"
 
 [spark_balance_checker_url_config]
-address="localhost:8078"
+address="spark-balance-checker-service:8070"
 
 [frost_signer]
 identifier = 1
