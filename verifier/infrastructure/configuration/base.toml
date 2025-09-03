@@ -1,8 +1,0 @@
-[application]
-http_server_ip = "127.0.0.1"
-http_server_port = 8080
-
-[frost_signer]
-identifier = 1
-threshold = 2
-total_participants = 3
