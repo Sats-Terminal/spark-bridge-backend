@@ -5,8 +5,7 @@ services:
     image: postgres:17.5-alpine3.22
     restart: always
     networks:
-      gateway-network:
-        ipv4_address: 172.28.0.2
+      all-network:
     ports:
       - "5470:5432"
     environment:
@@ -25,11 +24,10 @@ services:
       dockerfile: ./gateway/infrastructure/Dockerfile
     restart: always
     networks:
-      gateway-network:
-        ipv4_address: 172.28.0.3
+      all-network:
     environment:
       - RUST_LOG=trace
-      - APP_ENVIRONMENT=production
+      - CONFIG_PATH=/config.toml
       - DATABASE_URL=postgres://${POSTGRES_USER:-admin_manager}:${POSTGRES_PASSWORD:-password}@persistent-db-storage_gateway:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-production_db_name}
     ports:
       - "8070:8060"
@@ -39,16 +37,16 @@ services:
       - persistent-db-storage_gateway
       - verifier1-service
       - verifier2-service
+      - verifier3-service
     volumes:
-      - ./configurations/gateway/production.toml:/configuration_gateway/production.toml
+      - ./configurations/gateway/production.toml:/config.toml
 
   # ====== Verifier 1 ======
   persistent-db-storage_verifier_1:
     image: postgres:17.5-alpine3.22
     restart: always
     networks:
-      verifier1-network:
-        ipv4_address: 172.29.0.2
+      all-network:
     ports:
       - "5471:5432"
     environment:
@@ -67,11 +65,10 @@ services:
       dockerfile: ./verifier/infrastructure/Dockerfile
     restart: always
     networks:
-      verifier1-network:
-        ipv4_address: 172.29.0.3
+      all-network:
     environment:
       - RUST_LOG=trace
-      - APP_ENVIRONMENT=production
+      - CONFIG_PATH=/config.toml
       - DATABASE_URL=postgres://${POSTGRES_USER:-admin_manager}:${POSTGRES_PASSWORD:-password}@persistent-db-storage_verifier_1:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-production_db_name}
     ports:
       - "8071:8070"
@@ -79,15 +76,14 @@ services:
     depends_on:
       - persistent-db-storage_verifier_1
     volumes:
-      - ./configurations/verifier_1/production.toml:/configuration_verifier/production.toml
+      - ./configurations/verifier_1/production.toml:/config.toml
 
   # ====== Verifier 2 ======
   persistent-db-storage_verifier_2:
     image: postgres:17.5-alpine3.22
     restart: always
     networks:
-      verifier2-network:
-        ipv4_address: 172.30.0.2
+      all-network:
     ports:
       - "5472:5432"
     environment:
@@ -106,11 +102,10 @@ services:
       dockerfile: ./verifier/infrastructure/Dockerfile
     restart: always
     networks:
-      verifier2-network:
-        ipv4_address: 172.30.0.3
+      all-network:
     environment:
       - RUST_LOG=trace
-      - APP_ENVIRONMENT=production
+      - CONFIG_PATH=/config.toml
       - DATABASE_URL=postgres://${POSTGRES_USER:-admin_manager}:${POSTGRES_PASSWORD:-password}@persistent-db-storage_verifier_2:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-production_db_name}
     ports:
       - "8072:8070"
@@ -118,15 +113,14 @@ services:
     depends_on:
       - persistent-db-storage_verifier_2
     volumes:
-      - ./configurations/verifier_2/production.toml:/configuration_verifier/production.toml
+      - ./configurations/verifier_2/production.toml:/config.toml
 
 # ====== Verifier 3 ======
   persistent-db-storage_verifier_3:
     image: postgres:17.5-alpine3.22
     restart: always
     networks:
-      verifier3-network:
-        ipv4_address: 172.31.0.2
+      all-network:
     ports:
       - "5473:5432"
     environment:
@@ -145,11 +139,10 @@ services:
       dockerfile: ./verifier/infrastructure/Dockerfile
     restart: always
     networks:
-      verifier3-network:
-        ipv4_address: 172.31.0.3
+      all-network:
     environment:
       - RUST_LOG=trace
-      - APP_ENVIRONMENT=production
+      - CONFIG_PATH=/config.toml
       - DATABASE_URL=postgres://${POSTGRES_USER:-admin_manager}:${POSTGRES_PASSWORD:-password}@persistent-db-storage_verifier_3:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-production_db_name}
     ports:
       - "8073:8070"
@@ -157,7 +150,7 @@ services:
     depends_on:
       - persistent-db-storage_verifier_3
     volumes:
-      - ./configurations/verifier_3/production.toml:/configuration_verifier/production.toml
+      - ./configurations/verifier_3/production.toml:/config.toml
 
 # ===== Btc indexer =====
 
@@ -180,8 +173,7 @@ services:
       - POSTGRES_PORT=${POSTGRES_PORT:-5432}
       - POSTGRES_DB=${POSTGRES_DB:-production_db_name}
     networks:
-      titan-network:
-        ipv4_address: 172.32.0.4
+      all-network:
     ports:
       - "8060:8070"
     entrypoint: sh -c "btc_indexer"
@@ -196,8 +188,7 @@ services:
     image: postgres:17.5-alpine3.22
     restart: always
     networks:
-      titan-network:
-        ipv4_address: 172.32.0.5
+      all-network:
     ports:
       - "5432:5432"
     environment:
@@ -222,8 +213,7 @@ services:
       - 0.0.0.0:${TITAN_TCP_PORT:-8080}:${TITAN_TCP_PORT:-8080}
       - 0.0.0.0:${TITAN_HTTP_PORT:-3030}:${TITAN_HTTP_PORT:-3030}
     networks:
-      titan-network:
-        ipv4_address: 172.32.0.2
+      all-network:
     environment:
       - COMMIT_INTERVAL=${COMMIT_INTERVAL:-5}
       - BITCOIN_RPC_URL=http://bitcoind:${BITCOIN_RPC_PORT:-18443}
@@ -242,8 +232,7 @@ services:
     volumes:
       - "btcd-data:/var/lib/bitcoin-core"
     networks:
-      titan-network:
-        ipv4_address: 172.32.0.3
+      all-network:
     command: |
       -${BITCOIN_NETWORK:-regtest}
       -rpcallowip=0.0.0.0/0
@@ -279,8 +268,7 @@ services:
       - RUST_LOG=trace
       - APP_ENVIRONMENT=production
     networks:
-      spark-balance-checker-network:
-        ipv4_address: 172.33.0.2
+      all-network:
     ports:
       - "8090:8070"
     entrypoint: sh -c "spark_balance_checker_main"
@@ -291,42 +279,7 @@ services:
 
 
 networks:
-  gateway-network:
-    ipam:
-      driver: default
-      config:
-        - subnet: 172.28.0.0/24
-          gateway: 172.28.0.1
-  verifier1-network:
-    ipam:
-      driver: default
-      config:
-        - subnet: 172.29.0.0/24
-          gateway: 172.29.0.1
-  verifier2-network:
-    ipam:
-      driver: default
-      config:
-        - subnet: 172.30.0.0/24
-          gateway: 172.30.0.1
-  verifier3-network:
-    ipam:
-      driver: default
-      config:
-        - subnet: 172.31.0.0/24
-          gateway: 172.31.0.1
-  titan-network:
-    ipam:
-      driver: default
-      config:
-        - subnet: 172.32.0.0/24
-          gateway: 172.32.0.1
-  spark-balance-checker-network:
-    ipam:
-      driver: default
-      config:
-        - subnet: 172.33.0.0/24
-          gateway: 172.33.0.1
+  all-network:
 
 volumes:
   service-data_gateway:
