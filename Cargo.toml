@@ -35,7 +35,7 @@ async-trait = { version = "0.1.88" }
 axum = { version = "0.8.4", features = ["macros"] }
 axum-test = { version = "18.0.0" }
 bech32 = "0.11.0"
-bitcoin = { version = "0.32.7" }
+bitcoin = { version = "0.32.7", features = ["rand"] }
 bitcoincore-rpc = { version = "0.19.0" }
 config = { version = "0.15.13" }
 dns-lookup = { version = "3.0.0" }
@@ -89,9 +89,10 @@ frost = { path = "./crates/frost" }
 verifier_local_db_store = { path = "./verifier/crates/local_db_store" }
 verifier_server = { path = "./verifier/crates/server" }
 verifier_config_parser = { path = "./verifier/crates/config_parser" }
+verifier_utils = { path = "./verifier/crates/utils" }
 
 # Verifier apps
-verifier-main = { path = "verifier/apps/main" }
+verifier_main = { path = "verifier/apps/main" }
 
 
 ####### Gateway #######
@@ -100,6 +101,7 @@ gateway_server = { path = "gateway/crates/server" }
 gateway_config_parser = { path = "gateway/crates/config_parser" }
 gateway_local_db_store = { path = "gateway/crates/local_db_store" }
 gateway_flow_processor = { path = "gateway/crates/flow_processor" }
+gateway_utils = { path = "gateway/crates/utils" }
 
 # Gateway apps
 gateway_main = { path = "gateway/apps/main" }

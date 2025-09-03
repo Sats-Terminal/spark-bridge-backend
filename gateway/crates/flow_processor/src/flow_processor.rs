@@ -1,5 +1,6 @@
 use crate::flow_router::FlowProcessorRouter;
 use crate::types::*;
+use frost::aggregator::FrostAggregator;
 use global_utils::common_types::get_uuid;
 use persistent_storage::init::PostgresRepo;
 use std::collections::HashMap;
@@ -21,6 +22,7 @@ pub struct FlowProcessor {
     pub flows: HashMap<Uuid, JoinHandle<()>>,
     pub cancellation_token: CancellationToken,
     pub cancellation_retries: u64,
+    pub frost_aggregator: FrostAggregator,
 }
 
 impl FlowProcessor {
@@ -29,6 +31,7 @@ impl FlowProcessor {
         storage: PostgresRepo,
         cancellation_token: CancellationToken,
         cancellation_retries: u64,
+        frost_aggregator: FrostAggregator,
     ) -> Self {
         let (flow_sender, flow_receiver) = mpsc::channel::<Uuid>(1000);
         Self {
@@ -39,6 +42,7 @@ impl FlowProcessor {
             flows: HashMap::new(),
             cancellation_token,
             cancellation_retries,
+            frost_aggregator,
         }
     }
 
@@ -74,7 +78,8 @@ impl FlowProcessor {
                                 self.storage.clone(),
                                 flow_id,
                                 response_sender,
-                                self.flow_sender.clone()
+                                self.flow_sender.clone(),
+                                self.frost_aggregator.clone(),
                             );
 
                             let handle = tokio::task::spawn(async move {

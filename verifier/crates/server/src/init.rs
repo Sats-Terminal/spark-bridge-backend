@@ -1,16 +1,13 @@
 use crate::handlers;
+use crate::state::AppState;
 use axum::Router;
 use axum::routing::post;
-use persistent_storage::init::PersistentRepoShared;
+use frost::signer::FrostSigner;
 use tracing::instrument;
 
-#[derive(Clone)]
-pub struct AppState {
-    db_pool: PersistentRepoShared,
-}
-#[instrument(level = "debug", skip(db_pool), ret)]
-pub async fn create_app(db_pool: PersistentRepoShared) -> anyhow::Result<Router> {
-    let state = AppState { db_pool };
+#[instrument(level = "debug", skip(frost_signer), ret)]
+pub async fn create_app(frost_signer: FrostSigner) -> anyhow::Result<Router> {
+    let state = AppState { frost_signer };
     Ok(Router::new()
         .route(
             "/api/gateway/watch-spark-address",
@@ -20,17 +17,8 @@ pub async fn create_app(db_pool: PersistentRepoShared) -> anyhow::Result<Router>
             "/api/gateway/watch-runes-address",
             post(handlers::watch_runes_address::handle),
         )
-        .route(
-            "/api/gateway/get-round-1-package",
-            post(handlers::get_round_1_package::handle),
-        )
-        .route(
-            "/api/gateway/get-round-2-package",
-            post(handlers::get_round_2_package::handle),
-        )
-        .route(
-            "/api/gateway/get-round-3-package",
-            post(handlers::get_round_3_package::handle),
-        )
+        .route("/api/gateway/dkg-round-1", post(handlers::dkg_round_1::handle))
+        .route("/api/gateway/dkg-round-2", post(handlers::dkg_round_2::handle))
+        .route("/api/gateway/dkg-finalize", post(handlers::dkg_finalize::handle))
         .with_state(state))
 }

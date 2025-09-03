@@ -20,4 +20,6 @@ pub enum AggregatorError {
     Internal(String),
     #[error("Signer error: {0}")]
     SignerError(#[from] SignerError),
+    #[error("HTTP error: {0}")]
+    HttpError(String),
 }

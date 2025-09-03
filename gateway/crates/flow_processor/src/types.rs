@@ -18,7 +18,7 @@ pub enum FlowProcessorResponse {
 }
 
 pub struct DkgFlowRequest {
-    pub request_id: Uuid,
+    pub user_public_key: String,
 }
 
 pub struct DkgFlowResponse {

@@ -1,0 +1,6 @@
+[package]
+name = "verifier_utils"
+edition = "2024"
+
+[dependencies]
+frost = { workspace = true }

@@ -9,3 +9,4 @@ tracing = { workspace = true }
 global_utils = { workspace = true }
 thiserror = { workspace = true }
 dotenv = { workspace = true }
+frost = { workspace = true }

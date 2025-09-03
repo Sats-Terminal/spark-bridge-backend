@@ -3,23 +3,20 @@ use std::{collections::BTreeMap, sync::Arc};
 use frost_secp256k1_tr::{Identifier, Signature, SigningPackage, keys, keys::Tweak};
 use futures::future::join_all;
 
-use crate::{config::AggregatorConfig, errors::AggregatorError, traits::*};
+use crate::{errors::AggregatorError, traits::*};
 
 #[derive(Clone)]
 pub struct FrostAggregator {
-    config: AggregatorConfig,
     verifiers: BTreeMap<Identifier, Arc<dyn SignerClient>>, // TODO: implement signer client
     user_storage: Arc<dyn AggregatorUserStorage>,           // TODO: implement aggregator storage storage
 }
 
 impl FrostAggregator {
     pub fn new(
-        config: AggregatorConfig,
         verifiers: BTreeMap<Identifier, Arc<dyn SignerClient>>,
         user_storage: Arc<dyn AggregatorUserStorage>,
     ) -> Self {
         Self {
-            config,
             verifiers,
             user_storage,
         }
