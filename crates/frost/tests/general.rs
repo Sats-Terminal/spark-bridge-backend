@@ -1,5 +1,5 @@
 use std::{collections::BTreeMap, sync::Arc};
-
+use bitcoin::secp256k1::{Secp256k1, SecretKey, PublicKey};
 use frost::traits::SignRound1Request;
 use frost::{aggregator::FrostAggregator, config::*, mocks::*, signer::FrostSigner, traits::SignerClient};
 use frost_secp256k1_tr::{keys::Tweak, Identifier};
@@ -51,14 +51,18 @@ async fn test_aggregator_signer_integration() {
         Arc::new(MockAggregatorUserStorage::new()),
     );
 
-    let user_id = "test_user";
+    let secp = Secp256k1::new();
+    let secret_key = SecretKey::from_slice(&[1u8; 32]).unwrap();
+    let user_id = PublicKey::from_secret_key(&secp, &secret_key);
+
+    //let user_id = "test_user";
     let message = b"test_message";
     // let tweak = Some(b"test_tweak".as_slice());
     let tweak = None;
 
-    let public_key_package = aggregator.run_dkg_flow(user_id.to_string()).await.unwrap();
+    let public_key_package = aggregator.run_dkg_flow(user_id).await.unwrap();
     let signature = aggregator
-        .run_signing_flow(user_id.to_string(), message, tweak)
+        .run_signing_flow(user_id, message, tweak)
         .await
         .unwrap();
 
@@ -86,7 +90,10 @@ async fn test_parallel_signing_sessions_via_aggregator() {
         Arc::new(MockAggregatorUserStorage::new()),
     );
 
-    let user_id = "test_user".to_string();
+    let secp = Secp256k1::new();
+    let secret_key = SecretKey::from_slice(&[1u8; 32]).unwrap();
+    let user_id = PublicKey::from_secret_key(&secp, &secret_key);
+    //let user_id = "test_user".to_string();
     let msg_a = b"parallel message A".to_vec();
     let msg_b = b"parallel message B".to_vec();
     let tweak = None::<&[u8]>;
@@ -181,7 +188,10 @@ async fn test_session_storage_in_signing_flow() {
         Arc::new(MockAggregatorUserStorage::new()),
     );
 
-    let user_id = "test_user".to_string();
+    let secp = Secp256k1::new();
+    let secret_key = SecretKey::from_slice(&[1u8; 32]).unwrap();
+    let user_id = PublicKey::from_secret_key(&secp, &secret_key);
+    //let user_id = "test_user".to_string();
     let message = b"hello_session".to_vec();
 
     let public_key_package = aggregator.run_dkg_flow(user_id.clone()).await.unwrap();
@@ -245,7 +255,10 @@ async fn test_basic_signing_flow() {
         Arc::new(MockAggregatorUserStorage::new()),
     );
 
-    let user_id = "basic_user".to_string();
+    let secp = Secp256k1::new();
+    let secret_key = SecretKey::from_slice(&[1u8; 32]).unwrap();
+    let user_id = PublicKey::from_secret_key(&secp, &secret_key);
+    //let user_id = "basic_user".to_string();
     let message = b"hello_basic_signing".to_vec();
 
     let public_key_package = aggregator.run_dkg_flow(user_id.clone()).await.unwrap();

@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
-
 use async_trait::async_trait;
+use bitcoin::secp256k1::PublicKey;
 use frost_secp256k1_tr::{
     Identifier, Signature, SigningPackage,
     keys::{
@@ -16,7 +16,7 @@ use crate::errors::{AggregatorError, SignerError};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DkgRound1Request {
-    pub user_id: String,
+    pub user_id: PublicKey,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -26,7 +26,7 @@ pub struct DkgRound1Response {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DkgRound2Request {
-    pub user_id: String,
+    pub user_id: PublicKey,
     pub round1_packages: BTreeMap<Identifier, round1::Package>,
 }
 
@@ -37,7 +37,7 @@ pub struct DkgRound2Response {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DkgFinalizeRequest {
-    pub user_id: String,
+    pub user_id: PublicKey,
     pub round1_packages: BTreeMap<Identifier, round1::Package>,
     pub round2_packages: BTreeMap<Identifier, round2::Package>,
 }
@@ -49,21 +49,21 @@ pub struct DkgFinalizeResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignRound1Request {
-    pub user_id: String,
+    pub user_id: PublicKey,
     pub session_id: Uuid,
     pub tweak: Option<Vec<u8>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignRound1Response {
-    pub user_id: String,
+    pub user_id: PublicKey,
     pub session_id: Uuid,
     pub commitments: SigningCommitments, // Only commitment
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignRound2Request {
-    pub user_id: String,
+    pub user_id: PublicKey,
     pub session_id: Uuid,
     pub signing_package: SigningPackage,
 }
@@ -115,8 +115,8 @@ pub enum AggregatorUserState {
 
 #[async_trait]
 pub trait AggregatorUserStorage: Send + Sync {
-    async fn get_user_state(&self, user_id: String) -> Result<Option<AggregatorUserState>, AggregatorError>;
-    async fn set_user_state(&self, user_id: String, state: AggregatorUserState) -> Result<(), AggregatorError>;
+    async fn get_user_state(&self, user_id: PublicKey) -> Result<Option<AggregatorUserState>, AggregatorError>;
+    async fn set_user_state(&self, user_id: PublicKey, state: AggregatorUserState) -> Result<(), AggregatorError>;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -149,21 +149,21 @@ pub enum SignerSessionState {
 
 #[async_trait]
 pub trait SignerUserStorage: Send + Sync {
-    async fn get_user_state(&self, user_id: String) -> Result<Option<SignerUserState>, SignerError>;
-    async fn set_user_state(&self, user_id: String, state: SignerUserState) -> Result<(), SignerError>;
+    async fn get_user_state(&self, user_id: PublicKey) -> Result<Option<SignerUserState>, SignerError>;
+    async fn set_user_state(&self, user_id: PublicKey, state: SignerUserState) -> Result<(), SignerError>;
 }
 
 #[async_trait]
 pub trait SignerSessionStorage: Send + Sync {
     async fn get_session_state(
         &self,
-        user_id: String,
+        user_id: PublicKey,
         session_id: Uuid,
     ) -> Result<Option<SignerSessionState>, SignerError>;
 
     async fn set_session_state(
         &self,
-        user_id: String,
+        user_id: PublicKey,
         session_id: Uuid,
         state: SignerSessionState,
     ) -> Result<(), SignerError>;
