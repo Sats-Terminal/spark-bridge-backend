@@ -12,3 +12,4 @@ async-trait = { workspace = true }
 rand_core = { workspace = true }
 futures = { workspace = true }
 uuid = { workspace = true }
+global_utils = { path = "../global_utils" }

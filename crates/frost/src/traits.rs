@@ -11,7 +11,7 @@ use frost_secp256k1_tr::{
     round2::SignatureShare,
 };
 use serde::{Deserialize, Serialize};
-
+use uuid::Uuid;
 use crate::errors::{AggregatorError, SignerError};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -50,27 +50,27 @@ pub struct DkgFinalizeResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignRound1Request {
     pub user_id: String,
-    pub session_id: String,
+    pub session_id: Uuid,
     pub tweak: Option<Vec<u8>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignRound1Response {
     pub user_id: String,
-    pub session_id: String,
+    pub session_id: Uuid,
     pub commitments: SigningCommitments, // Only commitment
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignRound2Request {
     pub user_id: String,
-    pub session_id: String,
+    pub session_id: Uuid,
     pub signing_package: SigningPackage,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignRound2Response {
-    pub session_id: String,
+    pub session_id: Uuid,
     pub signature_share: SignatureShare,
 }
 
@@ -158,13 +158,13 @@ pub trait SignerSessionStorage: Send + Sync {
     async fn get_session_state(
         &self,
         user_id: String,
-        session_id: String,
+        session_id: Uuid,
     ) -> Result<Option<SignerSessionState>, SignerError>;
 
     async fn set_session_state(
         &self,
         user_id: String,
-        session_id: String,
+        session_id: Uuid,
         state: SignerSessionState,
     ) -> Result<(), SignerError>;
 }

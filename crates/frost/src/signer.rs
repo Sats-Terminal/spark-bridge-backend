@@ -1,9 +1,6 @@
 use std::sync::Arc;
-
 use frost_secp256k1_tr::{Identifier, keys::Tweak};
-
 use rand_core::OsRng;
-
 use crate::{config::SignerConfig, errors::SignerError, traits::*};
 
 #[derive(Clone)]
@@ -52,9 +49,9 @@ impl FrostSigner {
                 })
             }
             _ => {
-                return Err(SignerError::InvalidUserState(
+                Err(SignerError::InvalidUserState(
                     "User state is not SigningRound1".to_string(),
-                ));
+                ))
             }
         }
     }
@@ -84,9 +81,9 @@ impl FrostSigner {
                 })
             }
             _ => {
-                return Err(SignerError::InvalidUserState(
+                Err(SignerError::InvalidUserState(
                     "User state is not SigningRound1".to_string(),
-                ));
+                ))
             }
         }
     }
@@ -113,9 +110,9 @@ impl FrostSigner {
                 Ok(DkgFinalizeResponse { public_key_package })
             }
             _ => {
-                return Err(SignerError::InvalidUserState(
+                Err(SignerError::InvalidUserState(
                     "User state is not SigningRound1".to_string(),
-                ));
+                ))
             }
         }
     }
@@ -182,12 +179,12 @@ impl FrostSigner {
 
                 self.session_storage
                     .set_session_state(
-                        user_id.clone(),
+                        user_id,
                         session_id.clone(),
                         SignerSessionState::SigningRound2 {
-                            key_package: key_package.clone(),
-                            tweak: tweak.clone(),
-                            signature_share: signature_share.clone(),
+                            key_package,
+                            tweak,
+                            signature_share,
                         },
                     )
                     .await?;

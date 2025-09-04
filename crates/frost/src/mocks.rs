@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, sync::Arc};
 use async_trait::async_trait;
 use frost_secp256k1_tr::Identifier;
 use tokio::sync::Mutex;
-
+use uuid::Uuid;
 use crate::{
     errors::{AggregatorError, SignerError},
     signer::FrostSigner,
@@ -15,7 +15,7 @@ pub struct MockSignerUserStorage {
 }
 
 pub struct MockSignerSessionStorage {
-    session_state: Arc<Mutex<BTreeMap<(String, String), SignerSessionState>>>,
+    session_state: Arc<Mutex<BTreeMap<(String, Uuid), SignerSessionState>>>,
 }
 
 impl MockSignerSessionStorage {
@@ -25,9 +25,9 @@ impl MockSignerSessionStorage {
         }
     }
 
-    pub async fn has_session(&self, user_id: &str, session_id: &str) -> bool {
+    pub async fn has_session(&self, user_id: &str, session_id: &Uuid) -> bool {
         let map = self.session_state.lock().await;
-        map.contains_key(&(user_id.to_string(), session_id.to_string()))
+        map.contains_key(&(user_id.to_string(), *session_id))
     }
 }
 
@@ -36,7 +36,7 @@ impl SignerSessionStorage for MockSignerSessionStorage {
     async fn get_session_state(
         &self,
         user_id: String,
-        session_id: String,
+        session_id: Uuid,
     ) -> Result<Option<SignerSessionState>, SignerError> {
         Ok(self
             .session_state
@@ -49,7 +49,7 @@ impl SignerSessionStorage for MockSignerSessionStorage {
     async fn set_session_state(
         &self,
         user_id: String,
-        session_id: String,
+        session_id: Uuid,
         state: SignerSessionState,
     ) -> Result<(), SignerError> {
         self.session_state
