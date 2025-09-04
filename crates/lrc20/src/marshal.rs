@@ -3,7 +3,6 @@ use bitcoin::{
     hashes::{Hash, sha256::Hash as Sha256Hash},
     secp256k1::PublicKey,
 };
-use eyre::{OptionExt, Result, bail};
 use prost_wkt_types::Timestamp;
 use spark_protos::spark_token::{self, TokenTransaction as TokenTransactionV2SparkProto};
 use tracing::{error, info};
@@ -12,8 +11,9 @@ use crate::{
     token_identifier::TokenIdentifier,
     token_leaf::{TokenLeafOutput, TokenLeafToSpend},
     token_transaction::{
-        TokenTransaction, TokenTransactionCreateInput, TokenTransactionInput,
-        TokenTransactionMintInput, TokenTransactionTransferInput, TokenTransactionVersion,
+        TokenTransaction, TokenTransactionCreateInput, TokenTransactionError,
+        TokenTransactionInput, TokenTransactionMintInput, TokenTransactionTransferInput,
+        TokenTransactionVersion,
     },
 };
 
@@ -31,7 +31,7 @@ use crate::{
 pub fn marshal_token_transaction(
     tx: TokenTransaction,
     with_revocation_commitments: bool,
-) -> Result<TokenTransactionV2SparkProto> {
+) -> Result<TokenTransactionV2SparkProto, TokenTransactionError> {
     let spark_operator_identity_public_keys = tx
         .spark_operator_identity_public_keys
         .iter()
@@ -39,7 +39,7 @@ pub fn marshal_token_transaction(
         .map(|pubkey| pubkey.serialize().to_vec())
         .collect();
 
-    let network = tx.network.ok_or_eyre("Network is missing")?;
+    let network = tx.network.ok_or(TokenTransactionError::NetworkMissing)?;
 
     // Assume that tx version is always v2
 
@@ -75,7 +75,13 @@ pub fn marshal_token_transaction(
         },
         _ => {
             error!("Invalid token transaction version. {:?}", tx.version);
-            bail!("Invalid token transaction version. {:?}", tx.version)
+            let version_num = match tx.version {
+                TokenTransactionVersion::V1 => 0u32,
+                TokenTransactionVersion::V2 => 1u32,
+            };
+            return Err(TokenTransactionError::InvalidTokenTransactionVersion(
+                version_num,
+            ));
         },
     }
 }
@@ -83,7 +89,7 @@ pub fn marshal_token_transaction(
 fn into_token_leaves_to_create_v2(
     leaves: Vec<TokenLeafOutput>,
     with_revocation_commitments: bool,
-) -> eyre::Result<Vec<spark_protos::spark_token::TokenOutput>> {
+) -> Result<Vec<spark_protos::spark_token::TokenOutput>, TokenTransactionError> {
     let mut result_leaves = Vec::new();
 
     for leaf in leaves {
@@ -128,9 +134,11 @@ fn into_token_leaves_to_create_v2(
 /// A `TokenTransaction` struct.
 pub fn unmarshal_token_transaction(
     token_tx: TokenTransactionV2SparkProto,
-) -> eyre::Result<TokenTransaction> {
+) -> Result<TokenTransaction, TokenTransactionError> {
     info!("Unmarshalling token transaction: {:?}", token_tx);
-    let token_input = token_tx.token_inputs.ok_or_eyre("Token input is missing")?;
+    let token_input = token_tx
+        .token_inputs
+        .ok_or(TokenTransactionError::TokenInputMissing)?;
 
     let parsed_token_input = parse_token_input_v2(token_input)?;
 
@@ -154,10 +162,11 @@ pub fn unmarshal_token_transaction(
     let version = match token_tx.version {
         0 => TokenTransactionVersion::V1,
         1 => TokenTransactionVersion::V2,
-        _ => bail!(
-            "Unexpected version of the token transaction: {}",
-            token_tx.version
-        ),
+        _ => {
+            return Err(TokenTransactionError::InvalidTokenTransactionVersion(
+                token_tx.version,
+            ));
+        },
     };
 
     Ok(TokenTransaction {
@@ -173,12 +182,12 @@ pub fn unmarshal_token_transaction(
 
 fn into_token_input_v2(
     tx: TokenTransaction,
-) -> eyre::Result<spark_protos::spark_token::token_transaction::TokenInputs> {
+) -> Result<spark_protos::spark_token::token_transaction::TokenInputs, TokenTransactionError> {
     let input = match tx.input {
         TokenTransactionInput::Mint(mint_input) => {
             let token_identifier = mint_input
                 .token_identifier
-                .ok_or_eyre("Token identifier is missing")?;
+                .ok_or(TokenTransactionError::TokenIdentifierMissing)?;
             spark_protos::spark_token::token_transaction::TokenInputs::MintInput(
                 spark_protos::spark_token::TokenMintInput {
                     issuer_public_key: mint_input.issuer_public_key.serialize().to_vec(),
@@ -193,10 +202,11 @@ fn into_token_input_v2(
                 spark_protos::spark_token::TokenTransferInput { outputs_to_spend },
             )
         },
-        _ => bail!(
-            "Invalid token transaction input. {:?} is not allowed for token transactions V0",
-            tx.input
-        ),
+        _ => {
+            return Err(TokenTransactionError::InvalidTokenTransactionInput(
+                format!("{:?} is not allowed for token transactions V2", tx.input),
+            ));
+        },
     };
 
     Ok(input)
@@ -204,7 +214,7 @@ fn into_token_input_v2(
 
 fn into_token_leaves_to_spend_v2(
     leaves: Vec<TokenLeafToSpend>,
-) -> eyre::Result<Vec<spark_protos::spark_token::TokenOutputToSpend>> {
+) -> Result<Vec<spark_protos::spark_token::TokenOutputToSpend>, TokenTransactionError> {
     let mut result_leaves = Vec::new();
 
     for leaf in leaves {
@@ -221,7 +231,7 @@ fn into_token_leaves_to_spend_v2(
 
 fn parse_token_input_v2(
     token_input: spark_token::token_transaction::TokenInputs,
-) -> eyre::Result<TokenTransactionInput> {
+) -> Result<TokenTransactionInput, TokenTransactionError> {
     let parsed_token_input = match token_input {
         spark_token::token_transaction::TokenInputs::MintInput(issue_input) => {
             let issuer_public_key = PublicKey::from_slice(&issue_input.issuer_public_key)?;
@@ -267,7 +277,7 @@ fn parse_token_input_v2(
 
 fn parse_token_leaves_to_spend_v2(
     leaves: Vec<spark_protos::spark_token::TokenOutputToSpend>,
-) -> eyre::Result<Vec<TokenLeafToSpend>> {
+) -> Result<Vec<TokenLeafToSpend>, TokenTransactionError> {
     let mut result_leaves = Vec::new();
 
     for leaf in leaves {
@@ -287,7 +297,7 @@ fn parse_token_leaves_to_spend_v2(
 
 fn parse_token_leaves_to_create_v2(
     leaves: Vec<spark_protos::spark_token::TokenOutput>,
-) -> eyre::Result<Vec<TokenLeafOutput>> {
+) -> Result<Vec<TokenLeafOutput>, TokenTransactionError> {
     let mut result_leaves = Vec::new();
 
     for leaf in leaves {
@@ -298,7 +308,7 @@ fn parse_token_leaves_to_create_v2(
             &leaf
                 .revocation_commitment
                 .as_ref()
-                .ok_or_eyre("Revocation public key is missing")?,
+                .ok_or(TokenTransactionError::RevocationPublicKeyMissing)?,
         )?;
         let withdrawal_bond_sats = leaf.withdraw_bond_sats;
         let withdrawal_locktime = leaf
@@ -309,7 +319,7 @@ fn parse_token_leaves_to_create_v2(
         let token_identifier = TokenIdentifier::from_bytes(
             &leaf
                 .token_identifier
-                .ok_or_eyre("Token identifier is missing")?,
+                .ok_or(TokenTransactionError::TokenIdentifierMissing)?,
         )?;
 
         let leaf_to_create = TokenLeafOutput {

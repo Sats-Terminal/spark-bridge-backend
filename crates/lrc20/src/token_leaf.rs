@@ -1,8 +1,38 @@
 use bitcoin::{
     BlockHash, Txid, absolute::LockTime as AbsoluteLocktime, hashes::sha256::Hash, secp256k1,
 };
+use serde::{Deserialize, Serialize};
 
 use crate::token_identifier::TokenIdentifier;
+
+/// Represents the data structure for a Spark LRC-20 token leaf node.
+/// This structure mirrors the definition used in the Spark protocol.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TokenLeaf {
+    /// The unique identifier for this leaf node (often derived from transaction data).
+    pub id: String,
+
+    /// Token amount.
+    pub token_amount: u128,
+
+    /// The public key of the owner of this token leaf.
+    pub owner_public_key: Vec<u8>,
+
+    /// The public key identifying the specific token type.
+    pub token_identifier: TokenIdentifier,
+
+    /// The public key used for token revocation mechanisms.
+    pub revocation_public_key: Vec<u8>,
+
+    /// The hash of the token transaction that created this leaf.
+    pub token_transaction_hash: Vec<u8>,
+
+    /// The output index (vout) within the creating token transaction.
+    pub token_transaction_vout: u32,
+
+    /// The network of the token leaf.
+    pub network: String,
+}
 
 /// Represents a token leaf to spend in a token transaction.
 ///

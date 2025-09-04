@@ -1,7 +1,13 @@
-use std::fmt::{Display, Formatter};
+use std::{
+    array::TryFromSliceError,
+    fmt::{Display, Formatter},
+};
 
-use bitcoin::{hashes::sha256::Hash, secp256k1::PublicKey};
-use eyre::eyre;
+use bitcoin::{
+    hashes::{FromSliceError, sha256::Hash},
+    secp256k1::{Error as Secp256k1Error, PublicKey},
+};
+use thiserror::Error;
 
 use crate::{
     spark_hash::SparkHash,
@@ -76,14 +82,14 @@ impl TokenTransaction {
     ///
     /// # Returns
     /// A `SparkHash` representing the hash of the token transaction.
-    pub fn hash(&self) -> eyre::Result<SparkHash> {
+    pub fn hash(&self) -> Result<SparkHash, TokenTransactionError> {
         self.try_into()
-            .map_err(|err| eyre!("Failed to hash token transaction: {}", err))
+            .map_err(|err| TokenTransactionError::HashError(err))
     }
 }
 
 impl TryFrom<&TokenTransaction> for Hash {
-    type Error = eyre::Error;
+    type Error = TokenTransactionError;
 
     fn try_from(tx: &TokenTransaction) -> Result<Self, Self::Error> {
         let spark_hash = SparkHash::try_from(tx)?;
@@ -165,4 +171,52 @@ pub struct OperatorSpecificSignatureData {
 
     /// The signature of the operator.
     pub signature: SparkSignature,
+}
+
+/// Errors that can occur when working with `TokenTransaction` operations.
+#[derive(Error, Debug)]
+pub enum TokenTransactionError {
+    /// Hashing the token transaction failed.
+    #[error("Failed to hash token transaction: {0}")]
+    HashError(#[from] crate::spark_hash::SparkHashError),
+
+    /// Invalid token transaction version.
+    #[error("Invalid token transaction version: {0}")]
+    InvalidTokenTransactionVersion(u32),
+
+    /// Invalid token transaction input for this version.
+    #[error("Invalid token transaction input: {0}")]
+    InvalidTokenTransactionInput(String),
+
+    /// Network is missing.
+    #[error("Network is missing")]
+    NetworkMissing,
+
+    /// Token input is missing.
+    #[error("Token input is missing")]
+    TokenInputMissing,
+
+    /// Token identifier is missing.
+    #[error("Token identifier is missing")]
+    TokenIdentifierMissing,
+
+    /// Revocation public key is missing.
+    #[error("Revocation public key is missing")]
+    RevocationPublicKeyMissing,
+
+    /// secp256k1 error while parsing/handling public keys
+    #[error("Secp256k1 error: {0}")]
+    Secp256k1(#[from] Secp256k1Error),
+
+    /// Byte slice had an invalid length when converting
+    #[error("Invalid slice length: {0}")]
+    TryFromSlice(#[from] TryFromSliceError),
+
+    /// Failed to parse hash bytes from slice
+    #[error("Invalid hash bytes: {0}")]
+    FromSlice(#[from] FromSliceError),
+
+    /// Failed to parse token identifier
+    #[error("Token identifier parse error: {0}")]
+    TokenIdentifierParse(#[from] crate::token_identifier::TokenIdentifierParseError),
 }

@@ -169,7 +169,7 @@ impl TokenIdentifier {
     }
 
     /// Parses a token identifier from a string
-    pub fn from_str(s: &str, network: Network) -> Result<Self, eyre::Error> {
+    pub fn from_str(s: &str, network: Network) -> Result<Self, TokenIdentifierParseError> {
         // Try bech32m first (human readable format)
         if let Ok(identifier) = Self::decode_bech32m(s, network) {
             return Ok(identifier);

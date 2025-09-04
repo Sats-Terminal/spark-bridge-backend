@@ -1,7 +1,7 @@
 use std::ops::Deref;
 
 use bitcoin::hashes::{Hash, HashEngine, sha256::Hash as Sha256Hash};
-use eyre::{OptionExt, bail};
+use thiserror::Error;
 
 use crate::{
     token_leaf::{TokenLeafOutput, TokenLeafToSpend},
@@ -58,7 +58,7 @@ impl SparkHash {
     pub fn hash_token_transaction(
         token_tx: &TokenTransaction,
         is_partial_hash: bool,
-    ) -> eyre::Result<Self> {
+    ) -> Result<Self, SparkHashError> {
         let mut hash_engine = Sha256Hash::engine();
 
         let is_v2 = token_tx.version == TokenTransactionVersion::V2;
@@ -94,7 +94,7 @@ impl SparkHash {
                 }
             },
             TokenTransactionInput::Create(_) => {
-                bail!("Invalid token transaction input: Token transaction V0 can't have")
+                return Err(SparkHashError::InvalidTokenTransactionInput);
             },
         }
 
@@ -163,7 +163,7 @@ impl SparkHash {
     pub fn hash_token_leaf_output(
         leaf: &TokenLeafOutput,
         is_partial_hash: bool,
-    ) -> eyre::Result<Self> {
+    ) -> Result<Self, SparkHashError> {
         let mut hash_engine = Sha256Hash::engine();
 
         if !is_partial_hash && leaf.id.is_some() {
@@ -175,13 +175,13 @@ impl SparkHash {
             hash_engine.input(
                 &leaf
                     .withdrawal_bond_sats
-                    .ok_or_eyre("Withdrawal bond sats is missing")?
+                    .ok_or(SparkHashError::WithdrawalBondSatsMissing)?
                     .to_be_bytes(),
             );
             hash_engine.input(
                 &(leaf
                     .withdrawal_locktime
-                    .ok_or_eyre("Withdrawal locktime is missing")?
+                    .ok_or(SparkHashError::WithdrawalLocktimeMissing)?
                     .to_consensus_u32() as u64)
                     .to_be_bytes(),
             );
@@ -195,11 +195,31 @@ impl SparkHash {
 }
 
 impl TryFrom<&TokenTransaction> for SparkHash {
-    type Error = eyre::Error;
+    type Error = SparkHashError;
 
     fn try_from(token_tx: &TokenTransaction) -> Result<Self, Self::Error> {
         Self::hash_token_transaction(token_tx, false)
     }
+}
+
+/// Errors that can occur when working with `SparkHash` operations.
+#[derive(Error, Debug)]
+pub enum SparkHashError {
+    /// The token transaction input is invalid.
+    #[error("Invalid token transaction input: Token transaction V0 can't have")]
+    InvalidTokenTransactionInput,
+
+    /// The withdrawal bond sats is missing.
+    #[error("Withdrawal bond sats is missing")]
+    WithdrawalBondSatsMissing,
+
+    /// The withdrawal locktime is missing.
+    #[error("Withdrawal locktime is missing")]
+    WithdrawalLocktimeMissing,
+
+    /// Crate input parsing not yet implemented.
+    #[error("Crate input parsing not yet implemented")]
+    CreateInputNotImplemented,
 }
 
 #[cfg(test)]

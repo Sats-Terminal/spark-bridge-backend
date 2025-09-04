@@ -104,6 +104,7 @@ gateway_config_parser = { path = "gateway/crates/config_parser" }
 gateway_local_db_store = { path = "gateway/crates/local_db_store" }
 gateway_flow_processor = { path = "gateway/crates/flow_processor" }
 gateway_utils = { path = "gateway/crates/utils" }
+gateway_spark_service = { path = "gateway/crates/spark_service" }
 
 # Gateway apps
 gateway_main = { path = "gateway/apps/main" }
