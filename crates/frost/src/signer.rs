@@ -4,21 +4,28 @@ use frost_secp256k1_tr::{Identifier, keys::Tweak};
 
 use rand_core::OsRng;
 
-use crate::{config::SignerConfig, errors::SignerError, traits::*};
+use crate::{errors::SignerError, traits::*};
 
 #[derive(Clone)]
 pub struct FrostSigner {
-    config: SignerConfig,
     user_storage: Arc<dyn SignerUserStorage>, // TODO: implement signer storage
     identifier: Identifier,
+    total_participants: u16,
+    threshold: u16,
 }
 
 impl FrostSigner {
-    pub fn new(config: SignerConfig, user_storage: Arc<dyn SignerUserStorage>) -> Self {
+    pub fn new(
+        user_storage: Arc<dyn SignerUserStorage>,
+        identifier: u16,
+        total_participants: u16,
+        threshold: u16,
+    ) -> Self {
         Self {
-            config: config.clone(),
             user_storage,
-            identifier: config.identifier.try_into().unwrap(),
+            identifier: identifier.try_into().unwrap(),
+            total_participants,
+            threshold,
         }
     }
 
@@ -30,8 +37,8 @@ impl FrostSigner {
             None => {
                 let (secret_package, package) = frost_secp256k1_tr::keys::dkg::part1(
                     self.identifier,
-                    self.config.total_participants,
-                    self.config.threshold,
+                    self.total_participants,
+                    self.threshold,
                     &mut OsRng,
                 )
                 .map_err(|e| SignerError::Internal(format!("DKG round1 failed: {e}")))?;

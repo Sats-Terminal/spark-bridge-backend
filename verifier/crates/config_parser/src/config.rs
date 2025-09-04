@@ -1,5 +1,4 @@
 use config::{Config, Environment};
-use frost::config::SignerConfig;
 use global_utils::config_variant::ConfigVariant;
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
@@ -30,6 +29,14 @@ pub struct BtcIndexerConfig {
 #[serde(rename_all = "snake_case")]
 pub struct SparkBalanceCheckerConfig {
     pub address: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub struct SignerConfig {
+    pub identifier: u16,
+    pub threshold: u16,
+    pub total_participants: u16,
 }
 
 /// Struct used for initialization of different kinds of configurations
