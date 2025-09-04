@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, HashMap};
-
+use persistent_storage::error::DatabaseError;
 use async_trait::async_trait;
 use frost_secp256k1_tr::{
     Identifier, Signature, SigningPackage,
@@ -111,8 +111,8 @@ pub enum AggregatorUserState {
 
 #[async_trait]
 pub trait AggregatorUserStorage: Send + Sync {
-    async fn get_user_state(&self, user_id: String) -> Result<Option<AggregatorUserState>, AggregatorError>;
-    async fn set_user_state(&self, user_id: String, state: AggregatorUserState) -> Result<(), AggregatorError>;
+    async fn get_user_state(&self, user_id: String) -> Result<Option<AggregatorUserState>, DatabaseError>;
+    async fn set_user_state(&self, user_id: String, state: AggregatorUserState) -> Result<(), DatabaseError>;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -141,6 +141,6 @@ pub enum SignerUserState {
 
 #[async_trait]
 pub trait SignerUserStorage: Send + Sync {
-    async fn get_user_state(&self, user_id: String) -> Result<Option<SignerUserState>, SignerError>;
-    async fn set_user_state(&self, user_id: String, state: SignerUserState) -> Result<(), SignerError>;
+    async fn get_user_state(&self, user_id: String) -> Result<Option<SignerUserState>, DatabaseError>;
+    async fn set_user_state(&self, user_id: String, state: SignerUserState) -> Result<(), DatabaseError>;
 }

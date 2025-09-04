@@ -2,11 +2,10 @@ use anyhow::anyhow;
 use global_utils::config_variant::ConfigVariant;
 use global_utils::env_parser::lookup_ip_addr;
 use global_utils::logger::init_logger;
-use persistent_storage::init::PostgresRepo;
+use persistent_storage::{config::PostgresDbCredentials, init::PostgresRepo};
 use tokio::net::TcpListener;
 use tracing::instrument;
 use verifier_config_parser::config::ServerConfig;
-use verifier_local_db_store::PostgresDbCredentials;
 use verifier_utils::frost_signer::create_frost_signer;
 
 #[instrument(level = "debug", ret)]

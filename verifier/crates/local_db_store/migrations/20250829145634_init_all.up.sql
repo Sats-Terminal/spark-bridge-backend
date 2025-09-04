@@ -2,10 +2,11 @@ BEGIN TRANSACTION;
 
 CREATE SCHEMA verifier;
 
-CREATE TABLE IF NOT EXISTS verifier.keys
+CREATE TABLE IF NOT EXISTS user_state
 (
-    key_id   UUID         NOT NULL PRIMARY KEY,
-    metadata VARCHAR(255) NOT NULL
+    user_public_key VARCHAR(255) NOT NULL,
+    state_data VARCHAR(255) NOT NULL,
+    PRIMARY KEY (user_public_key)
 );
 
 COMMIT;

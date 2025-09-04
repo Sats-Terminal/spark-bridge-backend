@@ -1,4 +1,5 @@
 use thiserror::Error;
+use persistent_storage::error::DatabaseError;
 
 #[derive(Error, Debug)]
 pub enum SignerError {
@@ -8,6 +9,8 @@ pub enum SignerError {
     InvalidUserState(String),
     #[error("Internal error: {0}")]
     Internal(String),
+    #[error("Database error: {0}")]
+    DatabaseError(#[from] DatabaseError),
 }
 
 #[derive(Error, Debug)]
@@ -22,4 +25,6 @@ pub enum AggregatorError {
     SignerError(#[from] SignerError),
     #[error("HTTP error: {0}")]
     HttpError(String),
+    #[error("Database error: {0}")]
+    DatabaseError(#[from] DatabaseError),
 }

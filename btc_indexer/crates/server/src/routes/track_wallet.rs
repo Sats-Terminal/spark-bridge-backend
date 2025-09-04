@@ -8,9 +8,9 @@ use btc_indexer_internals::{
 use global_utils::common_types::{UrlWrapped, get_uuid};
 use local_db_store_indexer::{
     PersistentRepoTrait,
-    error::DbError,
     schemas::runes_spark::btc_indexer_work_checkpoint::{BtcIndexerWorkCheckpoint, StatusBtcIndexer, Task, Update},
 };
+use persistent_storage::error::DatabaseError;
 use serde::{Deserialize, Serialize};
 use sqlx::types::{Json as SqlxJson, chrono::Utc};
 use titan_client::TitanApi;
@@ -80,7 +80,7 @@ pub(crate) async fn spawn_wallet_tracking_task<T: TitanApi, Db: PersistentRepoTr
     app_state: AppState<T, Db>,
     payload: TrackWalletRequest,
     uuid: Uuid,
-) -> Result<CancellationToken, DbError> {
+) -> Result<CancellationToken, DatabaseError> {
     let cancellation_token = CancellationToken::new();
     tokio::task::spawn({
         let local_cancellation_token = cancellation_token.child_token();

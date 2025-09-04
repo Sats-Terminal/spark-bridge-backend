@@ -1,5 +1,5 @@
 BEGIN TRANSACTION;
 
-DROP TABLE IF EXISTS verifier.keys;
+DROP TABLE IF EXISTS user_state;
 
 COMMIT;

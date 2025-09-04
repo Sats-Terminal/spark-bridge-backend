@@ -1,5 +1,5 @@
 use gateway_local_db_store::{
-    schemas::keys::{Key, KeyStorage},
+    schemas::user_state::{Key, KeyStorage},
     schemas::request::{Request, RequestStorage},
 };
 use global_utils::common_types::get_uuid;

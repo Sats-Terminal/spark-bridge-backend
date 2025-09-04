@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use async_trait::async_trait;
-use frost_secp256k1_tr::Identifier;
+use persistent_storage::error::DatabaseError;
 use tokio::sync::Mutex;
 
 use crate::{
@@ -24,11 +24,11 @@ impl MockSignerUserStorage {
 
 #[async_trait]
 impl SignerUserStorage for MockSignerUserStorage {
-    async fn get_user_state(&self, user_id: String) -> Result<Option<SignerUserState>, SignerError> {
+    async fn get_user_state(&self, user_id: String) -> Result<Option<SignerUserState>, DatabaseError> {
         Ok(self.user_states.lock().await.get(&user_id).map(|state| state.clone()))
     }
 
-    async fn set_user_state(&self, user_id: String, state: SignerUserState) -> Result<(), SignerError> {
+    async fn set_user_state(&self, user_id: String, state: SignerUserState) -> Result<(), DatabaseError> {
         self.user_states.lock().await.insert(user_id, state);
         Ok(())
     }
@@ -48,11 +48,11 @@ impl MockAggregatorUserStorage {
 
 #[async_trait]
 impl AggregatorUserStorage for MockAggregatorUserStorage {
-    async fn get_user_state(&self, user_id: String) -> Result<Option<AggregatorUserState>, AggregatorError> {
+    async fn get_user_state(&self, user_id: String) -> Result<Option<AggregatorUserState>, DatabaseError> {
         Ok(self.user_states.lock().await.get(&user_id).map(|state| state.clone()))
     }
 
-    async fn set_user_state(&self, user_id: String, state: AggregatorUserState) -> Result<(), AggregatorError> {
+    async fn set_user_state(&self, user_id: String, state: AggregatorUserState) -> Result<(), DatabaseError> {
         self.user_states.lock().await.insert(user_id, state);
         Ok(())
     }

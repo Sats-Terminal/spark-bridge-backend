@@ -1,7 +1,5 @@
 BEGIN TRANSACTION;
 
-DROP TABLE IF EXISTS gateway.requests;
-
-DROP TABLE IF EXISTS gateway.keys;
+DROP TABLE IF EXISTS user_state;
 
 COMMIT;
