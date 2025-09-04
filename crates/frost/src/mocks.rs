@@ -14,6 +14,52 @@ pub struct MockSignerUserStorage {
     user_states: Arc<Mutex<BTreeMap<String, SignerUserState>>>,
 }
 
+pub struct MockSignerSessionStorage {
+    session_state: Arc<Mutex<BTreeMap<(String, String), SignerSessionState>>>,
+}
+
+impl MockSignerSessionStorage {
+    pub fn new() -> Self {
+        Self {
+            session_state: Arc::new(Mutex::new(BTreeMap::new())),
+        }
+    }
+
+    pub async fn has_session(&self, user_id: &str, session_id: &str) -> bool {
+        let map = self.session_state.lock().await;
+        map.contains_key(&(user_id.to_string(), session_id.to_string()))
+    }
+}
+
+#[async_trait]
+impl SignerSessionStorage for MockSignerSessionStorage {
+    async fn get_session_state(
+        &self,
+        user_id: String,
+        session_id: String,
+    ) -> Result<Option<SignerSessionState>, SignerError> {
+        Ok(self
+            .session_state
+            .lock()
+            .await
+            .get(&(user_id.clone(), session_id.clone()))
+            .cloned())
+    }
+
+    async fn set_session_state(
+        &self,
+        user_id: String,
+        session_id: String,
+        state: SignerSessionState,
+    ) -> Result<(), SignerError> {
+        self.session_state
+            .lock()
+            .await
+            .insert((user_id.clone(), session_id.clone()), state);
+        Ok(())
+    }
+}
+
 impl MockSignerUserStorage {
     pub fn new() -> Self {
         Self {
