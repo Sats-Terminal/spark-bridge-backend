@@ -1,0 +1,17 @@
+[package]
+name = "lrc20"
+description = "LRC20 types for Spark"
+edition = "2024"
+
+[dependencies]
+bitcoin = { workspace = true }
+bech32 = { workspace = true }
+prost = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+eyre = { workspace = true }
+spark-protos = { workspace = true }
+prost-wkt-types = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+hex = { workspace = true }
