@@ -2,8 +2,8 @@
 title Bridge interaction scheme [Spark -> Rune]
 
 note over User_Spark_wallet,Gateway:Get runes deposit address
-User_Spark_wallet->Gateway: get address for: \n **user_pubkey** + **rune_id**
-Gateway<->Verifiers:Perform dkg (if needed), tweak **dkg_pubkey** with random **nonce**
+User_Spark_wallet->Gateway: get address for (**user_pubkey**, **rune_id**)
+Gateway<->Verifiers:Perform dkg to generate **dkg_pubkey** (if absent) \n and tweak it with random **nonce**
 Gateway->User_Spark_wallet: Retrieve **exit_spark_address** to send tokens to
 
 note over User_Spark_wallet,Gateway:Make deposit exit spark transfer
