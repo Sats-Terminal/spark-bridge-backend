@@ -1,34 +1,29 @@
 @startuml
 
 
-title Bridge interaction scheme Rune -> Spark
+title Bridge interaction scheme [Runes -> Spark]
 
-note over User_BTC_wallet,Proxy:Initial call to bridge tokens
-User_BTC_wallet->Proxy: user_pubkey + amount_in + rune_id + uuid
+note over User_BTC_wallet,Gateway:Initial call to bridge tokens
+User_BTC_wallet->Gateway: get address to replenish with parameters: \n **user_pubkey** + **amount_in** + **rune_id**
+Gateway<->Verifiers:Perform dkg between all verifiers \n to retrieve **dkg_pubkey** if absent \n and tweak it with: \n * **amount_in** \n * **rune_id**
+Gateway->User_BTC_wallet: Retrieve **deposit_btc_tweaked_bridge_address** to send tokens to
 
-note over Proxy,Verifier_1_BTC:Initial call to subscribe for pubkey tx events (Verifier_1_BTC)
+note over User_BTC_wallet,Gateway:Transfer detection event
+User_BTC_wallet->BTC_network: Create **tx** with appropriate amount of \n Runes to Bridge them to Spark
+User_BTC_wallet->Gateway: send **tx_id** to perform check and receive **wRunes** \n + send **address_to_send_wRunes**
 
-Proxy->Verifier_1_BTC:Watch for tx with: user_pubkey
-Verifier_1_BTC->Verifier_1_BTC: watch for txs with user_pubkey
-Verifier_1_BTC<->Spark_Chain: calls to watch chain changes
-Proxy<--Verifier_1_BTC: event from needed tx that matches user_pubkey
+note over Gateway,Verifiers:Initial call to check existing tx for correctness (Verifiers)
 
+Gateway->Verifiers:Watch for tx with **user_pubkey** on
+Verifiers->Verifiers: watch for **tx_id** on **deposit_btc_tweaked_bridge_address**
+Verifiers<->BTC_indexer: calls to watch chain changes
+Gateway<-Verifiers: event with correct **tx_id** meta to spawn **wRunes** on
 
-note over Proxy,Verifier_2_BTC:Initial call to subscribe for pubkey tx events (Verifier_2_BTC)
-Proxy->Verifier_2_BTC:Watch for tx with: user_pubkey
-Verifier_2_BTC->Verifier_2_BTC: watch for txs with user_pubkey
-Verifier_2_BTC<->Spark_Chain: call to watch chain changes
-Proxy<--Verifier_2_BTC: event from needed tx that matches user_pubkey
+note over Gateway,Spark_Entity:Perform **wRunes** minting and transferring
+Gateway<->Verifiers: * create appropriate transactions (mint & transfer) \n * call to Verifiers to sign transactions
+Gateway->Spark_Entity: mint and send **wRunes** tokens to **address_to_send_wRunes** on Spark chain
 
-note over Proxy:Does expected tx here?
-Proxy->Proxy: Aggregate and wait for tx events from Verifiers
-
-note over Proxy,SparkEntity:Bridge Runes to Spark
-Proxy->Spark_signer_1: sign partially formed transaction to Spark
-Proxy->Spark_signer_2: sign partially formed transaction to Spark
-Proxy->SparkEntity: Create Appropriate tx in Spark chain with newly crated account
-
-note over User_Spark_wallet, SparkEntity: Tokens acquisition
-User_Spark_wallet<-SparkEntity: wRunes
+note over User_Spark_wallet, Spark_Entity: Tokens acquisition
+User_Spark_wallet<-Spark_Entity: **wRunes**
 
 @enduml
