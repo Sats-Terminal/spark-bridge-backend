@@ -2,7 +2,7 @@
 title Bridge interaction scheme [Runes -> Spark]
 
 note over User_BTC_wallet,Gateway:Get runes deposit address
-User_BTC_wallet->Gateway: get address for: \n **user_pubkey** + **rune_id** + **amount_in** 
+User_BTC_wallet->Gateway: get address for (**user_pubkey**, **rune_id**)
 Gateway<->Verifiers:Perform dkg to generate **dkg_pubkey** (if absent) \n and tweak it with random **nonce**
 Gateway->User_BTC_wallet: Retrieve **deposit_btc_address** to send tokens to
 
