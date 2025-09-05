@@ -1,5 +1,6 @@
 BEGIN TRANSACTION;
 
-DROP TABLE IF EXISTS user_state;
+DROP TABLE IF EXISTS user_key_info;
+DROP TABLE IF EXISTS user_session_info;
 
 COMMIT;

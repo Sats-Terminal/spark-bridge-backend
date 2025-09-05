@@ -38,16 +38,6 @@ pub trait SignerUserKeyStorage: Send + Sync {
 
 #[async_trait]
 pub trait SignerUserSessionStorage: Send + Sync {
-    async fn get_session_info(
-        &self,
-        user_public_key: PublicKey,
-        session_id: Uuid,
-    ) -> Result<Option<SignerUserSessionInfo>, SignerError>;
-
-    async fn set_session_info(
-        &self,
-        user_public_key: PublicKey,
-        session_id: Uuid,
-        user_session_info: SignerUserSessionInfo,
-    ) -> Result<(), SignerError>;
+    async fn get_session_info(&self, user_public_key: PublicKey, session_id: Uuid) -> Result<Option<SignerUserSessionInfo>, DatabaseError>;
+    async fn set_session_info(&self, user_public_key: PublicKey, session_id: Uuid, user_session_info: SignerUserSessionInfo) -> Result<(), DatabaseError>;
 }

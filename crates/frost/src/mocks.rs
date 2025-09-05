@@ -40,7 +40,7 @@ impl SignerUserSessionStorage for MockSignerSessionStorage {
         &self,
         user_public_key: PublicKey,
         session_id: Uuid,
-    ) -> Result<Option<SignerUserSessionInfo>, SignerError> {
+    ) -> Result<Option<SignerUserSessionInfo>, DatabaseError> {
         Ok(self
             .storage
             .lock()
@@ -54,7 +54,7 @@ impl SignerUserSessionStorage for MockSignerSessionStorage {
         user_public_key: PublicKey,
         session_id: Uuid,
         session_info: SignerUserSessionInfo,
-    ) -> Result<(), SignerError> {
+    ) -> Result<(), DatabaseError> {
         self.storage
             .lock()
             .await

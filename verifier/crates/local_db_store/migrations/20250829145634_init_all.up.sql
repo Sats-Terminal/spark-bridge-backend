@@ -1,12 +1,21 @@
 BEGIN TRANSACTION;
 
-CREATE SCHEMA verifier;
-
-CREATE TABLE IF NOT EXISTS user_state
+CREATE TABLE IF NOT EXISTS user_key_info
 (
     user_public_key VARCHAR(255) NOT NULL,
-    state_data VARCHAR(255) NOT NULL,
+    state_data JSON NOT NULL,
     PRIMARY KEY (user_public_key)
+);
+
+CREATE TABLE IF NOT EXISTS user_session_info
+(
+    user_public_key VARCHAR(255) NOT NULL,
+    session_id VARCHAR(255) NOT NULL,
+    tweak BYTEA NOT NULL,
+    message_hash BYTEA NOT NULL,
+    metadata JSON NOT NULL,
+    state_data JSON NOT NULL,
+    PRIMARY KEY (user_public_key, session_id)
 );
 
 COMMIT;
