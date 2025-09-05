@@ -5,6 +5,8 @@ note over User_Spark_wallet,Gateway:Get runes deposit address
 User_Spark_wallet->Gateway: get address for: \n **user_pubkey** + **rune_id**
 Gateway<->Verifiers:Perform dkg (if needed), tweak **dkg_pubkey** with random **nonce**
 Gateway->User_Spark_wallet: Retrieve **exit_spark_address** to send tokens to
+
+note over User_Spark_wallet,Gateway:Make deposit exit spark transfer
 User_Spark_wallet->Spark_Entity: Create and send transaction to **exit_spark_address** with **wRunes_amount** tokens
 
 note over Spark_Balance_Checker,Gateway:Transfer detection event
