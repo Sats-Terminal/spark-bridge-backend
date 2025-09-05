@@ -19,7 +19,8 @@ Verifiers<-BTC_indexer: notify that **tx** exists
 Gateway<-Verifiers: notify that **tx** exists
 
 note over Gateway,Spark_Entity:Mint **wRunes** for the user
-Gateway<->Verifiers:Create and sign mint transaction for **spark_address**
+Gateway<->Verifiers:Perform dkg to generate **issuer_dkg_public_key**
+Gateway<->Verifiers:Create and frost sign mint transaction for **spark_address** \n with **issuer_dkg_public_key**
 Gateway->Spark_Entity: send mint transaction
 
 note over User_Spark_wallet, Spark_Entity: Tokens acquisition
