@@ -1,24 +1,26 @@
 @startuml
-
 title Bridge interaction scheme [Spark -> Rune]
 
-note over User_Spark_wallet,Gateway:Initial call to bridge tokens
-User_Spark_wallet->Gateway: get address to replenish with parameters: \n **user_pubkey**
-Gateway->Verifiers: Run dkg flow if **user_pubkey** is absent \n and return **dkg_pubkey**
-Gateway->User_Spark_wallet: Return **bridge_spark_address** generated \n from tweaked **dkg_pubkey** with **nonce**
-User_Spark_wallet->Spark_Entity: Create and send transaction to **bridge_spark_address** with appropriate amount of tokens
+note over User_Spark_wallet,Gateway:Get runes deposit address
+User_Spark_wallet->Gateway: get address for: \n **user_pubkey** + **rune_id** + **amount_in** 
+Gateway<->Verifiers:Perform dkg (if needed), tweak **dkg_pubkey** with random **nonce**
+Gateway->User_Spark_wallet: Retrieve **exit_spark_address** to send tokens to
+User_Spark_wallet->Spark_Entity: Create and send transaction to **exit_spark_address** with **wRunes_amount** tokens
 
 note over Spark_Balance_Checker,Gateway:Transfer detection event
-Gateway->Verifiers:Check **bridge_spark_address** for receiving tokens
-Verifiers<->Spark_Balance_Checker:Check **bridge_spark_address** for replenishment
-Verifiers->Gateway:Tokens on **bridge_spark_address** are received
-Gateway->Spark_Entity: Trigger burning for tokens that we receive on **bridge_spark_address**
+User_Spark_wallet->Gateway:Notify the tx is created and specify \n **runes_address** to send runes to
+Gateway->Verifiers:Check **exit_spark_address** that have **wRunes_amount** tokens
+Verifiers->Spark_Balance_Checker:Check **exit_spark_address** that have **wRunes_amount** tokens
+Verifiers<-Spark_Balance_Checker:Verify
+Verifiers->Gateway:Verify
+Gateway->Verifiers:Create and sign burning transaction for **exit_spark_address**
+Gateway->Spark_Entity:Send transaction
 
 note over Gateway,BTC_network:Perform **Runes** UTXOs selection and transferring
-Gateway->Verifiers: * create appropriate transaction(s) \n (selection of appropriate RuneStones UTXOs & transfer) \n * call to Verifiers to sign transfer transaction(s)
-Gateway->BTC_network: mint and send **wRunes** tokens to **address_to_send_Runes** on Spark chain
+Gateway->Gateway:Select UTXOs
+Gateway->Verifiers:Create and sign transaction to **runes_address** on btc
+Gateway->BTC_network:Send transaction
 
-note over User_BTC_wallet, BTC_network: Tokens acquisition
+note over User_BTC_wallet, BTC_network: Runes acquisition
 User_BTC_wallet<-BTC_network: **Runes**
-
 @enduml
