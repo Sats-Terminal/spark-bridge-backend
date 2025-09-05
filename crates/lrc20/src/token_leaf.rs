@@ -38,7 +38,7 @@ pub struct TokenLeaf {
 ///
 ///
 /// This struct contains the parent leaf hash and index of the leaf to spend.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TokenLeafToSpend {
     /// The hash of the parent leaf.
     pub parent_leaf_hash: Hash,
@@ -48,7 +48,7 @@ pub struct TokenLeafToSpend {
 }
 
 /// Represents the data structure for a Spark LRC-20 token leaf node.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TokenLeafOutput {
     /// The ID of the leaf.
     pub id: Option<String>,

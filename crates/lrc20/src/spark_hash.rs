@@ -1,5 +1,5 @@
 use std::ops::Deref;
-
+use serde::{Deserialize, Serialize};
 use bitcoin::hashes::{Hash, HashEngine, sha256::Hash as Sha256Hash};
 use thiserror::Error;
 
@@ -12,7 +12,7 @@ use crate::{
 ///
 /// Defined as: `PXH = hash(hash(Y) || UV)`, where `Y` - is token_amount (amount),
 /// and `UV` - is token type (issuer public key).
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SparkHash(pub Sha256Hash);
 
 impl Deref for SparkHash {

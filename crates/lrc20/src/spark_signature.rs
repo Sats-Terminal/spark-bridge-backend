@@ -1,10 +1,11 @@
 use bitcoin::secp256k1::{self, ecdsa, schnorr};
+use serde::{Deserialize, Serialize};
 
 /// Represents the signature of an operator for a token transaction.
 ///
 /// This enum defines the different types of signatures that can be used for a token transaction.
 /// It includes ECDSA and Schnorr signatures.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SparkSignature {
     /// Represents an ECDSA signature.
     ECDSA(ecdsa::Signature),

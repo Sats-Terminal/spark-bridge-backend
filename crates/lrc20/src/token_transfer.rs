@@ -5,9 +5,10 @@ use crate::{
     token_identifier::TokenIdentifier,
     token_leaf::{TokenLeafOutput, TokenLeafToSpend},
 };
+use serde::{Deserialize, Serialize};
 
 /// The request for a token transfer.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TokenTransfer {
     /// The pre-computed token transaction hash to use as transfer ID (if None, will be computed)
     pub transfer_hash: Option<SparkHash>,

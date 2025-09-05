@@ -1,48 +1,55 @@
 use std::sync::Arc;
-
 use frost_secp256k1_tr::{Identifier, keys::Tweak};
-
 use rand_core::OsRng;
-
-use crate::{config::SignerConfig, errors::SignerError, traits::*};
+use crate::{errors::SignerError, traits::*, types::*};
 
 #[derive(Clone)]
 pub struct FrostSigner {
-    config: SignerConfig,
-    user_storage: Arc<dyn SignerUserStorage>, // TODO: implement signer storage
+    user_key_storage: Arc<dyn SignerUserKeyStorage>, // TODO: implement signer storage
     identifier: Identifier,
-    session_storage: Arc<dyn SignerSessionStorage>,
+    user_session_storage: Arc<dyn SignerUserSessionStorage>,
+    total_participants: u16,
+    threshold: u16,
 }
 
 impl FrostSigner {
-    pub fn new(config: SignerConfig, user_storage: Arc<dyn SignerUserStorage>, session_storage: Arc<dyn SignerSessionStorage>) -> Self {
+    pub fn new(
+        identifier: u16, 
+        user_key_storage: Arc<dyn SignerUserKeyStorage>, 
+        user_session_storage: Arc<dyn SignerUserSessionStorage>,
+        total_participants: u16,
+        threshold: u16,
+    ) -> Self {
         Self {
-            config: config.clone(),
-            user_storage,
-            identifier: config.identifier.try_into().unwrap(),
-            session_storage
+            user_key_storage,
+            user_session_storage,
+            identifier: identifier.try_into().unwrap(),
+            total_participants,
+            threshold,
         }
     }
 
     pub async fn dkg_round_1(&self, request: DkgRound1Request) -> Result<DkgRound1Response, SignerError> {
-        let user_id = request.user_id;
-        let state = self.user_storage.get_user_state(user_id.clone()).await?;
+        let user_public_key = request.user_public_key;
+        let key_info = self.user_key_storage.get_key_info(user_public_key.clone()).await?;
 
-        match state {
+        match key_info {
             None => {
                 let (secret_package, package) = frost_secp256k1_tr::keys::dkg::part1(
                     self.identifier,
-                    self.config.total_participants,
-                    self.config.threshold,
+                    self.total_participants,
+                    self.threshold,
                     &mut OsRng,
                 )
                 .map_err(|e| SignerError::Internal(format!("DKG round1 failed: {e}")))?;
 
-                self.user_storage
-                    .set_user_state(
-                        user_id.clone(),
-                        SignerUserState::DkgRound1 {
-                            round1_secret_package: secret_package,
+                self.user_key_storage
+                    .set_key_info(
+                        user_public_key.clone(),
+                        SignerUserKeyInfo {
+                            state: SignerUserKeyState::DkgRound1 {
+                                round1_secret_package: secret_package,
+                            },
                         },
                     )
                     .await?;
@@ -52,29 +59,31 @@ impl FrostSigner {
                 })
             }
             _ => {
-                return Err(SignerError::InvalidUserState(
-                    "User state is not SigningRound1".to_string(),
-                ));
+                Err(SignerError::InvalidUserState(
+                    "User key state is not Null".to_string(),
+                ))
             }
         }
     }
 
     pub async fn dkg_round_2(&self, request: DkgRound2Request) -> Result<DkgRound2Response, SignerError> {
-        let user_id = request.user_id;
-        let state = self.user_storage.get_user_state(user_id.clone()).await?;
+        let user_public_key = request.user_public_key;
+        let key_info = self.user_key_storage.get_key_info(user_public_key.clone()).await?;
 
-        match state {
-            Some(SignerUserState::DkgRound1 { round1_secret_package }) => {
+        match key_info {
+            Some(SignerUserKeyInfo { state: SignerUserKeyState::DkgRound1 { round1_secret_package } }) => {
                 let (secret_package, packages) =
                     frost_secp256k1_tr::keys::dkg::part2(round1_secret_package.clone(), &request.round1_packages)
                         .map_err(|e| SignerError::Internal(format!("DKG round2 failed: {e}")))?;
 
-                self.user_storage
-                    .set_user_state(
-                        user_id.clone(),
-                        SignerUserState::DkgRound2 {
-                            round2_secret_package: secret_package,
-                            round1_packages: request.round1_packages,
+                self.user_key_storage
+                    .set_key_info(
+                        user_public_key.clone(),
+                        SignerUserKeyInfo {
+                            state: SignerUserKeyState::DkgRound2 {
+                                round2_secret_package: secret_package,
+                                round1_packages: request.round1_packages,
+                            },
                         },
                     )
                     .await?;
@@ -84,22 +93,22 @@ impl FrostSigner {
                 })
             }
             _ => {
-                return Err(SignerError::InvalidUserState(
-                    "User state is not SigningRound1".to_string(),
-                ));
+                Err(SignerError::InvalidUserState(
+                    "User key state is not DkgRound1".to_string(),
+                ))
             }
         }
     }
 
     pub async fn dkg_finalize(&self, request: DkgFinalizeRequest) -> Result<DkgFinalizeResponse, SignerError> {
-        let user_id = request.user_id;
-        let state = self.user_storage.get_user_state(user_id.clone()).await?;
+        let user_public_key = request.user_public_key;
+        let key_info = self.user_key_storage.get_key_info(user_public_key.clone()).await?;
 
-        match state {
-            Some(SignerUserState::DkgRound2 {
+        match key_info {
+            Some(SignerUserKeyInfo { state: SignerUserKeyState::DkgRound2 {
                 round2_secret_package,
                 round1_packages,
-            }) => {
+            }}) => {
                 let (key_package, public_key_package) = frost_secp256k1_tr::keys::dkg::part3(
                     &round2_secret_package,
                     &round1_packages,
@@ -107,28 +116,30 @@ impl FrostSigner {
                 )
                 .map_err(|e| SignerError::Internal(format!("DKG finalize failed: {e}")))?;
 
-                self.user_storage
-                    .set_user_state(user_id.clone(), SignerUserState::DkgFinalized { key_package })
+                self.user_key_storage
+                    .set_key_info(user_public_key.clone(), SignerUserKeyInfo { state: SignerUserKeyState::DkgFinalized { key_package } })
                     .await?;
                 Ok(DkgFinalizeResponse { public_key_package })
             }
             _ => {
-                return Err(SignerError::InvalidUserState(
-                    "User state is not SigningRound1".to_string(),
-                ));
+                Err(SignerError::InvalidUserState(
+                    "User key state is not DkgRound2".to_string(),
+                ))
             }
         }
     }
 
     pub async fn sign_round_1(&self, request: SignRound1Request) -> Result<SignRound1Response, SignerError> {
-        let user_id = request.user_id;
+        let user_public_key = request.user_public_key;
         let session_id = request.session_id.clone();
         let tweak = request.tweak;
+        let message_hash = request.message_hash;
+        let metadata = request.metadata;
 
-        let state = self.user_storage.get_user_state(user_id.clone()).await?;
+        let key_info = self.user_key_storage.get_key_info(user_public_key.clone()).await?;
 
-        match state {
-            Some(SignerUserState::DkgFinalized { key_package}) => {
+        match key_info {
+            Some(SignerUserKeyInfo { state: SignerUserKeyState::DkgFinalized { key_package } }) => {
                 let tweak_key_package = match tweak.clone() {
                     Some(tweak) => key_package.clone().tweak(Some(tweak.to_vec())),
                     None => key_package.clone(),
@@ -136,59 +147,69 @@ impl FrostSigner {
                 let (nonces, commitments) =
                     frost_secp256k1_tr::round1::commit(tweak_key_package.signing_share(), &mut OsRng);
 
-                self.session_storage
-                    .set_session_state(
-                        user_id.clone(),
+                self.user_session_storage
+                    .set_session_info(
+                        user_public_key.clone(),
                         session_id.clone(),
-                        SignerSessionState::SigningRound1 {
-                            key_package,
+                        SignerUserSessionInfo {
                             tweak,
-                            nonces,
+                            message_hash,
+                            metadata,
+                            state: SignerUserSessionState::SigningRound1 {
+                                nonces,
+                            },
                         },
                     )
                     .await?;
-                Ok(SignRound1Response { user_id, session_id, commitments })
+                Ok(SignRound1Response { user_public_key, session_id, commitments })
             }
             _ => {
                 Err(SignerError::InvalidUserState(
-                    "User state is not SigningRound1".to_string(),
+                    "User key state is not DkgFinalized".to_string(),
                 ))
             }
         }
     }
 
     pub async fn sign_round_2(&self, request: SignRound2Request) -> Result<SignRound2Response, SignerError> {
-        let user_id = request.user_id.clone();
+        let user_public_key = request.user_public_key;
         let session_id = request.session_id.clone();
-        // let state = self.user_storage.get_user_state(user_id.clone()).await?;
+        
+        let key_info = self.user_key_storage.get_key_info(user_public_key.clone()).await?;
 
-        let session_state = self.session_storage
-            .get_session_state(user_id.clone(), session_id.clone())
-            .await?;
+        let key_package = match key_info {
+            Some(SignerUserKeyInfo { state: SignerUserKeyState::DkgFinalized { key_package } }) => key_package,
+            _ => return Err(SignerError::InvalidUserState("User key state is not DkgFinalized".to_string())),
+        };
 
-        match session_state {
-            Some(SignerSessionState::SigningRound1 {
-                key_package,
-                tweak,
+        let mut session_info = self.user_session_storage
+            .get_session_info(user_public_key.clone(), session_id.clone())
+            .await?
+            .ok_or(SignerError::InvalidUserState("Session state is not SigningRound1".to_string()))?;
+
+        assert_eq!(session_info.message_hash, request.signing_package.message().clone());
+
+        match session_info.state {
+            SignerUserSessionState::SigningRound1 {
                 nonces,
-            }) => {
-                let tweak_key_package = match tweak.clone() {
+            } => {
+                let tweak_key_package = match session_info.tweak.clone() {
                     Some(tweak) => key_package.clone().tweak(Some(tweak.to_vec())),
                     None => key_package.clone(),
                 };
                 let signature_share =
                     frost_secp256k1_tr::round2::sign(&request.signing_package, &nonces, &tweak_key_package)
                         .map_err(|e| SignerError::Internal(format!("Sign round2 failed: {e}")))?;
+                
+                session_info.state = SignerUserSessionState::SigningRound2 {
+                    signature_share,
+                };
 
-                self.session_storage
-                    .set_session_state(
-                        user_id.clone(),
+                self.user_session_storage
+                    .set_session_info(
+                        user_public_key.clone(),
                         session_id.clone(),
-                        SignerSessionState::SigningRound2 {
-                            key_package: key_package.clone(),
-                            tweak: tweak.clone(),
-                            signature_share: signature_share.clone(),
-                        },
+                        session_info,
                     )
                     .await?;
 
@@ -199,7 +220,7 @@ impl FrostSigner {
             }
             _ => {
                 Err(SignerError::InvalidUserState(
-                    "User state is not SigningRound1".to_string(),
+                    "User session state is not SigningRound1".to_string(),
                 ))
             }
         }

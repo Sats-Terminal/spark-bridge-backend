@@ -2,7 +2,7 @@ use std::{
     array::TryFromSliceError,
     fmt::{Display, Formatter},
 };
-
+use serde::{Deserialize, Serialize};
 use bitcoin::{
     hashes::{FromSliceError, sha256::Hash},
     secp256k1::{Error as Secp256k1Error, PublicKey},
@@ -17,7 +17,7 @@ use crate::{
 };
 
 /// Represents a version of a token transaction
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TokenTransactionVersion {
     /// Token transfers V1
     V1,
@@ -50,7 +50,7 @@ impl Display for TokenTransactionVersion {
 /// This struct contains the input and output information for a token transaction.
 /// It includes the input type (Mint, Transfer, etc.), the leaves to create,
 /// the operator identity public keys, and the network information.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TokenTransaction {
     /// The version (should always be V2)
     pub version: TokenTransactionVersion,
@@ -101,7 +101,7 @@ impl TryFrom<&TokenTransaction> for Hash {
 ///
 /// This enum defines the different types of token transactions that can be created.
 /// It includes minting, transferring, and other possible transaction types.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TokenTransactionInput {
     /// Represents an LRC20 mint transaction.
     Mint(TokenTransactionMintInput),
@@ -114,7 +114,7 @@ pub enum TokenTransactionInput {
 }
 
 /// Represents an LRC20 mint transaction.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TokenTransactionMintInput {
     /// The public key of the issuer of the token.
     pub issuer_public_key: PublicKey,
@@ -130,14 +130,14 @@ pub struct TokenTransactionMintInput {
 }
 
 /// Represents an LRC20 transfer transaction.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TokenTransactionTransferInput {
     /// The leaves to spend in the transfer transaction.
     pub leaves_to_spend: Vec<TokenLeafToSpend>,
 }
 
 /// Represents an LRC20 create transaction.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TokenTransactionCreateInput {
     /// The issuer public key
     pub issuer_public_key: PublicKey,
@@ -164,7 +164,7 @@ pub struct TokenTransactionCreateInput {
 /// Represents the operator specific signature data for a token transaction.
 ///
 /// This struct contains the identity public key and the signature of the operator.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct OperatorSpecificSignatureData {
     /// The public key of the operator.
     pub identity_public_key: Option<PublicKey>,

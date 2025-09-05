@@ -3,6 +3,7 @@ use std::{
     io::{self, Cursor, Read},
 };
 
+use serde::{Deserialize, Serialize};
 use bitcoin::{
     Network,
     consensus::ReadExt,
@@ -59,8 +60,7 @@ pub const MAX_TOKEN_METADATA_SIZE: usize = PUBLIC_KEY_SIZE
     + size_of::<Network>();
 
 /// LRC20 token metadata.
-#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct TokenMetadata {
     /// The public key of the issuer.
     pub issuer_public_key: PublicKey,
