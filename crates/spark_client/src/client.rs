@@ -7,10 +7,9 @@ use spark_protos::spark::{
 };
 use tokio::sync::Mutex;
 use tonic::transport::Channel;
-
 use crate::{
     common::{config::SparkConfig, error::SparkClientError},
-    connection::SparkConnectionPool,
+    connection::{SparkClients, SparkConnectionPool},
     utils::spark_address::{Network, decode_spark_address},
 };
 
@@ -20,7 +19,7 @@ const N_OPERATOR_SWITCHES: usize = 2;
 #[derive(Clone)]
 pub struct SparkRpcClient {
     connection_pool: Arc<Mutex<SparkConnectionPool>>,
-    cached_client: Option<SparkServiceClient<Channel>>,
+    cached_clients: Option<SparkClients>,
 }
 
 impl SparkRpcClient {
@@ -28,17 +27,17 @@ impl SparkRpcClient {
         let connection_pool = SparkConnectionPool::new(config);
         Self {
             connection_pool: Arc::new(Mutex::new(connection_pool)),
-            cached_client: None,
+            cached_clients: None,
         }
     }
 
-    async fn get_client(&mut self) -> Result<SparkServiceClient<Channel>, SparkClientError> {
-        match &self.cached_client {
+    async fn get_clients(&mut self) -> Result<SparkClients, SparkClientError> {
+        match &self.cached_clients {
             Some(client) => Ok(client.clone()),
             None => {
                 let mut connection_pool = self.connection_pool.lock().await;
-                let client = connection_pool.create_client().await?;
-                self.cached_client = Some(client.clone());
+                let client = connection_pool.create_clients().await?;
+                self.cached_clients = Some(client.clone());
                 Ok(client)
             }
         }
@@ -47,20 +46,20 @@ impl SparkRpcClient {
     async fn switch_operator(&mut self) {
         let mut connection_pool = self.connection_pool.lock().await;
         connection_pool.switch_operator().await;
-        self.cached_client = None;
+        self.cached_clients = None;
     }
 
     async fn retry_query<F, Fut, Resp, P>(&mut self, query_fn: F, params: P) -> Result<Resp, SparkClientError>
     where
-        F: Fn(SparkServiceClient<Channel>, P) -> Fut,
+        F: Fn(SparkClients, P) -> Fut,
         Fut: Future<Output = Result<Resp, SparkClientError>>,
         P: Clone,
     {
         for _i in 0..N_OPERATOR_SWITCHES {
             for _j in 0..N_QUERY_RETRIES {
-                match self.get_client().await {
-                    Ok(client) => {
-                        let response = query_fn(client.clone(), params.clone()).await;
+                match self.get_clients().await {
+                    Ok(clients) => {
+                        let response = query_fn(clients.clone(), params.clone()).await;
                         match response {
                             Ok(response) => {
                                 return Ok(response);
@@ -99,20 +98,21 @@ impl SparkRpcClient {
             .map_err(|e| SparkClientError::DecodeError(format!("Failed to decode token identifier: {}", e)))?
             .1;
 
-        let query_fn = |mut client: SparkServiceClient<Channel>, params: (Vec<u8>, Vec<u8>, Network)| async move {
-            let request = QueryTokenOutputsRequest {
-                owner_public_keys: vec![params.0],
-                token_identifiers: vec![params.1],
-                token_public_keys: vec![],
-                network: params.2 as i32,
-            };
-            client
+        let request = QueryTokenOutputsRequest {
+            owner_public_keys: vec![identity_public_key],
+            token_identifiers: vec![token_identifier],
+            token_public_keys: vec![],
+            network: address_data.network as i32,
+        };
+
+        let query_fn = |mut clients: SparkClients, request: QueryTokenOutputsRequest| async move {
+            clients.spark
                 .query_token_outputs(request)
                 .await
                 .map_err(|e| SparkClientError::ConnectionError(format!("Failed to query balance: {}", e)))
         };
 
-        self.retry_query(query_fn, (identity_public_key, token_identifier, address_data.network))
+        self.retry_query(query_fn, request)
             .await
             .map(|r| r.into_inner())
     }

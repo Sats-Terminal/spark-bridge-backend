@@ -182,12 +182,6 @@ pub struct SigningMetadata {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TokenTransactionMetadata {
-    PartialTokenTransfer {
-        token_transaction: TokenTransaction,
-    },
-    FinalTokenTransfer {
-        token_transaction: TokenTransaction,
-    },
     PartialCreateToken {
         token_transaction: TokenTransaction,
     },

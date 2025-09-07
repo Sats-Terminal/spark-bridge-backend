@@ -7,6 +7,8 @@ use lrc20::token_transaction::TokenTransactionCreateInput;
 use lrc20::token_transaction::TokenTransactionMintInput;
 use lrc20::token_leaf::TokenLeafOutput;
 use lrc20::token_identifier::TokenIdentifier;
+use frost::types::SigningMetadata;
+use frost::types::TokenTransactionMetadata;
 use crate::errors::SparkServiceError;
 use spark_client::utils::spark_address::Network;
 use bitcoin::secp256k1::PublicKey;
@@ -19,117 +21,58 @@ const DEFAULT_IS_FREEZABLE: bool = false;
 #[derive(Debug, Clone)]
 pub enum SparkTransactionType {
     Mint {
-        issuer_identity_public_key: PublicKey,
-        receiver_identity_public_key: PublicKey,
-        token_amount: u128,
-    },
-    Transfer {
-        leaves_to_spend: Vec<TokenLeafToSpend>,
-        leaves_to_spend_token_outputs: Vec<TokenLeafOutput>,
-        sender_identity_public_key: PublicKey,
         receiver_identity_public_key: PublicKey,
         token_amount: u128,
     },
     Create {
-        issuer_identity_public_key: PublicKey,
         token_name: String,
         token_ticker: String,
     },
 }
 
-#[derive(Debug, Clone)]
-pub struct SparkTransactionRequest {
+pub fn create_partial_token_transaction(
+    issuer_public_key: PublicKey,
+    spark_transaction_type: SparkTransactionType,
     token_identifier: TokenIdentifier,
-    transaction_type: SparkTransactionType,
-    network: Network,
     spark_operator_identity_public_keys: Vec<PublicKey>,
-}
-
-pub fn create_partial_token_transaction(request: SparkTransactionRequest) -> Result<TokenTransaction, SparkServiceError> {
-    match request.transaction_type {
+    network: Network,
+) -> Result<TokenTransaction, SparkServiceError> {
+    match spark_transaction_type {
         SparkTransactionType::Mint {
-            issuer_identity_public_key,
             receiver_identity_public_key,
             token_amount,
         } => {
             let token_transaction = TokenTransaction {
                 version: TokenTransactionVersion::V2,
                 input: TokenTransactionInput::Mint(TokenTransactionMintInput {
-                    issuer_public_key: issuer_identity_public_key,
-                    token_identifier: Some(request.token_identifier),
+                    issuer_public_key: issuer_public_key,
+                    token_identifier: Some(token_identifier),
                     issuer_signature: None,
                     issuer_provided_timestamp: None,
                 }),
                 leaves_to_create: vec![
                     create_partial_token_leaf_output(
-                        issuer_identity_public_key, 
+                        issuer_public_key, 
                         receiver_identity_public_key, 
-                        request.token_identifier, 
+                        token_identifier, 
                         token_amount
                     )
                 ],
-                spark_operator_identity_public_keys: request.spark_operator_identity_public_keys,
+                spark_operator_identity_public_keys: spark_operator_identity_public_keys,
                 expiry_time: 0,
-                network: Some(request.network as u32),
-                client_created_timestamp: chrono::Utc::now().timestamp_millis() as u64,
-            };
-            Ok(token_transaction)
-        }
-        SparkTransactionType::Transfer { 
-            leaves_to_spend,
-            leaves_to_spend_token_outputs,
-            sender_identity_public_key,
-            receiver_identity_public_key,
-            token_amount,
-        } => {
-            let total_input_amount = leaves_to_spend_token_outputs.iter().map(|output| output.token_amount).sum::<u128>();
-            if total_input_amount < token_amount {
-                return Err(SparkServiceError::InvalidData("Total input amount is less than token amount".to_string()));
-            }
-            if leaves_to_spend.len() != leaves_to_spend_token_outputs.len() {
-                return Err(SparkServiceError::InvalidData("Leaves to spend and leaves to spend token outputs length mismatch".to_string()));
-            }
-            for token_output in leaves_to_spend_token_outputs {
-                if token_output.token_identifier != request.token_identifier {
-                    return Err(SparkServiceError::InvalidData("Token identifier mismatch".to_string()));
-                }
-            }
-
-            let token_transaction = TokenTransaction {
-                version: TokenTransactionVersion::V2,
-                input: TokenTransactionInput::Transfer(TokenTransactionTransferInput {
-                    leaves_to_spend: leaves_to_spend,
-                }),
-                leaves_to_create: vec![
-                    create_partial_token_leaf_output(
-                        sender_identity_public_key, 
-                        receiver_identity_public_key, 
-                        request.token_identifier, 
-                        token_amount
-                    ),
-                    create_partial_token_leaf_output(
-                        sender_identity_public_key, 
-                        sender_identity_public_key, 
-                        request.token_identifier, 
-                        total_input_amount - token_amount
-                    )
-                ],
-                spark_operator_identity_public_keys: request.spark_operator_identity_public_keys,
-                expiry_time: 0,
-                network: Some(request.network as u32),
+                network: Some(network as u32),
                 client_created_timestamp: chrono::Utc::now().timestamp_millis() as u64,
             };
             Ok(token_transaction)
         }
         SparkTransactionType::Create {
-            issuer_identity_public_key,
             token_name,
             token_ticker,
         } => {
             let token_transaction = TokenTransaction {
                 version: TokenTransactionVersion::V2,
                 input: TokenTransactionInput::Create(TokenTransactionCreateInput {
-                    issuer_public_key: issuer_identity_public_key,
+                    issuer_public_key,
                     token_name: token_name,
                     token_ticker: token_ticker,
                     decimals: DEFAULT_DECIMALS,
@@ -138,9 +81,9 @@ pub fn create_partial_token_transaction(request: SparkTransactionRequest) -> Res
                     creation_entity_public_key: None,
                 }),
                 leaves_to_create: vec![],
-                spark_operator_identity_public_keys: request.spark_operator_identity_public_keys,
+                spark_operator_identity_public_keys: spark_operator_identity_public_keys,
                 expiry_time: 0,
-                network: Some(request.network as u32),
+                network: Some(network as u32),
                 client_created_timestamp: chrono::Utc::now().timestamp_millis() as u64,
             };
             Ok(token_transaction)
@@ -167,5 +110,37 @@ fn create_partial_token_leaf_output(
         id: None,
         withdrawal_bond_sats: None,
         withdrawal_locktime: None,
+    }
+}
+
+pub fn create_signing_metadata(
+    token_transaction: TokenTransaction,
+    spark_transaction_type: SparkTransactionType,
+    is_partial: bool,
+) -> SigningMetadata {
+    let token_transaction_metadata: TokenTransactionMetadata = match (spark_transaction_type, is_partial) {
+        (SparkTransactionType::Mint { .. }, true) => {
+            TokenTransactionMetadata::PartialMintToken {
+                token_transaction,
+            }
+        }
+        (SparkTransactionType::Mint { .. }, false) => {
+            TokenTransactionMetadata::FinalMintToken {
+                token_transaction,
+            }
+        }
+        (SparkTransactionType::Create { .. }, true) => {
+            TokenTransactionMetadata::PartialCreateToken {
+                token_transaction,
+            }
+        }
+        (SparkTransactionType::Create { .. }, false) => {
+            TokenTransactionMetadata::FinalCreateToken {
+                token_transaction,
+            }
+        }
+    };
+    SigningMetadata {
+        token_transaction_metadata,
     }
 }

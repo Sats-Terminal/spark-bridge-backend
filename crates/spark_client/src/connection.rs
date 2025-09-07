@@ -1,12 +1,19 @@
 use std::str::FromStr;
 
 use spark_protos::spark::spark_service_client::SparkServiceClient;
+use spark_protos::spark_token::spark_token_service_client::SparkTokenServiceClient;
 use tonic::transport::{Certificate, Channel, ClientTlsConfig, Uri};
 
 use crate::SparkOperatorConfig;
 use crate::common::{config::SparkConfig, error::SparkClientError};
 
-pub(crate) struct SparkConnectionPool {
+#[derive(Clone)]
+pub struct SparkClients {
+    pub spark: SparkServiceClient<Channel>,
+    pub spark_token: SparkTokenServiceClient<Channel>,
+}
+
+pub struct SparkConnectionPool {
     current_connection: usize,
     certificate: Certificate,
     operators: Vec<SparkOperatorConfig>,
@@ -46,12 +53,15 @@ impl SparkConnectionPool {
     }
 
     // This function creates a new spark client.
-    pub(crate) async fn create_client(&mut self) -> Result<SparkServiceClient<Channel>, SparkClientError> {
+    pub(crate) async fn create_clients(&mut self) -> Result<SparkClients, SparkClientError> {
         let base_url = self.operators[self.current_connection].base_url.clone();
 
         let channel = self.create_tls_channel(base_url.0.to_string()).await?;
 
-        Ok(SparkServiceClient::new(channel))
+        Ok(SparkClients {
+            spark: SparkServiceClient::new(channel.clone()),
+            spark_token: SparkTokenServiceClient::new(channel),
+        })
     }
 
     // This function switches to the next operator in the pool.
@@ -85,7 +95,7 @@ mod tests {
             ca_pem: CaCertificate::from_path("../../spark_balance_checker/infrastructure/configuration/ca.pem")?.ca_pem,
         };
         let mut connection_pool = SparkConnectionPool::new(spark_config);
-        connection_pool.create_client().await?;
+        connection_pool.create_clients().await?;
         Ok(())
     }
 }

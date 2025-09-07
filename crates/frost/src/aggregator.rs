@@ -347,4 +347,24 @@ impl FrostAggregator {
             _ => Err(AggregatorError::InvalidUserState("Session state is not SigningRound2".to_string())),
         }
     }
+
+    pub async fn get_public_key_package(
+        &self,
+        musig_id: MusigId,
+        tweak: Option<&[u8]>,
+    ) -> Result<keys::PublicKeyPackage, AggregatorError> {
+        let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id.clone()).await?;
+        
+        match musig_id_data {
+            Some(AggregatorMusigIdData { dkg_state: AggregatorDkgState::DkgFinalized { public_key_package } }) => {
+                let tweaked_public_key_package = match tweak.clone() {
+                    Some(tweak) => public_key_package.clone().tweak(Some(tweak.to_vec())),
+                    None => public_key_package.clone(),
+                };
+                Ok(tweaked_public_key_package)
+            },
+            None => Err(AggregatorError::InvalidUserState("User state is not found".to_string())),
+            _ => Err(AggregatorError::InvalidUserState("User state is not DkgFinalized".to_string())),
+        }
+    }
 }
