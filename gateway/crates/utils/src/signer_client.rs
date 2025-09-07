@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use frost::traits::SignerClient as SignerClientTrait;
 use frost::traits::*;
+use frost::types::*;
 use frost::errors::AggregatorError;
 use gateway_config_parser::config::VerifierConfig;
 use reqwest::{Client, Url};

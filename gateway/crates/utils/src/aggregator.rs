@@ -1,6 +1,7 @@
 use crate::signer_client::SignerClient;
 use frost::aggregator::FrostAggregator;
-use frost::mocks::MockAggregatorUserStorage;
+use frost::mocks::MockAggregatorMusigIdStorage;
+use frost::mocks::MockAggregatorSignSessionStorage;
 use frost::traits::SignerClient as SignerClientTrait;
 use frost_secp256k1_tr::Identifier;
 use gateway_config_parser::config::ServerConfig;
@@ -15,5 +16,5 @@ pub fn create_aggregator_from_config(config: ServerConfig) -> FrostAggregator {
         verifiers.insert(verifier.id.try_into().unwrap(), Arc::new(signer_client));
     }
 
-    FrostAggregator::new(verifiers, Arc::new(MockAggregatorUserStorage::new()))
+    FrostAggregator::new(verifiers, Arc::new(MockAggregatorMusigIdStorage::new()), Arc::new(MockAggregatorSignSessionStorage::new()))
 }

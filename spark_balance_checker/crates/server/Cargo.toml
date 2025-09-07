@@ -15,3 +15,5 @@ tracing = { workspace = true }
 utoipa = { workspace = true }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 hex = { workspace = true }
+spark-protos = { workspace = true }
+bech32 = { workspace = true }

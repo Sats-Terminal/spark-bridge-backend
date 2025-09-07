@@ -1,5 +1,7 @@
 use crate::errors::FlowProcessorError;
 use tokio::sync::oneshot;
+use frost::types::MusigId;
+use bitcoin::secp256k1::PublicKey;
 use uuid::Uuid;
 
 pub type OneshotFlowProcessorSender = oneshot::Sender<Result<FlowProcessorResponse, FlowProcessorError>>;
@@ -18,11 +20,11 @@ pub enum FlowProcessorResponse {
 }
 
 pub struct DkgFlowRequest {
-    pub user_public_key: String,
+    pub musig_id: MusigId,
 }
 
 pub struct DkgFlowResponse {
-    pub public_key: String,
+    pub public_key: PublicKey,
 }
 
 pub struct BridgeRunesRequest {

@@ -13,6 +13,8 @@ spark-protos = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 tonic = { workspace = true }
+bitcoin = { workspace = true }
+lrc20 = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }

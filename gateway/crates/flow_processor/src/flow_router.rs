@@ -65,7 +65,7 @@ impl FlowProcessorRouter {
     async fn run_dkg_flow(&mut self, request: DkgFlowRequest) -> Result<DkgFlowResponse, FlowProcessorError> {
         let public_key_package = self
             .frost_aggregator
-            .run_dkg_flow(request.user_public_key)
+            .run_dkg_flow(request.musig_id)
             .await
             .map_err(|e| FlowProcessorError::FrostAggregatorError(e.to_string()))?;
 
@@ -73,7 +73,7 @@ impl FlowProcessorRouter {
             .map_err(|e| FlowProcessorError::InvalidDataError(e.to_string()))?;
 
         Ok(DkgFlowResponse {
-            public_key: public_key.to_string(),
+            public_key
         })
     }
 

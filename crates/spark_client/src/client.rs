@@ -1,20 +1,24 @@
 use std::{future::Future, sync::Arc};
-
+use bitcoin::secp256k1::PublicKey;
 use hex;
 use log;
 use spark_protos::spark::{
-    QueryTokenOutputsRequest, QueryTokenOutputsResponse, spark_service_client::SparkServiceClient,
+    QueryTokenOutputsRequest, QueryTokenOutputsResponse, 
 };
+use spark_protos::spark_token::{TokenTransaction as TokenTransactionV2SparkProto};
+use lrc20::token_transaction::TokenTransaction;
+use lrc20::marshal::marshal_token_transaction;
+use spark_protos::spark_token::{StartTransactionRequest, StartTransactionResponse, SignatureWithIndex};
 use tokio::sync::Mutex;
-use tonic::transport::Channel;
 use crate::{
     common::{config::SparkConfig, error::SparkClientError},
     connection::{SparkClients, SparkConnectionPool},
-    utils::spark_address::{Network, decode_spark_address},
+    utils::spark_address::decode_spark_address,
 };
 
 const N_QUERY_RETRIES: usize = 3;
 const N_OPERATOR_SWITCHES: usize = 2;
+const DEFAULT_VALIDITY_DURATION_SECONDS: u64 = 300;
 
 #[derive(Clone)]
 pub struct SparkRpcClient {
@@ -87,29 +91,30 @@ impl SparkRpcClient {
 
     pub async fn get_token_outputs(
         &mut self,
-        spark_address: String,
-        token_identifier: String,
+        request: QueryTokenOutputsRequest,
     ) -> Result<QueryTokenOutputsResponse, SparkClientError> {
-        let address_data = decode_spark_address(spark_address)?;
-
-        let identity_public_key = hex::decode(address_data.identity_public_key)
-            .map_err(|e| SparkClientError::DecodeError(format!("Failed to decode identity public key: {}", e)))?;
-        let token_identifier = bech32::decode(&token_identifier)
-            .map_err(|e| SparkClientError::DecodeError(format!("Failed to decode token identifier: {}", e)))?
-            .1;
-
-        let request = QueryTokenOutputsRequest {
-            owner_public_keys: vec![identity_public_key],
-            token_identifiers: vec![token_identifier],
-            token_public_keys: vec![],
-            network: address_data.network as i32,
-        };
-
         let query_fn = |mut clients: SparkClients, request: QueryTokenOutputsRequest| async move {
             clients.spark
                 .query_token_outputs(request)
                 .await
                 .map_err(|e| SparkClientError::ConnectionError(format!("Failed to query balance: {}", e)))
+        };
+
+        self.retry_query(query_fn, request)
+            .await
+            .map(|r| r.into_inner())
+    }
+
+    pub async fn start_token_transaction(
+        &mut self,
+        request: StartTransactionRequest,
+    ) -> Result<StartTransactionResponse, SparkClientError> {
+
+        let query_fn = |mut clients: SparkClients, request: StartTransactionRequest| async move {
+            clients.spark_token
+                .start_transaction(request)
+                .await
+                .map_err(|e| SparkClientError::ConnectionError(format!("Failed to start transaction: {}", e)))
         };
 
         self.retry_query(query_fn, request)
@@ -140,6 +145,21 @@ mod tests {
         let address = "sprt1pgss8fxt9jxuv4dgjwrg539s6u06ueausq076xvfej7wdah0htvjlxunt9fa4n".to_string();
         let rune_id = "btknrt1p2sy7a8cx5pqfm3u4p2qfqa475fgwj3eg5d03hhk47t66605zf6qg52vj2".to_string();
 
+        let address_data = decode_spark_address(address)?;
+
+        let identity_public_key = hex::decode(address_data.identity_public_key)
+            .map_err(|e| SparkClientError::DecodeError(format!("Failed to decode identity public key: {}", e)))?;
+        let token_identifier = bech32::decode(&rune_id)
+            .map_err(|e| SparkClientError::DecodeError(format!("Failed to decode token identifier: {}", e)))?
+            .1;
+
+        let request = QueryTokenOutputsRequest {
+            owner_public_keys: vec![identity_public_key],
+            token_identifiers: vec![token_identifier],
+            token_public_keys: vec![],
+            network: address_data.network as i32,
+        };
+
         let config = SparkConfig {
             operators: vec![SparkOperatorConfig {
                 base_url: UrlWrapped(Url::from_str("https://0.spark.lightspark.com")?),
@@ -149,7 +169,7 @@ mod tests {
 
         let mut balance_checker = SparkRpcClient::new(config);
 
-        let response = balance_checker.get_token_outputs(address, rune_id).await?;
+        let response = balance_checker.get_token_outputs(request).await?;
 
         for output in response.outputs_with_previous_transaction_data {
             if let Some(output) = output.output {

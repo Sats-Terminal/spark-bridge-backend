@@ -2,7 +2,7 @@ use crate::errors::VerifierError;
 use crate::state::AppState;
 use axum::Json;
 use axum::extract::State;
-use frost::traits::{DkgRound2Request, DkgRound2Response};
+use frost::types::{DkgRound2Request, DkgRound2Response};
 use tracing::instrument;
 
 #[instrument(level = "debug", skip_all, ret)]

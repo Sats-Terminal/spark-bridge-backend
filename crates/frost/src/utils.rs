@@ -1,4 +1,4 @@
-use bitcoin::key::PublicKey;
+use bitcoin::secp256k1::PublicKey;
 use eyre::Result;
 use frost_secp256k1_tr::keys::PublicKeyPackage;
 
