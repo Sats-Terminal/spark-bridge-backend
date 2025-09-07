@@ -3,14 +3,14 @@ use bitcoin::secp256k1::{Secp256k1, SecretKey, PublicKey};
 use frost::{aggregator::FrostAggregator, mocks::*, signer::FrostSigner, traits::SignerClient};
 use frost_secp256k1_tr::{keys::Tweak, Identifier};
 use lrc20::token_transaction::{TokenTransaction, TokenTransactionVersion, TokenTransactionInput, TokenTransactionCreateInput};
-use frost::types::{SigningMetadata, TokenTransactionMetadata};
+use frost::types::{SigningMetadata, TokenTransactionMetadata, MusigId};
 
 
 fn create_signer(identifier: u16) -> FrostSigner {
     FrostSigner::new(
         identifier,
-        Arc::new(MockSignerUserKeyStorage::new()),
-        Arc::new(MockSignerSessionStorage::new()),
+        Arc::new(MockSignerMusigIdStorage::new()),
+        Arc::new(MockSignerSignSessionStorage::new()),
         3,
         2,
     )
@@ -68,24 +68,27 @@ async fn test_aggregator_signer_integration() {
 
     let aggregator = FrostAggregator::new(
         verifiers_map,
-        Arc::new(MockAggregatorUserKeyStorage::new()),
-        Arc::new(MockAggregatorUserSessionStorage::new()),
+        Arc::new(MockAggregatorMusigIdStorage::new()),
+        Arc::new(MockAggregatorSignSessionStorage::new()),
     );
 
     let secp = Secp256k1::new();
     let secret_key = SecretKey::from_slice(&[1u8; 32]).unwrap();
-    let user_id = PublicKey::from_secret_key(&secp, &secret_key);
+    let musig_id = MusigId::User {
+        user_public_key: PublicKey::from_secret_key(&secp, &secret_key),
+        rune_id: "test_rune_id".to_string(),
+    };
 
     //let user_id = "test_user";
     let message_hash = b"test_message";
     // let tweak = Some(b"test_tweak".as_slice());
     let tweak = None;
 
-    let public_key_package = aggregator.run_dkg_flow(user_id).await.unwrap();
+    let public_key_package = aggregator.run_dkg_flow(musig_id.clone()).await.unwrap();
     let metadata = create_signing_metadata();
 
     let signature = aggregator
-        .run_signing_flow(user_id, message_hash, metadata, tweak)
+        .run_signing_flow(musig_id.clone(), message_hash, metadata, tweak)
         .await
         .unwrap();
 
@@ -105,13 +108,16 @@ async fn test_parallel_signing_sessions_via_aggregator() {
 
     let aggregator = FrostAggregator::new(
         verifiers_map,
-        Arc::new(MockAggregatorUserKeyStorage::new()),
-        Arc::new(MockAggregatorUserSessionStorage::new()),
+        Arc::new(MockAggregatorMusigIdStorage::new()),
+        Arc::new(MockAggregatorSignSessionStorage::new()),
     );
 
     let secp = Secp256k1::new();
     let secret_key = SecretKey::from_slice(&[1u8; 32]).unwrap();
-    let user_id = PublicKey::from_secret_key(&secp, &secret_key);
+    let user_id = MusigId::User {
+        user_public_key: PublicKey::from_secret_key(&secp, &secret_key),
+        rune_id: "test_rune_id".to_string(),
+    };
     //let user_id = "test_user".to_string();
     let msg_a = b"parallel message A".to_vec();
     let msg_b = b"parallel message B".to_vec();

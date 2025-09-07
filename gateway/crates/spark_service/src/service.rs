@@ -30,6 +30,8 @@ impl SparkService {
 
         let partial_token_transaction_hash_bytes = partial_token_transaction_hash.to_byte_array();
 
+        
+
         Ok(())
     }
 }

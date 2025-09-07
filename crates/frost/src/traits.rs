@@ -1,8 +1,7 @@
 use persistent_storage::error::DatabaseError;
 use async_trait::async_trait;
-use bitcoin::secp256k1::PublicKey;
 use uuid::Uuid;
-use crate::errors::{AggregatorError, SignerError};
+use crate::errors::AggregatorError;
 use crate::types::*;
 
 #[async_trait]
@@ -19,25 +18,25 @@ pub trait SignerClient: Send + Sync {
 }
 
 #[async_trait]
-pub trait AggregatorUserKeyStorage: Send + Sync {
-    async fn get_key_info(&self, user_public_key: PublicKey) -> Result<Option<AggregatorUserKeyInfo>, DatabaseError>;
-    async fn set_key_info(&self, user_public_key: PublicKey, user_key_info: AggregatorUserKeyInfo) -> Result<(), DatabaseError>;
+pub trait AggregatorMusigIdStorage: Send + Sync {
+    async fn get_musig_id(&self, musig_id: MusigId) -> Result<Option<AggregatorMusigIdData>, DatabaseError>;
+    async fn set_musig_id(&self, musig_id: MusigId, musig_id_data: AggregatorMusigIdData) -> Result<(), DatabaseError>;
 }
 
 #[async_trait]
-pub trait AggregatorUserSessionStorage: Send + Sync {
-    async fn get_session_info(&self, user_public_key: PublicKey, session_id: Uuid) -> Result<Option<AggregatorUserSessionInfo>, DatabaseError>;
-    async fn set_session_info(&self, user_public_key: PublicKey, session_id: Uuid, user_session_info: AggregatorUserSessionInfo) -> Result<(), DatabaseError>;
+pub trait AggregatorSignSessionStorage: Send + Sync {
+    async fn get_sign_session(&self, musig_id: MusigId, session_id: Uuid) -> Result<Option<AggregatorSignSessionData>, DatabaseError>;
+    async fn set_sign_session(&self, musig_id: MusigId, session_id: Uuid, sign_session_data: AggregatorSignSessionData) -> Result<(), DatabaseError>;
 }
 
 #[async_trait]
-pub trait SignerUserKeyStorage: Send + Sync {
-    async fn get_key_info(&self, user_public_key: PublicKey) -> Result<Option<SignerUserKeyInfo>, DatabaseError>;
-    async fn set_key_info(&self, user_public_key: PublicKey, user_key_info: SignerUserKeyInfo) -> Result<(), DatabaseError>;
+pub trait SignerMusigIdStorage: Send + Sync {
+    async fn get_musig_id(&self, musig_id: MusigId) -> Result<Option<SignerMusigIdData>, DatabaseError>;
+    async fn set_musig_id(&self, musig_id: MusigId, musig_id_data: SignerMusigIdData) -> Result<(), DatabaseError>;
 }
 
 #[async_trait]
-pub trait SignerUserSessionStorage: Send + Sync {
-    async fn get_session_info(&self, user_public_key: PublicKey, session_id: Uuid) -> Result<Option<SignerUserSessionInfo>, DatabaseError>;
-    async fn set_session_info(&self, user_public_key: PublicKey, session_id: Uuid, user_session_info: SignerUserSessionInfo) -> Result<(), DatabaseError>;
+pub trait SignerSignSessionStorage: Send + Sync {
+    async fn get_sign_session(&self, musig_id: MusigId, session_id: Uuid) -> Result<Option<SignerSignSessionData>, DatabaseError>;
+    async fn set_sign_session(&self, musig_id: MusigId, session_id: Uuid, sign_session_data: SignerSignSessionData) -> Result<(), DatabaseError>;
 }

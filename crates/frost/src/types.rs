@@ -14,9 +14,21 @@ use uuid::Uuid;
 use lrc20::token_transaction::TokenTransaction;
 
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+pub enum MusigId {
+    User {
+        user_public_key: PublicKey,
+        rune_id: String,
+    },
+    Issuer {
+        issuer_public_key: PublicKey,
+        rune_id: String,
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DkgRound1Request {
-    pub user_public_key: PublicKey,
+    pub musig_id: MusigId,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -26,7 +38,7 @@ pub struct DkgRound1Response {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DkgRound2Request {
-    pub user_public_key: PublicKey,
+    pub musig_id: MusigId,
     pub round1_packages: BTreeMap<Identifier, round1::Package>,
 }
 
@@ -37,7 +49,7 @@ pub struct DkgRound2Response {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DkgFinalizeRequest {
-    pub user_public_key: PublicKey,
+    pub musig_id: MusigId,
     pub round1_packages: BTreeMap<Identifier, round1::Package>,
     pub round2_packages: BTreeMap<Identifier, round2::Package>,
 }
@@ -49,7 +61,7 @@ pub struct DkgFinalizeResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignRound1Request {
-    pub user_public_key: PublicKey,
+    pub musig_id: MusigId,
     pub session_id: Uuid,
     pub metadata: SigningMetadata,
     pub message_hash: Vec<u8>,
@@ -58,26 +70,23 @@ pub struct SignRound1Request {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignRound1Response {
-    pub user_public_key: PublicKey,
-    pub session_id: Uuid,
     pub commitments: SigningCommitments, 
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignRound2Request {
-    pub user_public_key: PublicKey,
+    pub musig_id: MusigId,
     pub session_id: Uuid,
     pub signing_package: SigningPackage,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignRound2Response {
-    pub session_id: Uuid,
     pub signature_share: SignatureShare,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum AggregatorUserKeyState {
+pub enum AggregatorMusigIdState {
     DkgRound1 {
         round1_packages: BTreeMap<Identifier, round1::Package>,
     },
@@ -91,12 +100,12 @@ pub enum AggregatorUserKeyState {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AggregatorUserKeyInfo {
-    pub state: AggregatorUserKeyState
+pub struct AggregatorMusigIdData {
+    pub state: AggregatorMusigIdState
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum AggregatorUserSessionState {
+pub enum AggregatorSignSessionState {
     SigningRound1 {
         signing_package: SigningPackage,
     },
@@ -106,15 +115,15 @@ pub enum AggregatorUserSessionState {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AggregatorUserSessionInfo {
+pub struct AggregatorSignSessionData {
     pub tweak: Option<Vec<u8>>,
     pub message_hash: Vec<u8>,
     pub metadata: SigningMetadata,
-    pub state: AggregatorUserSessionState,
+    pub state: AggregatorSignSessionState,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum SignerUserKeyState {
+pub enum SignerMusigIdState {
     DkgRound1 {
         round1_secret_package: round1::SecretPackage,
     },
@@ -128,12 +137,12 @@ pub enum SignerUserKeyState {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SignerUserKeyInfo {
-    pub state: SignerUserKeyState,
+pub struct SignerMusigIdData {
+    pub state: SignerMusigIdState,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum SignerUserSessionState {
+pub enum SignerSignSessionState {
     SigningRound1 {
         nonces: SigningNonces,
     },
@@ -143,11 +152,11 @@ pub enum SignerUserSessionState {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SignerUserSessionInfo {
+pub struct SignerSignSessionData {
     pub tweak: Option<Vec<u8>>,
     pub message_hash: Vec<u8>,
     pub metadata: SigningMetadata,
-    pub state: SignerUserSessionState,
+    pub state: SignerSignSessionState,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
