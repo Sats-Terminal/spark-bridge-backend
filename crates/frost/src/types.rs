@@ -26,6 +26,22 @@ pub enum MusigId {
     }
 }
 
+impl MusigId {
+    pub fn get_public_key(&self) -> PublicKey {
+        match self {
+            MusigId::User { user_public_key, .. } => user_public_key.clone(),
+            MusigId::Issuer { issuer_public_key, .. } => issuer_public_key.clone(),
+        }
+    }
+    
+    pub fn get_rune_id(&self) -> String {
+        match self {
+            MusigId::User { rune_id, .. } => rune_id.clone(),
+            MusigId::Issuer { rune_id, .. } => rune_id.clone(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DkgRound1Request {
     pub musig_id: MusigId,
@@ -86,7 +102,7 @@ pub struct SignRound2Response {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum AggregatorMusigIdState {
+pub enum AggregatorDkgState {
     DkgRound1 {
         round1_packages: BTreeMap<Identifier, round1::Package>,
     },
@@ -101,11 +117,11 @@ pub enum AggregatorMusigIdState {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AggregatorMusigIdData {
-    pub state: AggregatorMusigIdState
+    pub dkg_state: AggregatorDkgState
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum AggregatorSignSessionState {
+pub enum AggregatorSignState {
     SigningRound1 {
         signing_package: SigningPackage,
     },
@@ -115,15 +131,15 @@ pub enum AggregatorSignSessionState {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AggregatorSignSessionData {
+pub struct AggregatorSignData {
     pub tweak: Option<Vec<u8>>,
     pub message_hash: Vec<u8>,
     pub metadata: SigningMetadata,
-    pub state: AggregatorSignSessionState,
+    pub sign_state: AggregatorSignState,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum SignerMusigIdState {
+pub enum SignerDkgState {
     DkgRound1 {
         round1_secret_package: round1::SecretPackage,
     },
@@ -138,11 +154,11 @@ pub enum SignerMusigIdState {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignerMusigIdData {
-    pub state: SignerMusigIdState,
+    pub dkg_state: SignerDkgState,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum SignerSignSessionState {
+pub enum SignerSignState {
     SigningRound1 {
         nonces: SigningNonces,
     },
@@ -152,11 +168,11 @@ pub enum SignerSignSessionState {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SignerSignSessionData {
+pub struct SignerSignData {
     pub tweak: Option<Vec<u8>>,
     pub message_hash: Vec<u8>,
     pub metadata: SigningMetadata,
-    pub state: SignerSignSessionState,
+    pub sign_state: SignerSignState,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

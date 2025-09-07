@@ -31,7 +31,7 @@ impl FrostSigner {
 
     pub async fn dkg_round_1(&self, request: DkgRound1Request) -> Result<DkgRound1Response, SignerError> {
         let musig_id = request.musig_id;
-        let musig_id_data = self.musig_id_storage.get_musig_id(musig_id.clone()).await?;
+        let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id.clone()).await?;
 
         match musig_id_data {
             None => {
@@ -44,10 +44,10 @@ impl FrostSigner {
                 .map_err(|e| SignerError::Internal(format!("DKG round1 failed: {e}")))?;
 
                 self.musig_id_storage
-                    .set_musig_id(
+                    .set_musig_id_data(
                         musig_id.clone(),
                         SignerMusigIdData {
-                            state: SignerMusigIdState::DkgRound1 {
+                            dkg_state: SignerDkgState::DkgRound1 {
                                 round1_secret_package: secret_package,
                             },
                         },
@@ -68,19 +68,19 @@ impl FrostSigner {
 
     pub async fn dkg_round_2(&self, request: DkgRound2Request) -> Result<DkgRound2Response, SignerError> {
         let musig_id = request.musig_id;
-        let musig_id_data = self.musig_id_storage.get_musig_id(musig_id.clone()).await?;
+        let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id.clone()).await?;
 
         match musig_id_data {
-            Some(SignerMusigIdData { state: SignerMusigIdState::DkgRound1 { round1_secret_package } }) => {
+            Some(SignerMusigIdData { dkg_state: SignerDkgState::DkgRound1 { round1_secret_package } }) => {
                 let (secret_package, packages) =
                     frost_secp256k1_tr::keys::dkg::part2(round1_secret_package.clone(), &request.round1_packages)
                         .map_err(|e| SignerError::Internal(format!("DKG round2 failed: {e}")))?;
 
                 self.musig_id_storage
-                    .set_musig_id(
+                    .set_musig_id_data(
                         musig_id.clone(),
                         SignerMusigIdData {
-                            state: SignerMusigIdState::DkgRound2 {
+                            dkg_state: SignerDkgState::DkgRound2 {
                                 round2_secret_package: secret_package,
                                 round1_packages: request.round1_packages,
                             },
@@ -102,10 +102,10 @@ impl FrostSigner {
 
     pub async fn dkg_finalize(&self, request: DkgFinalizeRequest) -> Result<DkgFinalizeResponse, SignerError> {
         let musig_id = request.musig_id;
-        let musig_id_data = self.musig_id_storage.get_musig_id(musig_id.clone()).await?;
+        let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id.clone()).await?;
 
         match musig_id_data {
-            Some(SignerMusigIdData { state: SignerMusigIdState::DkgRound2 {
+            Some(SignerMusigIdData { dkg_state: SignerDkgState::DkgRound2 {
                 round2_secret_package,
                 round1_packages,
             }}) => {
@@ -117,7 +117,7 @@ impl FrostSigner {
                 .map_err(|e| SignerError::Internal(format!("DKG finalize failed: {e}")))?;
 
                 self.musig_id_storage
-                    .set_musig_id(musig_id.clone(), SignerMusigIdData { state: SignerMusigIdState::DkgFinalized { key_package } })
+                    .set_musig_id_data(musig_id.clone(), SignerMusigIdData { dkg_state: SignerDkgState::DkgFinalized { key_package } })
                     .await?;
                 Ok(DkgFinalizeResponse { public_key_package })
             }
@@ -136,10 +136,10 @@ impl FrostSigner {
         let message_hash = request.message_hash;
         let metadata = request.metadata;
 
-        let musig_id_data = self.musig_id_storage.get_musig_id(musig_id.clone()).await?;
+        let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id.clone()).await?;
 
         match musig_id_data {
-            Some(SignerMusigIdData { state: SignerMusigIdState::DkgFinalized { key_package } }) => {
+            Some(SignerMusigIdData { dkg_state: SignerDkgState::DkgFinalized { key_package } }) => {
                 let tweak_key_package = match tweak.clone() {
                     Some(tweak) => key_package.clone().tweak(Some(tweak.to_vec())),
                     None => key_package.clone(),
@@ -148,14 +148,14 @@ impl FrostSigner {
                     frost_secp256k1_tr::round1::commit(tweak_key_package.signing_share(), &mut OsRng);
 
                 self.sign_session_storage
-                    .set_sign_session(
+                    .set_sign_data(
                         musig_id.clone(),
                         session_id.clone(),
-                        SignerSignSessionData {
+                        SignerSignData {
                             tweak,
                             message_hash,
                             metadata,
-                            state: SignerSignSessionState::SigningRound1 {
+                            sign_state: SignerSignState::SigningRound1 {
                                 nonces,
                             },
                         },
@@ -175,25 +175,25 @@ impl FrostSigner {
         let musig_id = request.musig_id;
         let session_id = request.session_id.clone();
         
-        let musig_id_data = self.musig_id_storage.get_musig_id(musig_id.clone()).await?;
+        let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id.clone()).await?;
 
         let key_package = match musig_id_data {
-            Some(SignerMusigIdData { state: SignerMusigIdState::DkgFinalized { key_package } }) => key_package,
+            Some(SignerMusigIdData { dkg_state: SignerDkgState::DkgFinalized { key_package } }) => key_package,
             _ => return Err(SignerError::InvalidUserState("User key state is not DkgFinalized".to_string())),
         };
 
-        let mut sign_session_data = self.sign_session_storage
-            .get_sign_session(musig_id.clone(), session_id.clone())
+        let mut sign_data = self.sign_session_storage
+            .get_sign_data(musig_id.clone(), session_id.clone())
             .await?
             .ok_or(SignerError::InvalidUserState("Session state is not SigningRound1".to_string()))?;
 
-        assert_eq!(sign_session_data.message_hash, request.signing_package.message().clone());
+        assert_eq!(sign_data.message_hash, request.signing_package.message().clone());
 
-        match sign_session_data.state {
-            SignerSignSessionState::SigningRound1 {
+        match sign_data.sign_state {
+            SignerSignState::SigningRound1 {
                 nonces,
             } => {
-                let tweak_key_package = match sign_session_data.tweak.clone() {
+                let tweak_key_package = match sign_data.tweak.clone() {
                     Some(tweak) => key_package.clone().tweak(Some(tweak.to_vec())),
                     None => key_package.clone(),
                 };
@@ -201,15 +201,15 @@ impl FrostSigner {
                     frost_secp256k1_tr::round2::sign(&request.signing_package, &nonces, &tweak_key_package)
                         .map_err(|e| SignerError::Internal(format!("Sign round2 failed: {e}")))?;
                 
-                sign_session_data.state = SignerSignSessionState::SigningRound2 {
+                sign_data.sign_state = SignerSignState::SigningRound2 {
                     signature_share,
                 };
 
                 self.sign_session_storage
-                    .set_sign_session(
+                    .set_sign_data(
                         musig_id.clone(),
                         session_id.clone(),
-                        sign_session_data,
+                        sign_data,
                     )
                     .await?;
 

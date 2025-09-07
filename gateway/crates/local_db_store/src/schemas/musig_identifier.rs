@@ -1,33 +1,50 @@
-use frost::traits::AggregatorUserKeyStorage;
+use frost::traits::AggregatorMusigIdStorage;
 use crate::storage::Storage;
 use persistent_storage::error::DatabaseError;
-use frost::types::AggregatorUserKeyInfo;
-use frost::types::AggregatorUserKeyState;
-use bitcoin::secp256k1::PublicKey;
+use frost::types::AggregatorMusigIdData;
+use frost::types::AggregatorDkgState;
+use frost::types::MusigId;
 use async_trait::async_trait;
 use sqlx::types::Json;
 
 
 #[async_trait]
-impl AggregatorUserKeyStorage for Storage {
-    async fn get_key_info(&self, user_public_key: PublicKey) -> Result<Option<AggregatorUserKeyInfo>, DatabaseError> {
-        let result: Option<(Json<AggregatorUserKeyState>,)> = sqlx::query_as("SELECT state_data FROM user_key_info WHERE user_public_key = $1")
-            .bind(user_public_key.to_string())
+impl AggregatorMusigIdStorage for Storage {
+    async fn get_musig_id_data(&self, musig_id: MusigId) -> Result<Option<AggregatorMusigIdData>, DatabaseError> {
+        let public_key = musig_id.get_public_key();
+        let rune_id = musig_id.get_rune_id();
+
+        let result: Option<(Json<AggregatorDkgState>,)> = sqlx::query_as(
+            "SELECT dkg_state 
+            FROM musig_identifier 
+            WHERE public_key = $1 AND rune_id = $2"
+        )
+            .bind(public_key.to_string())
+            .bind(rune_id)
             .fetch_optional(&self.get_conn().await?)
             .await
             .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
         
-        Ok(result.map(|(state_data,)| AggregatorUserKeyInfo {
-            state: state_data.0,
+        Ok(result.map(|(json_dkg_state,)| AggregatorMusigIdData {
+            dkg_state: json_dkg_state.0,
         }))
     }
 
-    async fn set_key_info(&self, user_public_key: PublicKey, user_state: AggregatorUserKeyInfo) -> Result<(), DatabaseError> {
-        let state_data = Json(user_state.state);
+    async fn set_musig_id_data(&self, musig_id: MusigId, user_state: AggregatorMusigIdData) -> Result<(), DatabaseError> {
+        let dkg_state = Json(user_state.dkg_state);
+        let public_key = musig_id.get_public_key();
+        let rune_id = musig_id.get_rune_id();
+        let is_issuer = matches!(musig_id, MusigId::Issuer { .. });
 
-        let _ = sqlx::query("INSERT INTO user_key_info (user_public_key, state_data) VALUES ($1, $2) ON CONFLICT (user_public_key) DO UPDATE SET state_data = $2")
-            .bind(user_public_key.to_string())
-            .bind(state_data)
+        let _ = sqlx::query(
+            "INSERT INTO musig_identifier (public_key, rune_id, is_issuer, dkg_state) 
+            VALUES ($1, $2, $3, $4) 
+            ON CONFLICT (public_key, rune_id) DO UPDATE SET dkg_state = $4"
+        )
+            .bind(public_key.to_string())
+            .bind(rune_id)
+            .bind(is_issuer)
+            .bind(dkg_state)
             .execute(&self.get_conn().await?)
             .await
             .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
@@ -56,8 +73,8 @@ mod tests {
     async fn create_signer(identifier: u16) -> FrostSigner {
         FrostSigner::new(
             identifier,
-            Arc::new(MockSignerUserKeyStorage::new()),
-            Arc::new(MockSignerSessionStorage::new()),
+            Arc::new(MockSignerMusigIdStorage::new()),
+            Arc::new(MockSignerSignSessionStorage::new()),
             3,
             2,
         )
@@ -123,12 +140,15 @@ mod tests {
     
         let secp = Secp256k1::new();
         let secret_key = SecretKey::from_slice(&[4u8; 32]).unwrap();
-        let user_id = PublicKey::from_secret_key(&secp, &secret_key);
+        let user_id = MusigId::User {
+            user_public_key: PublicKey::from_secret_key(&secp, &secret_key),
+            rune_id: "test_rune_id".to_string(),
+        };
     
         //let user_id = "test_user";
         let message_hash = b"test_message";
     
-        let public_key_package = aggregator.run_dkg_flow(user_id).await.unwrap();
+        let public_key_package = aggregator.run_dkg_flow(user_id.clone()).await.unwrap();
 
         let tweak = Some(b"test_tweak".as_slice());
         // let tweak = None;

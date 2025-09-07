@@ -1,6 +1,6 @@
 BEGIN TRANSACTION;
 
-DROP TABLE IF EXISTS user_key_info;
-DROP TABLE IF EXISTS user_session_info;
+DROP TABLE IF EXISTS sign_session;
+DROP TABLE IF EXISTS musig_identifier;
 
 COMMIT;

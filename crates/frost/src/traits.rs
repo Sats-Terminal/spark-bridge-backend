@@ -19,24 +19,24 @@ pub trait SignerClient: Send + Sync {
 
 #[async_trait]
 pub trait AggregatorMusigIdStorage: Send + Sync {
-    async fn get_musig_id(&self, musig_id: MusigId) -> Result<Option<AggregatorMusigIdData>, DatabaseError>;
-    async fn set_musig_id(&self, musig_id: MusigId, musig_id_data: AggregatorMusigIdData) -> Result<(), DatabaseError>;
+    async fn get_musig_id_data(&self, musig_id: MusigId) -> Result<Option<AggregatorMusigIdData>, DatabaseError>;
+    async fn set_musig_id_data(&self, musig_id: MusigId, musig_id_data: AggregatorMusigIdData) -> Result<(), DatabaseError>;
 }
 
 #[async_trait]
 pub trait AggregatorSignSessionStorage: Send + Sync {
-    async fn get_sign_session(&self, musig_id: MusigId, session_id: Uuid) -> Result<Option<AggregatorSignSessionData>, DatabaseError>;
-    async fn set_sign_session(&self, musig_id: MusigId, session_id: Uuid, sign_session_data: AggregatorSignSessionData) -> Result<(), DatabaseError>;
+    async fn get_sign_data(&self, musig_id: MusigId, session_id: Uuid) -> Result<Option<AggregatorSignData>, DatabaseError>;
+    async fn set_sign_data(&self, musig_id: MusigId, session_id: Uuid, sign_session_data: AggregatorSignData) -> Result<(), DatabaseError>;
 }
 
 #[async_trait]
 pub trait SignerMusigIdStorage: Send + Sync {
-    async fn get_musig_id(&self, musig_id: MusigId) -> Result<Option<SignerMusigIdData>, DatabaseError>;
-    async fn set_musig_id(&self, musig_id: MusigId, musig_id_data: SignerMusigIdData) -> Result<(), DatabaseError>;
+    async fn get_musig_id_data(&self, musig_id: MusigId) -> Result<Option<SignerMusigIdData>, DatabaseError>;
+    async fn set_musig_id_data(&self, musig_id: MusigId, musig_id_data: SignerMusigIdData) -> Result<(), DatabaseError>;
 }
 
 #[async_trait]
 pub trait SignerSignSessionStorage: Send + Sync {
-    async fn get_sign_session(&self, musig_id: MusigId, session_id: Uuid) -> Result<Option<SignerSignSessionData>, DatabaseError>;
-    async fn set_sign_session(&self, musig_id: MusigId, session_id: Uuid, sign_session_data: SignerSignSessionData) -> Result<(), DatabaseError>;
+    async fn get_sign_data(&self, musig_id: MusigId, session_id: Uuid) -> Result<Option<SignerSignData>, DatabaseError>;
+    async fn set_sign_data(&self, musig_id: MusigId, session_id: Uuid, sign_session_data: SignerSignData) -> Result<(), DatabaseError>;
 }

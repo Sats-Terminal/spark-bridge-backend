@@ -17,7 +17,7 @@ pub struct MockSignerMusigIdStorage {
 }
 
 pub struct MockSignerSignSessionStorage {
-    storage: Arc<Mutex<BTreeMap<(MusigId, Uuid), SignerSignSessionData>>>,
+    storage: Arc<Mutex<BTreeMap<(MusigId, Uuid), SignerSignData>>>,
 }
 
 impl MockSignerSignSessionStorage {
@@ -35,11 +35,11 @@ impl MockSignerSignSessionStorage {
 
 #[async_trait]
 impl SignerSignSessionStorage for MockSignerSignSessionStorage {
-    async fn get_sign_session(
+    async fn get_sign_data(
         &self,
         musig_id: MusigId,
         session_id: Uuid,
-    ) -> Result<Option<SignerSignSessionData>, DatabaseError> {
+    ) -> Result<Option<SignerSignData>, DatabaseError> {
         Ok(self
             .storage
             .lock()
@@ -48,11 +48,11 @@ impl SignerSignSessionStorage for MockSignerSignSessionStorage {
             .cloned())
     }
 
-    async fn set_sign_session(
+    async fn set_sign_data(
         &self,
         musig_id: MusigId,
         session_id: Uuid,
-        sign_session_data: SignerSignSessionData,
+        sign_session_data: SignerSignData,
     ) -> Result<(), DatabaseError> {
         self.storage
             .lock()
@@ -72,11 +72,11 @@ impl MockSignerMusigIdStorage {
 
 #[async_trait]
 impl SignerMusigIdStorage for MockSignerMusigIdStorage {
-    async fn get_musig_id(&self, musig_id: MusigId) -> Result<Option<SignerMusigIdData>, DatabaseError> {
+    async fn get_musig_id_data(&self, musig_id: MusigId) -> Result<Option<SignerMusigIdData>, DatabaseError> {
         Ok(self.storage.lock().await.get(&musig_id).map(|musig_id_data| musig_id_data.clone()))
     }
 
-    async fn set_musig_id(&self, musig_id: MusigId, musig_id_data: SignerMusigIdData) -> Result<(), DatabaseError> {
+    async fn set_musig_id_data(&self, musig_id: MusigId, musig_id_data: SignerMusigIdData) -> Result<(), DatabaseError> {
         self.storage.lock().await.insert(musig_id, musig_id_data);
         Ok(())
     }
@@ -87,7 +87,7 @@ pub struct MockAggregatorMusigIdStorage {
 }
 
 pub struct MockAggregatorSignSessionStorage {
-    storage: Arc<Mutex<BTreeMap<(MusigId, Uuid), AggregatorSignSessionData>>>,
+    storage: Arc<Mutex<BTreeMap<(MusigId, Uuid), AggregatorSignData>>>,
 }
 
 impl MockAggregatorMusigIdStorage {
@@ -108,11 +108,11 @@ impl MockAggregatorSignSessionStorage {
 
 #[async_trait]
 impl AggregatorMusigIdStorage for MockAggregatorMusigIdStorage {
-    async fn get_musig_id(&self, musig_id: MusigId) -> Result<Option<AggregatorMusigIdData>, DatabaseError> {
+    async fn get_musig_id_data(&self, musig_id: MusigId) -> Result<Option<AggregatorMusigIdData>, DatabaseError> {
         Ok(self.storage.lock().await.get(&musig_id).map(|musig_id_data| musig_id_data.clone()))
     }
 
-    async fn set_musig_id(&self, musig_id: MusigId, musig_id_data: AggregatorMusigIdData) -> Result<(), DatabaseError> {
+    async fn set_musig_id_data(&self, musig_id: MusigId, musig_id_data: AggregatorMusigIdData) -> Result<(), DatabaseError> {
         self.storage.lock().await.insert(musig_id, musig_id_data);
         Ok(())
     }
@@ -120,11 +120,11 @@ impl AggregatorMusigIdStorage for MockAggregatorMusigIdStorage {
 
 #[async_trait]
 impl AggregatorSignSessionStorage for MockAggregatorSignSessionStorage {
-    async fn get_sign_session(&self, musig_id: MusigId, session_id: Uuid) -> Result<Option<AggregatorSignSessionData>, DatabaseError> {
+    async fn get_sign_data(&self, musig_id: MusigId, session_id: Uuid) -> Result<Option<AggregatorSignData>, DatabaseError> {
         Ok(self.storage.lock().await.get(&(musig_id, session_id)).map(|sign_session_data| sign_session_data.clone()))
     }
 
-    async fn set_sign_session(&self, musig_id: MusigId, session_id: Uuid, sign_session_data: AggregatorSignSessionData) -> Result<(), DatabaseError> {
+    async fn set_sign_data(&self, musig_id: MusigId, session_id: Uuid, sign_session_data: AggregatorSignData) -> Result<(), DatabaseError> {
         self.storage.lock().await.insert((musig_id, session_id), sign_session_data);
         Ok(())
     }

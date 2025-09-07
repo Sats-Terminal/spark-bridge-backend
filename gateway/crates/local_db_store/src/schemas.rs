@@ -1,2 +1,2 @@
-pub mod user_key_info;
-pub mod user_session_info;
+pub mod musig_identifier;
+pub mod sign_session;
