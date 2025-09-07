@@ -1,19 +1,13 @@
 use std::{future::Future, sync::Arc};
-use bitcoin::secp256k1::PublicKey;
-use hex;
 use log;
 use spark_protos::spark::{
     QueryTokenOutputsRequest, QueryTokenOutputsResponse, 
 };
-use spark_protos::spark_token::{TokenTransaction as TokenTransactionV2SparkProto};
-use lrc20::token_transaction::TokenTransaction;
-use lrc20::marshal::marshal_token_transaction;
-use spark_protos::spark_token::{StartTransactionRequest, StartTransactionResponse, SignatureWithIndex};
+use spark_protos::spark_token::{StartTransactionRequest, StartTransactionResponse, CommitTransactionRequest, CommitTransactionResponse};
 use tokio::sync::Mutex;
 use crate::{
     common::{config::SparkConfig, error::SparkClientError},
     connection::{SparkClients, SparkConnectionPool},
-    utils::spark_address::decode_spark_address,
 };
 
 const N_QUERY_RETRIES: usize = 3;
@@ -115,6 +109,22 @@ impl SparkRpcClient {
                 .start_transaction(request)
                 .await
                 .map_err(|e| SparkClientError::ConnectionError(format!("Failed to start transaction: {}", e)))
+        };
+
+        self.retry_query(query_fn, request)
+            .await
+            .map(|r| r.into_inner())
+    }
+
+    pub async fn commit_token_transaction(
+        &mut self,
+        request: CommitTransactionRequest,
+    ) -> Result<CommitTransactionResponse, SparkClientError> {
+        let query_fn = |mut clients: SparkClients, request: CommitTransactionRequest| async move {
+            clients.spark_token
+                .commit_transaction(request)
+                .await
+                .map_err(|e| SparkClientError::ConnectionError(format!("Failed to commit transaction: {}", e)))
         };
 
         self.retry_query(query_fn, request)
