@@ -2,36 +2,37 @@ use std::str::FromStr;
 
 use spark_protos::spark::spark_service_client::SparkServiceClient;
 use spark_protos::spark_token::spark_token_service_client::SparkTokenServiceClient;
-use tonic::transport::{Certificate, Channel, ClientTlsConfig, Uri};
+use spark_protos::spark_authn::spark_authn_service_client::SparkAuthnServiceClient;
+use tonic::transport::{Channel, ClientTlsConfig, Uri};
 
-use crate::SparkOperatorConfig;
 use crate::common::{config::SparkConfig, error::SparkClientError};
 
 #[derive(Clone)]
-pub struct SparkClients {
+pub struct SparkServicesClients {
     pub spark: SparkServiceClient<Channel>,
     pub spark_token: SparkTokenServiceClient<Channel>,
+    pub spark_auth: SparkAuthnServiceClient<Channel>,
 }
 
-pub struct SparkConnectionPool {
-    current_connection: usize,
-    certificate: Certificate,
-    operators: Vec<SparkOperatorConfig>,
+pub struct SparkTlsConnection {
+    spark_config: SparkConfig,
+    coordinator_operator: usize,
 }
 
-impl SparkConnectionPool {
-    pub(crate) fn new(config: SparkConfig) -> Self {
-        SparkConnectionPool {
-            current_connection: 0,
-            certificate: config.ca_pem,
-            operators: config.operators,
-        }
+impl SparkTlsConnection {
+    pub(crate) fn new(config: SparkConfig) -> Result<Self, SparkClientError> {
+        let coordinator_operator = config.coordinator_operator()?;
+        Ok(SparkTlsConnection {
+            spark_config: config,
+            coordinator_operator,
+        })
     }
 
-    async fn create_tls_channel(&self, base_url: String) -> Result<Channel, SparkClientError> {
-        let uri = Uri::from_str(&base_url)
+    async fn create_tls_channel(&self) -> Result<Channel, SparkClientError> {
+        let base_url = self.spark_config.operators[self.coordinator_operator].base_url.clone();
+        let uri = Uri::from_str(&base_url.0.to_string())
             .map_err(|e| SparkClientError::ConnectionError(format!("Failed to create URI: {}", e)))?;
-        let mut tls = ClientTlsConfig::new().ca_certificate(self.certificate.clone());
+        let mut tls = ClientTlsConfig::new().ca_certificate(self.spark_config.ca_pem.clone());
         if let Some(host) = uri.host() {
             tls = tls.domain_name(host);
         }
@@ -44,8 +45,7 @@ impl SparkConnectionPool {
             .await
             .map_err(|e| {
                 SparkClientError::ConnectionError(format!(
-                    "Failed to connect to operator {}: {}",
-                    self.current_connection, e
+                    "Failed to connect to operator: {}", e
                 ))
             })?;
 
@@ -53,20 +53,14 @@ impl SparkConnectionPool {
     }
 
     // This function creates a new spark client.
-    pub(crate) async fn create_clients(&mut self) -> Result<SparkClients, SparkClientError> {
-        let base_url = self.operators[self.current_connection].base_url.clone();
+    pub(crate) async fn create_clients(&self) -> Result<SparkServicesClients, SparkClientError> {
+        let channel = self.create_tls_channel().await?;
 
-        let channel = self.create_tls_channel(base_url.0.to_string()).await?;
-
-        Ok(SparkClients {
+        Ok(SparkServicesClients {
             spark: SparkServiceClient::new(channel.clone()),
-            spark_token: SparkTokenServiceClient::new(channel),
+            spark_token: SparkTokenServiceClient::new(channel.clone()),
+            spark_auth: SparkAuthnServiceClient::new(channel),
         })
-    }
-
-    // This function switches to the next operator in the pool.
-    pub(crate) async fn switch_operator(&mut self) {
-        self.current_connection = (self.current_connection + 1) % self.operators.len();
     }
 }
 
@@ -91,11 +85,16 @@ mod tests {
         let spark_config = SparkConfig {
             operators: vec![SparkOperatorConfig {
                 base_url: UrlWrapped(Url::from_str("https://0.spark.lightspark.com")?),
+                id: 0,
+                identity_public_key: "".to_string(),
+                frost_identifier: "".to_string(),
+                running_authority: "".to_string(),
+                is_coordinator: Some(true),
             }],
             ca_pem: CaCertificate::from_path("../../spark_balance_checker/infrastructure/configuration/ca.pem")?.ca_pem,
         };
-        let mut connection_pool = SparkConnectionPool::new(spark_config);
-        connection_pool.create_clients().await?;
+        let connection = SparkTlsConnection::new(spark_config).unwrap();
+        connection.create_clients().await.unwrap();
         Ok(())
     }
 }
