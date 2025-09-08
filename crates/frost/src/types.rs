@@ -13,15 +13,17 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use uuid::Uuid;
 
+pub type RuneId = String;
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub enum MusigId {
     User {
         user_public_key: PublicKey,
-        rune_id: String,
+        rune_id: RuneId,
     },
     Issuer {
         issuer_public_key: PublicKey,
-        rune_id: String,
+        rune_id: RuneId,
     },
 }
 

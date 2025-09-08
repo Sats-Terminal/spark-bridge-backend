@@ -1,4 +1,4 @@
-use crate::storage::Storage;
+use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
 use frost::traits::SignerSignSessionStorage;
 use frost::types::MusigId;
@@ -10,8 +10,8 @@ use sqlx::types::Json;
 use uuid::Uuid;
 
 #[async_trait]
-impl SignerSignSessionStorage for Storage {
-    async fn get_sign_data(&self, musig_id: MusigId, session_id: Uuid) -> Result<Option<SignerSignData>, DbError> {
+impl SignerSignSessionStorage for LocalDbStorage {
+    async fn get_sign_data(&self, musig_id: &MusigId, session_id: Uuid) -> Result<Option<SignerSignData>, DbError> {
         let public_key = musig_id.get_public_key();
         let rune_id = musig_id.get_rune_id();
 
@@ -39,7 +39,7 @@ impl SignerSignSessionStorage for Storage {
 
     async fn set_sign_data(
         &self,
-        musig_id: MusigId,
+        musig_id: &MusigId,
         session_id: Uuid,
         sign_data: SignerSignData,
     ) -> Result<(), DbError> {

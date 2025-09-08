@@ -88,7 +88,7 @@ async fn test_aggregator_signer_integration() {
     // let tweak = Some(b"test_tweak".as_slice());
     let tweak = None;
 
-    let public_key_package = aggregator.run_dkg_flow(musig_id.clone()).await.unwrap();
+    let public_key_package = aggregator.run_dkg_flow(&musig_id).await.unwrap();
     let metadata = create_signing_metadata();
 
     let signature = aggregator
@@ -127,7 +127,7 @@ async fn test_parallel_signing_sessions_via_aggregator() {
     let msg_b = b"parallel message B".to_vec();
     let tweak = None::<&[u8]>;
 
-    let public_key_package = aggregator.run_dkg_flow(user_id.clone()).await.unwrap();
+    let public_key_package = aggregator.run_dkg_flow(&user_id).await.unwrap();
     let metadata = create_signing_metadata();
 
     let (sig_res_a, sig_res_b) = tokio::join!(

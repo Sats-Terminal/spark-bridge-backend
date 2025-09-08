@@ -19,16 +19,16 @@ pub trait SignerClient: Send + Sync {
 
 #[async_trait]
 pub trait AggregatorMusigIdStorage: Send + Sync {
-    async fn get_musig_id_data(&self, musig_id: MusigId) -> Result<Option<AggregatorMusigIdData>, DbError>;
-    async fn set_musig_id_data(&self, musig_id: MusigId, musig_id_data: AggregatorMusigIdData) -> Result<(), DbError>;
+    async fn get_musig_id_data(&self, musig_id: &MusigId) -> Result<Option<AggregatorMusigIdData>, DbError>;
+    async fn set_musig_id_data(&self, musig_id: &MusigId, musig_id_data: AggregatorMusigIdData) -> Result<(), DbError>;
 }
 
 #[async_trait]
 pub trait AggregatorSignSessionStorage: Send + Sync {
-    async fn get_sign_data(&self, musig_id: MusigId, session_id: Uuid) -> Result<Option<AggregatorSignData>, DbError>;
+    async fn get_sign_data(&self, musig_id: &MusigId, session_id: Uuid) -> Result<Option<AggregatorSignData>, DbError>;
     async fn set_sign_data(
         &self,
-        musig_id: MusigId,
+        musig_id: &MusigId,
         session_id: Uuid,
         sign_session_data: AggregatorSignData,
     ) -> Result<(), DbError>;
@@ -36,16 +36,16 @@ pub trait AggregatorSignSessionStorage: Send + Sync {
 
 #[async_trait]
 pub trait SignerMusigIdStorage: Send + Sync {
-    async fn get_musig_id_data(&self, musig_id: MusigId) -> Result<Option<SignerMusigIdData>, DbError>;
-    async fn set_musig_id_data(&self, musig_id: MusigId, musig_id_data: SignerMusigIdData) -> Result<(), DbError>;
+    async fn get_musig_id_data(&self, musig_id: &MusigId) -> Result<Option<SignerMusigIdData>, DbError>;
+    async fn set_musig_id_data(&self, musig_id: &MusigId, musig_id_data: SignerMusigIdData) -> Result<(), DbError>;
 }
 
 #[async_trait]
 pub trait SignerSignSessionStorage: Send + Sync {
-    async fn get_sign_data(&self, musig_id: MusigId, session_id: Uuid) -> Result<Option<SignerSignData>, DbError>;
+    async fn get_sign_data(&self, musig_id: &MusigId, session_id: Uuid) -> Result<Option<SignerSignData>, DbError>;
     async fn set_sign_data(
         &self,
-        musig_id: MusigId,
+        musig_id: &MusigId,
         session_id: Uuid,
         sign_session_data: SignerSignData,
     ) -> Result<(), DbError>;

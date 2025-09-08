@@ -1,4 +1,5 @@
 use crate::error::FlowProcessorError;
+use bitcoin::Address;
 use bitcoin::secp256k1::PublicKey;
 use frost::types::MusigId;
 use tokio::sync::oneshot;
@@ -23,11 +24,12 @@ pub enum FlowProcessorResponse {
 #[derive(Debug)]
 pub struct DkgFlowRequest {
     pub musig_id: MusigId,
+    //todo: add amount
 }
 
 #[derive(Debug)]
 pub struct DkgFlowResponse {
-    pub public_key: PublicKey,
+    pub addr_to_replenish: Address,
 }
 
 #[derive(Debug)]

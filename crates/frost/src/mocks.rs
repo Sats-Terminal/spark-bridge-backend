@@ -25,7 +25,7 @@ impl MockSignerSignSessionStorage {
 
 #[async_trait]
 impl SignerSignSessionStorage for MockSignerSignSessionStorage {
-    async fn get_sign_data(&self, musig_id: MusigId, session_id: Uuid) -> Result<Option<SignerSignData>, DbError> {
+    async fn get_sign_data(&self, musig_id: &MusigId, session_id: Uuid) -> Result<Option<SignerSignData>, DbError> {
         Ok(self
             .storage
             .lock()
@@ -36,7 +36,7 @@ impl SignerSignSessionStorage for MockSignerSignSessionStorage {
 
     async fn set_sign_data(
         &self,
-        musig_id: MusigId,
+        musig_id: &MusigId,
         session_id: Uuid,
         sign_session_data: SignerSignData,
     ) -> Result<(), DbError> {
@@ -58,7 +58,7 @@ impl MockSignerMusigIdStorage {
 
 #[async_trait]
 impl SignerMusigIdStorage for MockSignerMusigIdStorage {
-    async fn get_musig_id_data(&self, musig_id: MusigId) -> Result<Option<SignerMusigIdData>, DbError> {
+    async fn get_musig_id_data(&self, musig_id: &MusigId) -> Result<Option<SignerMusigIdData>, DbError> {
         Ok(self
             .storage
             .lock()
@@ -67,8 +67,8 @@ impl SignerMusigIdStorage for MockSignerMusigIdStorage {
             .map(|musig_id_data| musig_id_data.clone()))
     }
 
-    async fn set_musig_id_data(&self, musig_id: MusigId, musig_id_data: SignerMusigIdData) -> Result<(), DbError> {
-        self.storage.lock().await.insert(musig_id, musig_id_data);
+    async fn set_musig_id_data(&self, musig_id: &MusigId, musig_id_data: SignerMusigIdData) -> Result<(), DbError> {
+        self.storage.lock().await.insert(musig_id.clone(), musig_id_data);
         Ok(())
     }
 }
@@ -99,7 +99,7 @@ impl MockAggregatorSignSessionStorage {
 
 #[async_trait]
 impl AggregatorMusigIdStorage for MockAggregatorMusigIdStorage {
-    async fn get_musig_id_data(&self, musig_id: MusigId) -> Result<Option<AggregatorMusigIdData>, DbError> {
+    async fn get_musig_id_data(&self, musig_id: &MusigId) -> Result<Option<AggregatorMusigIdData>, DbError> {
         Ok(self
             .storage
             .lock()
@@ -108,33 +108,33 @@ impl AggregatorMusigIdStorage for MockAggregatorMusigIdStorage {
             .map(|musig_id_data| musig_id_data.clone()))
     }
 
-    async fn set_musig_id_data(&self, musig_id: MusigId, musig_id_data: AggregatorMusigIdData) -> Result<(), DbError> {
-        self.storage.lock().await.insert(musig_id, musig_id_data);
+    async fn set_musig_id_data(&self, musig_id: &MusigId, musig_id_data: AggregatorMusigIdData) -> Result<(), DbError> {
+        self.storage.lock().await.insert(musig_id.clone(), musig_id_data);
         Ok(())
     }
 }
 
 #[async_trait]
 impl AggregatorSignSessionStorage for MockAggregatorSignSessionStorage {
-    async fn get_sign_data(&self, musig_id: MusigId, session_id: Uuid) -> Result<Option<AggregatorSignData>, DbError> {
+    async fn get_sign_data(&self, musig_id: &MusigId, session_id: Uuid) -> Result<Option<AggregatorSignData>, DbError> {
         Ok(self
             .storage
             .lock()
             .await
-            .get(&(musig_id, session_id))
+            .get(&(musig_id.clone(), session_id))
             .map(|sign_session_data| sign_session_data.clone()))
     }
 
     async fn set_sign_data(
         &self,
-        musig_id: MusigId,
+        musig_id: &MusigId,
         session_id: Uuid,
         sign_session_data: AggregatorSignData,
     ) -> Result<(), DbError> {
         self.storage
             .lock()
             .await
-            .insert((musig_id, session_id), sign_session_data);
+            .insert((musig_id.clone(), session_id), sign_session_data);
         Ok(())
     }
 }

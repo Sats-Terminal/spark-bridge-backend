@@ -14,3 +14,8 @@ uuid = { workspace = true }
 frost = { workspace = true }
 bitcoin = { workspace = true }
 gateway_local_db_store = { workspace = true }
+frost-secp256k1-tr = { workspace = true }
+
+[dev-dependencies]
+anyhow = { workspace = true }
+lrc20 = { workspace = true }

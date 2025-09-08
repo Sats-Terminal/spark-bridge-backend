@@ -9,7 +9,7 @@ use sqlx::types::Json;
 
 #[async_trait]
 impl AggregatorMusigIdStorage for LocalDbStorage {
-    async fn get_musig_id_data(&self, musig_id: MusigId) -> Result<Option<AggregatorMusigIdData>, DbError> {
+    async fn get_musig_id_data(&self, musig_id: &MusigId) -> Result<Option<AggregatorMusigIdData>, DbError> {
         let public_key = musig_id.get_public_key();
         let rune_id = musig_id.get_rune_id();
 
@@ -29,7 +29,7 @@ impl AggregatorMusigIdStorage for LocalDbStorage {
         }))
     }
 
-    async fn set_musig_id_data(&self, musig_id: MusigId, user_state: AggregatorMusigIdData) -> Result<(), DbError> {
+    async fn set_musig_id_data(&self, musig_id: &MusigId, user_state: AggregatorMusigIdData) -> Result<(), DbError> {
         let dkg_state = Json(user_state.dkg_state);
         let public_key = musig_id.get_public_key();
         let rune_id = musig_id.get_rune_id();

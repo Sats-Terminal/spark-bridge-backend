@@ -11,7 +11,7 @@ use uuid::Uuid;
 
 #[async_trait]
 impl AggregatorSignSessionStorage for LocalDbStorage {
-    async fn get_sign_data(&self, musig_id: MusigId, session_id: Uuid) -> Result<Option<AggregatorSignData>, DbError> {
+    async fn get_sign_data(&self, musig_id: &MusigId, session_id: Uuid) -> Result<Option<AggregatorSignData>, DbError> {
         let public_key = musig_id.get_public_key();
         let rune_id = musig_id.get_rune_id();
 
@@ -44,7 +44,7 @@ impl AggregatorSignSessionStorage for LocalDbStorage {
 
     async fn set_sign_data(
         &self,
-        musig_id: MusigId,
+        musig_id: &MusigId,
         session_id: Uuid,
         sign_data: AggregatorSignData,
     ) -> Result<(), DbError> {

@@ -1,4 +1,4 @@
-use crate::storage::Storage;
+use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
 use frost::traits::SignerMusigIdStorage;
 use frost::types::MusigId;
@@ -8,8 +8,8 @@ use persistent_storage::error::DbError;
 use sqlx::types::Json;
 
 #[async_trait]
-impl SignerMusigIdStorage for Storage {
-    async fn get_musig_id_data(&self, musig_id: MusigId) -> Result<Option<SignerMusigIdData>, DbError> {
+impl SignerMusigIdStorage for LocalDbStorage {
+    async fn get_musig_id_data(&self, musig_id: &MusigId) -> Result<Option<SignerMusigIdData>, DbError> {
         let public_key = musig_id.get_public_key();
         let rune_id = musig_id.get_rune_id();
 
@@ -29,7 +29,7 @@ impl SignerMusigIdStorage for Storage {
         }))
     }
 
-    async fn set_musig_id_data(&self, musig_id: MusigId, musig_id_data: SignerMusigIdData) -> Result<(), DbError> {
+    async fn set_musig_id_data(&self, musig_id: &MusigId, musig_id_data: SignerMusigIdData) -> Result<(), DbError> {
         let dkg_state = Json(musig_id_data.dkg_state);
         let public_key = musig_id.get_public_key();
         let rune_id = musig_id.get_rune_id();
@@ -73,9 +73,10 @@ mod tests {
     use std::sync::Arc;
 
     async fn create_signer(identifier: u16, is_mock_key_storage: bool, is_mock_session_storage: bool) -> FrostSigner {
-        let storage = Storage::new("postgres://admin_manager:password@localhost:5471/production_db_name".to_string())
-            .await
-            .unwrap();
+        let storage =
+            LocalDbStorage::new("postgres://admin_manager:password@localhost:5471/production_db_name".to_string())
+                .await
+                .unwrap();
         let arc_storage = Arc::new(storage);
 
         let user_key_storage: Arc<dyn SignerMusigIdStorage> = if is_mock_key_storage {

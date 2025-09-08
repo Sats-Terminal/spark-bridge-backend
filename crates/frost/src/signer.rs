@@ -31,7 +31,7 @@ impl FrostSigner {
 
     pub async fn dkg_round_1(&self, request: DkgRound1Request) -> Result<DkgRound1Response, SignerError> {
         let musig_id = request.musig_id;
-        let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id.clone()).await?;
+        let musig_id_data = self.musig_id_storage.get_musig_id_data(&musig_id).await?;
 
         match musig_id_data {
             None => {
@@ -45,7 +45,7 @@ impl FrostSigner {
 
                 self.musig_id_storage
                     .set_musig_id_data(
-                        musig_id.clone(),
+                        &musig_id,
                         SignerMusigIdData {
                             dkg_state: SignerDkgState::DkgRound1 {
                                 round1_secret_package: secret_package,
@@ -64,7 +64,7 @@ impl FrostSigner {
 
     pub async fn dkg_round_2(&self, request: DkgRound2Request) -> Result<DkgRound2Response, SignerError> {
         let musig_id = request.musig_id;
-        let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id.clone()).await?;
+        let musig_id_data = self.musig_id_storage.get_musig_id_data(&musig_id).await?;
 
         match musig_id_data {
             Some(SignerMusigIdData {
@@ -76,7 +76,7 @@ impl FrostSigner {
 
                 self.musig_id_storage
                     .set_musig_id_data(
-                        musig_id.clone(),
+                        &musig_id,
                         SignerMusigIdData {
                             dkg_state: SignerDkgState::DkgRound2 {
                                 round2_secret_package: secret_package,
@@ -98,7 +98,7 @@ impl FrostSigner {
 
     pub async fn dkg_finalize(&self, request: DkgFinalizeRequest) -> Result<DkgFinalizeResponse, SignerError> {
         let musig_id = request.musig_id;
-        let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id.clone()).await?;
+        let musig_id_data = self.musig_id_storage.get_musig_id_data(&musig_id).await?;
 
         match musig_id_data {
             Some(SignerMusigIdData {
@@ -117,7 +117,7 @@ impl FrostSigner {
 
                 self.musig_id_storage
                     .set_musig_id_data(
-                        musig_id.clone(),
+                        &musig_id,
                         SignerMusigIdData {
                             dkg_state: SignerDkgState::DkgFinalized { key_package },
                         },
@@ -138,7 +138,7 @@ impl FrostSigner {
         let message_hash = request.message_hash;
         let metadata = request.metadata;
 
-        let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id.clone()).await?;
+        let musig_id_data = self.musig_id_storage.get_musig_id_data(&musig_id).await?;
 
         match musig_id_data {
             Some(SignerMusigIdData {
@@ -153,7 +153,7 @@ impl FrostSigner {
 
                 self.sign_session_storage
                     .set_sign_data(
-                        musig_id.clone(),
+                        &musig_id,
                         session_id.clone(),
                         SignerSignData {
                             tweak,
@@ -175,7 +175,7 @@ impl FrostSigner {
         let musig_id = request.musig_id;
         let session_id = request.session_id.clone();
 
-        let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id.clone()).await?;
+        let musig_id_data = self.musig_id_storage.get_musig_id_data(&musig_id).await?;
 
         let key_package = match musig_id_data {
             Some(SignerMusigIdData {
@@ -190,7 +190,7 @@ impl FrostSigner {
 
         let mut sign_data = self
             .sign_session_storage
-            .get_sign_data(musig_id.clone(), session_id.clone())
+            .get_sign_data(&musig_id, session_id.clone())
             .await?
             .ok_or(SignerError::InvalidUserState(
                 "Session state is not SigningRound1".to_string(),
@@ -211,7 +211,7 @@ impl FrostSigner {
                 sign_data.sign_state = SignerSignState::SigningRound2 { signature_share };
 
                 self.sign_session_storage
-                    .set_sign_data(musig_id.clone(), session_id.clone(), sign_data)
+                    .set_sign_data(&musig_id, session_id.clone(), sign_data)
                     .await?;
 
                 Ok(SignRound2Response { signature_share })

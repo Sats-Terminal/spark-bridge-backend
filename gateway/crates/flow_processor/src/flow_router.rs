@@ -69,7 +69,9 @@ impl FlowProcessorRouter {
     async fn run_btc_addr_issuing(&mut self, request: DkgFlowRequest) -> Result<DkgFlowResponse, FlowProcessorError> {
         info!("[{LOG_PATH}] issuing btc addr to user with request: {request:?}");
         let pubkey = crate::routes::btc_addr_issuing::handle(self, request).await?;
-        Ok(DkgFlowResponse { public_key: pubkey })
+        Ok(DkgFlowResponse {
+            addr_to_replenish: pubkey,
+        })
     }
 
     #[tracing::instrument(level = "trace", skip(self, request), ret)]
