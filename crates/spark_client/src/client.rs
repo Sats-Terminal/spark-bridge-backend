@@ -15,8 +15,6 @@ use crate::{
 use crate::utils::time::current_epoch_time_in_seconds;
 
 const N_QUERY_RETRIES: usize = 3;
-const N_OPERATOR_SWITCHES: usize = 2;
-const DEFAULT_VALIDITY_DURATION_SECONDS: u64 = 300;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct SparkAuthSession {
@@ -174,6 +172,7 @@ mod tests {
     use crate::common::config::{CaCertificate, SparkConfig, SparkOperatorConfig};
     use global_utils::common_types::{Url, UrlWrapped};
     use std::str::FromStr;
+    use crate::utils::spark_address::decode_spark_address;
 
     fn init_logger() {
         let _ = env_logger::builder()
@@ -183,7 +182,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_get_balances_direct() -> anyhow::Result<()> {
+    async fn test_get_balances_direct() -> anyhow::Result<()> { 
         init_logger();
         log::info!("Starting test");
 
@@ -217,7 +216,7 @@ mod tests {
             ca_pem: CaCertificate::from_path("../../spark_balance_checker/infrastructure/configuration/ca.pem")?.ca_pem,
         };
 
-        let mut balance_checker = SparkRpcClient::new(config);
+        let balance_checker = SparkRpcClient::new(config).await.unwrap();
 
         let response = balance_checker.get_token_outputs(request).await?;
 
