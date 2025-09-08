@@ -11,7 +11,7 @@ fn create_signer(identifier: u16) -> FrostSigner {
     FrostSigner::new(
         identifier,
         Arc::new(MockSignerMusigIdStorage::new()),
-        Arc::new(MockSignerSignSessionStorage::new()),
+        Arc::new(MockSignerSignSessionStorage::default()),
         3,
         2,
     )

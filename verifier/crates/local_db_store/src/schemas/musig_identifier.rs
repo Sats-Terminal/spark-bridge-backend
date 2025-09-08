@@ -1,6 +1,5 @@
 use crate::storage::Storage;
 use async_trait::async_trait;
-use bitcoin::secp256k1::PublicKey;
 use frost::traits::SignerMusigIdStorage;
 use frost::types::MusigId;
 use frost::types::SignerDkgState;
@@ -86,7 +85,7 @@ mod tests {
         };
 
         let user_session_storage: Arc<dyn SignerSignSessionStorage> = if is_mock_session_storage {
-            Arc::new(MockSignerSignSessionStorage::new())
+            Arc::new(MockSignerSignSessionStorage::default())
         } else {
             arc_storage
         };

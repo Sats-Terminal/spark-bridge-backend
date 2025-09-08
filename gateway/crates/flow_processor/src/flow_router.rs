@@ -1,20 +1,22 @@
-use crate::errors::FlowProcessorError;
+use crate::error::FlowProcessorError;
 use crate::types::*;
 use frost::aggregator::FrostAggregator;
-use frost::utils::convert_public_key_package;
 use persistent_storage::init::PostgresRepo;
 use tokio::sync::mpsc;
 use tracing;
+use tracing::info;
 use uuid::Uuid;
+
+const LOG_PATH: &str = "flow_processor";
 
 // This struct is used to route the message to the correct flow
 // This struct instance is created for each message that is sent to the flow processor
 pub struct FlowProcessorRouter {
-    storage: PostgresRepo,
-    flow_id: Uuid,
-    response_sender: OneshotFlowProcessorSender,
-    task_sender: mpsc::Sender<Uuid>,
-    frost_aggregator: FrostAggregator,
+    pub(crate) storage: PostgresRepo,
+    pub(crate) flow_id: Uuid,
+    pub(crate) response_sender: OneshotFlowProcessorSender,
+    pub(crate) task_sender: mpsc::Sender<Uuid>,
+    pub(crate) frost_aggregator: FrostAggregator,
 }
 
 impl FlowProcessorRouter {
@@ -37,7 +39,7 @@ impl FlowProcessorRouter {
     pub async fn run(mut self, message: FlowProcessorMessage) {
         let response = match message {
             FlowProcessorMessage::RunDkgFlow(request) => {
-                let response = self.run_dkg_flow(request).await;
+                let response = self.run_btc_addr_issuing(request).await;
                 let answer = response.map(|response| FlowProcessorResponse::RunDkgFlow(response));
                 answer
             }
@@ -62,35 +64,32 @@ impl FlowProcessorRouter {
         });
     }
 
-    async fn run_dkg_flow(&mut self, request: DkgFlowRequest) -> Result<DkgFlowResponse, FlowProcessorError> {
-        let public_key_package = self
-            .frost_aggregator
-            .run_dkg_flow(request.musig_id)
-            .await
-            .map_err(|e| FlowProcessorError::FrostAggregatorError(e.to_string()))?;
-
-        let public_key = convert_public_key_package(public_key_package)
-            .map_err(|e| FlowProcessorError::InvalidDataError(e.to_string()))?;
-        // todo: remove
-
-        // flow get_runes_adde
-
-        Ok(DkgFlowResponse { public_key })
+    #[tracing::instrument(level = "trace", skip(self, request), ret)]
+    async fn run_btc_addr_issuing(&mut self, request: DkgFlowRequest) -> Result<DkgFlowResponse, FlowProcessorError> {
+        info!("[LOG_PATH] issuing btc addr to user with request: {request:?}");
+        let pubkey = crate::routes::btc_addr_issuing::handle(self, request).await?;
+        Ok(DkgFlowResponse { public_key: pubkey })
     }
 
+    #[tracing::instrument(level = "trace", skip(self, request), ret)]
     async fn run_bridge_runes_flow(
         &mut self,
         request: BridgeRunesRequest,
     ) -> Result<BridgeRunesResponse, FlowProcessorError> {
+        info!("[LOG_PATH] bridging runes flow with request: {request:?}");
+        crate::routes::bridge_runes_flow::handle(self).await?;
         Ok(BridgeRunesResponse {
             message: format!("message for {}", request.request_id),
         })
     }
 
+    #[tracing::instrument(level = "trace", skip(self, request), ret)]
     async fn run_exit_spark_flow(
         &mut self,
         request: ExitSparkRequest,
     ) -> Result<ExitSparkResponse, FlowProcessorError> {
+        info!("[LOG_PATH] exiting spark flow with request: {request:?}");
+        crate::routes::exit_spark_flow::handle(self).await?;
         Ok(ExitSparkResponse {
             message: format!("message for {}", request.request_id),
         })

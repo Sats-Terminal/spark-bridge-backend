@@ -1,4 +1,4 @@
-use crate::errors::FlowProcessorError;
+use crate::error::FlowProcessorError;
 use crate::types::*;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
@@ -58,9 +58,9 @@ impl TypedMessageSender<DkgFlowRequest, DkgFlowResponse> for FlowSender {
             .await?;
         match response {
             FlowProcessorResponse::RunDkgFlow(response) => Ok(response),
-            _ => Err(FlowProcessorError::InvalidResponseType(
-                "Invalid response type".to_string(),
-            )),
+            x => Err(FlowProcessorError::InvalidResponseType(format!(
+                "Invalid response type, obtain: {x:?}, expected: [FlowProcessorResponse::RunDkgFlow]"
+            ))),
         }
     }
 }
@@ -73,9 +73,9 @@ impl TypedMessageSender<BridgeRunesRequest, BridgeRunesResponse> for FlowSender 
             .await?;
         match response {
             FlowProcessorResponse::BridgeRunes(response) => Ok(response),
-            _ => Err(FlowProcessorError::InvalidResponseType(
-                "Invalid response type".to_string(),
-            )),
+            x => Err(FlowProcessorError::InvalidResponseType(format!(
+                "Invalid response type, obtain: {x:?}, expected: [FlowProcessorResponse::BridgeRunes]"
+            ))),
         }
     }
 }
@@ -88,9 +88,9 @@ impl TypedMessageSender<ExitSparkRequest, ExitSparkResponse> for FlowSender {
             .await?;
         match response {
             FlowProcessorResponse::ExitSpark(response) => Ok(response),
-            _ => Err(FlowProcessorError::InvalidResponseType(
-                "Invalid response type".to_string(),
-            )),
+            x => Err(FlowProcessorError::InvalidResponseType(format!(
+                "Invalid response type, obtain: {x:?}, expected: [FlowProcessorMessage::ExitSpark]"
+            ))),
         }
     }
 }

@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use std::env::VarError;
 use tracing::{info, instrument};
 
 pub const APP_CONFIGURATION_NAME: &str = "APP_ENVIRONMENT";
@@ -39,7 +38,7 @@ impl ConfigVariant {
                 } else if app_config == ConfigVariant::Local.to_string() {
                     ConfigVariant::Local
                 } else {
-                    serde_json::from_str::<ConfigVariant>(&app_config).unwrap_or(ConfigVariant::default())
+                    serde_json::from_str::<ConfigVariant>(&app_config).unwrap_or_default()
                 }
             }
             Err(_) => ConfigVariant::default(),

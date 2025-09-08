@@ -1,6 +1,5 @@
 use crate::storage::Storage;
 use async_trait::async_trait;
-use bitcoin::secp256k1::PublicKey;
 use frost::traits::AggregatorSignSessionStorage;
 use frost::types::AggregatorSignData;
 use frost::types::AggregatorSignState;

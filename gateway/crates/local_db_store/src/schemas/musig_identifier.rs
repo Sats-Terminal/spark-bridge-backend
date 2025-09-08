@@ -75,7 +75,7 @@ mod tests {
         FrostSigner::new(
             identifier,
             Arc::new(MockSignerMusigIdStorage::new()),
-            Arc::new(MockSignerSignSessionStorage::new()),
+            Arc::new(MockSignerSignSessionStorage::default()),
             3,
             2,
         )

@@ -1,7 +1,6 @@
 use anyhow::anyhow;
-use frost::aggregator::FrostAggregator;
 use gateway_config_parser::config::ServerConfig;
-use gateway_flow_processor::create_flow_processor;
+use gateway_flow_processor::init::create_flow_processor;
 use gateway_utils::aggregator::create_aggregator_from_config;
 use global_utils::config_path::ConfigPath;
 use global_utils::config_variant::ConfigVariant;

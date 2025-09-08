@@ -39,7 +39,7 @@ impl FlowProcessor {
             flow_receiver,
             flow_sender,
             storage,
-            flows: HashMap::new(),
+            flows: HashMap::default(),
             cancellation_token,
             cancellation_retries,
             frost_aggregator,

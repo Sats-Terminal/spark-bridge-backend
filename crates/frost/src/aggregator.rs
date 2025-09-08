@@ -108,7 +108,7 @@ impl FrostAggregator {
                         musig_id.clone(),
                         AggregatorMusigIdData {
                             dkg_state: AggregatorDkgState::DkgRound2 {
-                                round1_packages: round1_packages,
+                                round1_packages,
                                 round2_packages: verifier_responses,
                             },
                         },
@@ -214,7 +214,10 @@ impl FrostAggregator {
 
         match musig_id_data {
             Some(AggregatorMusigIdData {
-                dkg_state: AggregatorDkgState::DkgFinalized { public_key_package },
+                dkg_state:
+                    AggregatorDkgState::DkgFinalized {
+                        public_key_package: _public_key_package,
+                    },
             }) => {
                 let mut commitments = BTreeMap::new();
                 let mut join_handles = vec![];
@@ -345,13 +348,13 @@ impl FrostAggregator {
     ) -> Result<Signature, AggregatorError> {
         let session_id = global_utils::common_types::get_uuid();
 
-        self.sign_round_1(musig_id.clone(), session_id.clone(), message_hash, metadata, tweak)
+        self.sign_round_1(musig_id.clone(), session_id, message_hash, metadata, tweak)
             .await?;
-        self.sign_round_2(musig_id.clone(), session_id.clone()).await?;
+        self.sign_round_2(musig_id.clone(), session_id).await?;
 
         let sign_data = self
             .sign_session_storage
-            .get_sign_data(musig_id.clone(), session_id.clone())
+            .get_sign_data(musig_id.clone(), session_id)
             .await?;
         let state = sign_data
             .ok_or(AggregatorError::InvalidUserState(
@@ -378,7 +381,7 @@ impl FrostAggregator {
             Some(AggregatorMusigIdData {
                 dkg_state: AggregatorDkgState::DkgFinalized { public_key_package },
             }) => {
-                let tweaked_public_key_package = match tweak.clone() {
+                let tweaked_public_key_package = match tweak {
                     Some(tweak) => public_key_package.clone().tweak(Some(tweak.to_vec())),
                     None => public_key_package.clone(),
                 };

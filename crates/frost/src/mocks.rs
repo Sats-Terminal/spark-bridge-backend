@@ -11,17 +11,12 @@ pub struct MockSignerMusigIdStorage {
     storage: Arc<Mutex<BTreeMap<MusigId, SignerMusigIdData>>>,
 }
 
+#[derive(Default)]
 pub struct MockSignerSignSessionStorage {
     storage: Arc<Mutex<BTreeMap<(MusigId, Uuid), SignerSignData>>>,
 }
 
 impl MockSignerSignSessionStorage {
-    pub fn new() -> Self {
-        Self {
-            storage: Arc::new(Mutex::new(BTreeMap::new())),
-        }
-    }
-
     pub async fn has_session(&self, musig_id: &MusigId, session_id: &Uuid) -> bool {
         let map = self.storage.lock().await;
         map.contains_key(&(musig_id.clone(), session_id.clone()))

@@ -1,5 +1,3 @@
-use gateway_flow_processor::create_flow_processor;
-use gateway_flow_processor::flow_sender::TypedMessageSender;
 use global_utils::logger::init_logger;
 use persistent_storage::{config::PostgresDbCredentials, init::PostgresRepo};
 use tokio;
