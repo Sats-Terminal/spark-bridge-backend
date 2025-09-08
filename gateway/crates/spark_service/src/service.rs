@@ -6,13 +6,15 @@ use spark_client::utils::spark_address::Network;
 use bitcoin::secp256k1::PublicKey;
 use crate::errors::SparkServiceError;
 use crate::types::*;
-use frost::types::SigningMetadata;
-use bitcoin::hashes::Hash;
 use crate::types::create_partial_token_transaction;
+use lrc20::proto_hasher::hash_token_transaction;
+use lrc20::proto_hasher::get_descriptor_pool;
+use prost_reflect::DescriptorPool;
 
 pub struct SparkService {
     spark_client: SparkRpcClient,
     frost_aggregator: FrostAggregator,
+    descriptor_pool: DescriptorPool,
 }
 
 impl SparkService {
@@ -20,7 +22,11 @@ impl SparkService {
         spark_client: SparkRpcClient,
         frost_aggregator: FrostAggregator,
     ) -> Self {
-        Self { spark_client, frost_aggregator }
+        Self { 
+            spark_client, 
+            frost_aggregator, 
+            descriptor_pool: get_descriptor_pool() 
+        }
     }
 
     pub async fn send_spark_transaction(
@@ -50,25 +56,8 @@ impl SparkService {
             network
         )?;
 
-        let partial_token_transaction_hash = token_transaction.hash()
-            .map_err(|err| SparkServiceError::HashError(err.to_string()))?;
-
-        let partial_token_transaction_hash_bytes = partial_token_transaction_hash.to_byte_array();
-
-        let signing_metadata = create_signing_metadata(
-            token_transaction,
-            transaction_type.clone(),
-            true
-        );
-
-        let signature = self.frost_aggregator
-            .run_signing_flow(
-                issuer_id.clone(), 
-                partial_token_transaction_hash_bytes.as_slice(), 
-                signing_metadata,
-                None
-            ).await
-            .map_err(|e| SparkServiceError::FrostAggregatorError(e.to_string()))?;
+        let partial_token_transaction_hash = hash_token_transaction(self.descriptor_pool.clone(), token_transaction, true)
+            .map_err(|err| SparkServiceError::HashError(format!("Failed to hash partial token transaction: {:?}", err)))?;
 
         
 

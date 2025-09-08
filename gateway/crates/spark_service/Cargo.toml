@@ -11,3 +11,5 @@ frost = { workspace = true }
 lrc20 = { workspace = true }
 bitcoin = { workspace = true }
 chrono = { workspace = true }
+proto-hasher = { workspace = true }
+prost-reflect = { workspace = true }
