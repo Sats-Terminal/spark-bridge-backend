@@ -6,6 +6,7 @@ WORKDIR /usr/src/runes-spark-bridge
 # Copy the entire workspace
 COPY ./ ./
 
+# Installing proto
 ENV PROTOC_VERSION=32.0
 RUN apt update && apt upgrade -y
 

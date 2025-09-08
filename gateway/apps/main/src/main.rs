@@ -3,6 +3,7 @@ use frost::aggregator::FrostAggregator;
 use gateway_config_parser::config::ServerConfig;
 use gateway_flow_processor::create_flow_processor;
 use gateway_utils::aggregator::create_aggregator_from_config;
+use global_utils::config_path::ConfigPath;
 use global_utils::config_variant::ConfigVariant;
 use global_utils::env_parser::lookup_ip_addr;
 use global_utils::logger::init_logger;
@@ -15,16 +16,16 @@ use tracing::instrument;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let _logger_guard = init_logger();
+    let _ = dotenv::dotenv();
 
-    let config_path = std::env::var("CONFIG_PATH").unwrap();
+    let config_path = ConfigPath::from_env()?;
 
-    let app_config = ServerConfig::init_config(ConfigVariant::OnlyOneFilepath(config_path))?;
+    let app_config = ServerConfig::init_config(ConfigVariant::OnlyOneFilepath(config_path.path))?;
     tracing::debug!("App config: {:?}", app_config);
 
     let frost_aggregator = create_aggregator_from_config(app_config.clone());
 
-    let postgres_url = std::env::var("DATABASE_URL").unwrap();
-    let postgres_creds = PostgresDbCredentials { url: postgres_url };
+    let postgres_creds = PostgresDbCredentials::from_db_url()?;
     let db_pool = PostgresRepo::from_config(postgres_creds).await?;
 
     let (mut flow_processor, flow_sender) = create_flow_processor(db_pool.clone(), 10, frost_aggregator);

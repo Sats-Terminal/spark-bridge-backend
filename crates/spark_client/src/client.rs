@@ -1,14 +1,14 @@
-use std::{future::Future, sync::Arc};
-use log;
-use spark_protos::spark::{
-    QueryTokenOutputsRequest, QueryTokenOutputsResponse, 
-};
-use spark_protos::spark_token::{StartTransactionRequest, StartTransactionResponse, CommitTransactionRequest, CommitTransactionResponse};
-use tokio::sync::Mutex;
 use crate::{
     common::{config::SparkConfig, error::SparkClientError},
     connection::{SparkClients, SparkConnectionPool},
 };
+use log;
+use spark_protos::spark::{QueryTokenOutputsRequest, QueryTokenOutputsResponse};
+use spark_protos::spark_token::{
+    CommitTransactionRequest, CommitTransactionResponse, StartTransactionRequest, StartTransactionResponse,
+};
+use std::{future::Future, sync::Arc};
+use tokio::sync::Mutex;
 
 const N_QUERY_RETRIES: usize = 3;
 const N_OPERATOR_SWITCHES: usize = 2;
@@ -88,32 +88,29 @@ impl SparkRpcClient {
         request: QueryTokenOutputsRequest,
     ) -> Result<QueryTokenOutputsResponse, SparkClientError> {
         let query_fn = |mut clients: SparkClients, request: QueryTokenOutputsRequest| async move {
-            clients.spark
+            clients
+                .spark
                 .query_token_outputs(request)
                 .await
                 .map_err(|e| SparkClientError::ConnectionError(format!("Failed to query balance: {}", e)))
         };
 
-        self.retry_query(query_fn, request)
-            .await
-            .map(|r| r.into_inner())
+        self.retry_query(query_fn, request).await.map(|r| r.into_inner())
     }
 
     pub async fn start_token_transaction(
         &mut self,
         request: StartTransactionRequest,
     ) -> Result<StartTransactionResponse, SparkClientError> {
-
         let query_fn = |mut clients: SparkClients, request: StartTransactionRequest| async move {
-            clients.spark_token
+            clients
+                .spark_token
                 .start_transaction(request)
                 .await
                 .map_err(|e| SparkClientError::ConnectionError(format!("Failed to start transaction: {}", e)))
         };
 
-        self.retry_query(query_fn, request)
-            .await
-            .map(|r| r.into_inner())
+        self.retry_query(query_fn, request).await.map(|r| r.into_inner())
     }
 
     pub async fn commit_token_transaction(
@@ -121,15 +118,14 @@ impl SparkRpcClient {
         request: CommitTransactionRequest,
     ) -> Result<CommitTransactionResponse, SparkClientError> {
         let query_fn = |mut clients: SparkClients, request: CommitTransactionRequest| async move {
-            clients.spark_token
+            clients
+                .spark_token
                 .commit_transaction(request)
                 .await
                 .map_err(|e| SparkClientError::ConnectionError(format!("Failed to commit transaction: {}", e)))
         };
 
-        self.retry_query(query_fn, request)
-            .await
-            .map(|r| r.into_inner())
+        self.retry_query(query_fn, request).await.map(|r| r.into_inner())
     }
 }
 

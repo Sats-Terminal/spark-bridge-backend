@@ -1,6 +1,6 @@
-use std::ops::Deref;
-use serde::{Deserialize, Serialize};
 use bitcoin::hashes::{Hash, HashEngine, sha256::Hash as Sha256Hash};
+use serde::{Deserialize, Serialize};
+use std::ops::Deref;
 use thiserror::Error;
 
 use crate::{
@@ -55,10 +55,7 @@ impl SparkHash {
     /// # Returns
     ///
     /// A `SparkHash` representing the hash of the token transaction.
-    pub fn hash_token_transaction(
-        token_tx: &TokenTransaction,
-        is_partial_hash: bool,
-    ) -> Result<Self, SparkHashError> {
+    pub fn hash_token_transaction(token_tx: &TokenTransaction, is_partial_hash: bool) -> Result<Self, SparkHashError> {
         let mut hash_engine = Sha256Hash::engine();
 
         let is_v2 = token_tx.version == TokenTransactionVersion::V2;
@@ -83,19 +80,17 @@ impl SparkHash {
                 for leaf in &transfer_input.leaves_to_spend {
                     hash_engine.input(SparkHash::hash_token_leaf_to_spend(&leaf).0.as_byte_array());
                 }
-            },
+            }
             TokenTransactionInput::Mint(mint_input) => {
-                hash_engine.input(
-                    Sha256Hash::hash(&mint_input.issuer_public_key.serialize()).as_byte_array(),
-                );
+                hash_engine.input(Sha256Hash::hash(&mint_input.issuer_public_key.serialize()).as_byte_array());
 
                 if let Some(identifier) = mint_input.token_identifier {
                     hash_engine.input(Sha256Hash::hash(&identifier.to_bytes()).as_byte_array());
                 }
-            },
+            }
             TokenTransactionInput::Create(_) => {
                 return Err(SparkHashError::InvalidTokenTransactionInput);
-            },
+            }
         }
 
         let outputs_len = token_tx.leaves_to_create.len() as u32;
@@ -127,13 +122,10 @@ impl SparkHash {
         }
 
         if is_v2 {
-            hash_engine.input(
-                Sha256Hash::hash(&token_tx.client_created_timestamp.to_be_bytes()).as_byte_array(),
-            );
+            hash_engine.input(Sha256Hash::hash(&token_tx.client_created_timestamp.to_be_bytes()).as_byte_array());
 
             if !is_partial_hash {
-                hash_engine
-                    .input(Sha256Hash::hash(&token_tx.expiry_time.to_be_bytes()).as_byte_array());
+                hash_engine.input(Sha256Hash::hash(&token_tx.expiry_time.to_be_bytes()).as_byte_array());
             }
         }
 
@@ -160,10 +152,7 @@ impl SparkHash {
     ///
     /// * `leaf` - The token leaf output to hash.
     /// * `is_partial_hash` - Whether to hash the leaf partially.
-    pub fn hash_token_leaf_output(
-        leaf: &TokenLeafOutput,
-        is_partial_hash: bool,
-    ) -> Result<Self, SparkHashError> {
+    pub fn hash_token_leaf_output(leaf: &TokenLeafOutput, is_partial_hash: bool) -> Result<Self, SparkHashError> {
         let mut hash_engine = Sha256Hash::engine();
 
         if !is_partial_hash && leaf.id.is_some() {
@@ -234,8 +223,8 @@ mod test {
         token_identifier::TokenIdentifier,
         token_leaf::{TokenLeafOutput, TokenLeafToSpend},
         token_transaction::{
-            TokenTransaction, TokenTransactionInput, TokenTransactionMintInput,
-            TokenTransactionTransferInput, TokenTransactionVersion,
+            TokenTransaction, TokenTransactionInput, TokenTransactionMintInput, TokenTransactionTransferInput,
+            TokenTransactionVersion,
         },
     };
 
@@ -248,31 +237,19 @@ mod test {
     });
 
     static ISSUER_PUBKEY: Lazy<secp256k1::PublicKey> = Lazy::new(|| {
-        secp256k1::PublicKey::from_str(
-            "02f29bd05a48d378f445631c6595de7b32fc3f633689e207e0a37a5df82a9fad2d",
-        )
-        .unwrap()
+        secp256k1::PublicKey::from_str("02f29bd05a48d378f445631c6595de7b32fc3f633689e207e0a37a5df82a9fad2d").unwrap()
     });
 
     static IDENTITY_PUBKEY: Lazy<secp256k1::PublicKey> = Lazy::new(|| {
-        secp256k1::PublicKey::from_str(
-            "03199bd05a48d378f445631c6595de7b32fc3f633689e207e0a37a5df82a9fad2e",
-        )
-        .unwrap()
+        secp256k1::PublicKey::from_str("03199bd05a48d378f445631c6595de7b32fc3f633689e207e0a37a5df82a9fad2e").unwrap()
     });
 
     static REVOCATION_COMMITMENT: Lazy<secp256k1::PublicKey> = Lazy::new(|| {
-        secp256k1::PublicKey::from_str(
-            "02649bd05a48d378f445631c6595de7b32fc3f633689e207e0a37a5df82a9fad2e",
-        )
-        .unwrap()
+        secp256k1::PublicKey::from_str("02649bd05a48d378f445631c6595de7b32fc3f633689e207e0a37a5df82a9fad2e").unwrap()
     });
 
     static SO_PUBKEY: Lazy<secp256k1::PublicKey> = Lazy::new(|| {
-        secp256k1::PublicKey::from_str(
-            "03c89bd05a48d378f445631c6595de7b32fc3f633689e207e0a37a5df82a9fad2e",
-        )
-        .unwrap()
+        secp256k1::PublicKey::from_str("03c89bd05a48d378f445631c6595de7b32fc3f633689e207e0a37a5df82a9fad2e").unwrap()
     });
 
     #[test]
@@ -312,13 +289,11 @@ mod test {
 
         assert_eq!(
             partial_spark_hash.0,
-            Hash::from_str("18c5c41161a9634c4c36ccad955ca5ce50dc49364413a4d4daff341da2070b1c")
-                .unwrap()
+            Hash::from_str("18c5c41161a9634c4c36ccad955ca5ce50dc49364413a4d4daff341da2070b1c").unwrap()
         );
         assert_eq!(
             final_spark_hash.0,
-            Hash::from_str("8cdda04a32fb32e2d70d1d3d8a63439a370ab9006b6d01c44e04732e5d84262f")
-                .unwrap()
+            Hash::from_str("8cdda04a32fb32e2d70d1d3d8a63439a370ab9006b6d01c44e04732e5d84262f").unwrap()
         );
 
         Ok(())
@@ -364,13 +339,11 @@ mod test {
 
         assert_eq!(
             partial_spark_hash.0,
-            Hash::from_str("fb0092e584b68bd27069e8f304118b2871c456d242382e29552e1ec985c1574a")
-                .unwrap()
+            Hash::from_str("fb0092e584b68bd27069e8f304118b2871c456d242382e29552e1ec985c1574a").unwrap()
         );
         assert_eq!(
             final_spark_hash.0,
-            Hash::from_str("8fe5fd5a5f109a3e3dc1517939a5dc4ab28f7fc11ec6c9e9319678e8e933aeba")
-                .unwrap()
+            Hash::from_str("8fe5fd5a5f109a3e3dc1517939a5dc4ab28f7fc11ec6c9e9319678e8e933aeba").unwrap()
         );
 
         Ok(())

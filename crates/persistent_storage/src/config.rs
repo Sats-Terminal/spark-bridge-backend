@@ -45,7 +45,7 @@ impl EnvParser for PgName {
 }
 
 impl PostgresDbCredentials {
-    /// Gets url from DB_URL env variable
+    /// Gets url from DATABASE_URL env variable
     pub fn from_db_url() -> Result<Self, EnvParserError> {
         Ok(Self {
             url: PostgresDbCredentials::obtain_env_value()?,

@@ -1,4 +1,5 @@
 use anyhow::anyhow;
+use global_utils::config_path::ConfigPath;
 use global_utils::config_variant::ConfigVariant;
 use global_utils::env_parser::lookup_ip_addr;
 use global_utils::logger::init_logger;
@@ -12,15 +13,15 @@ use verifier_utils::frost_signer::create_frost_signer;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let _logger_guard = init_logger();
+    let _ = dotenv::dotenv();
 
-    let config_path = std::env::var("CONFIG_PATH").unwrap();
+    let config_path = ConfigPath::from_env()?;
 
-    let app_config = ServerConfig::init_config(ConfigVariant::OnlyOneFilepath(config_path))?;
+    let app_config = ServerConfig::init_config(ConfigVariant::OnlyOneFilepath(config_path.path))?;
     tracing::debug!("App config: {:?}", app_config);
 
-    let postgres_url = std::env::var("DATABASE_URL").unwrap();
-    let postgres_creds = PostgresDbCredentials { url: postgres_url };
-    
+    let postgres_creds = PostgresDbCredentials::from_db_url()?;
+
     let db_pool = PostgresRepo::from_config(postgres_creds).await?.into_shared();
     let frost_signer = create_frost_signer(app_config.frost_signer);
     let app = verifier_server::init::create_app(frost_signer).await?;
