@@ -2,12 +2,13 @@ use crate::flow_processor::FlowProcessor;
 use crate::flow_sender::FlowSender;
 use frost::aggregator::FrostAggregator;
 
+use gateway_local_db_store::storage::LocalDbStorage;
 use persistent_storage::init::PostgresRepo;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
 pub fn create_flow_processor(
-    storage: PostgresRepo,
+    storage: LocalDbStorage,
     cancellation_retries: u64,
     frost_aggregator: FrostAggregator,
 ) -> (FlowProcessor, FlowSender) {

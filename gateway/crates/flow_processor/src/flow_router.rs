@@ -1,6 +1,7 @@
 use crate::error::FlowProcessorError;
 use crate::types::*;
 use frost::aggregator::FrostAggregator;
+use gateway_local_db_store::storage::LocalDbStorage;
 use persistent_storage::init::PostgresRepo;
 use tokio::sync::mpsc;
 use tracing;
@@ -12,7 +13,7 @@ const LOG_PATH: &str = "flow_processor";
 // This struct is used to route the message to the correct flow
 // This struct instance is created for each message that is sent to the flow processor
 pub struct FlowProcessorRouter {
-    pub(crate) storage: PostgresRepo,
+    pub(crate) storage: LocalDbStorage,
     pub(crate) flow_id: Uuid,
     pub(crate) response_sender: OneshotFlowProcessorSender,
     pub(crate) task_sender: mpsc::Sender<Uuid>,
@@ -21,7 +22,7 @@ pub struct FlowProcessorRouter {
 
 impl FlowProcessorRouter {
     pub fn new(
-        storage: PostgresRepo,
+        storage: LocalDbStorage,
         flow_id: Uuid,
         response_sender: OneshotFlowProcessorSender,
         task_sender: mpsc::Sender<Uuid>,
@@ -66,7 +67,7 @@ impl FlowProcessorRouter {
 
     #[tracing::instrument(level = "trace", skip(self, request), ret)]
     async fn run_btc_addr_issuing(&mut self, request: DkgFlowRequest) -> Result<DkgFlowResponse, FlowProcessorError> {
-        info!("[LOG_PATH] issuing btc addr to user with request: {request:?}");
+        info!("[{LOG_PATH}] issuing btc addr to user with request: {request:?}");
         let pubkey = crate::routes::btc_addr_issuing::handle(self, request).await?;
         Ok(DkgFlowResponse { public_key: pubkey })
     }
@@ -76,7 +77,7 @@ impl FlowProcessorRouter {
         &mut self,
         request: BridgeRunesRequest,
     ) -> Result<BridgeRunesResponse, FlowProcessorError> {
-        info!("[LOG_PATH] bridging runes flow with request: {request:?}");
+        info!("[{LOG_PATH}] bridging runes flow with request: {request:?}");
         crate::routes::bridge_runes_flow::handle(self).await?;
         Ok(BridgeRunesResponse {
             message: format!("message for {}", request.request_id),
@@ -88,7 +89,7 @@ impl FlowProcessorRouter {
         &mut self,
         request: ExitSparkRequest,
     ) -> Result<ExitSparkResponse, FlowProcessorError> {
-        info!("[LOG_PATH] exiting spark flow with request: {request:?}");
+        info!("[{LOG_PATH}] exiting spark flow with request: {request:?}");
         crate::routes::exit_spark_flow::handle(self).await?;
         Ok(ExitSparkResponse {
             message: format!("message for {}", request.request_id),

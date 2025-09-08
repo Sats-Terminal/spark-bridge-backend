@@ -1,4 +1,4 @@
-use crate::storage::Storage;
+use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
 use frost::traits::AggregatorMusigIdStorage;
 use frost::types::AggregatorDkgState;
@@ -8,7 +8,7 @@ use persistent_storage::error::DbError;
 use sqlx::types::Json;
 
 #[async_trait]
-impl AggregatorMusigIdStorage for Storage {
+impl AggregatorMusigIdStorage for LocalDbStorage {
     async fn get_musig_id_data(&self, musig_id: MusigId) -> Result<Option<AggregatorMusigIdData>, DbError> {
         let public_key = musig_id.get_public_key();
         let rune_id = musig_id.get_rune_id();
@@ -135,7 +135,7 @@ mod tests {
         let verifiers_map = create_verifiers_map_easy().await;
 
         let storage = Arc::new(
-            Storage::new("postgres://admin_manager:password@localhost:5470/production_db_name".to_string())
+            LocalDbStorage::new("postgres://admin_manager:password@localhost:5470/production_db_name".to_string())
                 .await
                 .unwrap(),
         );

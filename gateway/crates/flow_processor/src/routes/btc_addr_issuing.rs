@@ -11,7 +11,7 @@ pub async fn handle(
     flow_processor: &mut FlowProcessorRouter,
     request: DkgFlowRequest,
 ) -> Result<secp256k1::PublicKey, FlowProcessorError> {
-    info!("[LOG_PATH] Handling btc addr issuing ...");
+    info!("[{LOG_PATH}] Handling btc addr issuing ...");
 
     let public_key_package = flow_processor
         .frost_aggregator

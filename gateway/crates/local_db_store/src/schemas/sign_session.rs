@@ -1,4 +1,4 @@
-use crate::storage::Storage;
+use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
 use frost::traits::AggregatorSignSessionStorage;
 use frost::types::AggregatorSignData;
@@ -10,7 +10,7 @@ use sqlx::types::Json;
 use uuid::Uuid;
 
 #[async_trait]
-impl AggregatorSignSessionStorage for Storage {
+impl AggregatorSignSessionStorage for LocalDbStorage {
     async fn get_sign_data(&self, musig_id: MusigId, session_id: Uuid) -> Result<Option<AggregatorSignData>, DbError> {
         let public_key = musig_id.get_public_key();
         let rune_id = musig_id.get_rune_id();

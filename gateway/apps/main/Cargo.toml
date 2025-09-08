@@ -15,3 +15,4 @@ tracing = { workspace = true }
 gateway_flow_processor = { workspace = true }
 frost = { workspace = true }
 gateway_utils = { workspace = true }
+gateway_local_db_store = { workspace = true }

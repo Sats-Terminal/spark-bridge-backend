@@ -1,6 +1,7 @@
 use anyhow::anyhow;
 use gateway_config_parser::config::ServerConfig;
 use gateway_flow_processor::init::create_flow_processor;
+use gateway_local_db_store::storage::LocalDbStorage;
 use gateway_utils::aggregator::create_aggregator_from_config;
 use global_utils::config_path::ConfigPath;
 use global_utils::config_variant::ConfigVariant;
@@ -25,9 +26,11 @@ async fn main() -> anyhow::Result<()> {
     let frost_aggregator = create_aggregator_from_config(app_config.clone());
 
     let postgres_creds = PostgresDbCredentials::from_db_url()?;
-    let db_pool = PostgresRepo::from_config(postgres_creds).await?;
+    let db_pool = LocalDbStorage {
+        postgres_repo: PostgresRepo::from_config(postgres_creds).await?,
+    };
 
-    let (mut flow_processor, flow_sender) = create_flow_processor(db_pool.clone(), 10, frost_aggregator);
+    let (mut flow_processor, flow_sender) = create_flow_processor(db_pool, 10, frost_aggregator);
 
     let _ = tokio::spawn(async move {
         flow_processor.run().await;

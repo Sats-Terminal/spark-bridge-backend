@@ -13,3 +13,4 @@ tracing = { workspace = true }
 uuid = { workspace = true }
 frost = { workspace = true }
 bitcoin = { workspace = true }
+gateway_local_db_store = { workspace = true }

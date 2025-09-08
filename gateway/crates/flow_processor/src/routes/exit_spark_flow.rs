@@ -6,6 +6,6 @@ use tracing::info;
 const LOG_PATH: &str = "flow_processor:routes:exit_spark_flow";
 
 pub async fn handle(x: &mut FlowProcessorRouter) -> Result<(), FlowProcessorError> {
-    info!("[LOG_PATH] Handling exit spark flow ...");
+    info!("[{LOG_PATH}] Handling exit spark flow ...");
     Ok(())
 }

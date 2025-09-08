@@ -1,6 +1,7 @@
 use crate::flow_router::FlowProcessorRouter;
 use crate::types::*;
 use frost::aggregator::FrostAggregator;
+use gateway_local_db_store::storage::LocalDbStorage;
 use global_utils::common_types::get_uuid;
 use persistent_storage::init::PostgresRepo;
 use std::collections::HashMap;
@@ -18,7 +19,7 @@ pub struct FlowProcessor {
     pub tx_receiver: mpsc::Receiver<(FlowProcessorMessage, OneshotFlowProcessorSender)>,
     pub flow_receiver: mpsc::Receiver<Uuid>,
     pub flow_sender: mpsc::Sender<Uuid>,
-    pub storage: PostgresRepo,
+    pub storage: LocalDbStorage,
     pub flows: HashMap<Uuid, JoinHandle<()>>,
     pub cancellation_token: CancellationToken,
     pub cancellation_retries: u64,
@@ -28,7 +29,7 @@ pub struct FlowProcessor {
 impl FlowProcessor {
     pub fn new(
         tx_receiver: mpsc::Receiver<(FlowProcessorMessage, OneshotFlowProcessorSender)>,
-        storage: PostgresRepo,
+        storage: LocalDbStorage,
         cancellation_token: CancellationToken,
         cancellation_retries: u64,
         frost_aggregator: FrostAggregator,
