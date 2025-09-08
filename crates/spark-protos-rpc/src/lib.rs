@@ -48,3 +48,7 @@ pub mod frost {
 pub mod spark_authn {
     include!(concat!(env!("OUT_DIR"), "/spark_authn.rs"));
 }
+
+// This is the file descriptor set for the Spark Operator RPC.
+pub const SPARK_FILE_DESCRIPTOR_SET: &[u8] =
+    include_bytes!(concat!(env!("OUT_DIR"), "/spark_descriptor.bin"));

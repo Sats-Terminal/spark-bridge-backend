@@ -1,0 +1,16 @@
+[package]
+name = "proto-hasher"
+edition = "2024"
+
+[dependencies]
+prost-reflect = { workspace = true }
+bitcoin = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+lazy_static = { workspace = true }
+hex = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+spark-protos = { workspace = true }
+tonic = { workspace = true }
