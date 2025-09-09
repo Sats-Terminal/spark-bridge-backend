@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use bitcoin::secp256k1::PublicKey;
 use frost_secp256k1_tr::{
     Identifier, Signature, SigningPackage,
@@ -9,10 +8,10 @@ use frost_secp256k1_tr::{
     round1::{SigningCommitments, SigningNonces},
     round2::SignatureShare,
 };
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use lrc20::token_transaction::TokenTransaction;
-
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub enum MusigId {
@@ -23,7 +22,7 @@ pub enum MusigId {
     Issuer {
         issuer_public_key: PublicKey,
         rune_id: String,
-    }
+    },
 }
 
 impl MusigId {
@@ -33,7 +32,7 @@ impl MusigId {
             MusigId::Issuer { issuer_public_key, .. } => issuer_public_key.clone(),
         }
     }
-    
+
     pub fn get_rune_id(&self) -> String {
         match self {
             MusigId::User { rune_id, .. } => rune_id.clone(),
@@ -86,7 +85,7 @@ pub struct SignRound1Request {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignRound1Response {
-    pub commitments: SigningCommitments, 
+    pub commitments: SigningCommitments,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -117,17 +116,13 @@ pub enum AggregatorDkgState {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AggregatorMusigIdData {
-    pub dkg_state: AggregatorDkgState
+    pub dkg_state: AggregatorDkgState,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AggregatorSignState {
-    SigningRound1 {
-        signing_package: SigningPackage,
-    },
-    SigningRound2 {
-        signature: Signature,
-    },
+    SigningRound1 { signing_package: SigningPackage },
+    SigningRound2 { signature: Signature },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -159,12 +154,8 @@ pub struct SignerMusigIdData {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SignerSignState {
-    SigningRound1 {
-        nonces: SigningNonces,
-    },
-    SigningRound2 {
-        signature_share: SignatureShare,
-    },
+    SigningRound1 { nonces: SigningNonces },
+    SigningRound2 { signature_share: SignatureShare },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -182,16 +173,8 @@ pub struct SigningMetadata {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TokenTransactionMetadata {
-    PartialCreateToken {
-        token_transaction: TokenTransaction,
-    },
-    FinalCreateToken {
-        token_transaction: TokenTransaction,
-    },
-    PartialMintToken {
-        token_transaction: TokenTransaction,
-    },
-    FinalMintToken {
-        token_transaction: TokenTransaction,
-    },
+    PartialCreateToken { token_transaction: TokenTransaction },
+    FinalCreateToken { token_transaction: TokenTransaction },
+    PartialMintToken { token_transaction: TokenTransaction },
+    FinalMintToken { token_transaction: TokenTransaction },
 }

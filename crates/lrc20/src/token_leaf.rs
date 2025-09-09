@@ -1,6 +1,4 @@
-use bitcoin::{
-    BlockHash, Txid, absolute::LockTime as AbsoluteLocktime, hashes::sha256::Hash, secp256k1,
-};
+use bitcoin::{BlockHash, Txid, absolute::LockTime as AbsoluteLocktime, hashes::sha256::Hash, secp256k1};
 use serde::{Deserialize, Serialize};
 
 use crate::token_identifier::TokenIdentifier;

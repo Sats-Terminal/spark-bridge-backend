@@ -72,7 +72,10 @@ fn mk_struct_empty() -> DynamicMessage {
 fn mk_any_with_type_url(url: &str) -> DynamicMessage {
     let d = lookup_msg("google.protobuf.Any");
     let mut m = DynamicMessage::new(d.clone());
-    m.set_field(&d.get_field_by_name("type_url").unwrap(), Value::String(url.to_string()));
+    m.set_field(
+        &d.get_field_by_name("type_url").unwrap(),
+        Value::String(url.to_string()),
+    );
     m
 }
 
@@ -130,8 +133,7 @@ fn null_and_any_error_cases() {
         let err = hasher.hash_proto(v).expect_err("expected error hashing null Value");
         let es = err.to_string();
         assert!(
-            es.contains("cannot hash nil value")
-                || es.contains("top-level scalar/value types are not hashable"),
+            es.contains("cannot hash nil value") || es.contains("top-level scalar/value types are not hashable"),
             "unexpected error: {es}"
         );
     }
@@ -141,8 +143,7 @@ fn null_and_any_error_cases() {
         let err = hasher.hash_proto(v).expect_err("expected error hashing empty Value");
         let es = err.to_string();
         assert!(
-            es.contains("invalid struct value")
-                || es.contains("top-level scalar/value types are not hashable"),
+            es.contains("invalid struct value") || es.contains("top-level scalar/value types are not hashable"),
             "unexpected error: {es}"
         );
     }
@@ -153,10 +154,9 @@ fn null_and_any_error_cases() {
             .hash_proto(lv)
             .expect_err("expected error hashing ListValue containing null");
         let es = err.to_string();
-        
+
         assert!(
-            es.contains("hashing list item 0")
-                || es.contains("top-level scalar/value types are not hashable"),
+            es.contains("hashing list item 0") || es.contains("top-level scalar/value types are not hashable"),
             "unexpected error: {es}"
         );
     }
@@ -171,12 +171,9 @@ fn null_and_any_error_cases() {
         let h2 = hasher
             .hash_proto(empty)
             .unwrap_or_else(|e| panic!("unexpected error hashing empty Struct: {e}"));
-        assert_eq!(
-            h1, h2,
-            "Struct with null field should hash equal to empty struct"
-        );
+        assert_eq!(h1, h2, "Struct with null field should hash equal to empty struct");
     }
-    
+
     {
         let any = mk_any_with_type_url("type.googleapis.com/example.Message");
         let err = hasher.hash_proto(any).expect_err("expected error hashing Any");
@@ -191,7 +188,7 @@ fn null_and_any_error_cases() {
 #[test]
 fn top_level_scalar_or_value_types_error() {
     let hasher = ProtoHasher::new();
-    
+
     {
         let v = mk_value_bool(false);
         assert!(
@@ -199,7 +196,7 @@ fn top_level_scalar_or_value_types_error() {
             "expected error hashing top-level structpb.Value(false)"
         );
     }
-    
+
     {
         let v = mk_value_number(0.0);
         assert!(
@@ -207,7 +204,7 @@ fn top_level_scalar_or_value_types_error() {
             "expected error hashing top-level structpb.Value(0)"
         );
     }
-    
+
     {
         let v = mk_value_string("");
         assert!(
@@ -215,7 +212,7 @@ fn top_level_scalar_or_value_types_error() {
             r#"expected error hashing top-level structpb.Value("")"#
         );
     }
-    
+
     {
         let w = mk_wrapper_bool(false);
         assert!(
@@ -223,7 +220,7 @@ fn top_level_scalar_or_value_types_error() {
             "expected error hashing top-level BoolValue(false)"
         );
     }
-    
+
     {
         let w = mk_wrapper_int64(0);
         assert!(
@@ -231,7 +228,7 @@ fn top_level_scalar_or_value_types_error() {
             "expected error hashing top-level Int64Value(0)"
         );
     }
-    
+
     {
         let w = mk_wrapper_double(0.0);
         assert!(

@@ -4,10 +4,7 @@ use async_trait::async_trait;
 use sqlx::{PgPool, Pool, Postgres, pool::PoolConnection};
 use tracing::{instrument, trace};
 
-use crate::{
-    config::PostgresDbCredentials,
-    error::{DatabaseError},
-};
+use crate::{config::PostgresDbCredentials, error::DatabaseError};
 
 pub type PostgresPool = Pool<Postgres>;
 pub type PersistentDbConn = PoolConnection<Postgres>;

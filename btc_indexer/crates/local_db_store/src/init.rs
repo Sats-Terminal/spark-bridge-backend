@@ -3,7 +3,7 @@ use std::fmt::{Debug, Formatter};
 use async_trait::async_trait;
 use persistent_storage::{
     config::PostgresDbCredentials,
-    error::{DatabaseError},
+    error::DatabaseError,
     init::{PersistentDbConn, PersistentRepoShared, PersistentRepoTrait, PostgresRepo},
 };
 use tracing::instrument;

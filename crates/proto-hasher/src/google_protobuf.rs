@@ -1,9 +1,12 @@
-use std::borrow::Cow;
+use crate::errors::ProtoHasherError;
+use crate::hashing::{
+    MAP_IDENTIFIER, hash_bool, hash_f64, hash_fields_by_names, hash_i32, hash_i64, hash_list, hash_message,
+    hash_string, hash_u32, hash_u64, key_type_label, value_type_label,
+};
+use bitcoin::hashes::sha256::Hash as Sha256Hash;
 use bitcoin::hashes::{Hash, HashEngine};
 use prost_reflect::{DynamicMessage, FieldDescriptor, OneofDescriptor, ReflectMessage, Value};
-use crate::errors::ProtoHasherError;
-use bitcoin::hashes::sha256::Hash as Sha256Hash;
-use crate::hashing::{hash_bool, hash_f64, hash_fields_by_names, hash_i32, hash_i64, hash_list, hash_message, hash_string, hash_u32, hash_u64, key_type_label, value_type_label, MAP_IDENTIFIER};
+use std::borrow::Cow;
 
 const VALUE_NAME: &str = "value";
 
@@ -75,7 +78,8 @@ impl GoogleValue {
 }
 
 fn hash_google_proto_any(message: &DynamicMessage) -> Result<Sha256Hash, ProtoHasherError> {
-    let type_url = message.get_field_by_name("type_url")
+    let type_url = message
+        .get_field_by_name("type_url")
         .ok_or(ProtoHasherError::MissingField("type_url".to_string()))?;
 
     Err(ProtoHasherError::UnsupportedType(type_url.to_string()))
@@ -93,13 +97,13 @@ macro_rules! hash_google_proto_primitive {
     };
 }
 
-hash_google_proto_primitive!(hash_google_proto_bool,   as_bool,  hash_bool,  "bool");
-hash_google_proto_primitive!(hash_google_proto_int32,  as_i32,   hash_i32,   "int32");
-hash_google_proto_primitive!(hash_google_proto_int64,  as_i64,   hash_i64,   "int64");
-hash_google_proto_primitive!(hash_google_proto_u32,    as_u32,   hash_u32,   "uint32");
-hash_google_proto_primitive!(hash_google_proto_u64,    as_u64,   hash_u64,   "uint64");
-hash_google_proto_primitive!(hash_google_proto_float,  as_f64,   hash_f64,   "float");
-hash_google_proto_primitive!(hash_google_proto_double, as_f64,   hash_f64,   "double");
+hash_google_proto_primitive!(hash_google_proto_bool, as_bool, hash_bool, "bool");
+hash_google_proto_primitive!(hash_google_proto_int32, as_i32, hash_i32, "int32");
+hash_google_proto_primitive!(hash_google_proto_int64, as_i64, hash_i64, "int64");
+hash_google_proto_primitive!(hash_google_proto_u32, as_u32, hash_u32, "uint32");
+hash_google_proto_primitive!(hash_google_proto_u64, as_u64, hash_u64, "uint64");
+hash_google_proto_primitive!(hash_google_proto_float, as_f64, hash_f64, "float");
+hash_google_proto_primitive!(hash_google_proto_double, as_f64, hash_f64, "double");
 
 fn hash_google_proto_string(message: &DynamicMessage) -> Result<Sha256Hash, ProtoHasherError> {
     let v = value_field(message)?;
@@ -126,12 +130,10 @@ fn hash_google_proto_struct(message: &DynamicMessage) -> Result<Sha256Hash, Prot
 
     let mut entries = vec![];
     for (key, value) in map {
-        let k_hash: Sha256Hash = hash_string(
-            key.as_str().ok_or(ProtoHasherError::ValueTypeMismatch {
-                expected: "string",
-                found: key_type_label(&key),
-            })?,
-        );
+        let k_hash: Sha256Hash = hash_string(key.as_str().ok_or(ProtoHasherError::ValueTypeMismatch {
+            expected: "string",
+            found: key_type_label(&key),
+        })?);
 
         if is_google_proto_value_null(&value) {
             continue;
@@ -230,11 +232,7 @@ fn hash_google_proto_value(message: &DynamicMessage) -> Result<Option<Sha256Hash
             })?;
             hash_google_proto_list(dm)?
         }
-        NULL_VALUE => {
-            return Err(ProtoHasherError::EmptyValue(
-                descriptor.full_name().to_string(),
-            ))
-        }
+        NULL_VALUE => return Err(ProtoHasherError::EmptyValue(descriptor.full_name().to_string())),
         _ => return Err(ProtoHasherError::UnexpectedKind(active.name().to_string())),
     };
 
@@ -242,13 +240,15 @@ fn hash_google_proto_value(message: &DynamicMessage) -> Result<Option<Sha256Hash
 }
 
 pub(crate) fn is_google_proto_value_null(v: &Value) -> bool {
-    let Value::Message(dm) = v else { return false; };
+    let Value::Message(dm) = v else {
+        return false;
+    };
     if dm.descriptor().full_name() != "google.protobuf.Value" {
         return false;
     }
 
     let Some(kind) = dm.descriptor().oneofs().find(|o| o.name() == "kind") else {
-        return false
+        return false;
     };
 
     match kind.fields().find(|f| dm.has_field(f)) {

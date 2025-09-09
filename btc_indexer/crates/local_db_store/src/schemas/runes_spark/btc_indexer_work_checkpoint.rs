@@ -1,7 +1,7 @@
 use global_utils::common_types::{TxIdWrapped, UrlWrapped};
+use persistent_storage::error::DatabaseError;
 use persistent_storage::init::PersistentDbConn;
 use serde::{Deserialize, Serialize};
-use persistent_storage::error::DatabaseError;
 use sqlx::{
     Connection, FromRow, Postgres, Row,
     postgres::PgArguments,

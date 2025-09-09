@@ -1,10 +1,11 @@
-use std::{collections::BTreeMap, sync::Arc};
-use bitcoin::secp256k1::{Secp256k1, SecretKey, PublicKey};
+use bitcoin::secp256k1::{PublicKey, Secp256k1, SecretKey};
+use frost::types::{MusigId, SigningMetadata, TokenTransactionMetadata};
 use frost::{aggregator::FrostAggregator, mocks::*, signer::FrostSigner, traits::SignerClient};
-use frost_secp256k1_tr::{keys::Tweak, Identifier};
-use lrc20::token_transaction::{TokenTransaction, TokenTransactionVersion, TokenTransactionInput, TokenTransactionCreateInput};
-use frost::types::{SigningMetadata, TokenTransactionMetadata, MusigId};
-
+use frost_secp256k1_tr::{Identifier, keys::Tweak};
+use lrc20::token_transaction::{
+    TokenTransaction, TokenTransactionCreateInput, TokenTransactionInput, TokenTransactionVersion,
+};
+use std::{collections::BTreeMap, sync::Arc};
 
 fn create_signer(identifier: u16) -> FrostSigner {
     FrostSigner::new(
@@ -28,7 +29,7 @@ fn create_verifiers_map_easy() -> BTreeMap<Identifier, Arc<dyn SignerClient>> {
     let identifier_1: Identifier = 1.try_into().unwrap();
     let identifier_2: Identifier = 2.try_into().unwrap();
     let identifier_3: Identifier = 3.try_into().unwrap();
-    
+
     BTreeMap::from([
         (identifier_1, Arc::new(mock_signer_client1) as Arc<dyn SignerClient>),
         (identifier_2, Arc::new(mock_signer_client2) as Arc<dyn SignerClient>),
@@ -41,7 +42,10 @@ fn create_signing_metadata() -> SigningMetadata {
         token_transaction: TokenTransaction {
             version: TokenTransactionVersion::V2,
             input: TokenTransactionInput::Create(TokenTransactionCreateInput {
-                issuer_public_key: PublicKey::from_secret_key(&Secp256k1::new(), &SecretKey::from_slice(&[1u8; 32]).unwrap()),
+                issuer_public_key: PublicKey::from_secret_key(
+                    &Secp256k1::new(),
+                    &SecretKey::from_slice(&[1u8; 32]).unwrap(),
+                ),
                 token_name: "test_token".to_string(),
                 token_ticker: "TEST".to_string(),
                 decimals: 8,
@@ -143,5 +147,8 @@ async fn test_parallel_signing_sessions_via_aggregator() {
         .verify(msg_b.as_slice(), &signature_b)
         .expect("signature B must be valid");
 
-    assert_ne!(signature_a, signature_b, "signatures for different messages should differ");
+    assert_ne!(
+        signature_a, signature_b,
+        "signatures for different messages should differ"
+    );
 }

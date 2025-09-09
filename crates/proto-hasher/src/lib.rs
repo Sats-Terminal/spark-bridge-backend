@@ -11,8 +11,8 @@ pub(crate) mod google_protobuf;
 /// Errors
 pub mod errors;
 
-use prost_reflect::{DynamicMessage, ReflectMessage};
 use errors::ProtoHasherError;
+use prost_reflect::{DynamicMessage, ReflectMessage};
 
 /// Main function for hashing protobufs
 pub use hashing::hash_message;
@@ -47,12 +47,11 @@ impl ProtoHasher {
                     descriptor.full_name().to_owned(),
                 ));
             }
-            _ => {},
+            _ => {}
         };
 
         let hash = hash_message(message)?.ok_or(ProtoHasherError::NothingToHash)?;
 
         Ok(hash)
     }
-
 }

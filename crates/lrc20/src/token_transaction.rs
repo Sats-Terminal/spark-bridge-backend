@@ -1,11 +1,11 @@
-use std::{
-    array::TryFromSliceError,
-    fmt::{Display, Formatter},
-};
-use serde::{Deserialize, Serialize};
 use bitcoin::{
     hashes::{FromSliceError, sha256::Hash},
     secp256k1::{Error as Secp256k1Error, PublicKey},
+};
+use serde::{Deserialize, Serialize};
+use std::{
+    array::TryFromSliceError,
+    fmt::{Display, Formatter},
 };
 use thiserror::Error;
 
@@ -83,8 +83,7 @@ impl TokenTransaction {
     /// # Returns
     /// A `SparkHash` representing the hash of the token transaction.
     pub fn hash(&self) -> Result<SparkHash, TokenTransactionError> {
-        self.try_into()
-            .map_err(|err| TokenTransactionError::HashError(err))
+        self.try_into().map_err(|err| TokenTransactionError::HashError(err))
     }
 }
 

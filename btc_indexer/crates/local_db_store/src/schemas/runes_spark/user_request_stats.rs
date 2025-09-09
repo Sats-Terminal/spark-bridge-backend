@@ -1,3 +1,4 @@
+use persistent_storage::error::DatabaseError;
 use persistent_storage::init::PersistentDbConn;
 use serde::{Deserialize, Serialize};
 use sqlx::{
@@ -6,7 +7,6 @@ use sqlx::{
     query::{Query, QueryAs},
     types::chrono::{DateTime, Utc},
 };
-use persistent_storage::error::DatabaseError;
 use tracing::instrument;
 use uuid::Uuid;
 

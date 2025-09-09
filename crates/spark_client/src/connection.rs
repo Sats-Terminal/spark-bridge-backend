@@ -1,8 +1,8 @@
 use std::str::FromStr;
 
 use spark_protos::spark::spark_service_client::SparkServiceClient;
-use spark_protos::spark_token::spark_token_service_client::SparkTokenServiceClient;
 use spark_protos::spark_authn::spark_authn_service_client::SparkAuthnServiceClient;
+use spark_protos::spark_token::spark_token_service_client::SparkTokenServiceClient;
 use tonic::transport::{Channel, ClientTlsConfig, Uri};
 
 use crate::common::{config::SparkConfig, error::SparkClientError};
@@ -43,11 +43,7 @@ impl SparkTlsConnection {
             .map_err(|e| SparkClientError::ConnectionError(format!("Failed to create TLS config: {}", e)))?
             .connect()
             .await
-            .map_err(|e| {
-                SparkClientError::ConnectionError(format!(
-                    "Failed to connect to operator: {}", e
-                ))
-            })?;
+            .map_err(|e| SparkClientError::ConnectionError(format!("Failed to connect to operator: {}", e)))?;
 
         Ok(channel)
     }

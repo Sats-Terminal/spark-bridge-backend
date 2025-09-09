@@ -1,18 +1,20 @@
-use std::{future::Future, sync::Arc};
-use tokio::sync::Mutex;
-use log;
-use spark_protos::spark::{
-    QueryTokenOutputsRequest, QueryTokenOutputsResponse, 
-};
-use bitcoin::secp256k1::PublicKey;
-use std::collections::HashMap;
-use spark_protos::spark_token::{StartTransactionRequest, StartTransactionResponse, CommitTransactionRequest, CommitTransactionResponse};
-use spark_protos::spark_authn::{GetChallengeRequest, GetChallengeResponse, VerifyChallengeRequest, VerifyChallengeResponse};
+use crate::utils::time::current_epoch_time_in_seconds;
 use crate::{
     common::{config::SparkConfig, error::SparkClientError},
     connection::{SparkServicesClients, SparkTlsConnection},
 };
-use crate::utils::time::current_epoch_time_in_seconds;
+use bitcoin::secp256k1::PublicKey;
+use log;
+use spark_protos::spark::{QueryTokenOutputsRequest, QueryTokenOutputsResponse};
+use spark_protos::spark_authn::{
+    GetChallengeRequest, GetChallengeResponse, VerifyChallengeRequest, VerifyChallengeResponse,
+};
+use spark_protos::spark_token::{
+    CommitTransactionRequest, CommitTransactionResponse, StartTransactionRequest, StartTransactionResponse,
+};
+use std::collections::HashMap;
+use std::{future::Future, sync::Arc};
+use tokio::sync::Mutex;
 
 const N_QUERY_RETRIES: usize = 3;
 
@@ -68,32 +70,29 @@ impl SparkRpcClient {
         request: QueryTokenOutputsRequest,
     ) -> Result<QueryTokenOutputsResponse, SparkClientError> {
         let query_fn = |mut clients: SparkServicesClients, request: QueryTokenOutputsRequest| async move {
-            clients.spark
+            clients
+                .spark
                 .query_token_outputs(request)
                 .await
                 .map_err(|e| SparkClientError::ConnectionError(format!("Failed to query balance: {}", e)))
         };
 
-        self.retry_query(query_fn, request)
-            .await
-            .map(|r| r.into_inner())
+        self.retry_query(query_fn, request).await.map(|r| r.into_inner())
     }
 
     pub async fn start_token_transaction(
         &self,
         request: StartTransactionRequest,
     ) -> Result<StartTransactionResponse, SparkClientError> {
-
         let query_fn = |mut clients: SparkServicesClients, request: StartTransactionRequest| async move {
-            clients.spark_token
+            clients
+                .spark_token
                 .start_transaction(request)
                 .await
                 .map_err(|e| SparkClientError::ConnectionError(format!("Failed to start transaction: {}", e)))
         };
 
-        self.retry_query(query_fn, request)
-            .await
-            .map(|r| r.into_inner())
+        self.retry_query(query_fn, request).await.map(|r| r.into_inner())
     }
 
     pub async fn commit_token_transaction(
@@ -101,48 +100,53 @@ impl SparkRpcClient {
         request: CommitTransactionRequest,
     ) -> Result<CommitTransactionResponse, SparkClientError> {
         let query_fn = |mut clients: SparkServicesClients, request: CommitTransactionRequest| async move {
-            clients.spark_token
+            clients
+                .spark_token
                 .commit_transaction(request)
                 .await
                 .map_err(|e| SparkClientError::ConnectionError(format!("Failed to commit transaction: {}", e)))
         };
 
-        self.retry_query(query_fn, request)
-            .await
-            .map(|r| r.into_inner())
+        self.retry_query(query_fn, request).await.map(|r| r.into_inner())
     }
 
     pub async fn get_challenge(&self, request: GetChallengeRequest) -> Result<GetChallengeResponse, SparkClientError> {
         let query_fn = |mut clients: SparkServicesClients, request: GetChallengeRequest| async move {
-            clients.spark_auth.get_challenge(request)
+            clients
+                .spark_auth
+                .get_challenge(request)
                 .await
                 .map_err(|e| SparkClientError::AuthenticationError(format!("Failed to get challenge: {}", e)))
         };
-        self.retry_query(query_fn, request)
-            .await
-            .map(|r| r.into_inner())
+        self.retry_query(query_fn, request).await.map(|r| r.into_inner())
     }
 
-    pub async fn verify_challenge(&self, request: VerifyChallengeRequest) -> Result<VerifyChallengeResponse, SparkClientError> {
+    pub async fn verify_challenge(
+        &self,
+        request: VerifyChallengeRequest,
+    ) -> Result<VerifyChallengeResponse, SparkClientError> {
         let query_fn = |mut clients: SparkServicesClients, request: VerifyChallengeRequest| async move {
-            clients.spark_auth.verify_challenge(request)
+            clients
+                .spark_auth
+                .verify_challenge(request)
                 .await
                 .map_err(|e| SparkClientError::AuthenticationError(format!("Failed to verify challenge: {}", e)))
         };
         let public_key = PublicKey::from_slice(&request.public_key)
             .map_err(|e| SparkClientError::DecodeError(format!("Failed to parse public key: {}", e)))?;
-        let response = self.retry_query(query_fn, request)
-            .await
-            .map(|r| r.into_inner());
+        let response = self.retry_query(query_fn, request).await.map(|r| r.into_inner());
 
         if let Ok(response) = &response {
             let session_token = response.session_token.clone();
             let expiration_time = response.expiration_timestamp;
             let mut authn_sessions = self.authn_sessions.lock().await;
-            authn_sessions.insert(public_key, SparkAuthSession {
-                session_token,
-                expiration_time: expiration_time as u64,
-            });
+            authn_sessions.insert(
+                public_key,
+                SparkAuthSession {
+                    session_token,
+                    expiration_time: expiration_time as u64,
+                },
+            );
         }
 
         response
@@ -170,9 +174,9 @@ impl SparkRpcClient {
 mod tests {
     use super::*;
     use crate::common::config::{CaCertificate, SparkConfig, SparkOperatorConfig};
+    use crate::utils::spark_address::decode_spark_address;
     use global_utils::common_types::{Url, UrlWrapped};
     use std::str::FromStr;
-    use crate::utils::spark_address::decode_spark_address;
 
     fn init_logger() {
         let _ = env_logger::builder()
@@ -182,7 +186,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_get_balances_direct() -> anyhow::Result<()> { 
+    async fn test_get_balances_direct() -> anyhow::Result<()> {
         init_logger();
         log::info!("Starting test");
 

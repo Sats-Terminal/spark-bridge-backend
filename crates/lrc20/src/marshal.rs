@@ -11,9 +11,8 @@ use crate::{
     token_identifier::TokenIdentifier,
     token_leaf::{TokenLeafOutput, TokenLeafToSpend},
     token_transaction::{
-        TokenTransaction, TokenTransactionCreateInput, TokenTransactionError,
-        TokenTransactionInput, TokenTransactionMintInput, TokenTransactionTransferInput,
-        TokenTransactionVersion,
+        TokenTransaction, TokenTransactionCreateInput, TokenTransactionError, TokenTransactionInput,
+        TokenTransactionMintInput, TokenTransactionTransferInput, TokenTransactionVersion,
     },
 };
 
@@ -45,10 +44,8 @@ pub fn marshal_token_transaction(
 
     match tx.version {
         TokenTransactionVersion::V2 => {
-            let token_outputs = into_token_leaves_to_create_v2(
-                tx.leaves_to_create.clone(),
-                with_revocation_commitments,
-            )?;
+            let token_outputs =
+                into_token_leaves_to_create_v2(tx.leaves_to_create.clone(), with_revocation_commitments)?;
             let token_inputs = Some(into_token_input_v2(tx.clone())?);
 
             let client_created_ts = Timestamp {
@@ -72,17 +69,15 @@ pub fn marshal_token_transaction(
             };
 
             Ok(tx_proto)
-        },
+        }
         _ => {
             error!("Invalid token transaction version. {:?}", tx.version);
             let version_num = match tx.version {
                 TokenTransactionVersion::V1 => 0u32,
                 TokenTransactionVersion::V2 => 1u32,
             };
-            return Err(TokenTransactionError::InvalidTokenTransactionVersion(
-                version_num,
-            ));
-        },
+            return Err(TokenTransactionError::InvalidTokenTransactionVersion(version_num));
+        }
     }
 }
 
@@ -136,9 +131,7 @@ pub fn unmarshal_token_transaction(
     token_tx: TokenTransactionV2SparkProto,
 ) -> Result<TokenTransaction, TokenTransactionError> {
     info!("Unmarshalling token transaction: {:?}", token_tx);
-    let token_input = token_tx
-        .token_inputs
-        .ok_or(TokenTransactionError::TokenInputMissing)?;
+    let token_input = token_tx.token_inputs.ok_or(TokenTransactionError::TokenInputMissing)?;
 
     let parsed_token_input = parse_token_input_v2(token_input)?;
 
@@ -163,10 +156,8 @@ pub fn unmarshal_token_transaction(
         0 => TokenTransactionVersion::V1,
         1 => TokenTransactionVersion::V2,
         _ => {
-            return Err(TokenTransactionError::InvalidTokenTransactionVersion(
-                token_tx.version,
-            ));
-        },
+            return Err(TokenTransactionError::InvalidTokenTransactionVersion(token_tx.version));
+        }
     };
 
     Ok(TokenTransaction {
@@ -194,19 +185,19 @@ fn into_token_input_v2(
                     token_identifier: Some(token_identifier.to_bytes().to_vec()),
                 },
             )
-        },
+        }
         TokenTransactionInput::Transfer(transfer_input) => {
-            let outputs_to_spend =
-                into_token_leaves_to_spend_v2(transfer_input.leaves_to_spend.clone())?;
+            let outputs_to_spend = into_token_leaves_to_spend_v2(transfer_input.leaves_to_spend.clone())?;
             spark_protos::spark_token::token_transaction::TokenInputs::TransferInput(
                 spark_protos::spark_token::TokenTransferInput { outputs_to_spend },
             )
-        },
+        }
         _ => {
-            return Err(TokenTransactionError::InvalidTokenTransactionInput(
-                format!("{:?} is not allowed for token transactions V2", tx.input),
-            ));
-        },
+            return Err(TokenTransactionError::InvalidTokenTransactionInput(format!(
+                "{:?} is not allowed for token transactions V2",
+                tx.input
+            )));
+        }
     };
 
     Ok(input)
@@ -246,11 +237,11 @@ fn parse_token_input_v2(
                 issuer_signature: None,
                 issuer_provided_timestamp: None,
             })
-        },
+        }
         spark_token::token_transaction::TokenInputs::TransferInput(transfer_input) => {
             let leaves_to_spend = parse_token_leaves_to_spend_v2(transfer_input.outputs_to_spend)?;
             TokenTransactionInput::Transfer(TokenTransactionTransferInput { leaves_to_spend })
-        },
+        }
         spark_token::token_transaction::TokenInputs::CreateInput(create_input) => {
             let issuer_public_key = PublicKey::from_slice(&create_input.issuer_public_key)?;
             let creation_entity_public_key = create_input
@@ -269,7 +260,7 @@ fn parse_token_input_v2(
                 is_freezable: create_input.is_freezable,
                 creation_entity_public_key,
             })
-        },
+        }
     };
 
     Ok(parsed_token_input)

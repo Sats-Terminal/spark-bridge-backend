@@ -1,5 +1,5 @@
-use thiserror::Error;
 use persistent_storage::error::DatabaseError;
+use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum SignerError {

@@ -1,7 +1,7 @@
 use crate::handlers;
 use axum::{Router, routing::post};
-use spark_client::common::config::SparkConfig;
 use spark_client::client::SparkRpcClient;
+use spark_client::common::config::SparkConfig;
 use tracing::{info, instrument};
 use utoipa::OpenApi;
 
