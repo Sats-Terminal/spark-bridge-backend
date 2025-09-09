@@ -177,4 +177,5 @@ pub enum TokenTransactionMetadata {
     FinalCreateToken { token_transaction: TokenTransaction },
     PartialMintToken { token_transaction: TokenTransaction },
     FinalMintToken { token_transaction: TokenTransaction },
+    Authorization 
 }

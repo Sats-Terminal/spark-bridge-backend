@@ -18,6 +18,10 @@ use lrc20::marshal::unmarshal_token_transaction;
 use bitcoin::hashes::sha256::Hash as Sha256Hash;
 use bitcoin::hashes::{Hash, HashEngine};
 use spark_protos::spark_token::InputTtxoSignaturesPerOperator;
+use spark_protos::spark_authn::GetChallengeRequest;
+use spark_protos::spark_authn::VerifyChallengeRequest;
+use frost::types::SigningMetadata;
+use frost::types::TokenTransactionMetadata;
 
 const DEFAULT_VALIDITY_DURATION_SECONDS: u64 = 300;
 
@@ -56,6 +60,49 @@ impl SparkService {
         Ok(issuer_public_key)
     }
 
+    async fn authenticate(
+        &self,
+        musig_id: MusigId,
+        nonce_tweak: Option<&[u8]>,
+    ) -> Result<(), SparkServiceError> {
+        let identity_public_key = self.get_musig_public_key(musig_id.clone(), nonce_tweak).await?;
+
+        let session_token = self.spark_client.get_auth_session(identity_public_key).await;
+        if let Some(_) = session_token {
+            return Ok(());
+        }
+
+        let response = self.spark_client.get_challenge(GetChallengeRequest {
+            public_key: identity_public_key.serialize().to_vec(),
+        }).await.map_err(|e| SparkServiceError::SparkClientError(format!("Failed to get challenge: {}", e)))?;
+
+        let protected_challenge = response.protected_challenge;
+        let challenge = protected_challenge.clone()
+            .ok_or(SparkServiceError::DecodeError("Challenge is not found".to_string()))?
+            .challenge
+            .ok_or(SparkServiceError::DecodeError("Challenge is not found".to_string()))?;
+        
+        let signature = self.frost_aggregator.run_signing_flow(
+            musig_id.clone(), 
+            challenge.nonce.as_ref(), 
+            SigningMetadata {
+                token_transaction_metadata: TokenTransactionMetadata::Authorization,
+            },
+            nonce_tweak
+        ).await
+            .map_err(|e| SparkServiceError::FrostAggregatorError(e.to_string()))?;
+
+        let signature_bytes = signature.serialize().map_err(|e| SparkServiceError::DecodeError(format!("Failed to serialize signature: {:?}", e)))?;
+
+        let _ = self.spark_client.verify_challenge(VerifyChallengeRequest {
+            protected_challenge,
+            signature: signature_bytes.to_vec(),
+            public_key: identity_public_key.serialize().to_vec(),
+        }).await.map_err(|e| SparkServiceError::SparkClientError(format!("Failed to verify challenge: {}", e)))?;
+
+        Ok(())
+    }
+
     pub async fn send_spark_transaction(
         &self,
         musig_id: MusigId,
@@ -65,6 +112,8 @@ impl SparkService {
         network: Network,
         spark_operator_identity_public_keys: Vec<PublicKey>,
     ) -> Result<(), SparkServiceError> {
+        self.authenticate(musig_id.clone(), nonce_tweak).await?;
+        
         let identity_public_key = self.get_musig_public_key(musig_id.clone(), nonce_tweak).await?;
 
         // ----- Start the transaction -----
