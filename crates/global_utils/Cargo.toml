@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+anyhow = { workspace = true }
 bitcoin = { workspace = true }
 dns-lookup = { workspace = true }
 serde = { workspace = true }
@@ -17,3 +18,4 @@ tracing-subscriber = { workspace = true }
 url = { workspace = true }
 uuid = { workspace = true }
 utoipa = { workspace = true }
+frost-secp256k1-tr = { workspace = true }

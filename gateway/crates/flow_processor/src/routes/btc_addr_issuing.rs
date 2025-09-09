@@ -4,7 +4,7 @@ use crate::types::DkgFlowRequest;
 use bitcoin::key::{Keypair, TweakedPublicKey, UntweakedKeypair, UntweakedPublicKey};
 use bitcoin::secp256k1::scalar::OutOfRangeError;
 use bitcoin::secp256k1::{Parity, Scalar, Secp256k1};
-use bitcoin::{secp256k1, Address, KnownHrp, Network, PublicKey};
+use bitcoin::{Address, Amount, KnownHrp, Network, PublicKey, secp256k1};
 use frost::traits::{AggregatorMusigIdStorage, AggregatorSignSessionStorage};
 use frost::types::{AggregatorDkgState, AggregatorMusigIdData, RuneId};
 use frost::utils::convert_public_key_package;
@@ -17,17 +17,22 @@ const LOG_PATH: &str = "flow_processor:routes:btc_addr_issuing";
 pub async fn handle(
     flow_processor: &mut FlowProcessorRouter,
     request: DkgFlowRequest,
+    human_readable_part_url: impl Into<KnownHrp>,
 ) -> Result<Address, FlowProcessorError> {
     info!("[{LOG_PATH}] Handling btc addr issuing ...");
     let nonce = TweakGenerator::generate_nonce();
-    let (msg, scalar, (tweaked_x, _parity)) = match flow_processor.storage.get_musig_id_data(&request.musig_id).await? {
+    let (tweaked_x, parity) = match flow_processor.storage.get_musig_id_data(&request.musig_id).await? {
         None => {
-            let public_key_package = flow_processor
+            let pubkey_package = flow_processor
                 .frost_aggregator
                 .run_dkg_flow(&request.musig_id)
                 .await
                 .map_err(|e| FlowProcessorError::FrostAggregatorError(e.to_string()))?;
-            tweak_pub_key_package(&request, &public_key_package, nonce)?
+            let byte_seq = generate_byte_seq(&request, &pubkey_package, nonce)?;
+            let byte_seq = TweakGenerator::hash(&byte_seq);
+            let tweaked_key_package = TweakGenerator::tweak_pubkey_package(pubkey_package, &byte_seq);
+            TweakGenerator::tweaked_verifying_key_to_tweaked_pubkey(&tweaked_key_package.verifying_key())
+                .map_err(|e| FlowProcessorError::TweakingConversionError(e.to_string()))?
             //todo: store tweak value here
             //todo: implement db struct for storing
             // todo: store nonce and tweak values
@@ -35,71 +40,67 @@ pub async fn handle(
         Some(x) => match x.dkg_state {
             //todo: extract available nonce
             AggregatorDkgState::DkgRound1 { .. } | AggregatorDkgState::DkgRound2 { .. } => {
-                let public_key_package = flow_processor
+                let pubkey_package = flow_processor
                     .frost_aggregator
                     .run_dkg_flow(&request.musig_id)
                     .await
                     .map_err(|e| FlowProcessorError::FrostAggregatorError(e.to_string()))?;
-                tweak_pub_key_package(&request, &public_key_package, nonce)?
+                let byte_seq = generate_byte_seq(&request, &pubkey_package, nonce)?;
+                let byte_seq = TweakGenerator::hash(&byte_seq);
+                let tweaked_key_package = TweakGenerator::tweak_pubkey_package(pubkey_package, &byte_seq);
+                TweakGenerator::tweaked_verifying_key_to_tweaked_pubkey(&tweaked_key_package.verifying_key())
+                    .map_err(|e| FlowProcessorError::TweakingConversionError(e.to_string()))?
             }
-            AggregatorDkgState::DkgFinalized { public_key_package } => {
-                tweak_pub_key_package(&request, &public_key_package, nonce)?
+            AggregatorDkgState::DkgFinalized {
+                public_key_package: pubkey_package,
+            } => {
+                let byte_seq = generate_byte_seq(&request, &pubkey_package, nonce)?;
+                let byte_seq = TweakGenerator::hash(&byte_seq);
+                let tweaked_key_package = TweakGenerator::tweak_pubkey_package(pubkey_package, &byte_seq);
+                TweakGenerator::tweaked_verifying_key_to_tweaked_pubkey(&tweaked_key_package.verifying_key())
+                    .map_err(|e| FlowProcessorError::TweakingConversionError(e.to_string()))?
             }
         },
     };
-    Ok(Address::p2tr_tweaked(tweaked_x, KnownHrp::Mainnet))
+    Ok(Address::p2tr_tweaked(tweaked_x, human_readable_part_url))
 }
 
-fn tweak_pub_key_package(
+fn generate_byte_seq(
     request: &DkgFlowRequest,
     public_key_package: &PublicKeyPackage,
     nonce: Nonce,
-) -> Result<(Vec<u8>, Scalar, (TweakedPublicKey, Parity)), FlowProcessorError> {
+) -> Result<Vec<u8>, FlowProcessorError> {
     let pubkey = convert_public_key_package(&public_key_package)
         .map_err(|e| FlowProcessorError::InvalidDataError(e.to_string()))?;
-    //todo: add request amount value
-    let byte_vec = generate_byte_vec(pubkey, request.musig_id.get_rune_id(), 0, nonce);
-    let tweak_scalar = generate_tweak_scalar(&byte_vec).unwrap();
-    let tweaked_pubkey = TweakGenerator::tweak_pubkey(pubkey, &tweak_scalar)?;
-    Ok((byte_vec, tweak_scalar, tweaked_pubkey))
-}
-
-fn generate_byte_vec(pubkey: secp256k1::PublicKey, rune_id: RuneId, amount: u128, nonce: Nonce) -> Vec<u8> {
-    let mut data = Vec::new();
-    data.extend_from_slice(pubkey.to_string().as_bytes());
-    data.extend_from_slice(rune_id.as_bytes());
-    data.extend_from_slice(&amount.to_be_bytes());
-    data.extend_from_slice(&nonce);
-    data
-}
-
-fn generate_tweak_scalar(data: impl AsRef<[u8]>) -> Result<Scalar, OutOfRangeError> {
-    TweakGenerator::generate_tweak_scalar(data)
+    Ok(TweakGenerator::generate_byte_seq_rune_spark(
+        pubkey,
+        request.musig_id.get_rune_id(),
+        request.amount,
+        nonce,
+    ))
 }
 
 #[cfg(test)]
 mod tweak_signature_test {
-    use global_utils::logger::{init_logger, LoggerGuard};
+    use global_utils::logger::{LoggerGuard, init_logger};
     use std::collections::BTreeMap;
     use std::str::FromStr;
     use std::sync::LazyLock;
 
     pub static TEST_LOGGER: LazyLock<LoggerGuard> = LazyLock::new(|| init_logger());
 
-    use crate::routes::btc_addr_issuing::tweak_pub_key_package;
+    use crate::routes::btc_addr_issuing::generate_byte_seq;
     use crate::types::DkgFlowRequest;
-    use bitcoin::hashes::{sha256, Hash};
-    use bitcoin::key::{TapTweak, TweakedPublicKey};
-    use bitcoin::secp256k1::{Parity, PublicKey, Scalar, Secp256k1, SecretKey};
-    use bitcoin::{secp256k1, TapNodeHash};
+    use bitcoin::hashes::Hash;
+    use bitcoin::secp256k1;
+    use bitcoin::secp256k1::{PublicKey, Secp256k1, SecretKey};
     use frost::signer::FrostSigner;
     use frost::traits::SignerClient;
     use frost::types::{MusigId, SigningMetadata, TokenTransactionMetadata};
     use frost::{aggregator::FrostAggregator, mocks::*};
-    use frost_secp256k1_tr::keys::PublicKeyPackage;
-    use frost_secp256k1_tr::keys::Tweak;
     use frost_secp256k1_tr::Identifier;
-    use global_utils::tweak_generation::{GeneratedTweakScalar, TweakGenerator};
+    use frost_secp256k1_tr::keys::PublicKeyPackage;
+    use global_utils::tweak_generation::TweakGenerator;
     use lrc20::token_transaction::{
         TokenTransaction, TokenTransactionCreateInput, TokenTransactionInput, TokenTransactionVersion,
     };
@@ -108,29 +109,22 @@ mod tweak_signature_test {
     #[tokio::test]
     async fn test_aggregator_signer_integration() -> anyhow::Result<()> {
         let msg = b"test_message";
-        let message_hash = bitcoin::hashes::sha256::Hash::hash(msg).to_byte_array();
+        let message_hash = TweakGenerator::hash(msg);
         let nonce = TweakGenerator::generate_nonce();
 
-        let generate_tweak =
-            |public_key_package: &PublicKeyPackage| -> (GeneratedTweakScalar, (TweakedPublicKey, Parity)) {
-                let musig = DkgFlowRequest {
-                    musig_id: MusigId::User {
-                        user_public_key: PublicKey::from_str(
-                            "038144ac71b61ab0e0a56967696a4f31a0cdd492cd3753d59aa978e0c8eaa5a60e",
-                        )
-                        .unwrap(),
-                        rune_id: "RANDOM_1D".to_string(),
-                    },
-                };
-                let (x, y, z) = tweak_pub_key_package(&musig, public_key_package, nonce).unwrap();
-                (
-                    GeneratedTweakScalar {
-                        input_data: x,
-                        scalar: y,
-                    },
-                    z,
-                )
+        let generate_byte_seq = |public_key_package: &PublicKeyPackage| -> Vec<u8> {
+            let musig = DkgFlowRequest {
+                musig_id: MusigId::User {
+                    user_public_key: PublicKey::from_str(
+                        "038144ac71b61ab0e0a56967696a4f31a0cdd492cd3753d59aa978e0c8eaa5a60e",
+                    )
+                    .unwrap(),
+                    rune_id: "RANDOM_1D".to_string(),
+                },
+                amount: 100,
             };
+            generate_byte_seq(&musig, public_key_package, nonce).unwrap()
+        };
         let _logger_guard = &*TEST_LOGGER;
         let secp = Secp256k1::new();
 
@@ -148,49 +142,50 @@ mod tweak_signature_test {
         };
         let public_key_package = aggregator.run_dkg_flow(&musig_id.clone()).await?;
 
-        let (tweak, scalar) = generate_tweak(&public_key_package);
-        let tweak_gen_bytes: Option<&[u8]> = Some(&sha256::Hash::hash(&tweak.input_data).to_byte_array());
-        println!("tweaked1: {:02X?}", tweak.scalar.to_be_bytes());
+        // === Running dkg flow
+        let input_data = generate_byte_seq(&public_key_package);
+        let hashed_input_data = TweakGenerator::hash(&input_data);
 
         let metadata = create_signing_metadata();
         let signature = aggregator
-            .run_signing_flow(musig_id.clone(), &message_hash, metadata, tweak_gen_bytes)
+            .run_signing_flow(musig_id.clone(), &message_hash, metadata, Some(&hashed_input_data))
             .await?;
         let source_pubkey = public_key_package.verifying_key();
         let pubkey_to_check = PublicKey::from_slice(&source_pubkey.serialize()?)?;
-        let (tweaked_pubkey_to_check, _) = pubkey_to_check.x_only_public_key().0.tap_tweak(
-            &secp,
-            tweak_gen_bytes
-                .map(|bytes| TapNodeHash::from_slice(&bytes))
-                .transpose()?,
-        );
+
+        // === Tweaking btc pubkey
+        let (tweaked_pubkey_btc, _) = TweakGenerator::tweak_btc_pubkey(&secp, pubkey_to_check, &hashed_input_data)?;
 
         let signature_to_check = secp256k1::schnorr::Signature::from_slice(&signature.serialize()?)?;
 
         secp.verify_schnorr(
             &signature_to_check,
             &secp256k1::Message::from_digest_slice(&message_hash)?,
-            &tweaked_pubkey_to_check.as_x_only_public_key(),
+            &tweaked_pubkey_btc.as_x_only_public_key(),
         )?;
 
-        let tweaked_public_key_package = match tweak_gen_bytes.clone() {
-            Some(tweak) => public_key_package.clone().tweak(Some(tweak.to_vec())),
-            None => public_key_package.clone(),
-        };
-        tweaked_public_key_package
+        // === Tweaking pubkey_package
+        let tweaked_public_key_package_frost =
+            TweakGenerator::tweak_pubkey_package(public_key_package, hashed_input_data);
+        tweaked_public_key_package_frost
             .verifying_key()
             .verify(&message_hash, &signature)?;
 
-        let public_key = tweaked_public_key_package.verifying_key();
+        let frost_verifying_key = tweaked_public_key_package_frost.verifying_key();
 
-        let tweaked_pubkey_to_check = PublicKey::from_slice(&public_key.serialize()?)?;
+        // === Converted frost pubkey
+        let (tweaked_frost_pubkey_converted, _parity) =
+            TweakGenerator::tweaked_verifying_key_to_tweaked_pubkey(frost_verifying_key)?;
+
         let signature_to_check = secp256k1::schnorr::Signature::from_slice(&signature.serialize()?)?;
-
         secp.verify_schnorr(
             &signature_to_check,
             &secp256k1::Message::from_digest_slice(&message_hash)?,
-            &tweaked_pubkey_to_check.x_only_public_key().0,
+            &tweaked_frost_pubkey_converted.to_x_only_public_key(),
         )?;
+
+        // === Tweaked pubkey from btc == Tweaked pubkey from frost lib
+        assert_eq!(tweaked_pubkey_btc, tweaked_frost_pubkey_converted);
 
         Ok(())
     }

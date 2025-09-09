@@ -16,4 +16,6 @@ pub enum FlowProcessorError {
     DbError(#[from] DbError),
     #[error("Elliptic curve (secp256k1) error: {0}")]
     Secp256k1Error(#[from] secp256k1::Error),
+    #[error("Failed conversion to TweakedPubkey error: {0}")]
+    TweakingConversionError(String),
 }

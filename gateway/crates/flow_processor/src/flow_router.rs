@@ -1,5 +1,6 @@
 use crate::error::FlowProcessorError;
 use crate::types::*;
+use bitcoin::KnownHrp;
 use frost::aggregator::FrostAggregator;
 use gateway_local_db_store::storage::LocalDbStorage;
 use persistent_storage::init::PostgresRepo;
@@ -68,7 +69,7 @@ impl FlowProcessorRouter {
     #[tracing::instrument(level = "trace", skip(self, request), ret)]
     async fn run_btc_addr_issuing(&mut self, request: DkgFlowRequest) -> Result<DkgFlowResponse, FlowProcessorError> {
         info!("[{LOG_PATH}] issuing btc addr to user with request: {request:?}");
-        let pubkey = crate::routes::btc_addr_issuing::handle(self, request).await?;
+        let pubkey = crate::routes::btc_addr_issuing::handle(self, request, KnownHrp::Mainnet).await?;
         Ok(DkgFlowResponse {
             addr_to_replenish: pubkey,
         })

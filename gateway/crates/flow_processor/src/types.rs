@@ -24,6 +24,7 @@ pub enum FlowProcessorResponse {
 #[derive(Debug)]
 pub struct DkgFlowRequest {
     pub musig_id: MusigId,
+    pub amount: u64,
     //todo: add amount
 }
 
