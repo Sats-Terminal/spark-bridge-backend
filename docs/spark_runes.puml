@@ -1,25 +1,28 @@
 @startuml
+title Bridge interaction scheme [Spark -> Rune]
 
-title Bridge interaction scheme Spark -> Rune
+note over User_Spark_wallet,Gateway:Get runes deposit address
+User_Spark_wallet->Gateway: get address for (**user_pubkey**, **rune_id**)
+Gateway<->Verifiers:Perform dkg to generate **dkg_pubkey** (if absent) \n and tweak it with random **nonce**
+Gateway->User_Spark_wallet: Retrieve **exit_spark_address** to send tokens to
 
-note over User_Spark_wallet,SparkEntity:User token transfer
-User_Spark_wallet->SparkEntity: Token transfer to bridge wallet.
+note over User_Spark_wallet,Gateway:Make deposit exit spark transfer
+User_Spark_wallet->Spark_Entity: Create and send transaction to **exit_spark_address** with **wRunes_amount** tokens
 
-note over Spark_indexer,Proxy:Transfer detection event
-Spark_indexer->Proxy:Extract last tx with: \n Users Spark wallet pubkey +\n burning event + \n extract additional information from meta
-Proxy->SparkEntity: Trigger burning for tokens with meta taken in previous step
+note over Spark_Balance_Checker,Gateway:Transfer detection event
+User_Spark_wallet->Gateway:Notify the tx is created and specify \n **runes_address** to send runes to
+Gateway->Verifiers:Check **exit_spark_address** that have **wRunes_amount** tokens
+Verifiers->Spark_Balance_Checker:Check **exit_spark_address** that have **wRunes_amount** tokens
+Verifiers<-Spark_Balance_Checker:Verify
+Verifiers->Gateway:Verify
+Gateway->Verifiers:Create and sign burning transaction for **exit_spark_address**
+Gateway->Spark_Entity:Send transaction
 
-note over Bridge_Spark_wallet,SparkEntity:Bridge token burning
-Proxy->Spark_signer_1: sign partially burning event to Spark
-Proxy->Spark_signer_2: sign partially burning event to Spark
-Proxy->SparkEntity: Token holders burn tokens by \n destroying their associated metadata.
+note over Gateway,BTC_network:Perform **Runes** UTXOs selection and transferring
+Gateway->Gateway:Select UTXOs
+Gateway->Verifiers:Create and sign transaction to **runes_address** on btc
+Gateway->BTC_network:Send transaction
 
-note over Proxy, BTC_node:Forming exit tx in BTC to \n exchange wRunes -> Runes
-Proxy->BTC_signer_1: sign partially formed transaction to BTC
-Proxy->BTC_signer_2: sign partially formed transaction to BTC
-Proxy->BTC_node: Create Appropriate tx in BTC chain on established BTC node
-
-note over User_BTC_wallet, BTC_node: Tokens acquisition
-User_BTC_wallet<-BTC_node: Runes
-
+note over User_BTC_wallet, BTC_network: Runes acquisition
+User_BTC_wallet<-BTC_network: **Runes**
 @enduml
