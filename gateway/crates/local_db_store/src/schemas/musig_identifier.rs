@@ -68,8 +68,11 @@ mod tests {
     use lrc20::token_transaction::{
         TokenTransaction, TokenTransactionCreateInput, TokenTransactionInput, TokenTransactionVersion,
     };
+    use persistent_storage::init::{PostgresPool, PostgresRepo};
     use std::collections::BTreeMap;
     use std::sync::Arc;
+
+    pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
 
     async fn create_signer(identifier: u16) -> FrostSigner {
         FrostSigner::new(
@@ -130,20 +133,19 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_aggregator_signer_integration() {
+    // It creates db only for testing purposes, which doesn't harm real PostgresConn
+    // Migrations in this case also used only for testing, and it doesn't migrate real connection at all
+    #[sqlx::test(migrator = "MIGRATOR")]
+    async fn test_aggregator_signer_integration(db: PostgresPool) -> anyhow::Result<()> {
+        let storage = Arc::new(Storage {
+            postgres_repo: PostgresRepo { pool: db },
+        });
+
         let verifiers_map = create_verifiers_map_easy().await;
-
-        let storage = Arc::new(
-            LocalDbStorage::new("postgres://admin_manager:password@localhost:5470/production_db_name".to_string())
-                .await
-                .unwrap(),
-        );
-
         let aggregator = FrostAggregator::new(verifiers_map, storage.clone(), storage);
 
         let secp = Secp256k1::new();
-        let secret_key = SecretKey::from_slice(&[4u8; 32]).unwrap();
+        let secret_key = SecretKey::from_slice(&[4u8; 32])?;
         let user_id = MusigId::User {
             user_public_key: PublicKey::from_secret_key(&secp, &secret_key),
             rune_id: "test_rune_id".to_string(),
@@ -152,7 +154,7 @@ mod tests {
         //let user_id = "test_user";
         let message_hash = b"test_message";
 
-        let public_key_package = aggregator.run_dkg_flow(user_id.clone()).await.unwrap();
+        let public_key_package = aggregator.run_dkg_flow(user_id.clone()).await?;
 
         let tweak = Some(b"test_tweak".as_slice());
         // let tweak = None;
@@ -160,8 +162,7 @@ mod tests {
 
         let signature = aggregator
             .run_signing_flow(user_id, message_hash, metadata, tweak)
-            .await
-            .unwrap();
+            .await?;
 
         let tweaked_public_key_package = match tweak.clone() {
             Some(tweak) => public_key_package.clone().tweak(Some(tweak.to_vec())),
@@ -169,7 +170,8 @@ mod tests {
         };
         tweaked_public_key_package
             .verifying_key()
-            .verify(message_hash, &signature)
-            .unwrap();
+            .verify(message_hash, &signature)?;
+
+        Ok(())
     }
 }
