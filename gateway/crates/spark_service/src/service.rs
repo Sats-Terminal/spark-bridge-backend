@@ -10,6 +10,14 @@ use crate::types::create_partial_token_transaction;
 use lrc20::proto_hasher::hash_token_transaction;
 use lrc20::proto_hasher::get_descriptor_pool;
 use prost_reflect::DescriptorPool;
+use spark_protos::spark_token::StartTransactionRequest;
+use spark_protos::spark_token::SignatureWithIndex;
+use spark_protos::spark_token::CommitTransactionRequest;
+use lrc20::marshal::marshal_token_transaction;
+use lrc20::marshal::unmarshal_token_transaction;
+use bitcoin::hashes::sha256::Hash as Sha256Hash;
+use bitcoin::hashes::{Hash, HashEngine};
+use spark_protos::spark_token::InputTtxoSignaturesPerOperator;
 
 pub struct SparkService {
     spark_client: SparkRpcClient,
@@ -29,38 +37,122 @@ impl SparkService {
         }
     }
 
-    pub async fn send_spark_transaction(
+    async fn get_musig_public_key(
         &self,
         issuer_id: MusigId,
+        nonce_tweak: Option<&[u8]>,
+    ) -> Result<PublicKey, SparkServiceError> {
+        let public_key_package = self.frost_aggregator.get_public_key_package(issuer_id.clone(), nonce_tweak).await
+            .map_err(|err| SparkServiceError::FrostAggregatorError(err.to_string()))?;
+
+        let issuer_public_key_bytes = public_key_package.verifying_key().serialize()
+            .map_err(|err| SparkServiceError::InvalidData(format!("Failed to serialize public key: {:?}", err)))?;
+
+        let issuer_public_key = PublicKey::from_slice(&issuer_public_key_bytes)
+            .map_err(|err| SparkServiceError::DecodeError(format!("Failed to parse public key: {:?}", err)))?;
+
+        Ok(issuer_public_key)
+    }
+
+    pub async fn send_spark_transaction(
+        &self,
+        musig_id: MusigId,
+        nonce_tweak: Option<&[u8]>,
         token_identifier: TokenIdentifier,
         transaction_type: SparkTransactionType,
         network: Network,
         spark_operator_identity_public_keys: Vec<PublicKey>,
     ) -> Result<(), SparkServiceError> {
-        let public_key_package = self.frost_aggregator.get_public_key_package(issuer_id.clone(), None).await
-            .map_err(|err| SparkServiceError::FrostAggregatorError(err.to_string()))?;
+        let identity_public_key = self.get_musig_public_key(musig_id.clone(), nonce_tweak).await?;
 
-        let issuer_public_key = PublicKey::from_slice(
-            &public_key_package
-                .verifying_key()
-                .serialize()
-                .map_err(|err| SparkServiceError::InvalidData(format!("Failed to serialize public key: {:?}", err)))?
-                .as_slice()
-        ).map_err(|err| SparkServiceError::InvalidData(format!("Failed to parse public key: {:?}", err)))?;
+        // ----- Start the transaction -----
 
-        let token_transaction = create_partial_token_transaction(
-            issuer_public_key, 
+        let partial_token_transaction = create_partial_token_transaction(
+            identity_public_key, 
             transaction_type.clone(), 
             token_identifier, 
-            spark_operator_identity_public_keys, 
+            spark_operator_identity_public_keys.clone(), 
             network
         )?;
 
-        let partial_token_transaction_hash = hash_token_transaction(self.descriptor_pool.clone(), token_transaction, true)
+        let partial_token_transaction_proto = marshal_token_transaction(partial_token_transaction.clone(), false)
+            .map_err(|e| SparkServiceError::InvalidData(format!("Failed to marshal partial token transaction: {:?}", e)))?;
+
+        let partial_token_transaction_hash = hash_token_transaction(self.descriptor_pool.clone(), partial_token_transaction_proto.clone(), true)
             .map_err(|err| SparkServiceError::HashError(format!("Failed to hash partial token transaction: {:?}", err)))?;
 
-        
+        let signature = self.frost_aggregator.run_signing_flow(
+            musig_id.clone(), 
+            partial_token_transaction_hash.as_ref(), 
+            create_signing_metadata(partial_token_transaction.clone(), transaction_type.clone(), true),
+            nonce_tweak
+        ).await
+            .map_err(|e| SparkServiceError::FrostAggregatorError(e.to_string()))?;
+
+        let response = self.spark_client.start_token_transaction(StartTransactionRequest {
+            identity_public_key: identity_public_key.serialize().to_vec(),
+            partial_token_transaction: Some(partial_token_transaction_proto),
+            partial_token_transaction_owner_signatures: vec![SignatureWithIndex {
+                signature: signature.serialize().map_err(|e| SparkServiceError::DecodeError(format!("Failed to serialize signature: {:?}", e)))?.to_vec(),
+                input_index: 0,
+            }],
+            validity_duration_seconds: 300,
+        }).await.map_err(|e| SparkServiceError::SparkClientError(e.to_string()))?;
+
+        // ----- Finalize the transaction -----
+
+        let final_token_transaction_proto = response.final_token_transaction
+            .ok_or(SparkServiceError::DecodeError("Final token transaction is not found".to_string()))?;
+
+        let final_token_transaction = unmarshal_token_transaction(final_token_transaction_proto.clone())
+            .map_err(|e| SparkServiceError::DecodeError(format!("Failed to unmarshal final token transaction: {:?}", e)))?;
+
+        let final_token_transaction_hash = hash_token_transaction(self.descriptor_pool.clone(), final_token_transaction_proto.clone(), false)
+            .map_err(|err| SparkServiceError::HashError(format!("Failed to hash final token transaction: {:?}", err)))?;
+
+        let mut signatures = Vec::new();
+
+        for operator_public_key in spark_operator_identity_public_keys {
+            let operator_specific_signable_payload = hash_operator_specific_signable_payload(final_token_transaction_hash, operator_public_key)
+                .map_err(|err| SparkServiceError::HashError(format!("Failed to hash operator specific signable payload: {:?}", err)))?;
+
+            let signature = self.frost_aggregator.run_signing_flow(
+                musig_id.clone(), 
+                operator_specific_signable_payload.as_ref(), 
+                create_signing_metadata(final_token_transaction.clone(), transaction_type.clone(), false),
+                nonce_tweak
+            ).await
+                .map_err(|e| SparkServiceError::FrostAggregatorError(e.to_string()))?;
+
+            signatures.push(InputTtxoSignaturesPerOperator {
+                ttxo_signatures: vec![SignatureWithIndex {
+                    signature: signature.serialize().map_err(|e| SparkServiceError::DecodeError(format!("Failed to serialize signature: {:?}", e)))?.to_vec(),
+                    input_index: 0,
+                }],
+                operator_identity_public_key: operator_public_key.serialize().to_vec(),
+            });
+        }
+
+        let _ = self.spark_client.commit_token_transaction(CommitTransactionRequest {
+            final_token_transaction: Some(final_token_transaction_proto),
+            final_token_transaction_hash: final_token_transaction_hash.to_byte_array().to_vec(),
+            input_ttxo_signatures_per_operator: signatures,
+            owner_identity_public_key: identity_public_key.serialize().to_vec(),
+        }).await.map_err(|e| SparkServiceError::SparkClientError(e.to_string()))?;
 
         Ok(())
     }
+}
+
+fn hash_operator_specific_signable_payload(
+    token_tx_hash: Sha256Hash,
+    operator_public_key: PublicKey, // this must always be 33 bytes
+) -> Result<Sha256Hash, Box<dyn std::error::Error>> {
+
+    let mut engine = Sha256Hash::engine();
+    engine.input(Sha256Hash::hash(token_tx_hash.as_byte_array().as_slice()).as_byte_array());
+    engine.input(Sha256Hash::hash(operator_public_key.serialize().as_slice()).as_byte_array());
+    let final_hash = Sha256Hash::from_engine(engine);
+
+    Ok(final_hash)
 }

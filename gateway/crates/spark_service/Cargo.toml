@@ -13,3 +13,4 @@ bitcoin = { workspace = true }
 chrono = { workspace = true }
 proto-hasher = { workspace = true }
 prost-reflect = { workspace = true }
+spark-protos = { workspace = true }

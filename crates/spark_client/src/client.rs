@@ -112,7 +112,7 @@ impl SparkRpcClient {
             .map(|r| r.into_inner())
     }
 
-    pub async fn get_challenge_session(&self, request: GetChallengeRequest) -> Result<GetChallengeResponse, SparkClientError> {
+    pub async fn get_challenge(&self, request: GetChallengeRequest) -> Result<GetChallengeResponse, SparkClientError> {
         let query_fn = |mut clients: SparkServicesClients, request: GetChallengeRequest| async move {
             clients.spark_auth.get_challenge(request)
                 .await
@@ -123,7 +123,7 @@ impl SparkRpcClient {
             .map(|r| r.into_inner())
     }
 
-    pub async fn verify_challenge_session(&self, request: VerifyChallengeRequest) -> Result<VerifyChallengeResponse, SparkClientError> {
+    pub async fn verify_challenge(&self, request: VerifyChallengeRequest) -> Result<VerifyChallengeResponse, SparkClientError> {
         let query_fn = |mut clients: SparkServicesClients, request: VerifyChallengeRequest| async move {
             clients.spark_auth.verify_challenge(request)
                 .await
