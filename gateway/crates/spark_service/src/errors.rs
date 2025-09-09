@@ -10,4 +10,6 @@ pub enum SparkServiceError {
     InvalidData(String),
     #[error("Hash error: {0}")]
     HashError(String),
+    #[error("Decode error: {0}")]
+    DecodeError(String),
 }

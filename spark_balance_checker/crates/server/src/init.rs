@@ -1,7 +1,7 @@
 use crate::handlers;
 use axum::{Router, routing::post};
-use spark_client::SparkConfig;
 use spark_client::client::SparkRpcClient;
+use spark_client::common::config::SparkConfig;
 use tracing::{info, instrument};
 use utoipa::OpenApi;
 
@@ -22,7 +22,7 @@ pub async fn create_app(config: SparkConfig) -> Router {
         hex::encode(config.ca_pem.as_ref())
     );
     let state = AppState {
-        client: SparkRpcClient::new(config),
+        client: SparkRpcClient::new(config).await.unwrap(),
     };
     let app = Router::new()
         .route("/balance", post(handlers::get_balance::handle))

@@ -1,81 +1,63 @@
+use crate::utils::time::current_epoch_time_in_seconds;
 use crate::{
     common::{config::SparkConfig, error::SparkClientError},
-    connection::{SparkClients, SparkConnectionPool},
+    connection::{SparkServicesClients, SparkTlsConnection},
 };
+use bitcoin::secp256k1::PublicKey;
 use log;
 use spark_protos::spark::{QueryTokenOutputsRequest, QueryTokenOutputsResponse};
+use spark_protos::spark_authn::{
+    GetChallengeRequest, GetChallengeResponse, VerifyChallengeRequest, VerifyChallengeResponse,
+};
 use spark_protos::spark_token::{
     CommitTransactionRequest, CommitTransactionResponse, StartTransactionRequest, StartTransactionResponse,
 };
+use std::collections::HashMap;
 use std::{future::Future, sync::Arc};
 use tokio::sync::Mutex;
 
 const N_QUERY_RETRIES: usize = 3;
-const N_OPERATOR_SWITCHES: usize = 2;
-const DEFAULT_VALIDITY_DURATION_SECONDS: u64 = 300;
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct SparkAuthSession {
+    pub session_token: String,
+    pub expiration_time: u64,
+}
 
 #[derive(Clone)]
 pub struct SparkRpcClient {
-    connection_pool: Arc<Mutex<SparkConnectionPool>>,
-    cached_clients: Option<SparkClients>,
+    clients: SparkServicesClients,
+    authn_sessions: Arc<Mutex<HashMap<PublicKey, SparkAuthSession>>>,
 }
 
 impl SparkRpcClient {
-    pub fn new(config: SparkConfig) -> Self {
-        let connection_pool = SparkConnectionPool::new(config);
-        Self {
-            connection_pool: Arc::new(Mutex::new(connection_pool)),
-            cached_clients: None,
-        }
+    pub async fn new(config: SparkConfig) -> Result<Self, SparkClientError> {
+        let tls_connection = SparkTlsConnection::new(config)?;
+        let clients = tls_connection.create_clients().await?;
+        Ok(Self {
+            clients: clients,
+            authn_sessions: Arc::new(Mutex::new(HashMap::new())),
+        })
     }
 
-    async fn get_clients(&mut self) -> Result<SparkClients, SparkClientError> {
-        match &self.cached_clients {
-            Some(client) => Ok(client.clone()),
-            None => {
-                let mut connection_pool = self.connection_pool.lock().await;
-                let client = connection_pool.create_clients().await?;
-                self.cached_clients = Some(client.clone());
-                Ok(client)
-            }
-        }
-    }
-
-    async fn switch_operator(&mut self) {
-        let mut connection_pool = self.connection_pool.lock().await;
-        connection_pool.switch_operator().await;
-        self.cached_clients = None;
-    }
-
-    async fn retry_query<F, Fut, Resp, P>(&mut self, query_fn: F, params: P) -> Result<Resp, SparkClientError>
+    async fn retry_query<F, Fut, Resp, P>(&self, query_fn: F, params: P) -> Result<Resp, SparkClientError>
     where
-        F: Fn(SparkClients, P) -> Fut,
+        F: Fn(SparkServicesClients, P) -> Fut,
         Fut: Future<Output = Result<Resp, SparkClientError>>,
         P: Clone,
     {
-        for _i in 0..N_OPERATOR_SWITCHES {
-            for _j in 0..N_QUERY_RETRIES {
-                match self.get_clients().await {
-                    Ok(clients) => {
-                        let response = query_fn(clients.clone(), params.clone()).await;
-                        match response {
-                            Ok(response) => {
-                                return Ok(response);
-                            }
-                            Err(e) => {
-                                log::error!("Query failed, retry {}/{}: {:?}", _j + 1, N_QUERY_RETRIES, e);
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        log::error!("Failed to create client: {:?}", e);
-                    }
+        for _j in 0..N_QUERY_RETRIES {
+            let response = query_fn(self.clients.clone(), params.clone()).await;
+            match response {
+                Ok(response) => {
+                    return Ok(response);
                 }
-                log::info!("Sleeping for 100ms and retrying");
-                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                Err(e) => {
+                    log::error!("Query failed, retry {}/{}: {:?}", _j + 1, N_QUERY_RETRIES, e);
+                }
             }
-            self.switch_operator().await;
-            log::info!("Switching operator");
+            log::info!("Sleeping for 100ms and retrying");
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
         }
 
         Err(SparkClientError::ConnectionError(
@@ -84,10 +66,10 @@ impl SparkRpcClient {
     }
 
     pub async fn get_token_outputs(
-        &mut self,
+        &self,
         request: QueryTokenOutputsRequest,
     ) -> Result<QueryTokenOutputsResponse, SparkClientError> {
-        let query_fn = |mut clients: SparkClients, request: QueryTokenOutputsRequest| async move {
+        let query_fn = |mut clients: SparkServicesClients, request: QueryTokenOutputsRequest| async move {
             clients
                 .spark
                 .query_token_outputs(request)
@@ -99,10 +81,10 @@ impl SparkRpcClient {
     }
 
     pub async fn start_token_transaction(
-        &mut self,
+        &self,
         request: StartTransactionRequest,
     ) -> Result<StartTransactionResponse, SparkClientError> {
-        let query_fn = |mut clients: SparkClients, request: StartTransactionRequest| async move {
+        let query_fn = |mut clients: SparkServicesClients, request: StartTransactionRequest| async move {
             clients
                 .spark_token
                 .start_transaction(request)
@@ -114,10 +96,10 @@ impl SparkRpcClient {
     }
 
     pub async fn commit_token_transaction(
-        &mut self,
+        &self,
         request: CommitTransactionRequest,
     ) -> Result<CommitTransactionResponse, SparkClientError> {
-        let query_fn = |mut clients: SparkClients, request: CommitTransactionRequest| async move {
+        let query_fn = |mut clients: SparkServicesClients, request: CommitTransactionRequest| async move {
             clients
                 .spark_token
                 .commit_transaction(request)
@@ -127,12 +109,72 @@ impl SparkRpcClient {
 
         self.retry_query(query_fn, request).await.map(|r| r.into_inner())
     }
+
+    pub async fn get_challenge(&self, request: GetChallengeRequest) -> Result<GetChallengeResponse, SparkClientError> {
+        let query_fn = |mut clients: SparkServicesClients, request: GetChallengeRequest| async move {
+            clients
+                .spark_auth
+                .get_challenge(request)
+                .await
+                .map_err(|e| SparkClientError::AuthenticationError(format!("Failed to get challenge: {}", e)))
+        };
+        self.retry_query(query_fn, request).await.map(|r| r.into_inner())
+    }
+
+    pub async fn verify_challenge(
+        &self,
+        request: VerifyChallengeRequest,
+    ) -> Result<VerifyChallengeResponse, SparkClientError> {
+        let query_fn = |mut clients: SparkServicesClients, request: VerifyChallengeRequest| async move {
+            clients
+                .spark_auth
+                .verify_challenge(request)
+                .await
+                .map_err(|e| SparkClientError::AuthenticationError(format!("Failed to verify challenge: {}", e)))
+        };
+        let public_key = PublicKey::from_slice(&request.public_key)
+            .map_err(|e| SparkClientError::DecodeError(format!("Failed to parse public key: {}", e)))?;
+        let response = self.retry_query(query_fn, request).await.map(|r| r.into_inner());
+
+        if let Ok(response) = &response {
+            let session_token = response.session_token.clone();
+            let expiration_time = response.expiration_timestamp;
+            let mut authn_sessions = self.authn_sessions.lock().await;
+            authn_sessions.insert(
+                public_key,
+                SparkAuthSession {
+                    session_token,
+                    expiration_time: expiration_time as u64,
+                },
+            );
+        }
+
+        response
+    }
+
+    pub async fn get_auth_session(&self, public_key: PublicKey) -> Option<SparkAuthSession> {
+        let mut authn_sessions = self.authn_sessions.lock().await;
+        let authn_session = authn_sessions.get(&public_key);
+
+        match authn_session {
+            Some(s) => {
+                if s.expiration_time < current_epoch_time_in_seconds() {
+                    authn_sessions.remove(&public_key);
+                    None
+                } else {
+                    Some(s.clone())
+                }
+            }
+            None => None,
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::common::config::{CaCertificate, SparkConfig, SparkOperatorConfig};
+    use crate::utils::spark_address::decode_spark_address;
     use global_utils::common_types::{Url, UrlWrapped};
     use std::str::FromStr;
 
@@ -169,11 +211,16 @@ mod tests {
         let config = SparkConfig {
             operators: vec![SparkOperatorConfig {
                 base_url: UrlWrapped(Url::from_str("https://0.spark.lightspark.com")?),
+                id: 0,
+                identity_public_key: "".to_string(),
+                frost_identifier: "".to_string(),
+                running_authority: "".to_string(),
+                is_coordinator: Some(true),
             }],
             ca_pem: CaCertificate::from_path("../../spark_balance_checker/infrastructure/configuration/ca.pem")?.ca_pem,
         };
 
-        let mut balance_checker = SparkRpcClient::new(config);
+        let balance_checker = SparkRpcClient::new(config).await.unwrap();
 
         let response = balance_checker.get_token_outputs(request).await?;
 

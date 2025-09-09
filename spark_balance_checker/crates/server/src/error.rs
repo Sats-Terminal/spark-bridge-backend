@@ -2,7 +2,7 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use spark_client::SparkClientError;
+use spark_client::common::error::SparkClientError;
 use thiserror::Error;
 
 impl From<SparkClientError> for ServerError {
@@ -13,6 +13,12 @@ impl From<SparkClientError> for ServerError {
             }
             SparkClientError::DecodeError(message) => {
                 ServerError::DecodeError(format!("Spark client decode error: {}", message))
+            }
+            SparkClientError::AuthenticationError(message) => {
+                ServerError::ConnectionError(format!("Spark client authentication error: {}", message))
+            }
+            SparkClientError::ConfigError(message) => {
+                ServerError::InvalidData(format!("Spark client config error: {}", message))
             }
         }
     }

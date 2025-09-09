@@ -3,7 +3,7 @@ use global_utils::env_parser::lookup_ip_addr;
 use global_utils::logger::init_logger;
 use spark_balance_checker_config_parser::config::{ServerConfig, obtain_tonic_ca_cert};
 use spark_balance_checker_server::init::create_app;
-use spark_client::SparkConfig;
+use spark_client::common::config::SparkConfig;
 use tokio::{self, net::TcpListener};
 
 #[tracing::instrument(level = "debug", ret)]

@@ -204,7 +204,7 @@ impl FrostAggregator {
 
     async fn sign_round_1(
         &self,
-        musig_id: MusigId,
+        musig_id: &MusigId,
         session_id: Uuid,
         message_hash: &[u8],
         metadata: SigningMetadata,
@@ -214,10 +214,7 @@ impl FrostAggregator {
 
         match musig_id_data {
             Some(AggregatorMusigIdData {
-                dkg_state:
-                    AggregatorDkgState::DkgFinalized {
-                        public_key_package: _public_key_package,
-                    },
+                dkg_state: AggregatorDkgState::DkgFinalized { public_key_package },
             }) => {
                 let mut commitments = BTreeMap::new();
                 let mut join_handles = vec![];
@@ -263,7 +260,7 @@ impl FrostAggregator {
         }
     }
 
-    async fn sign_round_2(&self, musig_id: MusigId, session_id: Uuid) -> Result<(), AggregatorError> {
+    async fn sign_round_2(&self, musig_id: &MusigId, session_id: Uuid) -> Result<(), AggregatorError> {
         let musig_id_data = self.musig_id_storage.get_musig_id_data(&musig_id).await?;
         let mut sign_data = self
             .sign_session_storage
@@ -348,11 +345,14 @@ impl FrostAggregator {
     ) -> Result<Signature, AggregatorError> {
         let session_id = global_utils::common_types::get_uuid();
 
-        self.sign_round_1(musig_id.clone(), session_id, message_hash, metadata, tweak)
+        self.sign_round_1(&musig_id, session_id, message_hash, metadata, tweak)
             .await?;
-        self.sign_round_2(musig_id.clone(), session_id).await?;
+        self.sign_round_2(&musig_id, session_id).await?;
 
-        let sign_data = self.sign_session_storage.get_sign_data(&musig_id, session_id).await?;
+        let sign_data = self
+            .sign_session_storage
+            .get_sign_data(&musig_id, session_id.clone())
+            .await?;
         let state = sign_data
             .ok_or(AggregatorError::InvalidUserState(
                 "Session state is not SigningRound2".to_string(),

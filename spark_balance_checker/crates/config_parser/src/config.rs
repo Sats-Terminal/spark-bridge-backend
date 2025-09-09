@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use spark_client::SparkOperatorConfig;
+use spark_client::common::config::SparkOperatorConfig;
 
 use std::{fmt::Debug, io, net::SocketAddr, str::FromStr};
 

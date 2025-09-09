@@ -2,6 +2,8 @@
 
 /// Marshaling/unmarshaling utilities for LRC20 types
 pub mod marshal;
+/// Proto hasher utilities
+pub mod proto_hasher;
 /// Spark hash types
 pub mod spark_hash;
 /// Spark signature types

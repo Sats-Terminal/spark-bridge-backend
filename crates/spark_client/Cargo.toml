@@ -15,6 +15,7 @@ tokio = { workspace = true }
 tonic = { workspace = true }
 bitcoin = { workspace = true }
 lrc20 = { workspace = true }
+chrono = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
