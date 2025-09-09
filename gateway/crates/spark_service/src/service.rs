@@ -19,6 +19,8 @@ use bitcoin::hashes::sha256::Hash as Sha256Hash;
 use bitcoin::hashes::{Hash, HashEngine};
 use spark_protos::spark_token::InputTtxoSignaturesPerOperator;
 
+const DEFAULT_VALIDITY_DURATION_SECONDS: u64 = 300;
+
 pub struct SparkService {
     spark_client: SparkRpcClient,
     frost_aggregator: FrostAggregator,
@@ -96,7 +98,7 @@ impl SparkService {
                 signature: signature.serialize().map_err(|e| SparkServiceError::DecodeError(format!("Failed to serialize signature: {:?}", e)))?.to_vec(),
                 input_index: 0,
             }],
-            validity_duration_seconds: 300,
+            validity_duration_seconds: DEFAULT_VALIDITY_DURATION_SECONDS,
         }).await.map_err(|e| SparkServiceError::SparkClientError(e.to_string()))?;
 
         // ----- Finalize the transaction -----
