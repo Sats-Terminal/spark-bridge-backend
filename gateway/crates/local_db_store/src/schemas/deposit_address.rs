@@ -1,1 +1,293 @@
+use crate::storage::LocalDbStorage;
+use async_trait::async_trait;
+use frost::types::MusigId;
+use persistent_storage::error::DbError;
+use serde::{Deserialize, Serialize};
+use sqlx::types::Json;
 
+#[derive(Debug, Clone, Deserialize, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum DepositStatus {
+    InitializedSparkRunes,
+    ReplenishedSparkRunes,
+    BridgedSparkRunes,
+    InitializedRunesSpark,
+    ReplenishedRunesSpark,
+    BridgedRunesSpark,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+pub struct DepositAddrInfo {
+    pub nonce_tweak: Vec<u8>,
+    pub address: String,
+    pub is_btc: bool,
+    pub amount: i32,
+    pub confirmation_status: DepositStatus,
+}
+
+#[async_trait]
+pub trait DepositAddressStorage {
+    async fn get_deposit_addr_info(&self, musig_id: &MusigId) -> Result<Option<DepositAddrInfo>, DbError>;
+    async fn set_deposit_addr_info(
+        &self,
+        musig_id: &MusigId,
+        deposit_addr_info: DepositAddrInfo,
+    ) -> Result<(), DbError>;
+    async fn update_confirmation_status_in_deposit_addr_info(
+        &self,
+        musig_id: &MusigId,
+        status: DepositStatus,
+    ) -> Result<(), DbError>;
+    async fn get_confirmation_status_in_deposit_addr_info(
+        &self,
+        musig_id: &MusigId,
+    ) -> Result<Option<DepositStatus>, DbError>;
+}
+
+#[async_trait]
+impl DepositAddressStorage for LocalDbStorage {
+    async fn get_deposit_addr_info(&self, musig_id: &MusigId) -> Result<Option<DepositAddrInfo>, DbError> {
+        let public_key = musig_id.get_public_key();
+        let rune_id = musig_id.get_rune_id();
+
+        let result: Option<(Vec<u8>, String, bool, i32, Json<DepositStatus>)> = sqlx::query_as(
+            "SELECT nonce_tweak, address, is_btc, amount, confirmation_status
+            FROM deposit_address
+            WHERE public_key = $1 AND rune_id = $2",
+        )
+        .bind(public_key.to_string())
+        .bind(rune_id)
+        .fetch_optional(&self.get_conn().await?)
+        .await
+        .map_err(|e| DbError::BadRequest(e.to_string()))?;
+
+        Ok(result.map(
+            |(nonce_tweak, address, is_btc, amount, confirmation_status)| DepositAddrInfo {
+                nonce_tweak,
+                address,
+                is_btc,
+                amount,
+                confirmation_status: confirmation_status.0,
+            },
+        ))
+    }
+
+    async fn set_deposit_addr_info(
+        &self,
+        musig_id: &MusigId,
+        deposit_addr_info: DepositAddrInfo,
+    ) -> Result<(), DbError> {
+        let public_key = musig_id.get_public_key();
+        let rune_id = musig_id.get_rune_id();
+
+        let _ = sqlx::query(
+            "INSERT INTO deposit_address (nonce_tweak, public_key, rune_id, address, is_btc, amount, confirmation_status)
+            VALUES ($1, $2, $3, $4, $5, $6, $7) 
+            ON CONFLICT (public_key, rune_id) DO UPDATE SET confirmation_status = $7",
+        )
+            .bind(deposit_addr_info.nonce_tweak)
+            .bind(public_key.to_string())
+            .bind(rune_id)
+            .bind(deposit_addr_info.address)
+            .bind(deposit_addr_info.is_btc)
+            .bind(deposit_addr_info.amount)
+            .bind(Json(deposit_addr_info.confirmation_status))
+            .execute(&self.get_conn().await?)
+            .await
+            .map_err(|e| DbError::BadRequest(e.to_string()))?;
+
+        Ok(())
+    }
+
+    async fn update_confirmation_status_in_deposit_addr_info(
+        &self,
+        musig_id: &MusigId,
+        status: DepositStatus,
+    ) -> Result<(), DbError> {
+        let public_key = musig_id.get_public_key();
+        let rune_id = musig_id.get_rune_id();
+
+        let _ =
+            sqlx::query("UPDATE deposit_address SET confirmation_status = $1 WHERE public_key = $2 AND rune_id = $3;")
+                .bind(Json(status))
+                .bind(public_key.to_string())
+                .bind(rune_id)
+                .execute(&self.get_conn().await?)
+                .await
+                .map_err(|e| DbError::BadRequest(e.to_string()))?;
+
+        Ok(())
+    }
+
+    async fn get_confirmation_status_in_deposit_addr_info(
+        &self,
+        musig_id: &MusigId,
+    ) -> Result<Option<DepositStatus>, DbError> {
+        let public_key = musig_id.get_public_key();
+        let rune_id = musig_id.get_rune_id();
+
+        let result: Option<(Json<DepositStatus>,)> =
+            sqlx::query_as("SELECT confirmation_status FROM deposit_address WHERE public_key = $1 AND rune_id = $2;")
+                .bind(public_key.to_string())
+                .bind(rune_id)
+                .fetch_optional(&self.get_conn().await?)
+                .await
+                .map_err(|e| DbError::BadRequest(e.to_string()))?;
+
+        Ok(result.map(|(confirmation_status)| confirmation_status.0.0))
+    }
+}
+
+#[cfg(test)]
+mod test_deposit_address_info {
+    use super::*;
+    use bitcoin::secp256k1::PublicKey;
+    use frost::traits::AggregatorMusigIdStorage;
+    use frost::types::{AggregatorDkgState, AggregatorMusigIdData};
+    use global_utils::logger::{LoggerGuard, init_logger};
+    use global_utils::tweak_generation::TweakGenerator;
+    use persistent_storage::init::{PostgresPool, PostgresRepo};
+    use std::str::FromStr;
+    use std::sync::{Arc, LazyLock};
+
+    static TEST_LOGGER: LazyLock<LoggerGuard> = LazyLock::new(|| init_logger());
+    pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
+
+    #[sqlx::test(migrator = "MIGRATOR")]
+    async fn test_updating(db: PostgresPool) -> anyhow::Result<()> {
+        let _ = *TEST_LOGGER;
+        let storage = Arc::new(LocalDbStorage {
+            postgres_repo: PostgresRepo { pool: db },
+        });
+
+        let musig_id = MusigId::User {
+            user_public_key: PublicKey::from_str("038144ac71b61ab0e0a56967696a4f31a0cdd492cd3753d59aa978e0c8eaa5a60e")?,
+            rune_id: "RANDOM_1D".to_string(),
+        };
+
+        storage
+            .set_musig_id_data(
+                &musig_id,
+                AggregatorMusigIdData {
+                    dkg_state: AggregatorDkgState::DkgRound1 {
+                        round1_packages: Default::default(),
+                    },
+                },
+            )
+            .await?;
+
+        // storage.set_sign_data()
+        let deposit_addr_info = DepositAddrInfo {
+            nonce_tweak: TweakGenerator::generate_nonce().to_vec(),
+            address: "bc1qe9qdjtnd209a6ygxrc49j7t8hm825v322uqfay".to_string(),
+            is_btc: true,
+            amount: 1000,
+            confirmation_status: DepositStatus::InitializedSparkRunes,
+        };
+        storage
+            .set_deposit_addr_info(&musig_id, deposit_addr_info.clone())
+            .await?;
+        assert_eq!(
+            storage.get_deposit_addr_info(&musig_id).await?,
+            Some(deposit_addr_info.clone())
+        );
+
+        let deposit_addr_info = DepositAddrInfo {
+            nonce_tweak: deposit_addr_info.nonce_tweak,
+            address: "bc1qe9qdjtnd209a6ygxrc49j7t8hm825v322uqfay".to_string(),
+            is_btc: true,
+            amount: deposit_addr_info.amount,
+            confirmation_status: DepositStatus::ReplenishedSparkRunes,
+        };
+        storage
+            .set_deposit_addr_info(&musig_id, deposit_addr_info.clone())
+            .await?;
+        assert_eq!(storage.get_deposit_addr_info(&musig_id).await?, Some(deposit_addr_info));
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "MIGRATOR")]
+    async fn test_statuses_change(db: PostgresPool) -> anyhow::Result<()> {
+        let _ = *TEST_LOGGER;
+        let storage = Arc::new(LocalDbStorage {
+            postgres_repo: PostgresRepo { pool: db },
+        });
+
+        let musig_id = MusigId::User {
+            user_public_key: PublicKey::from_str("038144ac71b61ab0e0a56967696a4f31a0cdd492cd3753d59aa978e0c8eaa5a60e")?,
+            rune_id: "RANDOM_1D".to_string(),
+        };
+
+        storage
+            .set_musig_id_data(
+                &musig_id,
+                AggregatorMusigIdData {
+                    dkg_state: AggregatorDkgState::DkgRound1 {
+                        round1_packages: Default::default(),
+                    },
+                },
+            )
+            .await?;
+
+        // storage.set_sign_data()
+        let deposit_addr_info = DepositAddrInfo {
+            nonce_tweak: TweakGenerator::generate_nonce().to_vec(),
+            address: "bc1qe9qdjtnd209a6ygxrc49j7t8hm825v322uqfay".to_string(),
+            is_btc: true,
+            amount: 1000,
+            confirmation_status: DepositStatus::InitializedSparkRunes,
+        };
+        storage
+            .set_deposit_addr_info(&musig_id, deposit_addr_info.clone())
+            .await?;
+        assert_eq!(
+            storage.get_deposit_addr_info(&musig_id).await?,
+            Some(deposit_addr_info.clone())
+        );
+
+        storage
+            .update_confirmation_status_in_deposit_addr_info(&musig_id, DepositStatus::InitializedSparkRunes)
+            .await?;
+        assert_eq!(
+            storage.get_confirmation_status_in_deposit_addr_info(&musig_id).await?,
+            Some(DepositStatus::InitializedSparkRunes)
+        );
+        storage
+            .update_confirmation_status_in_deposit_addr_info(&musig_id, DepositStatus::ReplenishedSparkRunes)
+            .await?;
+        assert_eq!(
+            storage.get_confirmation_status_in_deposit_addr_info(&musig_id).await?,
+            Some(DepositStatus::ReplenishedSparkRunes)
+        );
+        storage
+            .update_confirmation_status_in_deposit_addr_info(&musig_id, DepositStatus::BridgedSparkRunes)
+            .await?;
+        assert_eq!(
+            storage.get_confirmation_status_in_deposit_addr_info(&musig_id).await?,
+            Some(DepositStatus::BridgedSparkRunes)
+        );
+        storage
+            .update_confirmation_status_in_deposit_addr_info(&musig_id, DepositStatus::InitializedRunesSpark)
+            .await?;
+        assert_eq!(
+            storage.get_confirmation_status_in_deposit_addr_info(&musig_id).await?,
+            Some(DepositStatus::InitializedRunesSpark)
+        );
+        storage
+            .update_confirmation_status_in_deposit_addr_info(&musig_id, DepositStatus::ReplenishedRunesSpark)
+            .await?;
+        assert_eq!(
+            storage.get_confirmation_status_in_deposit_addr_info(&musig_id).await?,
+            Some(DepositStatus::ReplenishedRunesSpark)
+        );
+        storage
+            .update_confirmation_status_in_deposit_addr_info(&musig_id, DepositStatus::BridgedRunesSpark)
+            .await?;
+        assert_eq!(
+            storage.get_confirmation_status_in_deposit_addr_info(&musig_id).await?,
+            Some(DepositStatus::BridgedRunesSpark)
+        );
+
+        Ok(())
+    }
+}

@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS deposit_address
     is_btc BOOLEAN NOT NULL,
     amount INTEGER NOT NULL,
     confirmation_status JSON NOT NULL,
-    PRIMARY KEY (nonce_tweak),
+    PRIMARY KEY (public_key, rune_id),
     FOREIGN KEY (public_key, rune_id) REFERENCES musig_identifier(public_key, rune_id)
 );
 

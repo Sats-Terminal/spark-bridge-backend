@@ -133,11 +133,9 @@ mod tests {
         }
     }
 
-    // It creates db only for testing purposes, which doesn't harm real PostgresConn
-    // Migrations in this case also used only for testing, and it doesn't migrate real connection at all
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_aggregator_signer_integration(db: PostgresPool) -> anyhow::Result<()> {
-        let storage = Arc::new(Storage {
+        let storage = Arc::new(LocalDbStorage {
             postgres_repo: PostgresRepo { pool: db },
         });
 
@@ -154,7 +152,7 @@ mod tests {
         //let user_id = "test_user";
         let message_hash = b"test_message";
 
-        let public_key_package = aggregator.run_dkg_flow(user_id.clone()).await?;
+        let public_key_package = aggregator.run_dkg_flow(&user_id).await?;
 
         let tweak = Some(b"test_tweak".as_slice());
         // let tweak = None;
