@@ -10,7 +10,7 @@ use frost::types::{AggregatorDkgState, AggregatorMusigIdData, RuneId};
 use frost::utils::convert_public_key_package;
 use frost_secp256k1_tr::keys::PublicKeyPackage;
 use gateway_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositAddressStorage, DepositStatus};
-use global_utils::tweak_generation::{GeneratedTweakScalar, Nonce, TweakGenerator};
+use global_utils::tweak_generation::{Nonce, TweakGenerator};
 use tracing::info;
 
 const LOG_PATH: &str = "flow_processor:routes:btc_addr_issuing";
@@ -111,17 +111,10 @@ async fn _handle_inner(
 //     Ok(Address::p2tr_tweaked(tweaked_x, human_readable_part_url))
 // }
 
-fn generate_byte_seq(
-    request: &DkgFlowRequest,
-    public_key_package: &PublicKeyPackage,
-    nonce: Nonce,
-) -> Result<Vec<u8>, FlowProcessorError> {
-    let pubkey = convert_public_key_package(&public_key_package)
-        .map_err(|e| FlowProcessorError::InvalidDataError(e.to_string()))?;
-    Ok(TweakGenerator::generate_byte_seq_rune_spark(
-        pubkey,
+fn generate_byte_seq(request: &DkgFlowRequest, nonce: Nonce) -> Result<Vec<u8>, FlowProcessorError> {
+    Ok(TweakGenerator::serialize_tweak_data(
+        request.musig_id.get_public_key(),
         request.musig_id.get_rune_id(),
-        request.amount,
         nonce,
     ))
 }

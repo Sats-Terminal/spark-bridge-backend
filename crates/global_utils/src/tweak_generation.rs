@@ -12,13 +12,6 @@ pub type HashData = [u8; 32];
 pub type RuneId = String;
 pub struct TweakGenerator;
 
-pub struct GeneratedTweakScalar {
-    pub input_data: Vec<u8>,
-    pub scalar: Scalar,
-}
-
-pub static SECP256K1_CURVE: LazyLock<Secp256k1<All>> = LazyLock::new(|| Secp256k1::new());
-
 impl TweakGenerator {
     pub fn generate_nonce() -> Nonce {
         let mut rand = bitcoin::key::rand::thread_rng();
@@ -35,20 +28,17 @@ impl TweakGenerator {
     pub fn tweak_btc_pubkey(
         secp: &Secp256k1<All>,
         pubkey: PublicKey,
-        hashed_bytes: impl AsRef<[u8]>,
+        hashed_bytes: &HashData,
     ) -> Result<(TweakedPublicKey, Parity), FromSliceError> {
         let (tweaked_pubkey, parity) = pubkey
             .x_only_public_key()
             .0
-            .tap_tweak(&secp, Some(TapNodeHash::from_slice(hashed_bytes.as_ref())).transpose()?);
+            .tap_tweak(&secp, Some(TapNodeHash::from_slice(hashed_bytes)).transpose()?);
         Ok((tweaked_pubkey, parity))
     }
 
-    pub fn tweak_pubkey_package(
-        public_key_package: PublicKeyPackage,
-        hashed_bytes: impl AsRef<[u8]>,
-    ) -> PublicKeyPackage {
-        public_key_package.clone().tweak(Some(hashed_bytes.as_ref()))
+    pub fn tweak_pubkey_package(public_key_package: PublicKeyPackage, hashed_bytes: &HashData) -> PublicKeyPackage {
+        public_key_package.clone().tweak(Some(hashed_bytes))
     }
 
     pub fn tweaked_verifying_key_to_tweaked_pubkey(
@@ -58,22 +48,12 @@ impl TweakGenerator {
         let (tweaked_x, parity) = btc_pubkey.x_only_public_key();
         Ok((TweakedPublicKey::dangerous_assume_tweaked(tweaked_x), parity))
     }
-    pub fn generate_byte_seq_rune_spark(
-        pubkey: secp256k1::PublicKey,
-        rune_id: RuneId,
-        amount: u64,
-        nonce: Nonce,
-    ) -> Vec<u8> {
-        let mut data = Vec::new();
-        data.extend_from_slice(pubkey.to_string().as_bytes());
-        data.extend_from_slice(rune_id.as_bytes());
-        data.extend_from_slice(&amount.to_be_bytes());
-        data.extend_from_slice(&nonce);
-        data
-    }
 
-    pub fn generate_byte_seq_spark_rune(nonce: Nonce) -> Vec<u8> {
+    /// Serialized data into vec of bytes in standardised way both for Spark & Runes
+    pub fn serialize_tweak_data(user_pubkey: secp256k1::PublicKey, rune_id: RuneId, nonce: Nonce) -> Vec<u8> {
         let mut data = Vec::new();
+        data.extend_from_slice(user_pubkey.to_string().as_bytes());
+        data.extend_from_slice(rune_id.as_bytes());
         data.extend_from_slice(&nonce);
         data
     }
