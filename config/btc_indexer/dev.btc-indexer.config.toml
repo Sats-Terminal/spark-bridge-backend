@@ -1,6 +1,0 @@
-[application]
-http_server_ip = "0.0.0.0"
-http_server_port = 8050
-
-[btc_indexer]
-update_interval_millis = 500
