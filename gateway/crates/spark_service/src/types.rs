@@ -1,18 +1,18 @@
-use lrc20::token_transaction::TokenTransaction;
-use lrc20::token_transaction::TokenTransactionVersion;
-use lrc20::token_transaction::TokenTransactionTransferInput;
-use lrc20::token_leaf::TokenLeafToSpend;
-use lrc20::token_transaction::TokenTransactionInput;
-use lrc20::token_transaction::TokenTransactionCreateInput;
-use lrc20::token_transaction::TokenTransactionMintInput;
-use lrc20::token_leaf::TokenLeafOutput;
-use lrc20::token_identifier::TokenIdentifier;
-use frost::types::SigningMetadata;
-use frost::types::TokenTransactionMetadata;
 use crate::errors::SparkServiceError;
-use spark_client::utils::spark_address::Network;
 use bitcoin::secp256k1::PublicKey;
 use chrono;
+use frost::types::SigningMetadata;
+use frost::types::TokenTransactionMetadata;
+use lrc20::token_identifier::TokenIdentifier;
+use lrc20::token_leaf::TokenLeafOutput;
+use lrc20::token_leaf::TokenLeafToSpend;
+use lrc20::token_transaction::TokenTransaction;
+use lrc20::token_transaction::TokenTransactionCreateInput;
+use lrc20::token_transaction::TokenTransactionInput;
+use lrc20::token_transaction::TokenTransactionMintInput;
+use lrc20::token_transaction::TokenTransactionTransferInput;
+use lrc20::token_transaction::TokenTransactionVersion;
+use spark_client::utils::spark_address::Network;
 
 const DEFAULT_MAX_SUPPLY: u128 = 21_000_000_000;
 const DEFAULT_DECIMALS: u32 = 8;
@@ -50,14 +50,12 @@ pub fn create_partial_token_transaction(
                     issuer_signature: None,
                     issuer_provided_timestamp: None,
                 }),
-                leaves_to_create: vec![
-                    create_partial_token_leaf_output(
-                        issuer_public_key, 
-                        receiver_identity_public_key, 
-                        token_identifier, 
-                        token_amount
-                    )
-                ],
+                leaves_to_create: vec![create_partial_token_leaf_output(
+                    issuer_public_key,
+                    receiver_identity_public_key,
+                    token_identifier,
+                    token_amount,
+                )],
                 spark_operator_identity_public_keys: spark_operator_identity_public_keys,
                 expiry_time: 0,
                 network: Some(network as u32),
@@ -119,25 +117,13 @@ pub fn create_signing_metadata(
     is_partial: bool,
 ) -> SigningMetadata {
     let token_transaction_metadata: TokenTransactionMetadata = match (spark_transaction_type, is_partial) {
-        (SparkTransactionType::Mint { .. }, true) => {
-            TokenTransactionMetadata::PartialMintToken {
-                token_transaction,
-            }
-        }
-        (SparkTransactionType::Mint { .. }, false) => {
-            TokenTransactionMetadata::FinalMintToken {
-                token_transaction,
-            }
-        }
+        (SparkTransactionType::Mint { .. }, true) => TokenTransactionMetadata::PartialMintToken { token_transaction },
+        (SparkTransactionType::Mint { .. }, false) => TokenTransactionMetadata::FinalMintToken { token_transaction },
         (SparkTransactionType::Create { .. }, true) => {
-            TokenTransactionMetadata::PartialCreateToken {
-                token_transaction,
-            }
+            TokenTransactionMetadata::PartialCreateToken { token_transaction }
         }
         (SparkTransactionType::Create { .. }, false) => {
-            TokenTransactionMetadata::FinalCreateToken {
-                token_transaction,
-            }
+            TokenTransactionMetadata::FinalCreateToken { token_transaction }
         }
     };
     SigningMetadata {
