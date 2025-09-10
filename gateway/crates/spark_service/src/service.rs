@@ -22,7 +22,7 @@ use spark_protos::spark_authn::GetChallengeRequest;
 use spark_protos::spark_authn::VerifyChallengeRequest;
 use frost::types::SigningMetadata;
 use frost::types::TokenTransactionMetadata;
-use futures::join;
+use futures::future::join_all;
 
 const DEFAULT_VALIDITY_DURATION_SECONDS: u64 = 300;
 
@@ -130,7 +130,7 @@ impl SparkService {
         let partial_token_transaction_proto = marshal_token_transaction(partial_token_transaction.clone(), false)
             .map_err(|e| SparkServiceError::InvalidData(format!("Failed to marshal partial token transaction: {:?}", e)))?;
 
-        let partial_token_transaction_hash = hash_token_transaction(self.descriptor_pool.clone(), partial_token_transaction_proto.clone(), true)
+        let partial_token_transaction_hash = hash_token_transaction(self.descriptor_pool.clone(), partial_token_transaction_proto.clone())
             .map_err(|err| SparkServiceError::HashError(format!("Failed to hash partial token transaction: {:?}", err)))?;
 
         let signature = self.frost_aggregator.run_signing_flow(
@@ -159,7 +159,7 @@ impl SparkService {
         let final_token_transaction = unmarshal_token_transaction(final_token_transaction_proto.clone())
             .map_err(|e| SparkServiceError::DecodeError(format!("Failed to unmarshal final token transaction: {:?}", e)))?;
 
-        let final_token_transaction_hash = hash_token_transaction(self.descriptor_pool.clone(), final_token_transaction_proto.clone(), false)
+        let final_token_transaction_hash = hash_token_transaction(self.descriptor_pool.clone(), final_token_transaction_proto.clone())
             .map_err(|err| SparkServiceError::HashError(format!("Failed to hash final token transaction: {:?}", err)))?;
 
         let mut join_handles = vec![];
@@ -194,7 +194,7 @@ impl SparkService {
             join_handles.push(join_handle);
         }
 
-        let signatures = futures::future::join_all(join_handles)
+        let signatures = join_all(join_handles)
             .await
             .into_iter()
             .collect::<Result<Vec<InputTtxoSignaturesPerOperator>, SparkServiceError>>()?;

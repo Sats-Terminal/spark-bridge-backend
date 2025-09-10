@@ -29,7 +29,6 @@ pub fn get_descriptor_pool() -> DescriptorPool {
 pub fn hash_token_transaction(
     descriptor_pool: DescriptorPool,
     token_transaction_proto: TokenTransactionSparkProto,
-    is_partial_hash: bool,
 ) -> Result<Sha256Hash, ProtoHasherError> {
     let descriptor =
         descriptor_pool
