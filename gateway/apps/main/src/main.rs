@@ -1,4 +1,5 @@
 use anyhow::anyhow;
+use bitcoin::Network;
 use gateway_config_parser::config::ServerConfig;
 use gateway_flow_processor::init::create_flow_processor;
 use gateway_local_db_store::storage::LocalDbStorage;
@@ -16,10 +17,10 @@ use tracing::instrument;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let _logger_guard = init_logger();
-    let _ = dotenv::dotenv();
+    let _ = dotenv::dotenv()?;
 
     let config_path = ConfigPath::from_env()?;
-
+    let network = Network::Regtest;
     let app_config = ServerConfig::init_config(ConfigVariant::OnlyOneFilepath(config_path.path))?;
     tracing::debug!("App config: {:?}", app_config);
 
@@ -30,7 +31,12 @@ async fn main() -> anyhow::Result<()> {
         postgres_repo: PostgresRepo::from_config(postgres_creds).await?,
     };
 
-    let (mut flow_processor, flow_sender) = create_flow_processor(db_pool, 10, frost_aggregator);
+    let (mut flow_processor, flow_sender) = create_flow_processor(
+        db_pool,
+        app_config.flow_processor.cancellation_retries,
+        frost_aggregator,
+        network,
+    );
 
     let _ = tokio::spawn(async move {
         flow_processor.run().await;

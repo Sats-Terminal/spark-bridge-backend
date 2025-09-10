@@ -1,6 +1,6 @@
 use crate::error::FlowProcessorError;
 use crate::types::*;
-use bitcoin::KnownHrp;
+use bitcoin::{KnownHrp, Network};
 use frost::aggregator::FrostAggregator;
 use gateway_local_db_store::storage::LocalDbStorage;
 use persistent_storage::init::PostgresRepo;
@@ -14,35 +14,20 @@ const LOG_PATH: &str = "flow_processor";
 // This struct is used to route the message to the correct flow
 // This struct instance is created for each message that is sent to the flow processor
 pub struct FlowProcessorRouter {
-    pub(crate) storage: LocalDbStorage,
-    pub(crate) flow_id: Uuid,
-    pub(crate) response_sender: OneshotFlowProcessorSender,
-    pub(crate) task_sender: mpsc::Sender<Uuid>,
-    pub(crate) frost_aggregator: FrostAggregator,
+    pub storage: LocalDbStorage,
+    pub flow_id: Uuid,
+    pub response_sender: OneshotFlowProcessorSender,
+    pub task_sender: mpsc::Sender<Uuid>,
+    pub frost_aggregator: FrostAggregator,
+    pub network: Network,
 }
 
 impl FlowProcessorRouter {
-    pub fn new(
-        storage: LocalDbStorage,
-        flow_id: Uuid,
-        response_sender: OneshotFlowProcessorSender,
-        task_sender: mpsc::Sender<Uuid>,
-        frost_aggregator: FrostAggregator,
-    ) -> Self {
-        Self {
-            storage,
-            flow_id,
-            response_sender,
-            task_sender,
-            frost_aggregator,
-        }
-    }
-
     pub async fn run(mut self, message: FlowProcessorMessage) {
         let response = match message {
-            FlowProcessorMessage::RunDkgFlow(request) => {
-                let response = self.run_btc_addr_issuing(request).await;
-                let answer = response.map(|response| FlowProcessorResponse::RunDkgFlow(response));
+            FlowProcessorMessage::IssueDepositAddress(request) => {
+                let response = self.run_btc_addr_issuing(request, self.network).await;
+                let answer = response.map(|response| FlowProcessorResponse::IssueDepositAddress(response));
                 answer
             }
             FlowProcessorMessage::BridgeRunes(request) => {
@@ -67,9 +52,13 @@ impl FlowProcessorRouter {
     }
 
     #[tracing::instrument(level = "trace", skip(self, request), ret)]
-    async fn run_btc_addr_issuing(&mut self, request: DkgFlowRequest) -> Result<DkgFlowResponse, FlowProcessorError> {
+    async fn run_btc_addr_issuing(
+        &mut self,
+        request: DkgFlowRequest,
+        network: Network,
+    ) -> Result<DkgFlowResponse, FlowProcessorError> {
         info!("[{LOG_PATH}] issuing btc addr to user with request: {request:?}");
-        let pubkey = crate::routes::btc_addr_issuing::handle(self, request, KnownHrp::Mainnet).await?;
+        let pubkey = crate::routes::btc_addr_issuing::handle(self, request, network).await?;
         Ok(DkgFlowResponse {
             addr_to_replenish: pubkey,
         })

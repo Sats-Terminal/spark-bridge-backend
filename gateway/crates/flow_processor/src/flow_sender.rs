@@ -54,10 +54,10 @@ impl FlowSender {
 impl TypedMessageSender<DkgFlowRequest, DkgFlowResponse> for FlowSender {
     async fn send(&self, dkg_message: DkgFlowRequest) -> Result<DkgFlowResponse, FlowProcessorError> {
         let response = self
-            .send_messsage(FlowProcessorMessage::RunDkgFlow(dkg_message))
+            .send_messsage(FlowProcessorMessage::IssueDepositAddress(dkg_message))
             .await?;
         match response {
-            FlowProcessorResponse::RunDkgFlow(response) => Ok(response),
+            FlowProcessorResponse::IssueDepositAddress(response) => Ok(response),
             x => Err(FlowProcessorError::InvalidResponseType(format!(
                 "Invalid response type, obtain: {x:?}, expected: [FlowProcessorResponse::RunDkgFlow]"
             ))),

@@ -9,14 +9,14 @@ pub type OneshotFlowProcessorSender = oneshot::Sender<Result<FlowProcessorRespon
 pub type OneshotFlowProcessorReceiver = oneshot::Receiver<Result<FlowProcessorResponse, FlowProcessorError>>;
 
 pub enum FlowProcessorMessage {
-    RunDkgFlow(DkgFlowRequest),
+    IssueDepositAddress(DkgFlowRequest),
     BridgeRunes(BridgeRunesRequest),
     ExitSpark(ExitSparkRequest),
 }
 
 #[derive(Debug)]
 pub enum FlowProcessorResponse {
-    RunDkgFlow(DkgFlowResponse),
+    IssueDepositAddress(DkgFlowResponse),
     BridgeRunes(BridgeRunesResponse),
     ExitSpark(ExitSparkResponse),
 }
@@ -25,7 +25,6 @@ pub enum FlowProcessorResponse {
 pub struct DkgFlowRequest {
     pub musig_id: MusigId,
     pub amount: u64,
-    //todo: add amount
 }
 
 #[derive(Debug)]

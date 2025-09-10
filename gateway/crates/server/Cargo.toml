@@ -3,10 +3,12 @@ name = "gateway_server"
 edition = "2024"
 
 [dependencies]
-axum = { workspace = true }
 anyhow = { workspace = true }
+axum = { workspace = true }
+frost = { workspace = true }
+gateway_flow_processor = { workspace = true }
+persistent_storage = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
-persistent_storage = { workspace = true }
 tracing = { workspace = true }
-gateway_flow_processor = { workspace = true }
+bitcoin = { workspace = true }

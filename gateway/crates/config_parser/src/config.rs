@@ -1,3 +1,4 @@
+use bitcoin::Network;
 use config::{Config, Environment};
 use global_utils::config_variant::ConfigVariant;
 use serde::{Deserialize, Serialize};
@@ -35,6 +36,12 @@ pub struct AggregatorConfig {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
+pub struct FlowProcessorConfig {
+    pub cancellation_retries: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
 #[serde(transparent)]
 pub struct VerifiersConfig(pub Vec<VerifierConfig>);
 
@@ -62,6 +69,8 @@ pub struct ServerConfig {
     pub verifiers: VerifiersConfig,
     #[serde(rename = "aggregator_config")]
     pub aggregator: AggregatorConfig,
+    #[serde(rename = "flow_processor_config")]
+    pub flow_processor: FlowProcessorConfig,
 }
 
 pub fn get_cargo_manifest_dir() -> String {

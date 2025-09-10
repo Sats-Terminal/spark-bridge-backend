@@ -1,4 +1,4 @@
-use crate::error::FlowProcessorError;
+use crate::error::{BtcAddrIssueErrorEnum, FlowProcessorError};
 use crate::flow_router::FlowProcessorRouter;
 use crate::types::DkgFlowRequest;
 use bitcoin::key::{Keypair, TweakedPublicKey, UntweakedKeypair, UntweakedPublicKey};
@@ -9,6 +9,7 @@ use frost::traits::{AggregatorMusigIdStorage, AggregatorSignSessionStorage};
 use frost::types::{AggregatorDkgState, AggregatorMusigIdData, RuneId};
 use frost::utils::convert_public_key_package;
 use frost_secp256k1_tr::keys::PublicKeyPackage;
+use gateway_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositAddressStorage, DepositStatus};
 use global_utils::tweak_generation::{GeneratedTweakScalar, Nonce, TweakGenerator};
 use tracing::info;
 
@@ -20,50 +21,95 @@ pub async fn handle(
     human_readable_part_url: impl Into<KnownHrp>,
 ) -> Result<Address, FlowProcessorError> {
     info!("[{LOG_PATH}] Handling btc addr issuing ...");
-    let nonce = TweakGenerator::generate_nonce();
-    let (tweaked_x, parity) = match flow_processor.storage.get_musig_id_data(&request.musig_id).await? {
-        None => {
-            let pubkey_package = flow_processor
-                .frost_aggregator
-                .run_dkg_flow(&request.musig_id)
-                .await
-                .map_err(|e| FlowProcessorError::FrostAggregatorError(e.to_string()))?;
-            let byte_seq = generate_byte_seq(&request, &pubkey_package, nonce)?;
-            let byte_seq = TweakGenerator::hash(&byte_seq);
-            let tweaked_key_package = TweakGenerator::tweak_pubkey_package(pubkey_package, &byte_seq);
-            TweakGenerator::tweaked_verifying_key_to_tweaked_pubkey(&tweaked_key_package.verifying_key())
-                .map_err(|e| FlowProcessorError::TweakingConversionError(e.to_string()))?
-            //todo: store tweak value here
-            //todo: implement db struct for storing
-            // todo: store nonce and tweak values
-        }
-        Some(x) => match x.dkg_state {
-            //todo: extract available nonce
-            AggregatorDkgState::DkgRound1 { .. } | AggregatorDkgState::DkgRound2 { .. } => {
-                let pubkey_package = flow_processor
-                    .frost_aggregator
-                    .run_dkg_flow(&request.musig_id)
-                    .await
-                    .map_err(|e| FlowProcessorError::FrostAggregatorError(e.to_string()))?;
-                let byte_seq = generate_byte_seq(&request, &pubkey_package, nonce)?;
-                let byte_seq = TweakGenerator::hash(&byte_seq);
-                let tweaked_key_package = TweakGenerator::tweak_pubkey_package(pubkey_package, &byte_seq);
-                TweakGenerator::tweaked_verifying_key_to_tweaked_pubkey(&tweaked_key_package.verifying_key())
-                    .map_err(|e| FlowProcessorError::TweakingConversionError(e.to_string()))?
+    _handle_inner(flow_processor, &request, human_readable_part_url)
+        .await
+        .map_err(|e| FlowProcessorError::BtcAddrIssueError(e))
+}
+
+async fn _handle_inner(
+    flow_processor: &mut FlowProcessorRouter,
+    request: &DkgFlowRequest,
+    human_readable_part_url: impl Into<KnownHrp>,
+) -> Result<Address, BtcAddrIssueErrorEnum> {
+    let local_db_storage = flow_processor.storage.clone();
+    let (tweaked_x, parity): (TweakedPublicKey, Parity) =
+        match flow_processor.storage.get_musig_id_data(&request.musig_id).await? {
+            None => {
+                let pubkey_package = flow_processor.frost_aggregator.run_dkg_flow(&request.musig_id).await?;
+
+                todo!()
             }
-            AggregatorDkgState::DkgFinalized {
-                public_key_package: pubkey_package,
-            } => {
-                let byte_seq = generate_byte_seq(&request, &pubkey_package, nonce)?;
-                let byte_seq = TweakGenerator::hash(&byte_seq);
-                let tweaked_key_package = TweakGenerator::tweak_pubkey_package(pubkey_package, &byte_seq);
-                TweakGenerator::tweaked_verifying_key_to_tweaked_pubkey(&tweaked_key_package.verifying_key())
-                    .map_err(|e| FlowProcessorError::TweakingConversionError(e.to_string()))?
+            Some(x) => {
+                // extract data from db, get nonce and generate new one, return it to user
+                todo!()
             }
-        },
-    };
+        };
     Ok(Address::p2tr_tweaked(tweaked_x, human_readable_part_url))
 }
+
+// pub async fn handle_old(
+//     flow_processor: &mut FlowProcessorRouter,
+//     request: DkgFlowRequest,
+//     human_readable_part_url: impl Into<KnownHrp>,
+// ) -> Result<Address, FlowProcessorError> {
+//     info!("[{LOG_PATH}] Handling btc addr issuing ...");
+//     let (tweaked_x, _parity) = match flow_processor.storage.get_musig_id_data(&request.musig_id).await? {
+//         None => {
+//             match flow_processor.storage.get_deposit_addr_info(&request.musig_id).await? {
+//                 None => {
+//                     return Err(FlowProcessorError::BtcAddrIssueError(BtcAddrIssueErrorEnum::NoDepositAddrInfoInDb(request)))
+//                 }
+//                 Some(deposit_addr_info) => {
+//                     match x.dkg_state {
+//                         //todo: extract available nonce
+//                         AggregatorDkgState::DkgRound1 { .. } => {
+//                             return Err(FlowProcessorError::BtcAddrIssueError(BtcAddrIssueErrorEnum::UnfinishedDkgState { got: "AggregatorDkgState::DkgRound1".to_string() }))
+//                         }
+//                         AggregatorDkgState::DkgRound2 { .. } => {
+//                             return Err(FlowProcessorError::BtcAddrIssueError(BtcAddrIssueErrorEnum::UnfinishedDkgState { got: "AggregatorDkgState::DkgRound2".to_string() }))
+//                         }
+//                         AggregatorDkgState::DkgFinalized {
+//                             public_key_package: pubkey_package,
+//                         } => {
+//                             let byte_seq = generate_byte_seq(&request, &pubkey_package, nonce)?;
+//                             let byte_seq = TweakGenerator::hash(&byte_seq);
+//                             let tweaked_key_package = TweakGenerator::tweak_pubkey_package(pubkey_package, &byte_seq);
+//                             TweakGenerator::tweaked_verifying_key_to_tweaked_pubkey(&tweaked_key_package.verifying_key())
+//                                 .map_err(|e| FlowProcessorError::TweakingConversionError(e.to_string()))?
+//                         }
+//                     }
+//                 }
+//             }
+//         }
+//         Some(x) => {
+//             // As we have MuSig table => DepositAddress has to exist also
+//             match flow_processor.storage.get_deposit_addr_info(&request.musig_id).await? {
+//                 None => {}
+//                 Some(_) => {}
+//             }
+//
+//             let nonce = TweakGenerator::generate_nonce();
+//             let pubkey_package = flow_processor
+//                 .frost_aggregator
+//                 .run_dkg_flow(&request.musig_id)
+//                 .await
+//                 .map_err(|e| FlowProcessorError::FrostAggregatorError(e.to_string()))?;
+//             let byte_seq = generate_byte_seq(&request, &pubkey_package, nonce)?;
+//             let byte_seq = TweakGenerator::hash(&byte_seq);
+//             let tweaked_key_package = TweakGenerator::tweak_pubkey_package(pubkey_package, &byte_seq);
+//             TweakGenerator::tweaked_verifying_key_to_tweaked_pubkey(&tweaked_key_package.verifying_key())
+//                 .map_err(|e| FlowProcessorError::TweakingConversionError(e.to_string()))?
+//         }
+//     };
+//     flow_processor.storage.set_deposit_addr_info(&request.musig_id, DepositAddrInfo {
+//         nonce_tweak: vec![],
+//         address: "".to_string(),
+//         is_btc: false,
+//         amount: 0,
+//         confirmation_status: DepositStatus::InitializedSparkRunes,
+//     }).await?;
+//     Ok(Address::p2tr_tweaked(tweaked_x, human_readable_part_url))
+// }
 
 fn generate_byte_seq(
     request: &DkgFlowRequest,

@@ -5,6 +5,7 @@ edition = "2024"
 [dependencies]
 anyhow = { workspace = true }
 axum = { workspace = true }
+bitcoin = { workspace = true }
 dotenv = { workspace = true }
 gateway_config_parser = { workspace = true }
 gateway_server = { workspace = true }

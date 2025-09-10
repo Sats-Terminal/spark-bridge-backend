@@ -1,5 +1,6 @@
 use crate::flow_router::FlowProcessorRouter;
 use crate::types::*;
+use bitcoin::Network;
 use frost::aggregator::FrostAggregator;
 use gateway_local_db_store::storage::LocalDbStorage;
 use global_utils::common_types::get_uuid;
@@ -24,15 +25,17 @@ pub struct FlowProcessor {
     pub cancellation_token: CancellationToken,
     pub cancellation_retries: u64,
     pub frost_aggregator: FrostAggregator,
+    pub network: Network,
 }
 
 impl FlowProcessor {
     pub fn new(
         tx_receiver: mpsc::Receiver<(FlowProcessorMessage, OneshotFlowProcessorSender)>,
         storage: LocalDbStorage,
-        cancellation_token: CancellationToken,
         cancellation_retries: u64,
         frost_aggregator: FrostAggregator,
+        network: Network,
+        cancellation_token: CancellationToken,
     ) -> Self {
         let (flow_sender, flow_receiver) = mpsc::channel::<Uuid>(1000);
         Self {
@@ -44,6 +47,7 @@ impl FlowProcessor {
             cancellation_token,
             cancellation_retries,
             frost_aggregator,
+            network,
         }
     }
 
@@ -75,13 +79,14 @@ impl FlowProcessor {
 
                             let flow_id = get_uuid();
 
-                            let router = FlowProcessorRouter::new(
-                                self.storage.clone(),
+                            let router = FlowProcessorRouter{
+                                storage: self.storage.clone(),
                                 flow_id,
                                 response_sender,
-                                self.flow_sender.clone(),
-                                self.frost_aggregator.clone(),
-                            );
+                                task_sender:  self.flow_sender.clone(),
+                                frost_aggregator: self.frost_aggregator.clone(),
+                                network: self.network,
+                            };
 
                             let handle = tokio::task::spawn(async move {
                                 tracing::info!("[main] Running flow for id {}", flow_id);
