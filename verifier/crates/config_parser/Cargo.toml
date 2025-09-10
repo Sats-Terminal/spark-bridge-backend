@@ -10,3 +10,4 @@ global_utils = { workspace = true }
 thiserror = { workspace = true }
 dotenv = { workspace = true }
 frost = { workspace = true }
+spark_client = { workspace = true }

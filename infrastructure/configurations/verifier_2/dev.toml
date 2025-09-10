@@ -1,6 +1,7 @@
 [application]
 http_server_ip = "0.0.0.0"
 http_server_port = 8072
+network = "Regtest"
 
 [btc_indexer_url_config]
 address="localhost:8079"

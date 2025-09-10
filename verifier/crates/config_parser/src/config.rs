@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::str::FromStr;
 use tracing::{debug, instrument, trace};
+use spark_client::utils::spark_address::Network;
 
 const CONFIG_FOLDER_NAME: &str = "../../infrastructure/configuration";
 const PRODUCTION_CONFIG_FOLDER_NAME: &str = "configuration_verifier";
@@ -17,6 +18,8 @@ pub struct AppConfig {
     pub ip: String,
     #[serde(rename = "http_server_port")]
     pub port: u16,
+    #[serde(rename = "network")]
+    pub network: Network,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

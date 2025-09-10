@@ -9,6 +9,7 @@ global_utils = { workspace = true }
 hex = { workspace = true }
 log = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 spark-protos = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
