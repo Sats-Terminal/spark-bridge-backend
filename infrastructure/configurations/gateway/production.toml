@@ -1,0 +1,20 @@
+[application]
+http_server_ip = "0.0.0.0"
+http_server_port = 8060
+network = "Regtest"
+
+[[verifiers_config]]
+id = 1
+address = "http://verifier1-service:8070"
+
+[[verifiers_config]]
+id = 2
+address = "http://verifier2-service:8070"
+
+[[verifiers_config]]
+id = 3
+address = "http://verifier3-service:8070"
+
+[aggregator_config]
+threshold = 2
+total_participants = 3

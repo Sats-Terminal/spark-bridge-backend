@@ -11,3 +11,6 @@ global_utils = { workspace = true }
 persistent_storage = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
+gateway_flow_processor = { workspace = true }
+frost = { workspace = true }
+gateway_utils = { workspace = true }

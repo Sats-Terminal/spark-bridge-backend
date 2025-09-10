@@ -1,0 +1,15 @@
+[package]
+name = "gateway_flow_processor"
+edition = "2024"
+
+[dependencies]
+async-trait = { workspace = true }
+global_utils = { workspace = true }
+persistent_storage = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tokio-util = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+frost = { workspace = true }
+bitcoin = { workspace = true }

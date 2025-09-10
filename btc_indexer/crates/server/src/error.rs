@@ -1,5 +1,5 @@
 use btc_indexer_internals::error::BtcIndexerError;
-use local_db_store_indexer::error::{DbError, DbGetConnError};
+use persistent_storage::error::DatabaseError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -17,9 +17,7 @@ pub enum ServerError {
     #[error("Your task was cancelled, msg: {0}")]
     TaskCancelled(String),
     #[error("Database error, msg: {0}")]
-    DbError(#[from] DbError),
-    #[error("Unable to get db conn, msg: {0}")]
-    GetDbConn(#[from] DbGetConnError),
+    DatabaseError(#[from] DatabaseError),
 }
 
 mod response_conversion {
@@ -41,8 +39,7 @@ mod response_conversion {
                 ServerError::BtcIndexerError(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
                 ServerError::OneshotRecvError(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
                 ServerError::TaskCancelled(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
-                ServerError::DbError(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
-                ServerError::GetDbConn(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+                ServerError::DatabaseError(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
             }
         }
     }

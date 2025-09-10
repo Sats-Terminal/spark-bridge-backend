@@ -1,11 +1,13 @@
 use bech32::Bech32m;
 use hex;
+use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 
 use crate::common::error::SparkClientError;
 
 // FIXME: ensure proper sequence of network types
 /// Networks supported by Spark.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Network {
     /// Main Bitcoin network (`sp` prefix).
     Mainnet,
@@ -39,6 +41,14 @@ impl Network {
             "spl" => Some(Network::Local),
             _ => None,
         }
+    }
+}
+
+impl FromStr for Network {
+    type Err = serde_json::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        serde_json::from_str(&format!("\"{}\"", s))
     }
 }
 

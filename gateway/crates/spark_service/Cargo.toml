@@ -1,0 +1,17 @@
+[package]
+name = "gateway_spark_service"
+edition = "2024"
+
+[dependencies]
+serde = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+spark_client = { workspace = true }
+frost = { workspace = true }
+lrc20 = { workspace = true }
+bitcoin = { workspace = true }
+chrono = { workspace = true }
+proto-hasher = { workspace = true }
+prost-reflect = { workspace = true }
+spark-protos = { workspace = true }
+futures = { workspace = true }
