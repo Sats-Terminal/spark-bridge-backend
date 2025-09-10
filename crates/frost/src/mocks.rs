@@ -1,59 +1,161 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use async_trait::async_trait;
-use frost_secp256k1_tr::Identifier;
+use persistent_storage::error::DatabaseError;
 use tokio::sync::Mutex;
 
-use crate::{
-    errors::{AggregatorError, SignerError},
-    signer::FrostSigner,
-    traits::*,
-};
+use crate::{errors::AggregatorError, signer::FrostSigner, traits::*, types::*};
+use uuid::Uuid;
 
-pub struct MockSignerUserStorage {
-    user_states: Arc<Mutex<BTreeMap<String, SignerUserState>>>,
+pub struct MockSignerMusigIdStorage {
+    storage: Arc<Mutex<BTreeMap<MusigId, SignerMusigIdData>>>,
 }
 
-impl MockSignerUserStorage {
+pub struct MockSignerSignSessionStorage {
+    storage: Arc<Mutex<BTreeMap<(MusigId, Uuid), SignerSignData>>>,
+}
+
+impl MockSignerSignSessionStorage {
     pub fn new() -> Self {
         Self {
-            user_states: Arc::new(Mutex::new(BTreeMap::new())),
+            storage: Arc::new(Mutex::new(BTreeMap::new())),
         }
+    }
+
+    pub async fn has_session(&self, musig_id: &MusigId, session_id: &Uuid) -> bool {
+        let map = self.storage.lock().await;
+        map.contains_key(&(musig_id.clone(), session_id.clone()))
     }
 }
 
 #[async_trait]
-impl SignerUserStorage for MockSignerUserStorage {
-    async fn get_user_state(&self, user_id: String) -> Result<Option<SignerUserState>, SignerError> {
-        Ok(self.user_states.lock().await.get(&user_id).map(|state| state.clone()))
+impl SignerSignSessionStorage for MockSignerSignSessionStorage {
+    async fn get_sign_data(
+        &self,
+        musig_id: MusigId,
+        session_id: Uuid,
+    ) -> Result<Option<SignerSignData>, DatabaseError> {
+        Ok(self
+            .storage
+            .lock()
+            .await
+            .get(&(musig_id.clone(), session_id.clone()))
+            .cloned())
     }
 
-    async fn set_user_state(&self, user_id: String, state: SignerUserState) -> Result<(), SignerError> {
-        self.user_states.lock().await.insert(user_id, state);
+    async fn set_sign_data(
+        &self,
+        musig_id: MusigId,
+        session_id: Uuid,
+        sign_session_data: SignerSignData,
+    ) -> Result<(), DatabaseError> {
+        self.storage
+            .lock()
+            .await
+            .insert((musig_id.clone(), session_id.clone()), sign_session_data);
         Ok(())
     }
 }
 
-pub struct MockAggregatorUserStorage {
-    user_states: Arc<Mutex<BTreeMap<String, AggregatorUserState>>>,
-}
-
-impl MockAggregatorUserStorage {
+impl MockSignerMusigIdStorage {
     pub fn new() -> Self {
         Self {
-            user_states: Arc::new(Mutex::new(BTreeMap::new())),
+            storage: Arc::new(Mutex::new(BTreeMap::new())),
         }
     }
 }
 
 #[async_trait]
-impl AggregatorUserStorage for MockAggregatorUserStorage {
-    async fn get_user_state(&self, user_id: String) -> Result<Option<AggregatorUserState>, AggregatorError> {
-        Ok(self.user_states.lock().await.get(&user_id).map(|state| state.clone()))
+impl SignerMusigIdStorage for MockSignerMusigIdStorage {
+    async fn get_musig_id_data(&self, musig_id: MusigId) -> Result<Option<SignerMusigIdData>, DatabaseError> {
+        Ok(self
+            .storage
+            .lock()
+            .await
+            .get(&musig_id)
+            .map(|musig_id_data| musig_id_data.clone()))
     }
 
-    async fn set_user_state(&self, user_id: String, state: AggregatorUserState) -> Result<(), AggregatorError> {
-        self.user_states.lock().await.insert(user_id, state);
+    async fn set_musig_id_data(
+        &self,
+        musig_id: MusigId,
+        musig_id_data: SignerMusigIdData,
+    ) -> Result<(), DatabaseError> {
+        self.storage.lock().await.insert(musig_id, musig_id_data);
+        Ok(())
+    }
+}
+
+pub struct MockAggregatorMusigIdStorage {
+    storage: Arc<Mutex<BTreeMap<MusigId, AggregatorMusigIdData>>>,
+}
+
+pub struct MockAggregatorSignSessionStorage {
+    storage: Arc<Mutex<BTreeMap<(MusigId, Uuid), AggregatorSignData>>>,
+}
+
+impl MockAggregatorMusigIdStorage {
+    pub fn new() -> Self {
+        Self {
+            storage: Arc::new(Mutex::new(BTreeMap::new())),
+        }
+    }
+}
+
+impl MockAggregatorSignSessionStorage {
+    pub fn new() -> Self {
+        Self {
+            storage: Arc::new(Mutex::new(BTreeMap::new())),
+        }
+    }
+}
+
+#[async_trait]
+impl AggregatorMusigIdStorage for MockAggregatorMusigIdStorage {
+    async fn get_musig_id_data(&self, musig_id: MusigId) -> Result<Option<AggregatorMusigIdData>, DatabaseError> {
+        Ok(self
+            .storage
+            .lock()
+            .await
+            .get(&musig_id)
+            .map(|musig_id_data| musig_id_data.clone()))
+    }
+
+    async fn set_musig_id_data(
+        &self,
+        musig_id: MusigId,
+        musig_id_data: AggregatorMusigIdData,
+    ) -> Result<(), DatabaseError> {
+        self.storage.lock().await.insert(musig_id, musig_id_data);
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl AggregatorSignSessionStorage for MockAggregatorSignSessionStorage {
+    async fn get_sign_data(
+        &self,
+        musig_id: MusigId,
+        session_id: Uuid,
+    ) -> Result<Option<AggregatorSignData>, DatabaseError> {
+        Ok(self
+            .storage
+            .lock()
+            .await
+            .get(&(musig_id, session_id))
+            .map(|sign_session_data| sign_session_data.clone()))
+    }
+
+    async fn set_sign_data(
+        &self,
+        musig_id: MusigId,
+        session_id: Uuid,
+        sign_session_data: AggregatorSignData,
+    ) -> Result<(), DatabaseError> {
+        self.storage
+            .lock()
+            .await
+            .insert((musig_id, session_id), sign_session_data);
         Ok(())
     }
 }

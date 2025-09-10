@@ -15,7 +15,6 @@ FROM debian:bullseye
 RUN apt-get update && apt-get install -y libssl-dev
 
 # Copying configs
-COPY ./gateway/infrastructure/configuration/base.toml /configuration_gateway/base.toml
 COPY ./gateway/crates/local_db_store/migrations/ /migrations
 
 # Copying binaries

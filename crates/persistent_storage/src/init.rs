@@ -4,10 +4,7 @@ use async_trait::async_trait;
 use sqlx::{PgPool, Pool, Postgres, pool::PoolConnection};
 use tracing::{instrument, trace};
 
-use crate::{
-    config::PostgresDbCredentials,
-    error::{DbGetConnError, DbInitError},
-};
+use crate::{config::PostgresDbCredentials, error::DatabaseError};
 
 pub type PostgresPool = Pool<Postgres>;
 pub type PersistentDbConn = PoolConnection<Postgres>;
@@ -21,7 +18,7 @@ pub struct PostgresRepo {
 /// Trait for implementing Persistent storage that'd use Postgres
 #[async_trait]
 pub trait PersistentRepoTrait: Send + Sync {
-    async fn get_conn(&self) -> Result<PersistentDbConn, DbGetConnError>;
+    async fn get_conn(&self) -> Result<PersistentDbConn, DatabaseError>;
 }
 
 impl PostgresRepo {
@@ -29,11 +26,11 @@ impl PostgresRepo {
     ///
     /// Why **unmigrated**? - it requires path to `migrate` folder as literal
     #[instrument(level = "trace", ret)]
-    pub async fn from_config(creds: PostgresDbCredentials) -> Result<Self, DbInitError> {
+    pub async fn from_config(creds: PostgresDbCredentials) -> Result<Self, DatabaseError> {
         trace!("Creating PG connection pool with creds: {:?}", creds);
         let pool = PgPool::connect(&creds.url)
             .await
-            .map_err(|x| DbInitError::FailedToEstablishDbConn(x, creds.url.clone()))?;
+            .map_err(|x| DatabaseError::FailedToEstablishDbConn(x, creds.url.clone()))?;
         trace!(db_url = creds.url, "Creating Postgres pool with config");
         Ok(Self { pool })
     }
@@ -42,14 +39,14 @@ impl PostgresRepo {
         Arc::new(Box::new(self))
     }
 
-    pub async fn ping(conn: &mut PersistentDbConn) -> Result<(), DbGetConnError> {
+    pub async fn ping(conn: &mut PersistentDbConn) -> Result<(), DatabaseError> {
         db_helpers::ping(conn).await
     }
 }
 
 #[async_trait]
 impl PersistentRepoTrait for PostgresRepo {
-    async fn get_conn(&self) -> Result<PersistentDbConn, DbGetConnError> {
+    async fn get_conn(&self) -> Result<PersistentDbConn, DatabaseError> {
         Ok(self.pool.acquire().await?)
     }
 }
@@ -60,7 +57,7 @@ pub mod db_helpers {
     use super::*;
 
     #[inline]
-    pub async fn ping(conn: &mut PersistentDbConn) -> Result<(), DbGetConnError> {
+    pub async fn ping(conn: &mut PersistentDbConn) -> Result<(), DatabaseError> {
         Ok(conn.ping().await?)
     }
 }

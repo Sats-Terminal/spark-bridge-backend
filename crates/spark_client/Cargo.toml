@@ -1,14 +1,22 @@
 [package]
-name = "spark-client"
+name = "spark_client"
 edition = { workspace = true }
 
 [dependencies]
-spark-protos = { workspace = true }
-tonic = { workspace = true }
-tokio = { workspace = true }
-hex = { workspace = true }
-log = { workspace = true }
 bech32 = { workspace = true }
 env_logger = { workspace = true }
+global_utils = { workspace = true }
+hex = { workspace = true }
+log = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
+spark-protos = { workspace = true }
 thiserror = { workspace = true }
+tokio = { workspace = true }
+tonic = { workspace = true }
+bitcoin = { workspace = true }
+lrc20 = { workspace = true }
+chrono = { workspace = true }
+
+[dev-dependencies]
+anyhow = { workspace = true }

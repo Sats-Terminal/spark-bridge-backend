@@ -1,4 +1,5 @@
 use global_utils::common_types::{TxIdWrapped, UrlWrapped};
+use persistent_storage::error::DatabaseError;
 use persistent_storage::init::PersistentDbConn;
 use serde::{Deserialize, Serialize};
 use sqlx::{
@@ -191,7 +192,7 @@ impl BtcIndexerWorkCheckpoint {
     const DB_NAME: &'static str = "runes_spark.btc_indexer_work_checkpoint";
 
     #[instrument(skip(conn), level = "trace")]
-    pub async fn insert(&self, conn: &mut PersistentDbConn) -> crate::error::Result<()> {
+    pub async fn insert(&self, conn: &mut PersistentDbConn) -> Result<(), DatabaseError> {
         let mut transaction = conn.begin().await?;
         sqlx::query(
             &format!(
@@ -211,14 +212,14 @@ impl BtcIndexerWorkCheckpoint {
     }
 
     #[instrument(skip(conn), level = "trace")]
-    pub async fn remove(conn: &mut PersistentDbConn, filter: Option<&Filter>) -> crate::error::Result<u64> {
+    pub async fn remove(conn: &mut PersistentDbConn, filter: Option<&Filter>) -> Result<u64, DatabaseError> {
         match filter {
             None => Self::remove_all(conn).await,
             Some(f) => Self::remove_with_filter(conn, f).await,
         }
     }
 
-    pub async fn remove_all(conn: &mut PersistentDbConn) -> crate::error::Result<u64> {
+    pub async fn remove_all(conn: &mut PersistentDbConn) -> Result<u64, DatabaseError> {
         let mut transaction = conn.begin().await?;
         let result = sqlx::query(&format!("DELETE FROM {DB_NAME}"))
             .execute(&mut *transaction)
@@ -227,7 +228,7 @@ impl BtcIndexerWorkCheckpoint {
         Ok(result.rows_affected())
     }
 
-    pub async fn remove_with_filter(conn: &mut PersistentDbConn, filter: &Filter) -> crate::error::Result<u64> {
+    pub async fn remove_with_filter(conn: &mut PersistentDbConn, filter: &Filter) -> Result<u64, DatabaseError> {
         let conditions = filter.get_params_sets();
         if conditions.is_empty() {
             return Self::remove_all(conn).await;
@@ -243,7 +244,7 @@ impl BtcIndexerWorkCheckpoint {
     }
 
     #[instrument(skip(conn), level = "trace")]
-    pub async fn update(conn: &mut PersistentDbConn, uuid: &Uuid, update: &Update) -> crate::error::Result<u64> {
+    pub async fn update(conn: &mut PersistentDbConn, uuid: &Uuid, update: &Update) -> Result<u64, DatabaseError> {
         let mut transaction = conn.begin().await?;
         let sets = update.get_params_sets();
         if sets.is_empty() {
@@ -269,7 +270,7 @@ impl BtcIndexerWorkCheckpoint {
     pub async fn filter(
         conn: &mut PersistentDbConn,
         filter: Option<&Filter>,
-    ) -> crate::error::Result<Vec<BtcIndexerWorkCheckpoint>> {
+    ) -> Result<Vec<BtcIndexerWorkCheckpoint>, DatabaseError> {
         match filter {
             None => Self::get_all(conn).await,
             Some(f) => Self::get_with_filter(conn, f).await,
@@ -277,7 +278,7 @@ impl BtcIndexerWorkCheckpoint {
     }
 
     #[instrument(skip(conn), level = "trace")]
-    pub async fn get_all(conn: &mut PersistentDbConn) -> crate::error::Result<Vec<BtcIndexerWorkCheckpoint>> {
+    pub async fn get_all(conn: &mut PersistentDbConn) -> Result<Vec<BtcIndexerWorkCheckpoint>, DatabaseError> {
         let mut transaction = conn.begin().await?;
         let results = sqlx::query_as::<_, BtcIndexerWorkCheckpoint>(&format!(
             "SELECT uuid, status, task, created_at, callback_url, error, updated_at FROM {DB_NAME}"
@@ -292,7 +293,7 @@ impl BtcIndexerWorkCheckpoint {
     pub async fn get_with_filter(
         conn: &mut PersistentDbConn,
         filter: &Filter,
-    ) -> crate::error::Result<Vec<BtcIndexerWorkCheckpoint>> {
+    ) -> Result<Vec<BtcIndexerWorkCheckpoint>, DatabaseError> {
         let conditions = filter.get_params_sets();
         if conditions.is_empty() {
             return Self::get_all(conn).await;
@@ -312,7 +313,7 @@ impl BtcIndexerWorkCheckpoint {
     }
 
     #[instrument(skip(conn), level = "trace")]
-    pub async fn count(conn: &mut PersistentDbConn, filter: Option<&Filter>) -> crate::error::Result<u64> {
+    pub async fn count(conn: &mut PersistentDbConn, filter: Option<&Filter>) -> Result<u64, DatabaseError> {
         match filter {
             None => Self::count_all(conn).await,
             Some(f) => Self::count_with_filter(conn, f).await,
@@ -320,7 +321,7 @@ impl BtcIndexerWorkCheckpoint {
     }
 
     #[instrument(skip(conn), level = "trace")]
-    pub async fn count_all(conn: &mut PersistentDbConn) -> crate::error::Result<u64> {
+    pub async fn count_all(conn: &mut PersistentDbConn) -> Result<u64, DatabaseError> {
         let mut transaction = conn.begin().await?;
         let sql = format!("SELECT COUNT(*) FROM {DB_NAME}");
         let row = sqlx::query(&sql).fetch_one(&mut *transaction).await?;
@@ -330,7 +331,7 @@ impl BtcIndexerWorkCheckpoint {
     }
 
     #[instrument(skip(conn), level = "trace")]
-    pub async fn count_with_filter(conn: &mut PersistentDbConn, filter: &Filter) -> crate::error::Result<u64> {
+    pub async fn count_with_filter(conn: &mut PersistentDbConn, filter: &Filter) -> Result<u64, DatabaseError> {
         let conditions = filter.get_params_sets();
         if conditions.is_empty() {
             return Self::count_all(conn).await;

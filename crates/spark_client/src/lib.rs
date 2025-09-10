@@ -1,6 +1,4 @@
 pub mod client;
-mod common;
-mod connection;
-mod utils;
-
-pub use common::{config::SparkConfig, error::SparkClientError};
+pub mod common;
+pub mod connection;
+pub mod utils;

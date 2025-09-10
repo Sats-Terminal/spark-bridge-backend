@@ -12,3 +12,4 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 verifier_config_parser = { workspace = true }
 verifier_local_db_store = { workspace = true }
+frost = { workspace = true }

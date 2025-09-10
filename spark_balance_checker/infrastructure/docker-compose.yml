@@ -1,0 +1,29 @@
+name: runes-spark-bridge
+services:
+
+  spark-balance-checker-service:
+    build:
+      context: ./../../
+      dockerfile: ./spark_balance_checker/infrastructure/Dockerfile
+    restart: always
+    environment:
+      - RUST_LOG=trace
+      - APP_ENVIRONMENT=production
+    networks:
+      spark-checker-network:
+        ipv4_address: 172.33.0.2
+    ports:
+      - "8070:8070"
+    entrypoint: sh -c "spark_balance_checker_main"
+#    entrypoint: tail -f /dev/null
+    volumes:
+      - ./configuration/production.toml:/configuration_spark_balance_checker/production.toml
+      - ./configuration/ca.pem:/configuration_spark_balance_checker/ca.pem
+
+networks:
+  spark-checker-network:
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.33.0.0/24
+          gateway: 172.33.0.1

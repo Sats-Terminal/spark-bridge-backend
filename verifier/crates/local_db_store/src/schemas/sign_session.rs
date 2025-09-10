@@ -1,0 +1,61 @@
+use frost::traits::SignerSignSessionStorage;
+use crate::storage::Storage;
+use persistent_storage::error::DatabaseError;
+use frost::types::SignerSignData;
+use async_trait::async_trait;
+use sqlx::types::Json;
+use uuid::Uuid;
+use frost::types::SigningMetadata;
+use frost::types::SignerSignState;
+use frost::types::MusigId;
+
+#[async_trait]
+impl SignerSignSessionStorage for Storage {
+    async fn get_sign_data(&self, musig_id: MusigId, session_id: Uuid) -> Result<Option<SignerSignData>, DatabaseError> {
+        let public_key = musig_id.get_public_key();
+        let rune_id = musig_id.get_rune_id();
+
+        let result: Option<(Json<SignerSignState>, Json<SigningMetadata>, Vec<u8>, Option<Vec<u8>>)> = sqlx::query_as(
+            "SELECT sign_state, metadata, message_hash, tweak 
+            FROM sign_session 
+            WHERE public_key = $1 AND rune_id = $2 AND session_id = $3"
+        )
+            .bind(public_key.to_string())
+            .bind(rune_id)
+            .bind(session_id.to_string())
+            .fetch_optional(&self.get_conn().await?)
+            .await
+            .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
+
+        Ok(result.map(|(json_sign_state, json_metadata, message_hash, tweak)| SignerSignData {
+            sign_state: json_sign_state.0,
+            metadata: json_metadata.0,
+            message_hash,
+            tweak,
+        }))
+    }
+
+    async fn set_sign_data(&self, musig_id: MusigId, session_id: Uuid, sign_data: SignerSignData) -> Result<(), DatabaseError> {
+        let sign_state = Json(sign_data.sign_state);
+        let public_key = musig_id.get_public_key();
+        let rune_id = musig_id.get_rune_id();
+
+        let _ = sqlx::query(
+            "INSERT INTO sign_session (public_key, rune_id, session_id, sign_state, metadata, message_hash, tweak) 
+            VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (session_id) 
+            DO UPDATE SET sign_state = $4"
+        )
+            .bind(public_key.to_string())
+            .bind(rune_id)
+            .bind(session_id.to_string())
+            .bind(sign_state)
+            .bind(Json(sign_data.metadata))
+            .bind(sign_data.message_hash.clone())
+            .bind(sign_data.tweak.clone())
+            .execute(&self.get_conn().await?)
+            .await
+            .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
+
+        Ok(())
+    }
+}

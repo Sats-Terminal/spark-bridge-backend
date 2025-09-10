@@ -1,4 +1,4 @@
-use local_db_store_indexer::error::{DbError, DbGetConnError};
+use persistent_storage::error::DatabaseError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum BtcIndexerError {
@@ -7,9 +7,7 @@ pub enum BtcIndexerError {
     #[error("Receive titan tcp client, error: {0}")]
     TitanTcpClientError(#[from] titan_client::TitanTcpClientError),
     #[error("Receive db client failure, error: {0}")]
-    DbError(#[from] DbError),
-    #[error("Failed to get db conn, error: {0}")]
-    DbConnError(#[from] DbGetConnError),
+    DatabaseError(#[from] DatabaseError),
 }
 
 pub type Result<T> = std::result::Result<T, BtcIndexerError>;

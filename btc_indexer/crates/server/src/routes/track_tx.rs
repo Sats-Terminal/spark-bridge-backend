@@ -5,14 +5,11 @@ use btc_indexer_internals::{api::BtcIndexerApi, indexer::BtcIndexer};
 use global_utils::common_types::{TxIdWrapped, UrlWrapped, get_uuid};
 use local_db_store_indexer::{
     PersistentRepoTrait,
-    error::DbError,
     schemas::runes_spark::btc_indexer_work_checkpoint::{BtcIndexerWorkCheckpoint, StatusBtcIndexer, Task, Update},
 };
+use persistent_storage::error::DatabaseError;
 use serde::{Deserialize, Serialize};
-use sqlx::{
-    Row,
-    types::{Json as SqlxJson, chrono::Utc},
-};
+use sqlx::types::{Json as SqlxJson, chrono::Utc};
 use titan_client::Transaction;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, instrument, trace};
@@ -58,7 +55,7 @@ pub async fn handler<T: titan_client::TitanApi, Db: PersistentRepoTrait + Clone 
             uuid,
             status: StatusBtcIndexer::Created,
             task: SqlxJson::from(Task::TrackTx(payload.tx_id.clone())),
-            created_at: time_now.clone(),
+            created_at: time_now,
             callback_url: payload.callback_url.clone(),
             error: None,
             updated_at: time_now,
@@ -81,7 +78,7 @@ pub(crate) async fn spawn_tx_tracking_task<T: titan_client::TitanApi, Db: Persis
     app_state: AppState<T, Db>,
     payload: TrackTxRequest,
     uuid: Uuid,
-) -> Result<CancellationToken, DbError> {
+) -> Result<CancellationToken, DatabaseError> {
     let cancellation_token = CancellationToken::new();
     tokio::task::spawn({
         let local_cancellation_token = cancellation_token.child_token();
