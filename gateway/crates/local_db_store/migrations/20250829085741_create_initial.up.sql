@@ -15,3 +15,4 @@ CREATE TABLE IF NOT EXISTS gatewayrequests
 );
 
 COMMIT;
+

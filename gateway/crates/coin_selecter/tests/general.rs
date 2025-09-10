@@ -309,8 +309,8 @@ async fn test_concurrent_selection_one_wins() -> Result<(), DatabaseError> {
     let (r1, r2) = tokio::join!(f1, f2);
 
     let ok_count = [r1.as_ref().ok(), r2.as_ref().ok()].iter().filter(|x| x.is_some()).count();
-    assert!(ok_count >= 1, "Ожидается минимум один успешный результат");
-    assert!(ok_count <= 1, "Ожидается максимум один успешный результат иначе тест бессмысленен)");
+    assert!(ok_count >= 1, "at least one success");
+    assert!(ok_count <= 1, "once more - at least one success");
 
     let remaining_unspent = repo.list_unspent("rune_conc").await?;
 

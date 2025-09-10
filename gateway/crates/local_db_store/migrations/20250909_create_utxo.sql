@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS gateway.utxo (
                                             vout INT NOT NULL,
                                             amount BIGINT NOT NULL,
                                             rune_id TEXT NOT NULL,
-                                            owner_pubkey TEXT NOT NULL,  -- изменил с owner_address на owner_pubkey
+                                            owner_pubkey TEXT NOT NULL,
                                             status TEXT NOT NULL DEFAULT 'unspent',
                                             block_height BIGINT,
                                             created_at TIMESTAMP DEFAULT now(),

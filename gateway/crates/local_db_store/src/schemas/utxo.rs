@@ -11,7 +11,7 @@ pub struct Utxo {
     pub vout: i32,
     pub amount: i64,
     pub rune_id: String,
-    pub owner_pubkey: String,  // изменил с owner_address
+    pub owner_pubkey: String,
     pub status: String,
     pub block_height: Option<i64>,
     pub created_at: NaiveDateTime,
