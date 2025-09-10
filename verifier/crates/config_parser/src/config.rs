@@ -1,10 +1,10 @@
 use config::{Config, Environment};
 use global_utils::config_variant::ConfigVariant;
 use serde::{Deserialize, Serialize};
+use spark_client::utils::spark_address::Network;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use tracing::{debug, instrument, trace};
-use spark_client::utils::spark_address::Network;
 
 const CONFIG_FOLDER_NAME: &str = "../../infrastructure/configuration";
 const PRODUCTION_CONFIG_FOLDER_NAME: &str = "configuration_verifier";

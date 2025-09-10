@@ -1,12 +1,10 @@
 use frost::mocks::MockSignerMusigIdStorage;
 use frost::mocks::MockSignerSignSessionStorage;
 use frost::signer::FrostSigner;
-use verifier_config_parser::config::SignerConfig;
 use std::sync::Arc;
+use verifier_config_parser::config::SignerConfig;
 
-pub fn create_frost_signer(
-    signer_config: SignerConfig,
-) -> FrostSigner {
+pub fn create_frost_signer(signer_config: SignerConfig) -> FrostSigner {
     FrostSigner::new(
         signer_config.identifier,
         Arc::new(MockSignerMusigIdStorage::new()),

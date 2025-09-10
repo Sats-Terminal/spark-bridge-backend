@@ -16,5 +16,9 @@ pub fn create_aggregator_from_config(config: ServerConfig) -> FrostAggregator {
         verifiers.insert(verifier.id.try_into().unwrap(), Arc::new(signer_client));
     }
 
-    FrostAggregator::new(verifiers, Arc::new(MockAggregatorMusigIdStorage::new()), Arc::new(MockAggregatorSignSessionStorage::new()))
+    FrostAggregator::new(
+        verifiers,
+        Arc::new(MockAggregatorMusigIdStorage::new()),
+        Arc::new(MockAggregatorSignSessionStorage::new()),
+    )
 }

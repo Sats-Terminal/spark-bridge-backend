@@ -6,8 +6,8 @@ use config::{Config, Environment};
 use global_utils::config_variant::ConfigVariant;
 use global_utils::{env_parser, env_parser::lookup_ip_addr};
 use serde::{Deserialize, Serialize};
-use tracing::{debug, instrument, trace};
 use spark_client::utils::spark_address::Network;
+use tracing::{debug, instrument, trace};
 
 const CONFIG_FOLDER_NAME: &str = "../../infrastructure/configuration";
 const PRODUCTION_CONFIG_FOLDER_NAME: &str = "configuration_indexer";
@@ -166,9 +166,8 @@ impl BtcRpcCredentials {
                     }
                 })?,
             ),
-            network: Network::from_str(&env_parser::obtain_env_value(BITCOIN_NETWORK)?).map_err(|e| {
-                ConfigParserError::ParseNetworkError(e.to_string())
-            })?,
+            network: Network::from_str(&env_parser::obtain_env_value(BITCOIN_NETWORK)?)
+                .map_err(|e| ConfigParserError::ParseNetworkError(e.to_string()))?,
             name: env_parser::obtain_env_value(BITCOIN_RPC_USERNAME)?,
             password: env_parser::obtain_env_value(BITCOIN_RPC_PASSWORD)?,
         })

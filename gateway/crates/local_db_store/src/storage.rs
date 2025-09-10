@@ -1,5 +1,8 @@
-use persistent_storage::{config::*, init::{PostgresRepo, PostgresPool}};
 pub use persistent_storage::error::DatabaseError;
+use persistent_storage::{
+    config::*,
+    init::{PostgresPool, PostgresRepo},
+};
 
 pub struct Storage {
     pub postgres_repo: PostgresRepo,

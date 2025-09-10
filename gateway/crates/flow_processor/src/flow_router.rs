@@ -72,9 +72,7 @@ impl FlowProcessorRouter {
         let public_key = convert_public_key_package(public_key_package)
             .map_err(|e| FlowProcessorError::InvalidDataError(e.to_string()))?;
 
-        Ok(DkgFlowResponse {
-            public_key
-        })
+        Ok(DkgFlowResponse { public_key })
     }
 
     async fn run_bridge_runes_flow(
