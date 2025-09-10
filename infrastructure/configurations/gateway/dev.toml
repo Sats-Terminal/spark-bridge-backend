@@ -1,6 +1,8 @@
 [application]
 http_server_ip = "0.0.0.0"
 http_server_port = 8060
+btc_network = "regtest"
+spark_network = "Regtest"
 
 [[verifiers_config]]
 id = 1
@@ -17,3 +19,6 @@ address = "http://localhost:8073"
 [aggregator_config]
 threshold = 2
 total_participants = 3
+
+[flow_processor_config]
+cancellation_retries = 10

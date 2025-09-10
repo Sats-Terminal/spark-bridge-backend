@@ -1,34 +1,28 @@
 @startuml
+title Bridge interaction scheme [Runes -> Spark]
 
+note over User_BTC_wallet,Gateway:Get runes deposit address
+User_BTC_wallet->Gateway: get address for (**user_pubkey**, **rune_id**)
+Gateway<->Verifiers:Perform dkg to generate **dkg_pubkey** (if absent) \n and tweak it with random **nonce**
+Gateway->User_BTC_wallet: Retrieve **deposit_btc_address** to send tokens to
 
-title Bridge interaction scheme Rune -> Spark
+note over User_BTC_wallet,Gateway:Make transfer on deposit address
+User_BTC_wallet->BTC_network: Create **tx** with appropriate amount of Runes
+note over User_BTC_wallet,Gateway:Bridge runes to spark
+User_BTC_wallet->Gateway: notify that **tx** is created and \n specify **spark_address** where to mint **wRunes**
 
-note over User_BTC_wallet,Proxy:Initial call to bridge tokens
-User_BTC_wallet->Proxy: user_pubkey + amount_in + rune_id + uuid
+note over Gateway,Verifiers:Verify **tx** existence
 
-note over Proxy,Verifier_1_BTC:Initial call to subscribe for pubkey tx events (Verifier_1_BTC)
+Gateway->Verifiers:Watch for **tx** 
+Verifiers->BTC_indexer: calls to watch for **tx**
+Verifiers<-BTC_indexer: notify that **tx** exists
+Gateway<-Verifiers: notify that **tx** exists
 
-Proxy->Verifier_1_BTC:Watch for tx with: user_pubkey
-Verifier_1_BTC->Verifier_1_BTC: watch for txs with user_pubkey
-Verifier_1_BTC<->Spark_Chain: calls to watch chain changes
-Proxy<--Verifier_1_BTC: event from needed tx that matches user_pubkey
+note over Gateway,Spark_Entity:Mint **wRunes** for the user
+Gateway<->Verifiers:Perform dkg to generate **issuer_dkg_public_key**
+Gateway<->Verifiers:Create and frost sign mint transaction for **spark_address** \n with **issuer_dkg_public_key**
+Gateway->Spark_Entity: send mint transaction
 
-
-note over Proxy,Verifier_2_BTC:Initial call to subscribe for pubkey tx events (Verifier_2_BTC)
-Proxy->Verifier_2_BTC:Watch for tx with: user_pubkey
-Verifier_2_BTC->Verifier_2_BTC: watch for txs with user_pubkey
-Verifier_2_BTC<->Spark_Chain: call to watch chain changes
-Proxy<--Verifier_2_BTC: event from needed tx that matches user_pubkey
-
-note over Proxy:Does expected tx here?
-Proxy->Proxy: Aggregate and wait for tx events from Verifiers
-
-note over Proxy,SparkEntity:Bridge Runes to Spark
-Proxy->Spark_signer_1: sign partially formed transaction to Spark
-Proxy->Spark_signer_2: sign partially formed transaction to Spark
-Proxy->SparkEntity: Create Appropriate tx in Spark chain with newly crated account
-
-note over User_Spark_wallet, SparkEntity: Tokens acquisition
-User_Spark_wallet<-SparkEntity: wRunes
-
+note over User_Spark_wallet, Spark_Entity: Tokens acquisition
+User_Spark_wallet<-Spark_Entity: **wRunes**
 @enduml

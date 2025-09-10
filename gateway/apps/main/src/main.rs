@@ -17,7 +17,7 @@ use tracing::instrument;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let _logger_guard = init_logger();
-    let _ = dotenv::dotenv()?;
+    let _ = dotenv::dotenv();
 
     let config_path = ConfigPath::from_env()?;
     let network = Network::Regtest;

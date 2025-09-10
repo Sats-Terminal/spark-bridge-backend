@@ -1,7 +1,9 @@
 use bitcoin::Network;
+use bitcoin::Network as BtcNetwork;
 use config::{Config, Environment};
 use global_utils::config_variant::ConfigVariant;
 use serde::{Deserialize, Serialize};
+use spark_client::utils::spark_address::Network as SparkNetwork;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use tracing::{debug, instrument, trace};
@@ -18,6 +20,10 @@ pub struct AppConfig {
     pub ip: String,
     #[serde(rename = "http_server_port")]
     pub port: u16,
+    #[serde(rename = "btc_network")]
+    pub btc_network: BtcNetwork,
+    #[serde(rename = "spark_network")]
+    pub spark_network: SparkNetwork,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

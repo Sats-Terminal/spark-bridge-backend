@@ -8,6 +8,7 @@ use frost::aggregator::FrostAggregator;
 use frost::types::MusigId;
 use frost::types::SigningMetadata;
 use frost::types::TokenTransactionMetadata;
+use futures::future::join_all;
 use lrc20::marshal::marshal_token_transaction;
 use lrc20::marshal::unmarshal_token_transaction;
 use lrc20::proto_hasher::get_descriptor_pool;
@@ -143,12 +144,10 @@ impl SparkService {
                 SparkServiceError::InvalidData(format!("Failed to marshal partial token transaction: {:?}", e))
             })?;
 
-        let partial_token_transaction_hash = hash_token_transaction(
-            self.descriptor_pool.clone(),
-            partial_token_transaction_proto.clone(),
-            true,
-        )
-        .map_err(|err| SparkServiceError::HashError(format!("Failed to hash partial token transaction: {:?}", err)))?;
+        let partial_token_transaction_hash =
+            hash_token_transaction(self.descriptor_pool.clone(), partial_token_transaction_proto.clone()).map_err(
+                |err| SparkServiceError::HashError(format!("Failed to hash partial token transaction: {:?}", err)),
+            )?;
 
         let signature = self
             .frost_aggregator
@@ -189,14 +188,12 @@ impl SparkService {
                 SparkServiceError::DecodeError(format!("Failed to unmarshal final token transaction: {:?}", e))
             })?;
 
-        let final_token_transaction_hash = hash_token_transaction(
-            self.descriptor_pool.clone(),
-            final_token_transaction_proto.clone(),
-            false,
-        )
-        .map_err(|err| SparkServiceError::HashError(format!("Failed to hash final token transaction: {:?}", err)))?;
+        let final_token_transaction_hash =
+            hash_token_transaction(self.descriptor_pool.clone(), final_token_transaction_proto.clone()).map_err(
+                |err| SparkServiceError::HashError(format!("Failed to hash final token transaction: {:?}", err)),
+            )?;
 
-        let mut signatures = Vec::new();
+        let mut join_handles = vec![];
 
         for operator_public_key in spark_operator_identity_public_keys {
             let operator_specific_signable_payload = hash_operator_specific_signable_payload(
@@ -207,28 +204,44 @@ impl SparkService {
                 SparkServiceError::HashError(format!("Failed to hash operator specific signable payload: {:?}", err))
             })?;
 
-            let signature = self
-                .frost_aggregator
-                .run_signing_flow(
-                    musig_id.clone(),
-                    operator_specific_signable_payload.as_ref(),
-                    create_signing_metadata(final_token_transaction.clone(), transaction_type.clone(), false),
-                    nonce_tweak,
-                )
-                .await
-                .map_err(|e| SparkServiceError::FrostAggregatorError(e.to_string()))?;
+            let musig_id = musig_id.clone();
+            let final_token_transaction = final_token_transaction.clone();
+            let transaction_type = transaction_type.clone();
 
-            signatures.push(InputTtxoSignaturesPerOperator {
-                ttxo_signatures: vec![SignatureWithIndex {
-                    signature: signature
-                        .serialize()
-                        .map_err(|e| SparkServiceError::DecodeError(format!("Failed to serialize signature: {:?}", e)))?
-                        .to_vec(),
-                    input_index: 0,
-                }],
-                operator_identity_public_key: operator_public_key.serialize().to_vec(),
-            });
+            let join_handle = async move {
+                let signature = self
+                    .frost_aggregator
+                    .run_signing_flow(
+                        musig_id,
+                        operator_specific_signable_payload.as_ref(),
+                        create_signing_metadata(final_token_transaction, transaction_type, false),
+                        nonce_tweak,
+                    )
+                    .await
+                    .map_err(|e| SparkServiceError::FrostAggregatorError(e.to_string()))?;
+
+                let ttxo_signatures = InputTtxoSignaturesPerOperator {
+                    ttxo_signatures: vec![SignatureWithIndex {
+                        signature: signature
+                            .serialize()
+                            .map_err(|e| {
+                                SparkServiceError::DecodeError(format!("Failed to serialize signature: {:?}", e))
+                            })?
+                            .to_vec(),
+                        input_index: 0,
+                    }],
+                    operator_identity_public_key: operator_public_key.serialize().to_vec(),
+                };
+
+                Ok(ttxo_signatures)
+            };
+            join_handles.push(join_handle);
         }
+
+        let signatures = join_all(join_handles)
+            .await
+            .into_iter()
+            .collect::<Result<Vec<InputTtxoSignaturesPerOperator>, SparkServiceError>>()?;
 
         let _ = self
             .spark_client

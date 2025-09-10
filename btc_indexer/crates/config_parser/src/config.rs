@@ -1,9 +1,11 @@
 use std::{fmt::Debug, net::SocketAddr, str::FromStr};
 
 use crate::error::ConfigParserError;
-use bitcoincore_rpc::{Auth, bitcoin::Network};
+use bitcoin::Network;
+use bitcoincore_rpc::{Auth, bitcoin};
 use config::{Config, Environment};
 use global_utils::config_variant::ConfigVariant;
+use global_utils::network::NetworkConfig;
 use global_utils::{env_parser, env_parser::lookup_ip_addr};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, instrument, trace};
@@ -12,7 +14,6 @@ const CONFIG_FOLDER_NAME: &str = "../../infrastructure/configuration";
 const PRODUCTION_CONFIG_FOLDER_NAME: &str = "configuration_indexer";
 const CARGO_MANIFEST_DIR: &str = "CARGO_MANIFEST_DIR";
 const DEFAULT_APP_LOCAL_BASE_FILENAME: &str = "base";
-pub const BITCOIN_NETWORK: &str = "BITCOIN_NETWORK";
 pub const BITCOIN_RPC_HOST: &str = "BITCOIN_RPC_HOST";
 pub const BITCOIN_RPC_PORT: &str = "BITCOIN_RPC_PORT";
 pub const BITCOIN_RPC_USERNAME: &str = "BITCOIN_RPC_USERNAME";
@@ -165,7 +166,9 @@ impl BtcRpcCredentials {
                     }
                 })?,
             ),
-            network: Network::from_str(&env_parser::obtain_env_value(BITCOIN_NETWORK)?)?,
+            network: NetworkConfig::from_env()
+                .map_err(|e| ConfigParserError::ParseNetworkError(e.to_string()))?
+                .network,
             name: env_parser::obtain_env_value(BITCOIN_RPC_USERNAME)?,
             password: env_parser::obtain_env_value(BITCOIN_RPC_PASSWORD)?,
         })

@@ -1,6 +1,6 @@
-use std::{env::VarError, io, net::IpAddr};
-
+use bitcoin::network::ParseNetworkError;
 use dns_lookup::lookup_host;
+use std::{env::VarError, io, net::IpAddr};
 use thiserror::Error;
 use tracing::instrument;
 
@@ -12,6 +12,8 @@ pub enum EnvParserError {
     NoHostInString(String),
     #[error("No host in string: {0}")]
     FailedToLookupAddress(#[from] io::Error),
+    #[error("Network parsing error: {err}, string name: '{string}'")]
+    FailedToParseNetwork { string: String, err: ParseNetworkError },
 }
 
 pub trait EnvParser {
