@@ -23,7 +23,7 @@ pub trait EnvParser {
     }
 }
 
-#[instrument(level = "debug", skip(name), fields(name = name.as_ref()) ret)]
+#[instrument(level = "trace", skip(name), fields(name = name.as_ref()), ret)]
 pub fn obtain_env_value(name: impl AsRef<str>) -> Result<String, EnvParserError> {
     std::env::var(name.as_ref()).map_err(|err| EnvParserError::ConfigEnvParseError {
         missing_var_name: name.as_ref().to_string(),

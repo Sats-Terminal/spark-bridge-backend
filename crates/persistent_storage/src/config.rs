@@ -1,5 +1,6 @@
 use global_utils::env_parser::{EnvParser, EnvParserError};
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 
 pub const POSTGRES_TESTING_URL_ENV_NAME: &str = "DATABASE_URL_TESTING";
 pub const POSTGRES_URL_ENV_NAME: &str = "DATABASE_URL";
@@ -46,6 +47,7 @@ impl EnvParser for PgName {
 
 impl PostgresDbCredentials {
     /// Gets url from DATABASE_URL env variable
+    #[instrument(level = "trace", ret)]
     pub fn from_db_url() -> Result<Self, EnvParserError> {
         Ok(Self {
             url: PostgresDbCredentials::obtain_env_value()?,
@@ -53,12 +55,14 @@ impl PostgresDbCredentials {
     }
 
     /// Gathers url format manually, where it's beneficial to contain envs separately
+    #[instrument(level = "trace", ret)]
     pub fn from_envs() -> Result<Self, EnvParserError> {
         Ok(Self {
             url: Self::obtain_postgres_url()?,
         })
     }
 
+    #[instrument(level = "trace", ret)]
     fn obtain_postgres_url() -> Result<String, EnvParserError> {
         let (user, password, host, port, db) = (
             PgUser::obtain_env_value()?,

@@ -1,5 +1,4 @@
 use anyhow::anyhow;
-use bitcoin::Network;
 use gateway_config_parser::config::ServerConfig;
 use gateway_flow_processor::init::create_flow_processor;
 use gateway_local_db_store::storage::LocalDbStorage;
@@ -11,29 +10,32 @@ use global_utils::logger::init_logger;
 use global_utils::network::NetworkConfig;
 use persistent_storage::config::PostgresDbCredentials;
 use persistent_storage::init::PostgresRepo;
+use std::sync::Arc;
 use tokio::net::TcpListener;
 use tracing::instrument;
 
-#[instrument(level = "debug", ret)]
+#[instrument(level = "trace", ret)]
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let _logger_guard = init_logger();
     let _ = dotenv::dotenv();
+    let _logger_guard = init_logger();
 
     let config_path = ConfigPath::from_env()?;
     let network_config = NetworkConfig::from_env()?;
     let app_config = ServerConfig::init_config(ConfigVariant::OnlyOneFilepath(config_path.path))?;
     tracing::debug!("App config: {:?}", app_config);
 
-    let frost_aggregator = create_aggregator_from_config(app_config.clone());
-
     let postgres_creds = PostgresDbCredentials::from_db_url()?;
     let db_pool = LocalDbStorage {
         postgres_repo: PostgresRepo::from_config(postgres_creds).await?,
     };
+    let shared_db_pool = Arc::new(db_pool);
+
+    let frost_aggregator =
+        create_aggregator_from_config(app_config.clone(), shared_db_pool.clone(), shared_db_pool.clone());
 
     let (mut flow_processor, flow_sender) = create_flow_processor(
-        db_pool,
+        shared_db_pool,
         app_config.flow_processor.cancellation_retries,
         frost_aggregator,
         network_config.network,

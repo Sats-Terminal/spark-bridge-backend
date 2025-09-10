@@ -1,8 +1,8 @@
 use crate::{errors::AggregatorError, traits::*, types::*};
-use bitcoin::secp256k1::PublicKey;
 use frost_secp256k1_tr::{Identifier, Signature, SigningPackage, keys, keys::Tweak};
 use futures::future::join_all;
 use std::{collections::BTreeMap, sync::Arc};
+use tracing::instrument;
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -26,7 +26,7 @@ impl FrostAggregator {
     }
 
     async fn dkg_round_1(&self, musig_id: &MusigId) -> Result<(), AggregatorError> {
-        let musig_id_data = self.musig_id_storage.get_musig_id_data(&musig_id).await?;
+        let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id).await?;
 
         match musig_id_data {
             Some(_) => Err(AggregatorError::InvalidUserState("User state is not None".to_string())),
@@ -57,7 +57,7 @@ impl FrostAggregator {
 
                 self.musig_id_storage
                     .set_musig_id_data(
-                        &musig_id,
+                        musig_id,
                         AggregatorMusigIdData {
                             dkg_state: AggregatorDkgState::DkgRound1 {
                                 round1_packages: verifier_responses,
@@ -105,7 +105,7 @@ impl FrostAggregator {
 
                 self.musig_id_storage
                     .set_musig_id_data(
-                        &musig_id,
+                        musig_id,
                         AggregatorMusigIdData {
                             dkg_state: AggregatorDkgState::DkgRound2 {
                                 round1_packages,
@@ -123,7 +123,7 @@ impl FrostAggregator {
     }
 
     async fn dkg_finalize(&self, musig_id: &MusigId) -> Result<(), AggregatorError> {
-        let musig_id_data = self.musig_id_storage.get_musig_id_data(&musig_id).await?;
+        let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id).await?;
 
         match musig_id_data {
             Some(AggregatorMusigIdData {
@@ -169,7 +169,7 @@ impl FrostAggregator {
 
                 self.musig_id_storage
                     .set_musig_id_data(
-                        &musig_id,
+                        musig_id,
                         AggregatorMusigIdData {
                             dkg_state: AggregatorDkgState::DkgFinalized {
                                 public_key_package: public_key_package.clone(),
@@ -186,12 +186,13 @@ impl FrostAggregator {
         }
     }
 
+    #[instrument(skip(self), level = "trace", ret)]
     pub async fn run_dkg_flow(&self, musig_id: &MusigId) -> Result<keys::PublicKeyPackage, AggregatorError> {
         self.dkg_round_1(musig_id).await?;
         self.dkg_round_2(musig_id).await?;
         self.dkg_finalize(musig_id).await?;
 
-        let musig_id_data = self.musig_id_storage.get_musig_id_data(&musig_id).await?;
+        let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id).await?;
         match musig_id_data {
             Some(AggregatorMusigIdData {
                 dkg_state: AggregatorDkgState::DkgFinalized { public_key_package },
@@ -210,7 +211,7 @@ impl FrostAggregator {
         metadata: SigningMetadata,
         tweak: Option<&[u8]>,
     ) -> Result<(), AggregatorError> {
-        let musig_id_data = self.musig_id_storage.get_musig_id_data(&musig_id).await?;
+        let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id).await?;
 
         match musig_id_data {
             Some(AggregatorMusigIdData {
@@ -241,7 +242,7 @@ impl FrostAggregator {
 
                 self.sign_session_storage
                     .set_sign_data(
-                        &musig_id,
+                        musig_id,
                         session_id,
                         AggregatorSignData {
                             tweak: tweak.map(|t| t.to_vec()),
@@ -261,10 +262,10 @@ impl FrostAggregator {
     }
 
     async fn sign_round_2(&self, musig_id: &MusigId, session_id: Uuid) -> Result<(), AggregatorError> {
-        let musig_id_data = self.musig_id_storage.get_musig_id_data(&musig_id).await?;
+        let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id).await?;
         let mut sign_data = self
             .sign_session_storage
-            .get_sign_data(&musig_id, session_id.clone())
+            .get_sign_data(musig_id, session_id)
             .await?
             .ok_or(AggregatorError::InvalidUserState(
                 "Session state is not SigningRound1".to_string(),
@@ -325,7 +326,7 @@ impl FrostAggregator {
 
                 sign_data.sign_state = AggregatorSignState::SigningRound2 { signature };
                 self.sign_session_storage
-                    .set_sign_data(&musig_id, session_id, sign_data)
+                    .set_sign_data(musig_id, session_id, sign_data)
                     .await?;
 
                 Ok(())
@@ -349,10 +350,7 @@ impl FrostAggregator {
             .await?;
         self.sign_round_2(&musig_id, session_id).await?;
 
-        let sign_data = self
-            .sign_session_storage
-            .get_sign_data(&musig_id, session_id.clone())
-            .await?;
+        let sign_data = self.sign_session_storage.get_sign_data(&musig_id, session_id).await?;
         let state = sign_data
             .ok_or(AggregatorError::InvalidUserState(
                 "Session state is not SigningRound2".to_string(),

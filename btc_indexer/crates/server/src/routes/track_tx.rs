@@ -111,7 +111,7 @@ pub(crate) async fn spawn_tx_tracking_task<T: titan_client::TitanApi, Db: Persis
     Ok(cancellation_token)
 }
 
-#[instrument(level = "trace", skip(db, indexer, payload), fields(tx_id=payload.tx_id.0.to_string()) ret)]
+#[instrument(level = "trace", skip(db, indexer, payload), fields(tx_id = payload.tx_id.0.to_string()) ret)]
 async fn _retrieve_tx_info_result<T: titan_client::TitanApi, Db: PersistentRepoTrait + Clone + 'static>(
     db: Db,
     indexer: Arc<BtcIndexer<T, Db>>,

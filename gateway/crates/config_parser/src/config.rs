@@ -1,4 +1,3 @@
-use bitcoin::Network;
 use bitcoin::Network as BtcNetwork;
 use config::{Config, Environment};
 use global_utils::config_variant::ConfigVariant;
@@ -150,7 +149,7 @@ impl ServerConfig {
             ConfigVariant::OnlyOneFilepath(filepath) => {
                 debug!(onepath = %filepath);
                 Config::builder()
-                    .add_source(config::File::with_name(&filepath))
+                    .add_source(config::File::with_name(filepath))
                     .add_source(Environment::with_prefix("config").separator("_").keep_prefix(false))
                     .build()?
                     .try_deserialize::<ServerConfig>()?

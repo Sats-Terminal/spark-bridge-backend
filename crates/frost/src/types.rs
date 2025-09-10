@@ -30,8 +30,8 @@ pub enum MusigId {
 impl MusigId {
     pub fn get_public_key(&self) -> PublicKey {
         match self {
-            MusigId::User { user_public_key, .. } => user_public_key.clone(),
-            MusigId::Issuer { issuer_public_key, .. } => issuer_public_key.clone(),
+            MusigId::User { user_public_key, .. } => *user_public_key,
+            MusigId::Issuer { issuer_public_key, .. } => *issuer_public_key,
         }
     }
 

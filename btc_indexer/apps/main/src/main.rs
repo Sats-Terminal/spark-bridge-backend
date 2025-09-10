@@ -7,6 +7,7 @@ use tokio::net::TcpListener;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let _ = dotenv::dotenv();
     let _logger_guard = init_logger();
     let app_config = ServerConfig::init_config(ConfigVariant::init())?;
     let (btc_creds, postgres_creds) = (BtcRpcCredentials::new()?, PostgresDbCredentials::from_envs()?);

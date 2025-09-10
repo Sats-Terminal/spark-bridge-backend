@@ -15,7 +15,7 @@ impl SignerMusigIdStorage for LocalDbStorage {
 
         let result: Option<(Json<SignerDkgState>,)> = sqlx::query_as(
             "SELECT dkg_state 
-            FROM musig_identifier 
+            FROM verifier.musig_identifier 
             WHERE public_key = $1 AND rune_id = $2",
         )
         .bind(public_key.to_string())
@@ -36,7 +36,7 @@ impl SignerMusigIdStorage for LocalDbStorage {
         let is_issuer = matches!(musig_id, MusigId::Issuer { .. });
 
         let _ = sqlx::query(
-            "INSERT INTO musig_identifier (public_key, rune_id, is_issuer, dkg_state) 
+            "INSERT INTO verifier.musig_identifier (public_key, rune_id, is_issuer, dkg_state) 
             VALUES ($1, $2, $3, $4) 
             ON CONFLICT (public_key, rune_id) DO UPDATE SET dkg_state = $4",
         )
@@ -163,7 +163,7 @@ mod tests {
         //let user_id = "test_user";
         let message_hash = b"test_message";
 
-        let public_key_package = aggregator.run_dkg_flow(user_id.clone()).await.unwrap();
+        let public_key_package = aggregator.run_dkg_flow(&user_id).await.unwrap();
 
         let tweak = Some(b"test_tweak".as_slice());
         // let tweak = None;

@@ -1,6 +1,8 @@
 BEGIN TRANSACTION;
 
-CREATE TABLE IF NOT EXISTS musig_identifier
+CREATE SCHEMA verifier;
+
+CREATE TABLE IF NOT EXISTS verifier.musig_identifier
 (
     public_key VARCHAR(255) NOT NULL,
     rune_id VARCHAR(255) NOT NULL,
@@ -9,7 +11,7 @@ CREATE TABLE IF NOT EXISTS musig_identifier
     PRIMARY KEY (public_key, rune_id)
 );
 
-CREATE TABLE IF NOT EXISTS sign_session
+CREATE TABLE IF NOT EXISTS verifier.sign_session
 (
     public_key VARCHAR(255) NOT NULL,
     rune_id VARCHAR(255) NOT NULL,
@@ -19,7 +21,7 @@ CREATE TABLE IF NOT EXISTS sign_session
     metadata JSON NOT NULL,
     sign_state JSON NOT NULL,
     PRIMARY KEY (session_id),
-    FOREIGN KEY (public_key, rune_id) REFERENCES musig_identifier(public_key, rune_id)
+    FOREIGN KEY (public_key, rune_id) REFERENCES verifier.musig_identifier(public_key, rune_id)
 );
 
 COMMIT;

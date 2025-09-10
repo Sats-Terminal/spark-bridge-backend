@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use spark_client::common::config::SparkOperatorConfig;
 
-use std::{fmt::Debug, io, net::SocketAddr, str::FromStr};
+use std::{fmt::Debug, net::SocketAddr, str::FromStr};
 
 use crate::error::ConfigParserError;
 use config::{Config, Environment};
@@ -114,7 +114,7 @@ impl ServerConfig {
             ConfigVariant::OnlyOneFilepath(filepath) => {
                 debug!(onepath = %filepath);
                 Config::builder()
-                    .add_source(config::File::with_name(&filepath))
+                    .add_source(config::File::with_name(filepath))
                     .add_source(Environment::with_prefix("config").separator("_").keep_prefix(false))
                     .build()?
                     .try_deserialize::<ServerConfig>()?

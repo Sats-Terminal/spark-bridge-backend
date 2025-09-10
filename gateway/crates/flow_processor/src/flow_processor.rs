@@ -6,6 +6,7 @@ use gateway_local_db_store::storage::LocalDbStorage;
 use global_utils::common_types::get_uuid;
 use persistent_storage::init::PostgresRepo;
 use std::collections::HashMap;
+use std::sync::Arc;
 use tokio;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
@@ -20,7 +21,7 @@ pub struct FlowProcessor {
     pub tx_receiver: mpsc::Receiver<(FlowProcessorMessage, OneshotFlowProcessorSender)>,
     pub flow_receiver: mpsc::Receiver<Uuid>,
     pub flow_sender: mpsc::Sender<Uuid>,
-    pub storage: LocalDbStorage,
+    pub storage: Arc<LocalDbStorage>,
     pub flows: HashMap<Uuid, JoinHandle<()>>,
     pub cancellation_token: CancellationToken,
     pub cancellation_retries: u64,
@@ -31,7 +32,7 @@ pub struct FlowProcessor {
 impl FlowProcessor {
     pub fn new(
         tx_receiver: mpsc::Receiver<(FlowProcessorMessage, OneshotFlowProcessorSender)>,
-        storage: LocalDbStorage,
+        storage: Arc<LocalDbStorage>,
         cancellation_retries: u64,
         frost_aggregator: FrostAggregator,
         network: Network,

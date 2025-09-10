@@ -113,7 +113,7 @@ pub(crate) async fn spawn_wallet_tracking_task<T: TitanApi, Db: PersistentRepoTr
     Ok(cancellation_token)
 }
 
-#[instrument(level = "trace", skip(db, indexer, payload), fields(tx_id=payload.wallet_id) ret)]
+#[instrument(level = "trace", skip(db, indexer, payload), fields(tx_id = payload.wallet_id) ret)]
 async fn _retrieve_account_info_result<T: TitanApi, Db: PersistentRepoTrait + Clone>(
     db: Db,
     indexer: Arc<BtcIndexer<T, Db>>,

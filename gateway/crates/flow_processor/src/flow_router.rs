@@ -4,6 +4,7 @@ use bitcoin::{KnownHrp, Network};
 use frost::aggregator::FrostAggregator;
 use gateway_local_db_store::storage::LocalDbStorage;
 use persistent_storage::init::PostgresRepo;
+use std::sync::Arc;
 use tokio::sync::mpsc;
 use tracing;
 use tracing::info;
@@ -14,7 +15,7 @@ const LOG_PATH: &str = "flow_processor";
 // This struct is used to route the message to the correct flow
 // This struct instance is created for each message that is sent to the flow processor
 pub struct FlowProcessorRouter {
-    pub storage: LocalDbStorage,
+    pub storage: Arc<LocalDbStorage>,
     pub flow_id: Uuid,
     pub response_sender: OneshotFlowProcessorSender,
     pub task_sender: mpsc::Sender<Uuid>,

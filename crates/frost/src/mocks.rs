@@ -19,19 +19,14 @@ pub struct MockSignerSignSessionStorage {
 impl MockSignerSignSessionStorage {
     pub async fn has_session(&self, musig_id: &MusigId, session_id: &Uuid) -> bool {
         let map = self.storage.lock().await;
-        map.contains_key(&(musig_id.clone(), session_id.clone()))
+        map.contains_key(&(musig_id.clone(), *session_id))
     }
 }
 
 #[async_trait]
 impl SignerSignSessionStorage for MockSignerSignSessionStorage {
     async fn get_sign_data(&self, musig_id: &MusigId, session_id: Uuid) -> Result<Option<SignerSignData>, DbError> {
-        Ok(self
-            .storage
-            .lock()
-            .await
-            .get(&(musig_id.clone(), session_id.clone()))
-            .cloned())
+        Ok(self.storage.lock().await.get(&(musig_id.clone(), session_id)).cloned())
     }
 
     async fn set_sign_data(
@@ -43,7 +38,7 @@ impl SignerSignSessionStorage for MockSignerSignSessionStorage {
         self.storage
             .lock()
             .await
-            .insert((musig_id.clone(), session_id.clone()), sign_session_data);
+            .insert((musig_id.clone(), session_id), sign_session_data);
         Ok(())
     }
 }
@@ -59,12 +54,7 @@ impl MockSignerMusigIdStorage {
 #[async_trait]
 impl SignerMusigIdStorage for MockSignerMusigIdStorage {
     async fn get_musig_id_data(&self, musig_id: &MusigId) -> Result<Option<SignerMusigIdData>, DbError> {
-        Ok(self
-            .storage
-            .lock()
-            .await
-            .get(&musig_id)
-            .map(|musig_id_data| musig_id_data.clone()))
+        Ok(self.storage.lock().await.get(musig_id).cloned())
     }
 
     async fn set_musig_id_data(&self, musig_id: &MusigId, musig_id_data: SignerMusigIdData) -> Result<(), DbError> {
@@ -100,12 +90,7 @@ impl MockAggregatorSignSessionStorage {
 #[async_trait]
 impl AggregatorMusigIdStorage for MockAggregatorMusigIdStorage {
     async fn get_musig_id_data(&self, musig_id: &MusigId) -> Result<Option<AggregatorMusigIdData>, DbError> {
-        Ok(self
-            .storage
-            .lock()
-            .await
-            .get(&musig_id)
-            .map(|musig_id_data| musig_id_data.clone()))
+        Ok(self.storage.lock().await.get(musig_id).cloned())
     }
 
     async fn set_musig_id_data(&self, musig_id: &MusigId, musig_id_data: AggregatorMusigIdData) -> Result<(), DbError> {
@@ -117,12 +102,7 @@ impl AggregatorMusigIdStorage for MockAggregatorMusigIdStorage {
 #[async_trait]
 impl AggregatorSignSessionStorage for MockAggregatorSignSessionStorage {
     async fn get_sign_data(&self, musig_id: &MusigId, session_id: Uuid) -> Result<Option<AggregatorSignData>, DbError> {
-        Ok(self
-            .storage
-            .lock()
-            .await
-            .get(&(musig_id.clone(), session_id))
-            .map(|sign_session_data| sign_session_data.clone()))
+        Ok(self.storage.lock().await.get(&(musig_id.clone(), session_id)).cloned())
     }
 
     async fn set_sign_data(
@@ -156,34 +136,34 @@ impl SignerClient for MockSignerClient {
         self.signer
             .dkg_round_1(request)
             .await
-            .map_err(|e| AggregatorError::SignerError(e))
+            .map_err(AggregatorError::SignerError)
     }
 
     async fn dkg_round_2(&self, request: DkgRound2Request) -> Result<DkgRound2Response, AggregatorError> {
         self.signer
             .dkg_round_2(request)
             .await
-            .map_err(|e| AggregatorError::SignerError(e))
+            .map_err(AggregatorError::SignerError)
     }
 
     async fn dkg_finalize(&self, request: DkgFinalizeRequest) -> Result<DkgFinalizeResponse, AggregatorError> {
         self.signer
             .dkg_finalize(request)
             .await
-            .map_err(|e| AggregatorError::SignerError(e))
+            .map_err(AggregatorError::SignerError)
     }
 
     async fn sign_round_1(&self, request: SignRound1Request) -> Result<SignRound1Response, AggregatorError> {
         self.signer
             .sign_round_1(request)
             .await
-            .map_err(|e| AggregatorError::SignerError(e))
+            .map_err(AggregatorError::SignerError)
     }
 
     async fn sign_round_2(&self, request: SignRound2Request) -> Result<SignRound2Response, AggregatorError> {
         self.signer
             .sign_round_2(request)
             .await
-            .map_err(|e| AggregatorError::SignerError(e))
+            .map_err(AggregatorError::SignerError)
     }
 }

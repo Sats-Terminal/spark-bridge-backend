@@ -6,16 +6,18 @@ use frost::types::AggregatorMusigIdData;
 use frost::types::MusigId;
 use persistent_storage::error::DbError;
 use sqlx::types::Json;
+use tracing::instrument;
 
 #[async_trait]
 impl AggregatorMusigIdStorage for LocalDbStorage {
+    #[instrument(level = "trace", skip(self), ret)]
     async fn get_musig_id_data(&self, musig_id: &MusigId) -> Result<Option<AggregatorMusigIdData>, DbError> {
         let public_key = musig_id.get_public_key();
         let rune_id = musig_id.get_rune_id();
 
         let result: Option<(Json<AggregatorDkgState>,)> = sqlx::query_as(
             "SELECT dkg_state 
-            FROM musig_identifier 
+            FROM gateway.musig_identifier 
             WHERE public_key = $1 AND rune_id = $2",
         )
         .bind(public_key.to_string())
@@ -29,6 +31,7 @@ impl AggregatorMusigIdStorage for LocalDbStorage {
         }))
     }
 
+    #[instrument(level = "trace", skip(self), ret)]
     async fn set_musig_id_data(&self, musig_id: &MusigId, user_state: AggregatorMusigIdData) -> Result<(), DbError> {
         let dkg_state = Json(user_state.dkg_state);
         let public_key = musig_id.get_public_key();
@@ -36,7 +39,7 @@ impl AggregatorMusigIdStorage for LocalDbStorage {
         let is_issuer = matches!(musig_id, MusigId::Issuer { .. });
 
         let _ = sqlx::query(
-            "INSERT INTO musig_identifier (public_key, rune_id, is_issuer, dkg_state) 
+            "INSERT INTO gateway.musig_identifier (public_key, rune_id, is_issuer, dkg_state) 
             VALUES ($1, $2, $3, $4) 
             ON CONFLICT (public_key, rune_id) DO UPDATE SET dkg_state = $4",
         )

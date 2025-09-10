@@ -210,7 +210,7 @@ impl<C: TitanApi, Db: PersistentRepoTrait> BtcIndexerApi for BtcIndexer<C, Db> {
         Ok(event_rx)
     }
 
-    #[instrument(level = "debug", skip(self, account_id), fields(account_id=account_id.as_ref()))]
+    #[instrument(level = "debug", skip(self, account_id), fields(account_id = account_id.as_ref()))]
     async fn track_account_changes(
         &self,
         account_id: impl AsRef<str> + Send,

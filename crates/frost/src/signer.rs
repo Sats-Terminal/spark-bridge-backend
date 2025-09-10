@@ -39,7 +39,7 @@ impl FrostSigner {
                     self.identifier,
                     self.total_participants,
                     self.threshold,
-                    &mut OsRng,
+                    OsRng,
                 )
                 .map_err(|e| SignerError::Internal(format!("DKG round1 failed: {e}")))?;
 
@@ -133,7 +133,7 @@ impl FrostSigner {
 
     pub async fn sign_round_1(&self, request: SignRound1Request) -> Result<SignRound1Response, SignerError> {
         let musig_id = request.musig_id;
-        let session_id = request.session_id.clone();
+        let session_id = request.session_id;
         let tweak = request.tweak;
         let message_hash = request.message_hash;
         let metadata = request.metadata;
@@ -154,7 +154,7 @@ impl FrostSigner {
                 self.sign_session_storage
                     .set_sign_data(
                         &musig_id,
-                        session_id.clone(),
+                        session_id,
                         SignerSignData {
                             tweak,
                             message_hash,
@@ -173,7 +173,7 @@ impl FrostSigner {
 
     pub async fn sign_round_2(&self, request: SignRound2Request) -> Result<SignRound2Response, SignerError> {
         let musig_id = request.musig_id;
-        let session_id = request.session_id.clone();
+        let session_id = request.session_id;
 
         let musig_id_data = self.musig_id_storage.get_musig_id_data(&musig_id).await?;
 
@@ -190,7 +190,7 @@ impl FrostSigner {
 
         let mut sign_data = self
             .sign_session_storage
-            .get_sign_data(&musig_id, session_id.clone())
+            .get_sign_data(&musig_id, session_id)
             .await?
             .ok_or(SignerError::InvalidUserState(
                 "Session state is not SigningRound1".to_string(),
@@ -211,7 +211,7 @@ impl FrostSigner {
                 sign_data.sign_state = SignerSignState::SigningRound2 { signature_share };
 
                 self.sign_session_storage
-                    .set_sign_data(&musig_id, session_id.clone(), sign_data)
+                    .set_sign_data(&musig_id, session_id, sign_data)
                     .await?;
 
                 Ok(SignRound2Response { signature_share })

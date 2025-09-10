@@ -1,6 +1,8 @@
 use crate::types::DkgFlowRequest;
 use bitcoin::secp256k1;
 use frost::errors::AggregatorError;
+use gateway_local_db_store::schemas::deposit_address::DepositStatus;
+use global_utils::tweak_generation::TweakGeneratorError;
 use persistent_storage::error::DbError;
 use thiserror::Error;
 
@@ -20,7 +22,7 @@ pub enum FlowProcessorError {
     Secp256k1Error(#[from] secp256k1::Error),
     #[error("Failed conversion to TweakedPubkey error: {0}")]
     TweakingConversionError(String),
-    #[error("Occurred problem with ussuing btc addr: {0}")]
+    #[error("Occurred problem with issuing btc addr: {0}")]
     BtcAddrIssueError(#[from] BtcAddrIssueErrorEnum),
 }
 
@@ -32,6 +34,18 @@ pub enum BtcAddrIssueErrorEnum {
     NoDepositAddrInfoInDb(DkgFlowRequest),
     #[error("Occurred error on Aggregator, failed to finalize dkg, err: {0}")]
     AggregatorError(#[from] AggregatorError),
+    #[error("Occurred error tweak generation, err: {0}")]
+    TweakGenerationError(#[from] TweakGeneratorError),
+    #[error("Failed to change pubkey address, err: {context}")]
+    ChangePubkeyAddr { context: String },
+    #[error(
+        "Obtained wrong status on issuing btc addr for replenishment, context: '{context}', got: {got:?}, expected: {expected:?}"
+    )]
+    WrongStatus {
+        context: String,
+        got: DepositStatus,
+        expected: DepositStatus,
+    },
     #[error("Database error occurred, err: {0}")]
     DbError(#[from] DbError),
 }

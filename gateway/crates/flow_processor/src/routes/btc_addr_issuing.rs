@@ -11,6 +11,7 @@ use frost::utils::convert_public_key_package;
 use frost_secp256k1_tr::keys::PublicKeyPackage;
 use gateway_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositAddressStorage, DepositStatus};
 use global_utils::tweak_generation::{Nonce, TweakGenerator};
+use persistent_storage::error::DbError;
 use tracing::{debug, info, instrument};
 
 const LOG_PATH: &str = "flow_processor:routes:btc_addr_issuing";
@@ -35,98 +36,79 @@ async fn _handle_inner(
     let human_readable_part_url = human_readable_part_url.into();
     debug!(network=?human_readable_part_url, request=?request, "[{LOG_PATH}] Handling btc addr issuing inner function");
     let local_db_storage = flow_processor.storage.clone();
-    let (tweaked_x, parity): (TweakedPublicKey, Parity) =
+    let (tweaked_x, _parity): (TweakedPublicKey, Parity) =
         match flow_processor.storage.get_musig_id_data(&request.musig_id).await? {
             None => {
+                debug!("[{LOG_PATH}] Missing musig, running dkg from the beginning ...");
                 let pubkey_package = flow_processor.frost_aggregator.run_dkg_flow(&request.musig_id).await?;
+                debug!("[{LOG_PATH}] DKG processing was successfully completed");
                 let nonce = TweakGenerator::generate_nonce();
                 let byte_seq = generate_byte_seq(&request, nonce);
-
+                let byte_seq = TweakGenerator::hash(&byte_seq);
+                let tweaked_key_package = TweakGenerator::tweak_pubkey_package(pubkey_package, &byte_seq);
+                // local_db_storage.set_musig_id_data(&request.musig_id, AggregatorMusigIdData{}).await?;
                 local_db_storage
                     .set_deposit_addr_info(
                         &request.musig_id,
                         DepositAddrInfo {
                             nonce_tweak: nonce.to_vec(),
-                            address: "".to_string(),
+                            address: None,
                             is_btc: false,
                             amount: request.amount,
-                            confirmation_status: DepositStatus::InitializedSparkRunes,
+                            confirmation_status: DepositStatus::InitializedRunesSpark,
                         },
                     )
                     .await?;
-                todo!()
+                TweakGenerator::tweaked_verifying_key_to_tweaked_pubkey(&tweaked_key_package.verifying_key())?
             }
             Some(x) => {
+                debug!("[{LOG_PATH}] Musig exists, obtaining dkg pubkey ...");
                 // extract data from db, get nonce and generate new one, return it to user
-                todo!()
+                match x.dkg_state {
+                AggregatorDkgState::DkgRound1 { .. } => {
+                    return Err(BtcAddrIssueErrorEnum::UnfinishedDkgState {
+                        got: "AggregatorDkgState::DkgRound1".to_string(),
+                    });
+                }
+                AggregatorDkgState::DkgRound2 { .. } => {
+                    return Err(BtcAddrIssueErrorEnum::UnfinishedDkgState {
+                        got: "AggregatorDkgState::DkgRound2".to_string(),
+                    });
+                }
+                AggregatorDkgState::DkgFinalized {
+                    public_key_package: pubkey_package,
+                } => match local_db_storage.get_deposit_addr_info(&request.musig_id).await? {
+                    None => return Err(BtcAddrIssueErrorEnum::ChangePubkeyAddr {
+                        context:
+                            "Got None value in DepositAddrInfo, but Dkg is Finalized, try to use another pubkey address"
+                                .to_string(),
+                    }),
+                    Some(mut addr_info) => {
+                        if addr_info.confirmation_status != DepositStatus::InitializedRunesSpark {
+                            return Err(BtcAddrIssueErrorEnum::WrongStatus {
+                                context: format!("{addr_info:?}"),
+                                got: addr_info.confirmation_status,
+                                expected: DepositStatus::InitializedSparkRunes,
+                            });
+                        }
+                        //todo: change logic, maybe we don't have to delete all entries that match `user_pubkey` +
+                        // `rune_id` in `update_deposit_addr_info` previous entry
+                        let nonce = TweakGenerator::generate_nonce();
+                        addr_info.address = None;
+                        addr_info.nonce_tweak = nonce.to_vec();
+                        local_db_storage.update_deposit_addr_info(&request.musig_id, addr_info).await?;
+
+                        let byte_seq = generate_byte_seq(&request, nonce);
+                        let byte_seq = TweakGenerator::hash(&byte_seq);
+                        let tweaked_key_package = TweakGenerator::tweak_pubkey_package(pubkey_package, &byte_seq);
+                        TweakGenerator::tweaked_verifying_key_to_tweaked_pubkey(&tweaked_key_package.verifying_key())?
+                    }
+                },
+            }
             }
         };
     Ok(Address::p2tr_tweaked(tweaked_x, human_readable_part_url))
 }
-
-// pub async fn handle_old(
-//     flow_processor: &mut FlowProcessorRouter,
-//     request: DkgFlowRequest,
-//     human_readable_part_url: impl Into<KnownHrp>,
-// ) -> Result<Address, FlowProcessorError> {
-//     info!("[{LOG_PATH}] Handling btc addr issuing ...");
-//     let (tweaked_x, _parity) = match flow_processor.storage.get_musig_id_data(&request.musig_id).await? {
-//         None => {
-//             match flow_processor.storage.get_deposit_addr_info(&request.musig_id).await? {
-//                 None => {
-//                     return Err(FlowProcessorError::BtcAddrIssueError(BtcAddrIssueErrorEnum::NoDepositAddrInfoInDb(request)))
-//                 }
-//                 Some(deposit_addr_info) => {
-//                     match x.dkg_state {
-//                         //todo: extract available nonce
-//                         AggregatorDkgState::DkgRound1 { .. } => {
-//                             return Err(FlowProcessorError::BtcAddrIssueError(BtcAddrIssueErrorEnum::UnfinishedDkgState { got: "AggregatorDkgState::DkgRound1".to_string() }))
-//                         }
-//                         AggregatorDkgState::DkgRound2 { .. } => {
-//                             return Err(FlowProcessorError::BtcAddrIssueError(BtcAddrIssueErrorEnum::UnfinishedDkgState { got: "AggregatorDkgState::DkgRound2".to_string() }))
-//                         }
-//                         AggregatorDkgState::DkgFinalized {
-//                             public_key_package: pubkey_package,
-//                         } => {
-//                             let byte_seq = generate_byte_seq(&request, &pubkey_package, nonce)?;
-//                             let byte_seq = TweakGenerator::hash(&byte_seq);
-//                             let tweaked_key_package = TweakGenerator::tweak_pubkey_package(pubkey_package, &byte_seq);
-//                             TweakGenerator::tweaked_verifying_key_to_tweaked_pubkey(&tweaked_key_package.verifying_key())
-//                                 .map_err(|e| FlowProcessorError::TweakingConversionError(e.to_string()))?
-//                         }
-//                     }
-//                 }
-//             }
-//         }
-//         Some(x) => {
-//             // As we have MuSig table => DepositAddress has to exist also
-//             match flow_processor.storage.get_deposit_addr_info(&request.musig_id).await? {
-//                 None => {}
-//                 Some(_) => {}
-//             }
-//
-//             let nonce = TweakGenerator::generate_nonce();
-//             let pubkey_package = flow_processor
-//                 .frost_aggregator
-//                 .run_dkg_flow(&request.musig_id)
-//                 .await
-//                 .map_err(|e| FlowProcessorError::FrostAggregatorError(e.to_string()))?;
-//             let byte_seq = generate_byte_seq(&request, &pubkey_package, nonce)?;
-//             let byte_seq = TweakGenerator::hash(&byte_seq);
-//             let tweaked_key_package = TweakGenerator::tweak_pubkey_package(pubkey_package, &byte_seq);
-//             TweakGenerator::tweaked_verifying_key_to_tweaked_pubkey(&tweaked_key_package.verifying_key())
-//                 .map_err(|e| FlowProcessorError::TweakingConversionError(e.to_string()))?
-//         }
-//     };
-//     flow_processor.storage.set_deposit_addr_info(&request.musig_id, DepositAddrInfo {
-//         nonce_tweak: vec![],
-//         address: "".to_string(),
-//         is_btc: false,
-//         amount: 0,
-//         confirmation_status: DepositStatus::InitializedSparkRunes,
-//     }).await?;
-//     Ok(Address::p2tr_tweaked(tweaked_x, human_readable_part_url))
-// }
 
 fn generate_byte_seq(request: &DkgFlowRequest, nonce: Nonce) -> Vec<u8> {
     TweakGenerator::serialize_tweak_data(request.musig_id.get_public_key(), request.musig_id.get_rune_id(), nonce)
@@ -175,7 +157,7 @@ mod tweak_signature_test {
                 },
                 amount: 100,
             };
-            generate_byte_seq(&musig, public_key_package, nonce).unwrap()
+            generate_byte_seq(&musig, nonce)
         };
         let _logger_guard = &*TEST_LOGGER;
         let secp = Secp256k1::new();
@@ -218,7 +200,7 @@ mod tweak_signature_test {
 
         // === Tweaking pubkey_package
         let tweaked_public_key_package_frost =
-            TweakGenerator::tweak_pubkey_package(public_key_package, hashed_input_data);
+            TweakGenerator::tweak_pubkey_package(public_key_package, &hashed_input_data);
         tweaked_public_key_package_frost
             .verifying_key()
             .verify(&message_hash, &signature)?;
