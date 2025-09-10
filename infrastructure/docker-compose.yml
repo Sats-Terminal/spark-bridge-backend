@@ -26,6 +26,7 @@ services:
     networks:
       all-network:
     environment:
+      - ${BITCOIN_NETWORK:-regtest}
       - RUST_LOG=trace
       - CONFIG_PATH=/config.toml
       - DATABASE_URL=postgres://${POSTGRES_USER:-admin_manager}:${POSTGRES_PASSWORD:-password}@persistent-db-storage_gateway:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-production_db_name}

@@ -8,6 +8,7 @@ use global_utils::config_path::ConfigPath;
 use global_utils::config_variant::ConfigVariant;
 use global_utils::env_parser::lookup_ip_addr;
 use global_utils::logger::init_logger;
+use global_utils::network::NetworkConfig;
 use persistent_storage::config::PostgresDbCredentials;
 use persistent_storage::init::PostgresRepo;
 use tokio::net::TcpListener;
@@ -20,7 +21,7 @@ async fn main() -> anyhow::Result<()> {
     let _ = dotenv::dotenv();
 
     let config_path = ConfigPath::from_env()?;
-    let network = Network::Regtest;
+    let network_config = NetworkConfig::from_env()?;
     let app_config = ServerConfig::init_config(ConfigVariant::OnlyOneFilepath(config_path.path))?;
     tracing::debug!("App config: {:?}", app_config);
 
@@ -35,7 +36,7 @@ async fn main() -> anyhow::Result<()> {
         db_pool,
         app_config.flow_processor.cancellation_retries,
         frost_aggregator,
-        network,
+        network_config.network,
     );
 
     let _ = tokio::spawn(async move {
