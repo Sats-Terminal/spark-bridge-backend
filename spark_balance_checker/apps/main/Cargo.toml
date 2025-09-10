@@ -1,15 +1,17 @@
 [package]
-name = "spark-balance-checker-main"
+name = "spark_balance_checker_main"
 edition = { workspace = true }
 
 [features]
 default = []
-swagger = ["spark-balance-checker-server/swagger"]
+swagger = ["spark_balance_checker_server/swagger"]
 
 [dependencies]
-spark-balance-checker-server = { workspace = true }
-spark-balance-checker-common = { workspace = true }
+anyhow = { workspace = true }
 axum = { workspace = true }
+global_utils = { workspace = true }
+spark_balance_checker_config_parser = { workspace = true }
+spark_balance_checker_server = { workspace = true }
+spark_client = { workspace = true }
 tokio = { workspace = true }
-env_logger = { workspace = true }
-log = { workspace = true }
+tracing = { workspace = true }

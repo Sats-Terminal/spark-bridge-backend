@@ -1,74 +1,8 @@
-use std::collections::{BTreeMap, HashMap};
-
+use crate::errors::AggregatorError;
+use crate::types::*;
 use async_trait::async_trait;
-use frost_secp256k1_tr::{
-    Identifier, Signature, SigningPackage,
-    keys::{
-        KeyPackage, PublicKeyPackage,
-        dkg::{round1, round2},
-    },
-    round1::{SigningCommitments, SigningNonces},
-    round2::SignatureShare,
-};
-use serde::{Deserialize, Serialize};
-
-use crate::errors::{AggregatorError, SignerError};
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DkgRound1Request {
-    pub user_id: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DkgRound1Response {
-    pub round1_package: round1::Package,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DkgRound2Request {
-    pub user_id: String,
-    pub round1_packages: BTreeMap<Identifier, round1::Package>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DkgRound2Response {
-    pub round2_packages: BTreeMap<Identifier, round2::Package>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DkgFinalizeRequest {
-    pub user_id: String,
-    pub round1_packages: BTreeMap<Identifier, round1::Package>,
-    pub round2_packages: BTreeMap<Identifier, round2::Package>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DkgFinalizeResponse {
-    pub public_key_package: PublicKeyPackage,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SignRound1Request {
-    pub user_id: String,
-    pub tweak: Option<Vec<u8>>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SignRound1Response {
-    pub user_id: String,
-    pub commitments: SigningCommitments, // Only commitment
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SignRound2Request {
-    pub user_id: String,
-    pub signing_package: SigningPackage,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SignRound2Response {
-    pub signature_share: SignatureShare,
-}
+use persistent_storage::error::DatabaseError;
+use uuid::Uuid;
 
 #[async_trait]
 pub trait SignerClient: Send + Sync {
@@ -83,64 +17,46 @@ pub trait SignerClient: Send + Sync {
     async fn sign_round_2(&self, request: SignRound2Request) -> Result<SignRound2Response, AggregatorError>;
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum AggregatorUserState {
-    DkgRound1 {
-        round1_packages: BTreeMap<Identifier, round1::Package>,
-    },
-    DkgRound2 {
-        round1_packages: BTreeMap<Identifier, round1::Package>,
-        round2_packages: BTreeMap<Identifier, BTreeMap<Identifier, round2::Package>>,
-    },
-    DkgFinalized {
-        public_key_package: PublicKeyPackage,
-    },
-    SigningRound1 {
-        tweak: Option<Vec<u8>>,
-        message: Vec<u8>,
-        signing_package: SigningPackage,
-        public_key_package: PublicKeyPackage,
-    },
-    SigningRound2 {
-        tweak: Option<Vec<u8>>,
-        message: Vec<u8>,
-        public_key_package: PublicKeyPackage,
-        signature: Signature,
-    },
+#[async_trait]
+pub trait AggregatorMusigIdStorage: Send + Sync {
+    async fn get_musig_id_data(&self, musig_id: MusigId) -> Result<Option<AggregatorMusigIdData>, DatabaseError>;
+    async fn set_musig_id_data(
+        &self,
+        musig_id: MusigId,
+        musig_id_data: AggregatorMusigIdData,
+    ) -> Result<(), DatabaseError>;
 }
 
 #[async_trait]
-pub trait AggregatorUserStorage: Send + Sync {
-    async fn get_user_state(&self, user_id: String) -> Result<Option<AggregatorUserState>, AggregatorError>;
-    async fn set_user_state(&self, user_id: String, state: AggregatorUserState) -> Result<(), AggregatorError>;
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum SignerUserState {
-    DkgRound1 {
-        round1_secret_package: round1::SecretPackage,
-    },
-    DkgRound2 {
-        round2_secret_package: round2::SecretPackage,
-        round1_packages: BTreeMap<Identifier, round1::Package>,
-    },
-    DkgFinalized {
-        key_package: KeyPackage,
-    },
-    SigningRound1 {
-        key_package: KeyPackage,
-        tweak: Option<Vec<u8>>,
-        nonces: SigningNonces,
-    },
-    SigningRound2 {
-        key_package: KeyPackage,
-        tweak: Option<Vec<u8>>,
-        signature_share: SignatureShare,
-    },
+pub trait AggregatorSignSessionStorage: Send + Sync {
+    async fn get_sign_data(
+        &self,
+        musig_id: MusigId,
+        session_id: Uuid,
+    ) -> Result<Option<AggregatorSignData>, DatabaseError>;
+    async fn set_sign_data(
+        &self,
+        musig_id: MusigId,
+        session_id: Uuid,
+        sign_session_data: AggregatorSignData,
+    ) -> Result<(), DatabaseError>;
 }
 
 #[async_trait]
-pub trait SignerUserStorage: Send + Sync {
-    async fn get_user_state(&self, user_id: String) -> Result<Option<SignerUserState>, SignerError>;
-    async fn set_user_state(&self, user_id: String, state: SignerUserState) -> Result<(), SignerError>;
+pub trait SignerMusigIdStorage: Send + Sync {
+    async fn get_musig_id_data(&self, musig_id: MusigId) -> Result<Option<SignerMusigIdData>, DatabaseError>;
+    async fn set_musig_id_data(&self, musig_id: MusigId, musig_id_data: SignerMusigIdData)
+    -> Result<(), DatabaseError>;
+}
+
+#[async_trait]
+pub trait SignerSignSessionStorage: Send + Sync {
+    async fn get_sign_data(&self, musig_id: MusigId, session_id: Uuid)
+    -> Result<Option<SignerSignData>, DatabaseError>;
+    async fn set_sign_data(
+        &self,
+        musig_id: MusigId,
+        session_id: Uuid,
+        sign_session_data: SignerSignData,
+    ) -> Result<(), DatabaseError>;
 }

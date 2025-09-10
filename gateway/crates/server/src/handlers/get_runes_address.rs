@@ -1,10 +1,11 @@
 use crate::error::GatewayError;
-use axum::Json;
+use crate::state::AppState;
+use axum::{Json, extract::State};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize)]
 pub struct GetRunesAddressRequest {
-    pub user_id: String,
+    pub user_public_key: String,
     pub rune_id: String,
 }
 
@@ -14,9 +15,10 @@ pub struct GetRunesAddressResponse {
 }
 
 pub async fn handle(
+    State(state): State<AppState>,
     Json(request): Json<GetRunesAddressRequest>,
 ) -> Result<Json<GetRunesAddressResponse>, GatewayError> {
     Ok(Json(GetRunesAddressResponse {
-        address: format!("user_id: {}", request.user_id),
+        address: request.user_public_key,
     }))
 }

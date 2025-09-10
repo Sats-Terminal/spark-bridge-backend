@@ -1,0 +1,15 @@
+[application]
+http_server_ip = "0.0.0.0"
+http_server_port = 8070
+network = "Regtest"
+
+[btc_indexer_url_config]
+address="btc-indexer-service:8070"
+
+[spark_balance_checker_url_config]
+address="spark-balance-checker-service:8070"
+
+[frost_signer]
+identifier = 3
+threshold = 2
+total_participants = 3

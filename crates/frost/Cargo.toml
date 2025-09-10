@@ -11,3 +11,9 @@ frost-secp256k1-tr = { workspace = true }
 async-trait = { workspace = true }
 rand_core = { workspace = true }
 futures = { workspace = true }
+uuid = { workspace = true }
+bitcoin = { workspace = true }
+eyre = { workspace = true }
+persistent_storage = { workspace = true }
+lrc20 = { workspace = true }
+global_utils = { workspace = true }

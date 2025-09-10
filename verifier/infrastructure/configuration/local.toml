@@ -1,7 +1,0 @@
-[application]
-
-[btc_indexer_url_config]
-address="localhost:8080"
-
-[spark_balance_checker_url_config]
-address="localhost:8080"

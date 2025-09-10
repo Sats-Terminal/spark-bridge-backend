@@ -9,6 +9,12 @@ persistent_storage = { workspace = true }
 thiserror = { workspace = true }
 uuid = { workspace = true }
 sqlx = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+frost = { workspace = true }
+bitcoin = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
+frost-secp256k1-tr = { workspace = true }
+lrc20 = { workspace = true }

@@ -1,5 +1,6 @@
 BEGIN TRANSACTION;
 
-DROP TABLE IF EXISTS verifier.keys;
+DROP TABLE IF EXISTS sign_session;
+DROP TABLE IF EXISTS musig_identifier;
 
 COMMIT;

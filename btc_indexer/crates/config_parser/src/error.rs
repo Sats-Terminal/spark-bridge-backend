@@ -20,5 +20,5 @@ pub enum ConfigParserError {
     #[error("Failed to parse integer, var name: {var_name}, err: {err}")]
     ParseIntError { var_name: String, err: ParseIntError },
     #[error("Failed to parse Btc network, err: {0}")]
-    ParseNetworkError(#[from] ParseNetworkError),
+    ParseNetworkError(String),
 }

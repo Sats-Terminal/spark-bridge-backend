@@ -1,21 +1,30 @@
-use env_logger;
-use log;
-use spark_balance_checker_common::config::Config;
-use spark_balance_checker_server::server::create_app;
+use global_utils::config_variant::ConfigVariant;
+use global_utils::env_parser::lookup_ip_addr;
+use global_utils::logger::init_logger;
+use spark_balance_checker_config_parser::config::{ServerConfig, obtain_tonic_ca_cert};
+use spark_balance_checker_server::init::create_app;
+use spark_client::common::config::SparkConfig;
 use tokio::{self, net::TcpListener};
 
+#[tracing::instrument(level = "debug", ret)]
 #[tokio::main]
-async fn main() {
-    let _ = env_logger::builder().filter_level(log::LevelFilter::Debug).try_init();
+async fn main() -> anyhow::Result<()> {
+    let _logger_guard = init_logger();
+    let config_variant = ConfigVariant::init();
+    let config = ServerConfig::init_config(config_variant.clone())?;
+    let app = create_app(SparkConfig {
+        operators: config.spark_operators,
+        ca_pem: obtain_tonic_ca_cert(config_variant)?,
+    })
+    .await;
 
-    let config = Config::new(None);
-    let app = create_app(&config).await;
-    let listener = TcpListener::bind(config.server.address.clone()).await.unwrap();
+    let addr_to_listen = (lookup_ip_addr(&config.app_config.ip)?, config.app_config.port);
+    let listener = TcpListener::bind(addr_to_listen).await?;
 
-    log::info!("Listening on {}", config.server.address);
+    tracing::info!("Listening on {:?}", addr_to_listen);
     #[cfg(feature = "swagger")]
     {
-        log::info!("Swagger UI available at {}/swagger-ui/", config.server.address);
+        tracing::info!("Swagger UI available at {}/swagger-ui/", config.server.address);
     }
-    axum::serve(listener, app).await.unwrap();
+    Ok(axum::serve(listener, app).await?)
 }
