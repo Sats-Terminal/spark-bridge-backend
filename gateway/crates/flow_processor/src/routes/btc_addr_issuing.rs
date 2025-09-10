@@ -11,7 +11,7 @@ use frost::utils::convert_public_key_package;
 use frost_secp256k1_tr::keys::PublicKeyPackage;
 use gateway_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositAddressStorage, DepositStatus};
 use global_utils::tweak_generation::{Nonce, TweakGenerator};
-use tracing::info;
+use tracing::{debug, info, instrument};
 
 const LOG_PATH: &str = "flow_processor:routes:btc_addr_issuing";
 
@@ -26,17 +26,34 @@ pub async fn handle(
         .map_err(|e| FlowProcessorError::BtcAddrIssueError(e))
 }
 
+#[instrument(skip(flow_processor, request, human_readable_part_url), level = "trace", ret)]
 async fn _handle_inner(
     flow_processor: &mut FlowProcessorRouter,
     request: &DkgFlowRequest,
     human_readable_part_url: impl Into<KnownHrp>,
 ) -> Result<Address, BtcAddrIssueErrorEnum> {
+    let human_readable_part_url = human_readable_part_url.into();
+    debug!(network=?human_readable_part_url, request=?request, "[{LOG_PATH}] Handling btc addr issuing inner function");
     let local_db_storage = flow_processor.storage.clone();
     let (tweaked_x, parity): (TweakedPublicKey, Parity) =
         match flow_processor.storage.get_musig_id_data(&request.musig_id).await? {
             None => {
                 let pubkey_package = flow_processor.frost_aggregator.run_dkg_flow(&request.musig_id).await?;
+                let nonce = TweakGenerator::generate_nonce();
+                let byte_seq = generate_byte_seq(&request, nonce);
 
+                local_db_storage
+                    .set_deposit_addr_info(
+                        &request.musig_id,
+                        DepositAddrInfo {
+                            nonce_tweak: nonce.to_vec(),
+                            address: "".to_string(),
+                            is_btc: false,
+                            amount: request.amount,
+                            confirmation_status: DepositStatus::InitializedSparkRunes,
+                        },
+                    )
+                    .await?;
                 todo!()
             }
             Some(x) => {
@@ -111,12 +128,8 @@ async fn _handle_inner(
 //     Ok(Address::p2tr_tweaked(tweaked_x, human_readable_part_url))
 // }
 
-fn generate_byte_seq(request: &DkgFlowRequest, nonce: Nonce) -> Result<Vec<u8>, FlowProcessorError> {
-    Ok(TweakGenerator::serialize_tweak_data(
-        request.musig_id.get_public_key(),
-        request.musig_id.get_rune_id(),
-        nonce,
-    ))
+fn generate_byte_seq(request: &DkgFlowRequest, nonce: Nonce) -> Vec<u8> {
+    TweakGenerator::serialize_tweak_data(request.musig_id.get_public_key(), request.musig_id.get_rune_id(), nonce)
 }
 
 #[cfg(test)]

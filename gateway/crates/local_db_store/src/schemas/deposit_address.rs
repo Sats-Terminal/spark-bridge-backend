@@ -21,7 +21,7 @@ pub struct DepositAddrInfo {
     pub nonce_tweak: Vec<u8>,
     pub address: String,
     pub is_btc: bool,
-    pub amount: i32,
+    pub amount: u64,
     pub confirmation_status: DepositStatus,
 }
 
