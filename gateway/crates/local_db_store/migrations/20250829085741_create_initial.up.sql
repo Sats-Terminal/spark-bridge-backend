@@ -39,3 +39,4 @@ CREATE TABLE IF NOT EXISTS gateway.deposit_address
 );
 
 COMMIT;
+
