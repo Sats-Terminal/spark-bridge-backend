@@ -23,3 +23,4 @@ CREATE TABLE IF NOT EXISTS sign_session
 );
 
 COMMIT;
+
