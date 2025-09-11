@@ -1,6 +1,6 @@
 import { Rune, RuneId } from 'runelib';
 import { etchRune, createRuneAddress } from './runes';
-import { initDefaultWallet, generateBlocks, faucet, getAddressData, getRune } from './bitcoin-client';
+import { initDefaultWallet, generateBlocks, faucet, getAddressData, getRune, getRuneId } from './bitcoin-client';
 import * as bitcoin from 'bitcoinjs-lib';
 import * as tinySecp256k1 from 'tiny-secp256k1';
 
@@ -89,7 +89,7 @@ async function main() {
 
 	// 6. Etch the rune
 	console.log('6. Etching rune...');
-	const runeId: RuneId = await etchRune({
+	const txid = await etchRune({
 		rune: rune,
 		privateKey: WIF_PRIVATE_KEY,
 		utxo: {
@@ -100,9 +100,10 @@ async function main() {
 		symbol: '$',
 		divisibility: 3,
 	});
+	const runeId = await getRuneId(txid);
 	
-	console.log('✅ Rune etched successfully!');
 	console.log(`Rune ID: ${runeId.block}:${runeId.idx}`);
+	console.log('✅ Rune etched successfully!');
 
 	// 7. Get rune information from Titan
 	console.log('\n7. Getting rune information from Titan...');

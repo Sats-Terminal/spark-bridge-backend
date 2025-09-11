@@ -83,7 +83,7 @@ export async function createRuneAddress(privateKey: string, runeName: string): P
   };
 }
 
-export async function etchRune(params: EtchRuneParams): Promise<RuneId> {
+export async function etchRune(params: EtchRuneParams): Promise<string> {
   const {
     rune,
     privateKey,
@@ -171,7 +171,7 @@ export async function etchRune(params: EtchRuneParams): Promise<RuneId> {
 
   await new Promise(resolve => setTimeout(resolve, 2000));
 
-  return await getRuneId(txid);
+  return txid;
 }
 
 // Helper function to convert public key to x-only
