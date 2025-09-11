@@ -30,12 +30,14 @@ export interface EtchRuneParams {
   divisibility?: number;
 }
 
-export async function createRuneAddress(privateKey: string, runeName: string): Promise<{
-  address: string;
-  script_p2tr: any;
-  etching_redeem: any;
-  etching_p2tr: any;
-}> {
+export interface CreateRuneAddressResponse {
+	address: string;
+	script_p2tr: any;
+	etching_redeem: any;
+	etching_p2tr: any;
+}
+
+export async function createRuneAddress(privateKey: string, runeName: string): Promise<CreateRuneAddressResponse> {
   const keyPair = ECPair.fromWIF(privateKey, network);
   
   // Create etching inscription
@@ -92,9 +94,9 @@ export async function etchRune(params: EtchRuneParams): Promise<RuneId> {
 	const keyPair = ECPair.fromWIF(privateKey, network);
 
   // Create the same P2TR address with tapscript
-  const { address, script_p2tr, etching_redeem, etching_p2tr } = await createRuneAddress(privateKey, rune.name);
+  const createRuneAddressResponse = await createRuneAddress(privateKey, rune.name);
   
-  console.log('Etching address:', address);
+  console.log('Etching address:', createRuneAddressResponse.address);
 
   // Create PSBT
   const psbt = new bitcoin.Psbt({ network });
@@ -103,12 +105,12 @@ export async function etchRune(params: EtchRuneParams): Promise<RuneId> {
   psbt.addInput({
     hash: utxo.txid,
     index: utxo.vout,
-    witnessUtxo: { value: utxo.value, script: script_p2tr.output! },
+    witnessUtxo: { value: utxo.value, script: createRuneAddressResponse.script_p2tr.output! },
     tapLeafScript: [
       {
-        leafVersion: etching_redeem.redeemVersion,
-        script: etching_redeem.output,
-        controlBlock: etching_p2tr.witness![etching_p2tr.witness!.length - 1],
+        leafVersion: createRuneAddressResponse.etching_redeem.redeemVersion,
+        script: createRuneAddressResponse.etching_redeem.output,
+        controlBlock: createRuneAddressResponse.etching_p2tr.witness![createRuneAddressResponse.etching_p2tr.witness!.length - 1],
       },
     ],
   });
@@ -135,7 +137,7 @@ export async function etchRune(params: EtchRuneParams): Promise<RuneId> {
 
   // Add inscription output
   psbt.addOutput({
-    address: address!,
+    address: createRuneAddressResponse.address!,
     value: 546, // Dust limit
   });
 
@@ -154,7 +156,7 @@ export async function etchRune(params: EtchRuneParams): Promise<RuneId> {
   // Only add change output if there's actually change to return
   if (change > 0) {
     psbt.addOutput({
-      address: address!,
+      address: createRuneAddressResponse.address!,
       value: change,
     });
   }

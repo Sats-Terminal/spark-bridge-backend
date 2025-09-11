@@ -11,7 +11,7 @@ bitcoin.initEccLib(tinySecp256k1);
 const WIF_PRIVATE_KEY = 'cSYFixQzjSrZ4b4LBT16Q7RXBk52DZ5cpJydE7DzuZS1RhzaXpEN';
 
 // Generate random uppercase string for rune name
-function generateRandomRuneName(length): string {
+function generateRandomRuneName(length: number): string {
 	const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 	let result = '';
 	for (let i = 0; i < length; i++) {
@@ -21,6 +21,8 @@ function generateRandomRuneName(length): string {
 }
 
 async function main() {
+	console.log("---- Etching phase ----");
+
 	// Generate a random rune name (8 characters by default)
 	const runeName = generateRandomRuneName(15);
 	console.log('🚀 Starting rune etching process...\n');
@@ -35,7 +37,8 @@ async function main() {
 	console.log('2. Creating P2TR address with tapscript and fauceting BTC...');
 	
 	// Create the same P2TR address that will be used in etching
-	const { address: p2tr_address } = await createRuneAddress(WIF_PRIVATE_KEY, runeName);
+	const createRuneAddressResponse = await createRuneAddress(WIF_PRIVATE_KEY, runeName);
+	const p2tr_address = createRuneAddressResponse.address;
 	console.log('P2TR address with tapscript:', p2tr_address);
 	
 	// Faucet BTC to the P2TR address (more than needed for transaction)
@@ -110,7 +113,11 @@ async function main() {
 	let runeResponse = await getRune(runeId);
 	console.log('Rune Response:', runeResponse);
 
-	console.log('\n🎉 Rune etching process completed successfully!');
+	console.log('\n✅ Rune etching process completed successfully!\n\n');
+
+
+	console.log("---- Minting phase ----");
+
 
 }
 
