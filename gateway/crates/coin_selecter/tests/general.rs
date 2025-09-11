@@ -1,7 +1,7 @@
 use chrono::Utc;
-use gateway_local_db_store::errors::DatabaseError;
 use gateway_local_db_store::schemas::utxo::{Utxo, UtxoStorage};
 use persistent_storage::config::PostgresDbCredentials;
+use persistent_storage::error::DbError;
 use persistent_storage::init::PostgresRepo;
 use runes_utxo_manager::traits::UtxoManager;
 use runes_utxo_manager::{CoinSelector, GreedySelector};
@@ -16,7 +16,7 @@ async fn make_repo() -> PostgresRepo {
 }
 
 #[tokio::test]
-async fn test_select_and_lock_basic_flow() -> Result<(), DatabaseError> {
+async fn test_select_and_lock_basic_flow() -> Result<(), DbError> {
     let repo = make_repo().await;
 
     sqlx::query("TRUNCATE gateway.utxo RESTART IDENTITY CASCADE")
@@ -90,7 +90,7 @@ async fn test_select_and_lock_basic_flow() -> Result<(), DatabaseError> {
 }
 
 #[tokio::test]
-async fn test_select_exact_and_single_large_utxo() -> Result<(), DatabaseError> {
+async fn test_select_exact_and_single_large_utxo() -> Result<(), DbError> {
     let repo = make_repo().await;
     sqlx::query("TRUNCATE gateway.utxo RESTART IDENTITY CASCADE")
         .execute(&repo.pool)
@@ -183,7 +183,7 @@ async fn test_select_exact_and_single_large_utxo() -> Result<(), DatabaseError> 
 }
 
 #[tokio::test]
-async fn test_insufficient_funds_rollback() -> Result<(), DatabaseError> {
+async fn test_insufficient_funds_rollback() -> Result<(), DbError> {
     let repo = make_repo().await;
     sqlx::query("TRUNCATE gateway.utxo RESTART IDENTITY CASCADE")
         .execute(&repo.pool)
@@ -229,7 +229,7 @@ async fn test_insufficient_funds_rollback() -> Result<(), DatabaseError> {
 }
 
 #[tokio::test]
-async fn test_unlock_mark_spent_and_update_status() -> Result<(), DatabaseError> {
+async fn test_unlock_mark_spent_and_update_status() -> Result<(), DbError> {
     let repo = make_repo().await;
     sqlx::query("TRUNCATE gateway.utxo RESTART IDENTITY CASCADE")
         .execute(&repo.pool)
@@ -280,7 +280,7 @@ async fn test_unlock_mark_spent_and_update_status() -> Result<(), DatabaseError>
 }
 
 #[tokio::test]
-async fn test_concurrent_selection_one_wins() -> Result<(), DatabaseError> {
+async fn test_concurrent_selection_one_wins() -> Result<(), DbError> {
     let repo = make_repo().await;
     sqlx::query("TRUNCATE gateway.utxo RESTART IDENTITY CASCADE")
         .execute(&repo.pool)
