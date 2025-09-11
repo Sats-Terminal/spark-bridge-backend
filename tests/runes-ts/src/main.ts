@@ -10,9 +10,21 @@ bitcoin.initEccLib(tinySecp256k1);
 // WIF private key for regtest
 const WIF_PRIVATE_KEY = 'cSYFixQzjSrZ4b4LBT16Q7RXBk52DZ5cpJydE7DzuZS1RhzaXpEN';
 
+// Generate random uppercase string for rune name
+function generateRandomRuneName(length): string {
+	const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+	let result = '';
+	for (let i = 0; i < length; i++) {
+		result += letters.charAt(Math.floor(Math.random() * letters.length));
+	}
+	return result;
+}
+
 async function main() {
-	const runeName = 'MAYBETRYLONGRUNENAME';
+	// Generate a random rune name (8 characters by default)
+	const runeName = generateRandomRuneName(15);
 	console.log('🚀 Starting rune etching process...\n');
+	console.log('Generated rune name:', runeName);
 
 	// 1. Initialize wallet and get some funds
 	console.log('1. Initializing wallet and getting funds...');
