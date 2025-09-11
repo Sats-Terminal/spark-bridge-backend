@@ -19,6 +19,8 @@ members = [
     "btc_indexer/apps/*",
     "btc_indexer/crates/*",
 
+    # tests
+    "tests",
 ]
 
 [workspace.package]
@@ -53,7 +55,7 @@ mockall = { version = "0.13.1" }
 once_cell = { version = "1.21.3" }
 ordinals = { version = "0.0.15" }
 prost = "0.13.5"
-prost-reflect = "0.16.1"
+prost-reflect = { version = "0.16.1", features = ["serde"] }
 prost-wkt = "0.6.1"
 prost-wkt-build = "0.6.1"
 prost-wkt-types = "0.6.1"

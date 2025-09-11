@@ -1,0 +1,18 @@
+{
+  "name": "runes",
+  "version": "1.0.0",
+  "description": "Testing utility for runes operations",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "runelib": "^1.0.7",
+    "bitcoinjs-lib": "^6.1.7",
+    "tiny-secp256k1": "^2.2.4",
+    "ecpair": "^3.0.0",
+    "@titanbtcio/sdk": "^0.0.19"
+  }
+}

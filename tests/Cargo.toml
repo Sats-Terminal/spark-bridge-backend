@@ -1,0 +1,7 @@
+[package]
+name = "tests"
+edition = "2024"
+
+[dev-dependencies]
+lazy_static = { workspace = true }
+hex = { workspace = true }

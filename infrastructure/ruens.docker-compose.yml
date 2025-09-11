@@ -1,0 +1,49 @@
+services:
+  # https://github.com/SaturnBTC/Titan/blob/master/docker-compose.yml
+
+  titan:
+    image: ghcr.io/${GITHUB_REPOSITORY:-saturnbtc/titan}:${DOCKER_TAG:-latest}
+    restart: always
+    depends_on:
+      bitcoind:
+        condition: service_healthy
+    ports:
+      - 8080:8080
+      - 3030:3030
+    environment:
+      - COMMIT_INTERVAL=${COMMIT_INTERVAL:-5}
+      - BITCOIN_RPC_URL=http://bitcoind:18443
+      - BITCOIN_RPC_USERNAME=bitcoin
+      - BITCOIN_RPC_PASSWORD=bitcoinpass
+      - CHAIN=regtest
+      - HTTP_LISTEN=0.0.0.0:3030
+      - TCP_ADDRESS=0.0.0.0:8080
+
+  bitcoind:
+    image: bitcoin/bitcoin
+    ports:
+      - 18443:18443
+    command: |
+      -regtest
+      -rpcallowip=0.0.0.0/0
+      -datadir=/var/lib/bitcoin-core
+      -rpcbind=bitcoind
+      -rpcuser=bitcoin
+      -rpcpassword=bitcoinpass
+      -fallbackfee=0.00000001
+      -txindex
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "bitcoin-cli",
+          "-regtest",
+          "-rpcconnect=bitcoind",
+          "-rpcport=18443",
+          "-rpcuser=bitcoin",
+          "-rpcpassword=bitcoinpass",
+          "getblockchaininfo",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
