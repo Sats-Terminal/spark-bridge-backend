@@ -4,14 +4,13 @@ import * as tinySecp256k1 from 'tiny-secp256k1';
 import { getRuneId, getTransaction, initDefaultWallet } from "./bitcoin-client";
 import { mintRune } from "./mint";
 import { generateBlocks } from "./bitcoin-client";
-import { toXOnly } from "./utils";
 
 bitcoin.initEccLib(tinySecp256k1);
 const ECPair = ECPairFactory(tinySecp256k1);
 const network = bitcoin.networks.regtest;
 
 const WIF_PRIVATE_KEY = 'cSYFixQzjSrZ4b4LBT16Q7RXBk52DZ5cpJydE7DzuZS1RhzaXpEN';
-const etchTxId = '572dfcf4da27fccd41a868cc88f48126a569af44c838b4df9bcc00f9d9aa138d';
+const etchTxId = '62d06093fb2bc278813da84207161a47a77277b87e76ea24f60ee02c9a613854';
 const changeVout = 2;
 const etchingVout = 1;
 
@@ -37,8 +36,8 @@ async function main() {
 
 	console.log('\n get output address...');
 
-	const outputAddress = bitcoin.payments.p2tr({
-		internalPubkey: toXOnly(Buffer.from(keyPair.publicKey)),
+	const outputAddress = bitcoin.payments.p2wpkh({
+		pubkey: Buffer.from(keyPair.publicKey),
 		network,
 	});
 
@@ -50,8 +49,8 @@ async function main() {
 
 	const mintRuneResponse = await mintRune({
 		keyPair: ECPair.fromWIF(WIF_PRIVATE_KEY, network),
-		etchUtxo: { txid: etchTxId, vout: etchingVout, value: 100000000 },
-		fundedUtxo: { txid: etchTxId, vout: changeVout, value: 100000000 },
+		etchUtxo: { txid: etchTxId, vout: etchingVout },
+		fundedUtxo: { txid: etchTxId, vout: changeVout },
 		mintAmount: 100000000,
 		runeId: runeId,
 		outputAddress: outputAddress.address!,
@@ -66,10 +65,10 @@ async function main() {
 	console.log('\n4. Getting rune information from Titan...');
 
 	const transaction = await getTransaction(mintRuneResponse.mintingUtxo.txid);
-	
-	let rune = transaction.output[0].runes[0];
-	console.log('Rune:', rune);
 
+	console.debug('transaction:', transaction);
+	
+	let rune = transaction.output[1].runes[0];
 	if (!rune || rune.amount === '0') {
 		throw new Error('Rune not found in transaction output');
 	}

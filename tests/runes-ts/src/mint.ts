@@ -12,12 +12,10 @@ export interface MintRuneParams {
 	etchUtxo: {
 		txid: string;
 		vout: number;
-		value: number;
 	};
 	fundedUtxo: {
 		txid: string;
 		vout: number;
-		value: number;
 	};
 	outputAddress: string;
 	mintAmount: number;
@@ -46,26 +44,28 @@ export async function mintRune(params: MintRuneParams) {
 
 	const psbt = new Psbt({ network });
 
-	const etchTransaction = await getTransaction(etchUtxo.txid);
+	// Create P2WPKH script for witnessUtxo
+	const p2wpkhScript = bitcoin.payments.p2wpkh({
+		pubkey: Buffer.from(keyPair.publicKey),
+		network,
+	}).output!;
 
-	let etchScript = etchTransaction.output[etchUtxo.vout].script_pubkey;
-	console.debug('etchScript:', etchScript);
+	const etchTransaction = await getTransaction(etchUtxo.txid);
+	const etchValue = etchTransaction.output[etchUtxo.vout].value;
 
 	psbt.addInput({
 		hash: etchUtxo.txid,
 		index: etchUtxo.vout,
-		witnessUtxo: { value: etchUtxo.value, script: Buffer.from(etchScript) },
+		witnessUtxo: { value: etchValue, script: p2wpkhScript },
 	});
 
 	const fundedTransaction = await getTransaction(fundedUtxo.txid);
-
-	let fundedScript = fundedTransaction.output[fundedUtxo.vout].script_pubkey;
-	console.debug('fundedScript:', fundedScript);
+	const fundedValue = fundedTransaction.output[fundedUtxo.vout].value;
 
 	psbt.addInput({
 		hash: fundedUtxo.txid,
 		index: fundedUtxo.vout,
-		witnessUtxo: { value: mintAmount, script: Buffer.from(fundedScript) },
+		witnessUtxo: { value: fundedValue, script: p2wpkhScript },
 	});
 
 	psbt.addOutput({
@@ -81,14 +81,14 @@ export async function mintRune(params: MintRuneParams) {
 	});
 
 	const fee = 5000;
-	const change = mintAmount - dustLimit - fee;
+	const change = fundedValue + etchValue - dustLimit - fee;
 
 	psbt.addOutput({
 		address: outputAddress,
 		value: change,
 	});
 
-	const txid = await signAndSend(keyPair, psbt, [0]);
+	const txid = await signAndSend(keyPair, psbt, []);
 
 	await new Promise(resolve => setTimeout(resolve, 2000));
 

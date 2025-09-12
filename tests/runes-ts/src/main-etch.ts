@@ -72,8 +72,8 @@ async function main() {
 
 	console.log('\n5. Create output address...');
 
-	const outputAddress = bitcoin.payments.p2tr({
-		internalPubkey: toXOnly(Buffer.from(keyPair.publicKey)),
+	const outputAddress = bitcoin.payments.p2wpkh({
+		pubkey: Buffer.from(keyPair.publicKey),
 		network,
 	});
 
