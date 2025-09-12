@@ -1,8 +1,8 @@
-use crate::errors::DatabaseError;
 use async_trait::async_trait;
 use chrono::NaiveDateTime;
 use persistent_storage::init::PostgresRepo;
 use sqlx::FromRow;
+use persistent_storage::error::DatabaseError;
 
 #[derive(Debug, Clone, FromRow)]
 pub struct Utxo {
@@ -11,6 +11,7 @@ pub struct Utxo {
     pub vout: i32,
     pub amount: i64,
     pub rune_id: String,
+    pub sats_amount: Option<i64>,
     pub owner_pubkey: String,
     pub status: String,
     pub block_height: Option<i64>,
@@ -22,9 +23,12 @@ pub struct Utxo {
 pub trait UtxoStorage {
     async fn insert_utxo(&self, utxo: Utxo) -> Result<Utxo, DatabaseError>;
     async fn update_status(&self, txid: &str, vout: i32, new_status: &str) -> Result<(), DatabaseError>;
+    async fn insert_pending_utxo(&self, utxo: Utxo) -> Result<Utxo, DatabaseError>;
     async fn list_unspent(&self, rune_id: &str) -> Result<Vec<Utxo>, DatabaseError>;
+    async fn confirm_pending_utxo(&self, txid: &str, block_height: i64) -> Result<(), DatabaseError>;
     async fn select_and_lock_utxos(&self, rune_id: &str, target_amount: i64) -> Result<Vec<Utxo>, DatabaseError>;
     async fn unlock_utxos(&self, utxo_ids: &[i64]) -> Result<(), DatabaseError>;
+    async fn set_block_height(&self, txid: &str, block_height: i64) -> Result<(), DatabaseError>;
 }
 
 #[async_trait]
@@ -32,15 +36,16 @@ impl UtxoStorage for PostgresRepo {
     async fn insert_utxo(&self, utxo: Utxo) -> Result<Utxo, DatabaseError> {
         let rec = sqlx::query_as::<_, Utxo>(
             r#"
-            INSERT INTO gateway.utxo
-            (txid, vout, amount, rune_id, owner_pubkey, status, block_height)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
-            RETURNING *
-            "#,
+        INSERT INTO gateway.utxo
+        (txid, vout, amount, sats_amount, rune_id, owner_pubkey, status, block_height)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING *
+        "#,
         )
             .bind(&utxo.txid)
             .bind(utxo.vout)
             .bind(utxo.amount)
+            .bind(utxo.sats_amount)
             .bind(&utxo.rune_id)
             .bind(&utxo.owner_pubkey)
             .bind(&utxo.status)
@@ -75,13 +80,37 @@ impl UtxoStorage for PostgresRepo {
         Ok(())
     }
 
+    async fn insert_pending_utxo(&self, utxo: Utxo) -> Result<Utxo, DatabaseError> {
+        let rec = sqlx::query_as::<_, Utxo>(
+            r#"
+        INSERT INTO gateway.utxo
+        (txid, vout, amount, sats_amount, rune_id, owner_pubkey, status, block_height)
+        VALUES ($1, $2, $3, $4, $5, $6, 'pending', NULL)
+        RETURNING *
+        "#,
+        )
+            .bind(&utxo.txid)
+            .bind(utxo.vout)
+            .bind(utxo.amount)
+            .bind(utxo.sats_amount)
+            .bind(&utxo.rune_id)
+            .bind(&utxo.owner_pubkey)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
+
+        Ok(rec)
+    }
+
     async fn list_unspent(&self, rune_id: &str) -> Result<Vec<Utxo>, DatabaseError> {
         let rows = sqlx::query_as::<_, Utxo>(
             r#"
-            SELECT * FROM gateway.utxo
-            WHERE rune_id = $1 AND status = 'unspent'
-            ORDER BY amount ASC
-            "#,
+        SELECT * FROM gateway.utxo
+        WHERE rune_id = $1 AND status IN ('unspent', 'pending')
+        ORDER BY
+            CASE WHEN status = 'unspent' THEN 0 ELSE 1 END,
+            amount ASC
+        "#,
         )
             .bind(rune_id)
             .fetch_all(&self.pool)
@@ -91,18 +120,35 @@ impl UtxoStorage for PostgresRepo {
         Ok(rows)
     }
 
+    async fn confirm_pending_utxo(&self, txid: &str, block_height: i64) -> Result<(), DatabaseError> {
+        sqlx::query(
+            r#"
+        UPDATE gateway.utxo
+        SET status = 'unspent', block_height = $1, updated_at = now()
+        WHERE txid = $2 AND status = 'pending'
+        "#,
+        )
+            .bind(block_height)
+            .bind(txid)
+            .execute(&self.pool)
+            .await
+            .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
+
+        Ok(())
+    }
+
     async fn select_and_lock_utxos(&self, rune_id: &str, target_amount: i64) -> Result<Vec<Utxo>, DatabaseError> {
         let mut tx = self.pool.begin().await
             .map_err(|e| DatabaseError::BadRequest(format!("Failed to begin transaction: {}", e)))?;
 
         let candidates = sqlx::query_as::<_, Utxo>(
             r#"
-        SELECT *
-        FROM gateway.utxo
-        WHERE rune_id = $1 AND status = 'unspent'
-        ORDER BY amount ASC
-        FOR UPDATE SKIP LOCKED
-        "#,
+    SELECT *
+    FROM gateway.utxo
+    WHERE rune_id = $1 AND status IN ('unspent', 'pending')
+    ORDER BY amount ASC
+    FOR UPDATE SKIP LOCKED
+    "#,
         )
             .bind(rune_id)
             .fetch_all(&mut *tx)
@@ -159,6 +205,28 @@ impl UtxoStorage for PostgresRepo {
             .execute(&self.pool)
             .await
             .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
+
+        Ok(())
+    }
+
+    async fn set_block_height(&self, txid: &str, block_height: i64) -> Result<(), DatabaseError> {
+        let rows = sqlx::query(
+            r#"
+        UPDATE gateway.utxo
+        SET block_height = $1, updated_at = now()
+        WHERE txid = $2
+        "#,
+        )
+            .bind(block_height)
+            .bind(txid)
+            .execute(&self.pool)
+            .await
+            .map_err(|e| DatabaseError::BadRequest(e.to_string()))?
+            .rows_affected();
+
+        if rows == 0 {
+            return Err(DatabaseError::NotFound(format!("No UTXOs found for txid: {}", txid)));
+        }
 
         Ok(())
     }

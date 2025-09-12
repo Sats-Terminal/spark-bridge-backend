@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use gateway_local_db_store::schemas::utxo::*;
-use gateway_local_db_store::errors::*;
+//use gateway_local_db_store::errors::*;
+use persistent_storage::error::DatabaseError;
 
 #[async_trait]
 pub trait CoinSelector {

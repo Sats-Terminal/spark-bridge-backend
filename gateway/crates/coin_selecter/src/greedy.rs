@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use crate::CoinSelector;
 use gateway_local_db_store::schemas::utxo::*;
-use gateway_local_db_store::errors::*;
+use persistent_storage::error::DatabaseError;
 use persistent_storage::init::PostgresRepo;
 
 pub struct GreedySelector<'a> {
