@@ -21,4 +21,7 @@ pub enum DatabaseError {
     SignerError(String),
     #[error("Aggregator error: {0}")]
     AggregatorError(String),
+    #[error("Database not found: {0}")]
+    NotFound(String),
+
 }
