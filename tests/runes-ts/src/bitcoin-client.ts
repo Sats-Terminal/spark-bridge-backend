@@ -47,8 +47,9 @@ async function getNewAddress(type?: string): Promise<string> {
   return callRpc('getnewaddress', ['', type ?? 'bech32m']);
 }
 
-export async function faucet(address: string, btcAmount: number) {
-  return callRpc('sendtoaddress', [address, btcAmount]);
+// return txid
+export async function faucet(address: string, btcAmount: number): Promise<string> {
+  return await callRpc('sendtoaddress', [address, btcAmount]);
 }
 
 export async function sendRawTransaction(txHex: string): Promise<string> {

@@ -84,6 +84,8 @@ async function main() {
 
 	const etchRuneResponse = await etchRune({
 		runeName: runeName,
+		cap: 1000,
+		amount: 1000000,
 		keyPair: keyPair,
 		outputAddress: outputAddress.address!,
 		utxo: {

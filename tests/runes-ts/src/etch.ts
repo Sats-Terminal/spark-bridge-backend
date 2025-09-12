@@ -8,6 +8,8 @@ import {
   Runestone,
   some,
   Rune,
+  Terms,
+  Range,
 } from 'runelib';
 import { Payment } from 'bitcoinjs-lib';
 import { toXOnly, signAndSend } from './utils';
@@ -69,6 +71,8 @@ export async function createRunePayments(privateKey: string, runeName: string): 
 
 export interface EtchRuneParams {
   runeName: string;
+  cap: number;
+  amount: number;
   keyPair: ECPairInterface
   utxo: {
     txid: string;
@@ -97,6 +101,8 @@ export interface EtchRuneResponse {
 export async function etchRune(params: EtchRuneParams): Promise<EtchRuneResponse> {
   const {
     runeName,
+    cap,
+    amount,
     keyPair,
     utxo,
     outputAddress,
@@ -126,7 +132,7 @@ export async function etchRune(params: EtchRuneParams): Promise<EtchRuneResponse
     some(rune),
     none(),
     some(symbol),
-    none(),
+    some(new Terms(amount, cap, new Range(none(), none()), new Range(none(), none()))),
     true,
   );
 
