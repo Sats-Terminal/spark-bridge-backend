@@ -1,12 +1,13 @@
 import * as bitcoin from 'bitcoinjs-lib';
 import { sendRawTransaction } from './bitcoin-client';
+import { ECPairInterface } from 'ecpair';
 
 
 export function toXOnly(pubkey: Buffer): Buffer {
 	return pubkey.subarray(1, 33);
 }
 
-export async function signAndSend(keyPair: any, psbt: bitcoin.Psbt, taprootIndexes: number[] = []) {
+export async function signAndSend(keyPair: ECPairInterface, psbt: bitcoin.Psbt, taprootIndexes: number[] = []) {
 	for (let i = 0; i < psbt.inputCount; i++) {
 		const isTaproot = taprootIndexes.includes(i);
 		console.log('Signing input', i, 'isTaproot:', isTaproot);
