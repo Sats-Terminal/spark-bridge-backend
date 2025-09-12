@@ -2,12 +2,10 @@ import * as bitcoin from 'bitcoinjs-lib';
 import { sendRawTransaction } from './bitcoin-client';
 
 
-// Helper function to convert public key to x-only
 export function toXOnly(pubkey: Buffer): Buffer {
 	return pubkey.subarray(1, 33);
 }
 
-// Helper function to sign and send PSBT
 export async function signAndSend(keyPair: any, psbt: bitcoin.Psbt, taprootIndexes: number[] = []) {
 	for (let i = 0; i < psbt.inputCount; i++) {
 		const isTaproot = taprootIndexes.includes(i);

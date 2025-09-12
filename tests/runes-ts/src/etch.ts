@@ -32,15 +32,15 @@ export async function createRunePayments(privateKey: string, runeName: string): 
   ins.setRune(runeName);
   
   // Create etching script
-  const etching_script_asm = `${toXOnly(Buffer.from(keyPair.publicKey)).toString('hex')} OP_CHECKSIG`;
-  const etching_script = Buffer.concat([
-    bitcoin.script.fromASM(etching_script_asm),
+  const etchingScriptAsm = `${toXOnly(Buffer.from(keyPair.publicKey)).toString('hex')} OP_CHECKSIG`;
+  const etchingScript = Buffer.concat([
+    bitcoin.script.fromASM(etchingScriptAsm),
     ins.encipher(),
   ]);
   
   // Create script tree for P2TR
   const scriptTree: any = {
-    output: etching_script,
+    output: etchingScript,
   };
   
   const p2trOutput = bitcoin.payments.p2tr({
@@ -49,15 +49,15 @@ export async function createRunePayments(privateKey: string, runeName: string): 
     network,
   });
   
-  const etching_redeem = {
-    output: etching_script,
+  const etchingRedeem = {
+    output: etchingScript,
     redeemVersion: 192,
   };
 
 	const p2trInput = bitcoin.payments.p2tr({
 		internalPubkey: toXOnly(Buffer.from(keyPair.publicKey)),
 		scriptTree,
-		redeem: etching_redeem,
+		redeem: etchingRedeem,
 		network,
 	});
   
@@ -101,10 +101,8 @@ export async function etchRune(params: EtchRuneParams): Promise<EtchRuneResponse
     symbol = '$',
     divisibility = 0,
   } = params;
-  // Create PSBT
   const psbt = new bitcoin.Psbt({ network });
 
-  // Add input (P2TR)
   psbt.addInput({
     hash: utxo.txid,
     index: utxo.vout,
@@ -120,7 +118,6 @@ export async function etchRune(params: EtchRuneParams): Promise<EtchRuneResponse
 
 	const rune = Rune.fromName(runeName);
 
-  // Create etching
   const etching = new Etching(
     some(divisibility),
     some(0),
@@ -128,13 +125,12 @@ export async function etchRune(params: EtchRuneParams): Promise<EtchRuneResponse
     none(),
     some(symbol),
     none(),
-    true, // turbo
+    true,
   );
 
-  // Create runestone
   const stone = new Runestone([], some(etching), none(), none());
 
-  // Add runestone output
+  // Add etching output
   psbt.addOutput({
     script: stone.encipher(),
     value: 0,
@@ -145,14 +141,13 @@ export async function etchRune(params: EtchRuneParams): Promise<EtchRuneResponse
   // Add inscription output
   psbt.addOutput({
     address: utxo.p2trInput.address!,
-    value: dustLimit, // Dust limit
+    value: dustLimit,
   });
 
   // Add change output
   const fee = 5000;
   const totalRequired = dustLimit + fee;
   
-  // Validate UTXO has sufficient funds
   if (utxo.value < totalRequired) {
     throw new Error(`Insufficient funds: UTXO has ${utxo.value} satoshis but needs at least ${totalRequired} satoshis (${dustLimit} dust + ${fee} fee). Please ensure the address has sufficient BTC.`);
   }
@@ -168,7 +163,6 @@ export async function etchRune(params: EtchRuneParams): Promise<EtchRuneResponse
 		value: change,
 	});
 
-  // Sign and send
   const txid = await signAndSend(keyPair, psbt, [0]);
 
   await new Promise(resolve => setTimeout(resolve, 2000));

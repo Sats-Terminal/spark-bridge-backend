@@ -4,16 +4,13 @@ import * as bitcoin from 'bitcoinjs-lib';
 import * as tinySecp256k1 from 'tiny-secp256k1';
 import { ECPairFactory } from 'ecpair';
 
-// Initialize ECC library
 bitcoin.initEccLib(tinySecp256k1);
 const ECPair = ECPairFactory(tinySecp256k1);
 const network = bitcoin.networks.regtest;
 
-// WIF private key for regtest
 const WIF_PRIVATE_KEY = 'cSYFixQzjSrZ4b4LBT16Q7RXBk52DZ5cpJydE7DzuZS1RhzaXpEN';
 const SATOSHI_AMOUNT = 100_000_000;
 
-// Generate random uppercase string for rune name
 function generateRandomRuneName(length: number): string {
 	const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 	let result = '';
@@ -109,5 +106,5 @@ async function main() {
 
 }
 
-// Run the main function
+
 main();
