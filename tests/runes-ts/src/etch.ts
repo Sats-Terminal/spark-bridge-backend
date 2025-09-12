@@ -8,10 +8,9 @@ import {
   Runestone,
   some,
   Rune,
-  RuneId,
 } from 'runelib';
-import { sendRawTransaction, generateBlocks, getRuneId } from './bitcoin-client';
 import { Payment } from 'bitcoinjs-lib';
+import { toXOnly, signAndSend } from './utils';
 
 // Initialize ECC library
 bitcoin.initEccLib(tinySecp256k1);
@@ -186,37 +185,4 @@ export async function etchRune(params: EtchRuneParams): Promise<EtchRuneResponse
 			value: dustLimit,
 		},
   };
-}
-
-// Helper function to convert public key to x-only
-function toXOnly(pubkey: Buffer): Buffer {
-  return pubkey.subarray(1, 33);
-}
-
-// Helper function to sign and send PSBT
-async function signAndSend(keyPair: any, psbt: bitcoin.Psbt, taprootIndexes: number[] = []) {
-  for (let i = 0; i < psbt.inputCount; i++) {
-    const isTaproot = taprootIndexes.includes(i);
-    console.log('Signing input', i, 'isTaproot:', isTaproot);
-
-    psbt.signInput(i, {
-      publicKey: Buffer.from(keyPair.publicKey),
-      sign: (hash) => {
-        const signature = keyPair.sign(hash);
-        return Buffer.from(signature);
-      },
-      signSchnorr: (hash) => {
-        const signature = keyPair.signSchnorr(hash);
-        return Buffer.from(signature);
-      },
-    });
-  }
-
-  psbt.finalizeAllInputs();
-  const tx = psbt.extractTransaction();
-  const raw = tx.toHex();
-  
-  const txid = await sendRawTransaction(raw);
-  console.log('Broadcasted transaction:', txid);
-  return txid;
 }

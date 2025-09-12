@@ -1,5 +1,4 @@
-import { Rune } from 'runelib';
-import { etchRune, createRunePayments } from './runes';
+import { etchRune, createRunePayments } from './etch';
 import { initDefaultWallet, generateBlocks, faucet, getAddressData, getRune, getRuneId } from './bitcoin-client';
 import * as bitcoin from 'bitcoinjs-lib';
 import * as tinySecp256k1 from 'tiny-secp256k1';
@@ -46,6 +45,7 @@ async function main() {
 	const p2trAddress = createRuneAddressResponse.p2trOutput.address;
 
 	console.log('P2TR address with tapscript:', p2trAddress);
+	console.log('✅ P2TR address created successfully');
 	
 
 	console.log('\n3. Fauceting 1 BTC to p2tr address');
@@ -88,8 +88,13 @@ async function main() {
 		divisibility: 3,
 	});
 
+	console.log('Change UTXO:', etchRuneResponse.changeUtxo);
+	console.log('Etching UTXO:', etchRuneResponse.etchingUtxo);
+
 	await generateBlocks(6);
 	await new Promise(resolve => setTimeout(resolve, 2000));
+
+	console.log('✅ Rune etched successfully!');
 
 
 	console.log('\n6. Getting rune information from Titan...');	
