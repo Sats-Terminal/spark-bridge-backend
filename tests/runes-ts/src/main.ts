@@ -1,14 +1,16 @@
 import { Rune, RuneId } from 'runelib';
-import { etchRune, createRuneAddress } from './runes';
-import { initDefaultWallet, generateBlocks, faucet, getAddressData, getRune, getRuneId } from './bitcoin-client';
+import { etchRune, createRunePayments } from './runes';
+import { initDefaultWallet, generateBlocks, faucet, getAddressData, getRune, getRuneId, getTransaction } from './bitcoin-client';
 import * as bitcoin from 'bitcoinjs-lib';
 import * as tinySecp256k1 from 'tiny-secp256k1';
+import { AddressTxOut } from '@titanbtcio/sdk';
 
 // Initialize ECC library
 bitcoin.initEccLib(tinySecp256k1);
 
 // WIF private key for regtest
 const WIF_PRIVATE_KEY = 'cSYFixQzjSrZ4b4LBT16Q7RXBk52DZ5cpJydE7DzuZS1RhzaXpEN';
+const SATOSHI_AMOUNT = 100_000_000;
 
 // Generate random uppercase string for rune name
 function generateRandomRuneName(length: number): string {
@@ -37,13 +39,13 @@ async function main() {
 	console.log('2. Creating P2TR address with tapscript and fauceting BTC...');
 	
 	// Create the same P2TR address that will be used in etching
-	const createRuneAddressResponse = await createRuneAddress(WIF_PRIVATE_KEY, runeName);
-	const p2tr_address = createRuneAddressResponse.address;
-	console.log('P2TR address with tapscript:', p2tr_address);
+	const createRuneAddressResponse = await createRunePayments(WIF_PRIVATE_KEY, runeName);
+	const p2trAddress = createRuneAddressResponse.p2trOutput.address;
+	console.log('P2TR address with tapscript:', p2trAddress);
 	
 	// Faucet BTC to the P2TR address (more than needed for transaction)
-	console.log('Fauceting 0.1 BTC to address:', p2tr_address);
-	const faucetTxid = await faucet(p2tr_address!, 0.1); // 0.1 BTC = 10,000,000 satoshis
+	console.log('Fauceting 1 BTC to address:', p2trAddress);
+	const faucetTxid = await faucet(p2trAddress!, 1); // 1 BTC = 100,000,000 satoshis
 	console.log('Faucet transaction ID:', faucetTxid);
 	console.log('✅ BTC fauceted to P2TR address\n');
 
@@ -56,30 +58,14 @@ async function main() {
 
 	// 4. Get UTXOs for the P2TR address
 	console.log('4. Getting UTXOs...');
-	const addressData = await getAddressData(p2tr_address!);
+	const addressData = await getAddressData(p2trAddress!);
 	const utxos = addressData.outputs || [];
 	console.log('Available UTXOs from Titan:', utxos.length);
-	
-	// Debug: Show all UTXOs
-	utxos.forEach((utxo, index) => {
-		console.log(`UTXO ${index}:`, {
-			txid: utxo.txid,
-			vout: utxo.vout,
-			value: utxo.value,
-			valueInBTC: (utxo.value / 100000000).toFixed(8)
-		});
-	});
-	
-	if (utxos.length === 0) {
-		throw new Error('No UTXOs available for etching');
-	}
 
-	// Find the UTXO with the highest value
-	const utxo = utxos.reduce((max, current) => current.value > max.value ? current : max);
-	console.log('Using UTXO with highest value:', utxo);
-	console.log('UTXO value in satoshis:', utxo.value);
-	console.log('UTXO value in BTC:', (utxo.value / 100000000).toFixed(8));
-	console.log('✅ UTXO selected\n');
+	if (utxos.length !== 1) {
+		throw new Error('Expected 1 UTXO, got ' + utxos.length);
+	}
+	const utxo = utxos[0];
 
 	// 5. Create a rune
 	console.log('5. Creating rune...');
@@ -89,18 +75,23 @@ async function main() {
 
 	// 6. Etch the rune
 	console.log('6. Etching rune...');
-	const txid = await etchRune({
+	const etchRuneResponse = await etchRune({
 		rune: rune,
 		privateKey: WIF_PRIVATE_KEY,
 		utxo: {
 			txid: utxo.txid,
 			vout: utxo.vout,
 			value: utxo.value, // Already in satoshis
+			p2trInput: createRuneAddressResponse.p2trInput,
 		},
 		symbol: '$',
 		divisibility: 3,
 	});
-	const runeId = await getRuneId(txid);
+
+	await generateBlocks(6);
+	await new Promise(resolve => setTimeout(resolve, 2000));
+
+	const runeId = await getRuneId(etchRuneResponse.changeUtxo.txid);
 	
 	console.log(`Rune ID: ${runeId.block}:${runeId.idx}`);
 	console.log('✅ Rune etched successfully!');

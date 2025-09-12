@@ -1,4 +1,4 @@
-import { RuneResponse, TitanHttpClient, AddressData } from "@titanbtcio/sdk";
+import { RuneResponse, TitanHttpClient, AddressData, Transaction } from "@titanbtcio/sdk";
 import * as runelib from 'runelib';
 
 const titanClient = new TitanHttpClient('http://localhost:3030');
@@ -101,4 +101,12 @@ export async function getRune(runeId: runelib.RuneId): Promise<RuneResponse> {
 
 export async function getAddressData(address: string): Promise<AddressData> {
   return await titanClient.getAddress(address);
+}
+
+export async function getTransaction(txid: string): Promise<Transaction> {
+  let transaction = await titanClient.getTransaction(txid);
+  if (!transaction) {
+    throw new Error(`Transaction ${txid} not found in Titan`);
+  }
+  return transaction;
 }

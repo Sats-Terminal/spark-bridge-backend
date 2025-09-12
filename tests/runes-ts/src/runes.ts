@@ -11,6 +11,7 @@ import {
   RuneId,
 } from 'runelib';
 import { sendRawTransaction, generateBlocks, getRuneId } from './bitcoin-client';
+import { Payment } from 'bitcoinjs-lib';
 
 // Initialize ECC library
 bitcoin.initEccLib(tinySecp256k1);
@@ -18,26 +19,12 @@ bitcoin.initEccLib(tinySecp256k1);
 const ECPair = ECPairFactory(tinySecp256k1);
 const network = bitcoin.networks.regtest;
 
-export interface EtchRuneParams {
-  rune: Rune;
-  privateKey: string; // WIF format
-  utxo: {
-    txid: string;
-    vout: number;
-    value: number;
-  };
-  symbol?: string;
-  divisibility?: number;
-}
-
 export interface CreateRuneAddressResponse {
-	address: string;
-	script_p2tr: any;
-	etching_redeem: any;
-	etching_p2tr: any;
+	p2trOutput: Payment;
+	p2trInput: Payment;
 }
 
-export async function createRuneAddress(privateKey: string, runeName: string): Promise<CreateRuneAddressResponse> {
+export async function createRunePayments(privateKey: string, runeName: string): Promise<CreateRuneAddressResponse> {
   const keyPair = ECPair.fromWIF(privateKey, network);
   
   // Create etching inscription
@@ -57,7 +44,7 @@ export async function createRuneAddress(privateKey: string, runeName: string): P
     output: etching_script,
   };
   
-  const script_p2tr = bitcoin.payments.p2tr({
+  const p2trOutput = bitcoin.payments.p2tr({
     internalPubkey: toXOnly(Buffer.from(keyPair.publicKey)),
     scriptTree,
     network,
@@ -67,23 +54,47 @@ export async function createRuneAddress(privateKey: string, runeName: string): P
     output: etching_script,
     redeemVersion: 192,
   };
-  
-  const etching_p2tr = bitcoin.payments.p2tr({
-    internalPubkey: toXOnly(Buffer.from(keyPair.publicKey)),
-    scriptTree,
-    redeem: etching_redeem,
-    network,
-  });
+
+	const p2trInput = bitcoin.payments.p2tr({
+		internalPubkey: toXOnly(Buffer.from(keyPair.publicKey)),
+		scriptTree,
+		redeem: etching_redeem,
+		network,
+	});
   
   return {
-    address: script_p2tr.address ?? '',
-    script_p2tr,
-    etching_redeem,
-    etching_p2tr
+    p2trOutput,
+		p2trInput,
   };
 }
 
-export async function etchRune(params: EtchRuneParams): Promise<string> {
+export interface EtchRuneParams {
+  rune: Rune;
+  privateKey: string; // WIF format
+  utxo: {
+    txid: string;
+    vout: number;
+    value: number;
+		p2trInput: Payment;
+  };
+  symbol?: string;
+  divisibility?: number;
+}
+
+export interface EtchRuneResponse {
+  changeUtxo: {
+		txid: string;
+		vout: number;
+		value: number;
+	},
+	etchingUtxo: {
+		txid: string;
+		vout: number;
+		value: number;
+	},
+}
+
+export async function etchRune(params: EtchRuneParams): Promise<EtchRuneResponse> {
   const {
     rune,
     privateKey,
@@ -93,11 +104,6 @@ export async function etchRune(params: EtchRuneParams): Promise<string> {
   } = params;
 	const keyPair = ECPair.fromWIF(privateKey, network);
 
-  // Create the same P2TR address with tapscript
-  const createRuneAddressResponse = await createRuneAddress(privateKey, rune.name);
-  
-  console.log('Etching address:', createRuneAddressResponse.address);
-
   // Create PSBT
   const psbt = new bitcoin.Psbt({ network });
 
@@ -105,12 +111,12 @@ export async function etchRune(params: EtchRuneParams): Promise<string> {
   psbt.addInput({
     hash: utxo.txid,
     index: utxo.vout,
-    witnessUtxo: { value: utxo.value, script: createRuneAddressResponse.script_p2tr.output! },
+    witnessUtxo: { value: utxo.value, script: utxo.p2trInput.output! },
     tapLeafScript: [
       {
-        leafVersion: createRuneAddressResponse.etching_redeem.redeemVersion,
-        script: createRuneAddressResponse.etching_redeem.output,
-        controlBlock: createRuneAddressResponse.etching_p2tr.witness![createRuneAddressResponse.etching_p2tr.witness!.length - 1],
+        leafVersion: utxo.p2trInput.redeemVersion!,
+        script: utxo.p2trInput.redeem!.output!,
+        controlBlock: utxo.p2trInput.witness![utxo.p2trInput.witness!.length - 1],
       },
     ],
   });
@@ -135,15 +141,16 @@ export async function etchRune(params: EtchRuneParams): Promise<string> {
     value: 0,
   });
 
+	const dustLimit = 546;
+
   // Add inscription output
   psbt.addOutput({
-    address: createRuneAddressResponse.address!,
-    value: 546, // Dust limit
+    address: utxo.p2trInput.address!,
+    value: dustLimit, // Dust limit
   });
 
   // Add change output
   const fee = 5000;
-  const dustLimit = 546;
   const totalRequired = dustLimit + fee;
   
   // Validate UTXO has sufficient funds
@@ -152,26 +159,33 @@ export async function etchRune(params: EtchRuneParams): Promise<string> {
   }
   
   const change = utxo.value - dustLimit - fee;
+
+	if (change < dustLimit) {
+		throw new Error(`Change is less than dust limit: ${change} < ${dustLimit}`);
+	}
   
-  // Only add change output if there's actually change to return
-  if (change > 0) {
-    psbt.addOutput({
-      address: createRuneAddressResponse.address!,
-      value: change,
-    });
-  }
+	psbt.addOutput({
+		address: utxo.p2trInput.address!,
+		value: change,
+	});
 
   // Sign and send
   const txid = await signAndSend(keyPair, psbt, [0]);
 
-  // Generate a block to confirm the transaction
-  await generateBlocks(6);
-
-  console.log('Rune etching completed!');
-
   await new Promise(resolve => setTimeout(resolve, 2000));
 
-  return txid;
+  return {
+    changeUtxo: {
+      txid: txid,
+      vout: 2,
+      value: change,
+    },
+		etchingUtxo: {
+			txid: txid,
+			vout: 1,
+			value: dustLimit,
+		},
+  };
 }
 
 // Helper function to convert public key to x-only
