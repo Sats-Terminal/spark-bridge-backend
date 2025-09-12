@@ -76,6 +76,7 @@ export interface EtchRuneParams {
     value: number;
 		p2trInput: Payment;
   };
+  outputAddress: string;
   symbol?: string;
   divisibility?: number;
 }
@@ -98,6 +99,7 @@ export async function etchRune(params: EtchRuneParams): Promise<EtchRuneResponse
     runeName,
     keyPair,
     utxo,
+    outputAddress,
     symbol = '$',
     divisibility = 0,
   } = params;
@@ -140,7 +142,7 @@ export async function etchRune(params: EtchRuneParams): Promise<EtchRuneResponse
 
   // Add inscription output
   psbt.addOutput({
-    address: utxo.p2trInput.address!,
+    address: outputAddress,
     value: dustLimit,
   });
 
@@ -159,7 +161,7 @@ export async function etchRune(params: EtchRuneParams): Promise<EtchRuneResponse
 	}
   
 	psbt.addOutput({
-		address: utxo.p2trInput.address!,
+		address: outputAddress,
 		value: change,
 	});
 
