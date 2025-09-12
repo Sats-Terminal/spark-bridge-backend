@@ -1,5 +1,5 @@
 import * as tinySecp256k1 from 'tiny-secp256k1';
-import { ECPairFactory } from 'ecpair';
+import { ECPairFactory, ECPairInterface } from 'ecpair';
 import * as bitcoin from 'bitcoinjs-lib';
 import {
   Etching,
@@ -69,8 +69,8 @@ export async function createRunePayments(privateKey: string, runeName: string): 
 }
 
 export interface EtchRuneParams {
-  rune: Rune;
-  privateKey: string; // WIF format
+  runeName: string;
+  keyPair: ECPairInterface
   utxo: {
     txid: string;
     vout: number;
@@ -96,14 +96,12 @@ export interface EtchRuneResponse {
 
 export async function etchRune(params: EtchRuneParams): Promise<EtchRuneResponse> {
   const {
-    rune,
-    privateKey,
+    runeName,
+    keyPair,
     utxo,
     symbol = '$',
     divisibility = 0,
   } = params;
-	const keyPair = ECPair.fromWIF(privateKey, network);
-
   // Create PSBT
   const psbt = new bitcoin.Psbt({ network });
 
@@ -120,6 +118,8 @@ export async function etchRune(params: EtchRuneParams): Promise<EtchRuneResponse
       },
     ],
   });
+
+	const rune = Rune.fromName(runeName);
 
   // Create etching
   const etching = new Etching(
