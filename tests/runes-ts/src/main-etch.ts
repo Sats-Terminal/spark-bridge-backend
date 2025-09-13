@@ -3,7 +3,7 @@ import { initDefaultWallet, generateBlocks, faucet, getAddressData, getRune, get
 import * as bitcoin from 'bitcoinjs-lib';
 import * as tinySecp256k1 from 'tiny-secp256k1';
 import { ECPairFactory } from 'ecpair';
-import { toXOnly } from './utils';
+import { toXOnly } from 'bitcoinjs-lib/src/psbt/bip371';
 
 bitcoin.initEccLib(tinySecp256k1);
 const ECPair = ECPairFactory(tinySecp256k1);
@@ -70,14 +70,15 @@ async function main() {
 	console.debug('Selected UTXO:', utxo);
 	console.info('✅ UTXO selected');
 
+
 	console.log('\n5. Create output address...');
 
-	const outputAddress = bitcoin.payments.p2wpkh({
-		pubkey: Buffer.from(keyPair.publicKey),
+	const { address: outputAddress } = bitcoin.payments.p2tr({
+		internalPubkey: toXOnly(Buffer.from(keyPair.publicKey)),
 		network,
 	});
 
-	console.log('Output address:', outputAddress.address);
+	console.log('Output address:', outputAddress);
 	console.log('✅ Output address created successfully');
 
 	console.log('\n6. Etching rune...');
@@ -87,7 +88,7 @@ async function main() {
 		cap: 1000,
 		amount: 1000000,
 		keyPair: keyPair,
-		outputAddress: outputAddress.address!,
+		outputAddress: outputAddress!,
 		utxo: {
 			txid: utxo.txid,
 			vout: utxo.vout,

@@ -1,18 +1,18 @@
 import { ECPairFactory } from "ecpair";
 import * as bitcoin from 'bitcoinjs-lib';
 import * as tinySecp256k1 from 'tiny-secp256k1';
-import { faucet, getRune, getTransaction, initDefaultWallet } from "./bitcoin-client";
+import { faucet, getTransaction, initDefaultWallet } from "./bitcoin-client";
 import { mintRune } from "./mint";
 import { generateBlocks } from "./bitcoin-client";
-import { toXOnly } from "./utils";
 import { RuneId } from "runelib";
+import { toXOnly } from "bitcoinjs-lib/src/psbt/bip371";
 
 bitcoin.initEccLib(tinySecp256k1);
 const ECPair = ECPairFactory(tinySecp256k1);
 const network = bitcoin.networks.regtest;
 
 const WIF_PRIVATE_KEY = 'cSYFixQzjSrZ4b4LBT16Q7RXBk52DZ5cpJydE7DzuZS1RhzaXpEN';
-const RUNE_ID_BLOCK = 16969;
+const RUNE_ID_BLOCK = 18417;
 const RUNE_ID_TX = 1;
 
 async function main() {
@@ -30,17 +30,17 @@ async function main() {
 
 	console.log('\n2. Getting p2tr address...');
 
-	const p2wpkhInput = bitcoin.payments.p2wpkh({
-		pubkey: Buffer.from(keyPair.publicKey),
+	const { address: p2trAddress } = bitcoin.payments.p2tr({
+		internalPubkey: toXOnly(Buffer.from(keyPair.publicKey)),
 		network,
 	});
 
-	let faucetTxid = await faucet(p2wpkhInput.address!, 1);
+	let faucetTxid = await faucet(p2trAddress!, 1);
 
 	await generateBlocks(6);
 	await new Promise(resolve => setTimeout(resolve, 2000));
 
-	console.log('Output address:', p2wpkhInput.address);
+	console.log('Output address:', p2trAddress);
 	console.log('✅ Output address obtained');
 
 	const faucetTransaction = await getTransaction(faucetTxid);
@@ -55,10 +55,12 @@ async function main() {
 
 	const mintRuneResponse = await mintRune({
 		keyPair: ECPair.fromWIF(WIF_PRIVATE_KEY, network),
-		utxo: { txid: faucetTxid, vout: 0, value: utxo.value, p2trInput: p2wpkhInput },
+		utxo: { txid: faucetTxid, vout: 0, value: utxo.value },
 		runeId: new RuneId(RUNE_ID_BLOCK, RUNE_ID_TX),
-		outputAddress: p2wpkhInput.address!,
+		outputAddress: p2trAddress!,
 	});
+
+	console.log('Minting transaction:', mintRuneResponse.mintingUtxo.txid);
 
 	await generateBlocks(6);
 	await new Promise(resolve => setTimeout(resolve, 2000));

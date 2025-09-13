@@ -1,9 +1,10 @@
 import { Edict, none, RuneId, Runestone, some } from 'runelib';
-import { getTransaction } from './bitcoin-client';
+import { getTransaction, sendRawTransaction } from './bitcoin-client';
 import { Payment, Psbt } from 'bitcoinjs-lib';
 import * as bitcoin from 'bitcoinjs-lib';
-import { signAndSend } from './utils';
 import { ECPairInterface } from 'ecpair';
+import { toXOnly } from 'bitcoinjs-lib/src/psbt/bip371';
+import { toBitcoinSigner } from './utils';
 
 const network = bitcoin.networks.regtest;
 
@@ -13,7 +14,6 @@ export interface MintRuneParams {
 		txid: string;
 		vout: number;
 		value: number;
-		p2trInput: Payment;
 	};
 	outputAddress: string;
 	runeId: RuneId;
@@ -39,10 +39,16 @@ export async function mintRune(params: MintRuneParams) {
 
 	const psbt = new Psbt({ network });
 
+	const { output } = bitcoin.payments.p2tr({
+		internalPubkey: toXOnly(Buffer.from(keyPair.publicKey)),
+		network,
+	});
+
 	psbt.addInput({
 		hash: utxo.txid,
 		index: utxo.vout,
-		witnessUtxo: { value: utxo.value, script: utxo.p2trInput.output! },
+		witnessUtxo: { value: utxo.value, script: output! },
+		tapInternalKey: toXOnly(Buffer.from(keyPair.publicKey)),
 	});
 
 	psbt.addOutput({
@@ -65,9 +71,17 @@ export async function mintRune(params: MintRuneParams) {
 		value: change,
 	});
 
-	const txid = await signAndSend(keyPair, psbt, []);
+	let tweakedKeyPair = keyPair.tweak(
+		bitcoin.crypto.taggedHash('TapTweak', toXOnly(Buffer.from(keyPair.publicKey)))
+	)
+	let signer = toBitcoinSigner(tweakedKeyPair);
 
-	await new Promise(resolve => setTimeout(resolve, 2000));
+	psbt.signInput(0, signer);
+
+	psbt.finalizeAllInputs();
+	const tx = psbt.extractTransaction();
+	const raw = tx.toHex();
+	const txid = await sendRawTransaction(raw);
 
 	return {
 		changeUtxo: {

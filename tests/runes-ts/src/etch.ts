@@ -12,7 +12,9 @@ import {
   Range,
 } from 'runelib';
 import { Payment } from 'bitcoinjs-lib';
-import { toXOnly, signAndSend } from './utils';
+import { toBitcoinSigner } from './utils';
+import { sendRawTransaction } from './bitcoin-client';
+import { toXOnly } from 'bitcoinjs-lib/src/psbt/bip371';
 
 // Initialize ECC library
 bitcoin.initEccLib(tinySecp256k1);
@@ -171,9 +173,15 @@ export async function etchRune(params: EtchRuneParams): Promise<EtchRuneResponse
 		value: change,
 	});
 
-  const txid = await signAndSend(keyPair, psbt, [0]);
+  let signer = toBitcoinSigner(keyPair);
+  psbt.signInput(0, signer);
 
-  await new Promise(resolve => setTimeout(resolve, 2000));
+  psbt.finalizeAllInputs();
+  const tx = psbt.extractTransaction();
+  const raw = tx.toHex();
+  const txid = await sendRawTransaction(raw);
+
+  console.log('Broadcasted transaction:', txid);
 
   return {
     changeUtxo: {
