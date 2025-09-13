@@ -8,6 +8,7 @@ use bitcoin::secp256k1::schnorr::Signature;
 use bitcoin::taproot::Signature as TaprootSignature;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin::secp256k1::Keypair;
+use bitcoin::key::TapTweak;
 use crate::errors::RuneTransferError;
 use ordinals::{Edict, RuneId, Runestone};
 
@@ -109,7 +110,8 @@ pub fn sign_message_hash(
     let ctx = Secp256k1::new();
     let message = Message::from_digest(message_hash);
     let keypair = Keypair::from_secret_key(&ctx, &secret_key);
-    let signature = ctx.sign_schnorr_no_aux_rand(&message, &keypair);
+    let tweaked_keypair = keypair.tap_tweak(&ctx, None);
+    let signature = ctx.sign_schnorr_no_aux_rand(&message, &tweaked_keypair.to_keypair());
     signature
 }
 

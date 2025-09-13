@@ -4,10 +4,10 @@ use bitcoin::secp256k1::SecretKey;
 use bitcoin::address::Address;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin::network::Network;
-use bitcoin::hashes::sha256d::Hash as Sha256dHash;
 use bitcoin::consensus::Encodable;
 use ordinals::RuneId;
 use bitcoin::{OutPoint, Txid};
+use std::str::FromStr;
 
 #[test]
 fn test_rune_transfer() {
@@ -30,16 +30,16 @@ fn test_rune_transfer() {
 
     println!("Address: {}", address.to_string());
 
-    let mut txid_bytes: [u8; 32] = hex::decode("8aa2e9a78cc0ece70fc8fdc2472d4ad8bf9724a4bf459e0539590953e0ef86fa").unwrap().try_into().unwrap();
-    let txid = *Sha256dHash::from_bytes_mut(&mut txid_bytes);
+    let txid = Txid::from_str("088e09c3bda96d2a26312ea83ae72a067f5aabb30e6f3fdfdac9ec3cd2fc7557").unwrap();
+    println!("Using transaction ID: {}", txid);
 
     let outputs_to_spend = vec![
         OutPoint {
-            txid: Txid::from_raw_hash(txid),
+            txid: txid,
             vout: 1,
         },
         OutPoint {
-            txid: Txid::from_raw_hash(txid),
+            txid: txid,
             vout: 2,
         },
     ];

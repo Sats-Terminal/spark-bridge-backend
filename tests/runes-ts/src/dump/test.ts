@@ -1,10 +1,8 @@
 import { ECPairFactory } from "ecpair";
 import * as bitcoin from 'bitcoinjs-lib';
 import * as tinySecp256k1 from 'tiny-secp256k1';
-import { faucet, getTransaction, initDefaultWallet, sendRawTransaction } from "../bitcoin-client";
-import { mintRune } from "../mint";
+import { getTransaction, sendRawTransaction } from "../bitcoin-client";
 import { generateBlocks } from "../bitcoin-client";
-import { RuneId } from "runelib";
 import { toXOnly } from "bitcoinjs-lib/src/psbt/bip371";
 
 bitcoin.initEccLib(tinySecp256k1);
@@ -12,8 +10,6 @@ const ECPair = ECPairFactory(tinySecp256k1);
 const network = bitcoin.networks.regtest;
 
 const WIF_PRIVATE_KEY = 'cSYFixQzjSrZ4b4LBT16Q7RXBk52DZ5cpJydE7DzuZS1RhzaXpEN';
-const RUNE_ID_BLOCK = 18417;
-const RUNE_ID_TX = 1;
 
 
 async function main1() {
@@ -32,14 +28,15 @@ async function main1() {
 }
 
 async function main2() {
-    const rawTransaction = `020000000001024bed4e12a27e0786d0f236811fc9a6cd372a9d11ff0cdf34d57277db1ed650680100000000fdffffff4bed4e12a27e0786d0f236811fc9a6cd372a9d11ff0cdf34d57277db1ed650680200000000fdffffff030000000000000000126a5d0f00f18f0101a0c21e010000a0c21e0270c9fa0200000000225120e1279c805cc9a755dc15287e58e38f3126807c8e35208f0e5b8d3ec06f10040770c9fa0200000000225120e1279c805cc9a755dc15287e58e38f3126807c8e35208f0e5b8d3ec06f1004070141c85b1b43cd3dd5f2ab11811c210c842aa1d28c301520c87147080bb4a14d5a1840521820ca6801ed299855aba394365e09ef20a2fe2672acb01e5b07d1521d790101416632b77074df0552cf3b246ea6cd8c054c67d01b0f01b0bbffac251362cd279b98b251fe7db7702ac5e0173558b011fd147744a58a7c9abf51fe1ab03e268cd00100000000`;
+    const rawTransaction = `020000000001025775fcd23cecc9dadf3f6f0eb3ab5a7f062ae73aa82e31262a6da9bdc3098e080100000000fdffffff5775fcd23cecc9dadf3f6f0eb3ab5a7f062ae73aa82e31262a6da9bdc3098e080200000000fdffffff030000000000000000126a5d0f00f18f0101a0c21e010000a0c21e0270c9fa0200000000225120e1279c805cc9a755dc15287e58e38f3126807c8e35208f0e5b8d3ec06f10040770c9fa0200000000225120e1279c805cc9a755dc15287e58e38f3126807c8e35208f0e5b8d3ec06f100407014112931116da80768d62a4b77959291bafe2da473cf5cdba713f0b70d64afb4d18303d8d4c36964e49c05b0b7e6150b6964219cf1c5ff38c15831f276697e564a301014155784f6d6278edff039241d1d313545cd15b4f720f3f838dd70ca29453389ac05286f06fee42e23d12138122faa7f57e91412d14480796c6519332f9e58dbb380100000000`;
     const txid = await sendRawTransaction(rawTransaction);
     console.log('Txid:', txid);
 
     await generateBlocks(6);
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     const transaction = await getTransaction(txid);
     console.log('Transaction:', transaction);
 }
 
-main1();
+main2();
