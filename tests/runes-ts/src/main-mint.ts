@@ -60,8 +60,6 @@ async function main() {
 		outputAddress: p2trAddress!,
 	});
 
-	console.log('Minting transaction:', mintRuneResponse.mintingUtxo.txid);
-
 	await generateBlocks(6);
 	await new Promise(resolve => setTimeout(resolve, 2000));
 
@@ -78,6 +76,8 @@ async function main() {
 	console.log('rune:', rune);
 
 	console.log('✅ Rune found in transaction output');
+
+	console.log('Minting response:', mintRuneResponse);
 
 	console.log('\n✅ Rune minted successfully!');
 }

@@ -5,3 +5,6 @@ edition = "2024"
 [dev-dependencies]
 lazy_static = { workspace = true }
 hex = { workspace = true }
+gateway_rune_transfer = { workspace = true }
+bitcoin = { workspace = true }
+ordinals = { workspace = true }
