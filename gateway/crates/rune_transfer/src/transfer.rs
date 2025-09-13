@@ -2,6 +2,12 @@ use bitcoin::{Transaction, TxIn, OutPoint, ScriptBuf, Sequence, Witness, Address
 use bitcoin::sighash::{SighashCache, TapSighashType, Prevouts};
 use bitcoin::hashes::Hash;
 use bitcoin::transaction::Version;
+use bitcoin::secp256k1::SecretKey;
+use bitcoin::secp256k1::Message;
+use bitcoin::secp256k1::schnorr::Signature;
+use bitcoin::taproot::Signature as TaprootSignature;
+use bitcoin::secp256k1::Secp256k1;
+use bitcoin::secp256k1::Keypair;
 use crate::errors::RuneTransferError;
 use ordinals::{Edict, RuneId, Runestone};
 
@@ -94,4 +100,27 @@ pub fn create_message_hash(
 
     let byte_array = message_hash.to_raw_hash().to_byte_array();
     Ok(byte_array)
+}
+
+pub fn sign_message_hash(
+    message_hash: [u8; 32],
+    secret_key: SecretKey,
+) -> Signature{
+    let ctx = Secp256k1::new();
+    let message = Message::from_digest(message_hash);
+    let keypair = Keypair::from_secret_key(&ctx, &secret_key);
+    let signature = ctx.sign_schnorr_no_aux_rand(&message, &keypair);
+    signature
+}
+
+pub fn add_signature_to_transaction(
+    transaction: &mut Transaction,
+    input_index: usize,
+    signature: Signature,
+) {
+    let taproot_signature = TaprootSignature {
+        signature: signature,
+        sighash_type: TapSighashType::All,
+    };
+    transaction.input[input_index].witness = Witness::p2tr_key_spend(&taproot_signature);
 }
