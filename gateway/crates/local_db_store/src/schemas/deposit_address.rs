@@ -1,7 +1,7 @@
 use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
 use frost::types::MusigId;
-use global_utils::tweak_generation::Nonce;
+use frost::types::Nonce;
 use persistent_storage::error::DbError;
 use serde::{Deserialize, Serialize};
 use sqlx::Connection;

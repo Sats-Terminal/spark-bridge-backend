@@ -5,4 +5,3 @@ pub mod config_variant;
 pub mod env_parser;
 pub mod logger;
 pub mod network;
-pub mod tweak_generation;

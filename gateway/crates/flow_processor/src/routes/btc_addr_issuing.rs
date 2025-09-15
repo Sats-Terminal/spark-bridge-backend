@@ -1,17 +1,12 @@
 use crate::error::{BtcAddrIssueErrorEnum, FlowProcessorError};
 use crate::flow_router::FlowProcessorRouter;
 use crate::types::IssueBtcDepositAddressRequest;
-use bitcoin::key::{Keypair, TweakedPublicKey, UntweakedKeypair, UntweakedPublicKey};
-use bitcoin::secp256k1::scalar::OutOfRangeError;
-use bitcoin::secp256k1::{Parity, Scalar, Secp256k1};
-use bitcoin::{Address, Amount, KnownHrp, Network, PublicKey, secp256k1};
-use frost::traits::{AggregatorMusigIdStorage, AggregatorSignSessionStorage};
-use frost::types::{AggregatorDkgState, AggregatorMusigIdData, RuneId};
+use bitcoin::Address;
+use frost::traits::AggregatorMusigIdStorage;
+use frost::types::AggregatorDkgState;
 use frost::utils::convert_public_key_package;
-use frost_secp256k1_tr::keys::PublicKeyPackage;
 use gateway_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositAddressStorage, DepositStatus};
-use global_utils::tweak_generation::{Nonce, TweakGenerator};
-use persistent_storage::error::DbError;
+use frost::utils::{get_address, generate_nonce};
 use tracing::{debug, info, instrument};
 
 const LOG_PATH: &str = "flow_processor:routes:btc_addr_issuing";
@@ -19,99 +14,70 @@ const LOG_PATH: &str = "flow_processor:routes:btc_addr_issuing";
 pub async fn handle(
     flow_processor: &mut FlowProcessorRouter,
     request: IssueBtcDepositAddressRequest,
-    human_readable_part_url: impl Into<KnownHrp>,
 ) -> Result<Address, FlowProcessorError> {
     info!("[{LOG_PATH}] Handling btc addr issuing ...");
-    _handle_inner(flow_processor, &request, human_readable_part_url)
+    _handle_inner(flow_processor, &request)
         .await
         .map_err(|e| FlowProcessorError::BtcAddrIssueError(e))
 }
 
-#[instrument(skip(flow_processor, request, human_readable_part_url), level = "trace", ret)]
+#[instrument(skip(flow_processor, request), level = "trace", ret)]
 async fn _handle_inner(
     flow_processor: &mut FlowProcessorRouter,
     request: &IssueBtcDepositAddressRequest,
-    human_readable_part_url: impl Into<KnownHrp>,
 ) -> Result<Address, BtcAddrIssueErrorEnum> {
-    let human_readable_part_url = human_readable_part_url.into();
-    debug!(network=?human_readable_part_url, request=?request, "[{LOG_PATH}] Handling btc addr issuing inner function");
     let local_db_storage = flow_processor.storage.clone();
-    let (tweaked_x, _parity): (TweakedPublicKey, Parity) =
+
+    let public_key_package = 
         match flow_processor.storage.get_musig_id_data(&request.musig_id).await? {
             None => {
                 debug!("[{LOG_PATH}] Missing musig, running dkg from the beginning ...");
                 let pubkey_package = flow_processor.frost_aggregator.run_dkg_flow(&request.musig_id).await?;
                 debug!("[{LOG_PATH}] DKG processing was successfully completed");
-                let nonce = TweakGenerator::generate_nonce();
-                let byte_seq = generate_byte_seq(&request, nonce);
-                let byte_seq = TweakGenerator::hash(&byte_seq);
-                let tweaked_key_package = TweakGenerator::tweak_pubkey_package(pubkey_package, &byte_seq);
-                // local_db_storage.set_musig_id_data(&request.musig_id, AggregatorMusigIdData{}).await?;
-                local_db_storage
-                    .set_deposit_addr_info(
-                        &request.musig_id,
-                        DepositAddrInfo {
-                            nonce_tweak: nonce.to_vec(),
-                            address: None,
-                            is_btc: false,
-                            amount: request.amount,
-                            confirmation_status: DepositStatus::InitializedRunesSpark,
-                        },
-                    )
-                    .await?;
-                TweakGenerator::tweaked_verifying_key_to_tweaked_pubkey(&tweaked_key_package.verifying_key())?
+                pubkey_package
             }
             Some(x) => {
                 debug!("[{LOG_PATH}] Musig exists, obtaining dkg pubkey ...");
                 // extract data from db, get nonce and generate new one, return it to user
                 match x.dkg_state {
-                AggregatorDkgState::DkgRound1 { .. } => {
-                    return Err(BtcAddrIssueErrorEnum::UnfinishedDkgState {
-                        got: "AggregatorDkgState::DkgRound1".to_string(),
-                    });
-                }
-                AggregatorDkgState::DkgRound2 { .. } => {
-                    return Err(BtcAddrIssueErrorEnum::UnfinishedDkgState {
-                        got: "AggregatorDkgState::DkgRound2".to_string(),
-                    });
-                }
-                AggregatorDkgState::DkgFinalized {
-                    public_key_package: pubkey_package,
-                } => match local_db_storage.get_deposit_addr_info(&request.musig_id).await? {
-                    None => return Err(BtcAddrIssueErrorEnum::ChangePubkeyAddr {
-                        context:
-                            "Got None value in DepositAddrInfo, but Dkg is Finalized, try to use another pubkey address"
-                                .to_string(),
-                    }),
-                    Some(mut addr_info) => {
-                        if addr_info.confirmation_status != DepositStatus::InitializedRunesSpark {
-                            return Err(BtcAddrIssueErrorEnum::WrongStatus {
-                                context: format!("{addr_info:?}"),
-                                got: addr_info.confirmation_status,
-                                expected: DepositStatus::InitializedSparkRunes,
-                            });
-                        }
-                        //todo: change logic, maybe we don't have to delete all entries that match `user_pubkey` +
-                        // `rune_id` in `update_deposit_addr_info` previous entry
-                        let nonce = TweakGenerator::generate_nonce();
-                        addr_info.address = None;
-                        addr_info.nonce_tweak = nonce.to_vec();
-                        local_db_storage.update_deposit_addr_info(&request.musig_id, addr_info).await?;
-
-                        let byte_seq = generate_byte_seq(&request, nonce);
-                        let byte_seq = TweakGenerator::hash(&byte_seq);
-                        let tweaked_key_package = TweakGenerator::tweak_pubkey_package(pubkey_package, &byte_seq);
-                        TweakGenerator::tweaked_verifying_key_to_tweaked_pubkey(&tweaked_key_package.verifying_key())?
+                    AggregatorDkgState::DkgRound1 { .. } => {
+                        return Err(BtcAddrIssueErrorEnum::UnfinishedDkgState {
+                            got: "AggregatorDkgState::DkgRound1".to_string(),
+                        });
                     }
-                },
-            }
+                    AggregatorDkgState::DkgRound2 { .. } => {
+                        return Err(BtcAddrIssueErrorEnum::UnfinishedDkgState {
+                            got: "AggregatorDkgState::DkgRound2".to_string(),
+                        });
+                    }
+                    AggregatorDkgState::DkgFinalized {
+                        public_key_package: pubkey_package,
+                    } => pubkey_package
+                }
             }
         };
-    Ok(Address::p2tr_tweaked(tweaked_x, human_readable_part_url))
-}
 
-fn generate_byte_seq(request: &IssueBtcDepositAddressRequest, nonce: Nonce) -> Vec<u8> {
-    TweakGenerator::serialize_tweak_data(request.musig_id.get_public_key(), request.musig_id.get_rune_id(), nonce)
+
+    let nonce = generate_nonce();
+    let public_key = convert_public_key_package(&public_key_package)
+        .map_err(|e| BtcAddrIssueErrorEnum::InvalidDataError(e.to_string()))?;
+    let address = get_address(public_key, nonce, flow_processor.network)
+        .map_err(|e| BtcAddrIssueErrorEnum::InvalidDataError(format!("Failed to create address: {}", e)))?;
+
+    local_db_storage
+        .set_deposit_addr_info(
+            &request.musig_id,
+            DepositAddrInfo {
+                nonce_tweak: nonce.to_vec(),
+                address: Some(address.to_string()),
+                is_btc: true,
+                amount: request.amount,
+                confirmation_status: DepositStatus::InitializedRunesSpark,
+            },
+        )
+        .await?;
+
+    Ok(address)
 }
 
 #[cfg(test)]
@@ -123,9 +89,7 @@ mod tweak_signature_test {
 
     pub static TEST_LOGGER: LazyLock<LoggerGuard> = LazyLock::new(|| init_logger());
 
-    use crate::routes::btc_addr_issuing::generate_byte_seq;
     use crate::types::IssueBtcDepositAddressRequest;
-    use bitcoin::hashes::Hash;
     use bitcoin::secp256k1;
     use bitcoin::secp256k1::{PublicKey, Secp256k1, SecretKey};
     use frost::signer::FrostSigner;
@@ -134,7 +98,6 @@ mod tweak_signature_test {
     use frost::{aggregator::FrostAggregator, mocks::*};
     use frost_secp256k1_tr::Identifier;
     use frost_secp256k1_tr::keys::PublicKeyPackage;
-    use global_utils::tweak_generation::TweakGenerator;
     use lrc20::token_transaction::{
         TokenTransaction, TokenTransactionCreateInput, TokenTransactionInput, TokenTransactionVersion,
     };

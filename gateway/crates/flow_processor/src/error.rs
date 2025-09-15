@@ -5,7 +5,6 @@ use bitcoin::secp256k1;
 use frost::errors::AggregatorError;
 use gateway_local_db_store::schemas::deposit_address::DepositStatus;
 use global_utils::api_result_request::ErrorIntoStatusMsgTuple;
-use global_utils::tweak_generation::TweakGeneratorError;
 use persistent_storage::error::DbError;
 use thiserror::Error;
 
@@ -51,8 +50,6 @@ pub enum BtcAddrIssueErrorEnum {
     NoDepositAddrInfoInDb(IssueBtcDepositAddressRequest),
     #[error("Occurred error on Aggregator, failed to finalize dkg, err: {0}")]
     AggregatorError(#[from] AggregatorError),
-    #[error("Occurred error tweak generation, err: {0}")]
-    TweakGenerationError(#[from] TweakGeneratorError),
     #[error("Failed to change pubkey address, err: {context}")]
     ChangePubkeyAddr { context: String },
     #[error(
@@ -65,6 +62,8 @@ pub enum BtcAddrIssueErrorEnum {
     },
     #[error("Database error occurred, err: {0}")]
     DbError(#[from] DbError),
+    #[error("Invalid data error: {0}")]
+    InvalidDataError(String),
 }
 
 impl IntoResponse for PrivateApiError {

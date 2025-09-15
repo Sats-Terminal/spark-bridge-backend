@@ -64,7 +64,7 @@ impl FlowProcessorRouter {
         network: Network,
     ) -> Result<IssueBtcDepositAddressResponse, FlowProcessorError> {
         info!("[{LOG_PATH}] issuing btc addr to user with request: {request:?}");
-        let pubkey = crate::routes::btc_addr_issuing::handle(self, request, network).await?;
+        let pubkey = crate::routes::btc_addr_issuing::handle(self, request).await?;
         Ok(IssueBtcDepositAddressResponse {
             addr_to_replenish: pubkey,
         })
@@ -92,6 +92,7 @@ impl FlowProcessorRouter {
             request.musig_id, 
             request.amount,
             network,
+            self.frost_aggregator.clone(),
         ).await?;
         Ok(IssueSparkDepositAddressResponse {
             addr_to_replenish: address,
