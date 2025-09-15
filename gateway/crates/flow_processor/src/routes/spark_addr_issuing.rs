@@ -10,7 +10,7 @@ use frost::types::AggregatorDkgState;
 use frost::utils::convert_public_key_package;
 use frost::utils::generate_nonce;
 use gateway_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositAddressStorage, DepositStatus};
-use spark_client::utils::spark_address::SparkAddressData;
+use spark_client::utils::spark_address::{encode_spark_address, SparkAddressData};
 
 pub async fn handle(
     musig_id: MusigId,
@@ -19,8 +19,6 @@ pub async fn handle(
     frost_aggregator: FrostAggregator,
     storage: Arc<LocalDbStorage>,
 ) -> Result<String, FlowProcessorError> {
-    let local_db_storage = storage.clone();
-
     let public_key_package = 
         match storage.get_musig_id_data(&musig_id).await? {
             None => {
@@ -52,20 +50,22 @@ pub async fn handle(
     let public_key = convert_public_key_package(&public_key_package)
         .map_err(|e| FlowProcessorError::InvalidDataError(e.to_string()))?;
 
-
+    let address = encode_spark_address(&SparkAddressData {
+        identity_public_key: public_key.to_string(),
+        network: network.into(),
+    }).map_err(|e| FlowProcessorError::InvalidDataError(e.to_string()))?;
     
-    // local_db_storage
-    //     .set_deposit_addr_info(
-    //         &musig_id,
-    //         DepositAddrInfo {
-    //             nonce_tweak: nonce.to_vec(),
-    //             address: Some(address),
-    //             is_btc: true,
-    //             amount: amount,
-    //             confirmation_status: DepositStatus::InitializedRunesSpark,
-    //         },
-    //     )
-    //     .await?;
+    storage.set_deposit_addr_info(
+        &musig_id,
+        DepositAddrInfo {
+            nonce_tweak: nonce.to_vec(),
+            address: Some(address.clone()),
+            is_btc: true,
+            amount: amount,
+            confirmation_status: DepositStatus::InitializedRunesSpark,
+        },
+    )
+    .await?;
 
-    Ok("".to_string())
+    Ok(address)
 }

@@ -2,6 +2,7 @@ use bech32::{Bech32m, Hrp};
 use hex;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
+use bitcoin::Network as BitcoinNetwork;
 
 use crate::common::error::SparkAddressError;
 
@@ -49,6 +50,18 @@ impl FromStr for Network {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         serde_json::from_str(&format!("\"{}\"", s))
+    }
+}
+
+impl From<BitcoinNetwork> for Network {
+    fn from(network: BitcoinNetwork) -> Self {
+        match network {
+            BitcoinNetwork::Bitcoin => Network::Mainnet,
+            BitcoinNetwork::Testnet => Network::Testnet,
+            BitcoinNetwork::Regtest => Network::Regtest,
+            BitcoinNetwork::Signet => Network::Signet,
+            BitcoinNetwork::Testnet4 => Network::Local,
+        }
     }
 }
 
