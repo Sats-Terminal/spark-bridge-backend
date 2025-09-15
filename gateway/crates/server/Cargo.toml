@@ -5,10 +5,19 @@ edition = "2024"
 [dependencies]
 anyhow = { workspace = true }
 axum = { workspace = true }
+bitcoin = { workspace = true }
+btc_resp_aggregator = { workspace = true }
 frost = { workspace = true }
+gateway_api = { workspace = true }
 gateway_flow_processor = { workspace = true }
+global_utils = { workspace = true }
 persistent_storage = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
+titan-client = { workspace = true }
 tracing = { workspace = true }
-bitcoin = { workspace = true }
+url = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

@@ -88,11 +88,7 @@ impl FlowProcessorRouter {
         network: Network,
     ) -> Result<IssueSparkDepositAddressResponse, FlowProcessorError> {
         info!("[{LOG_PATH}] issuing spark addr to user with request: {request:?}");
-        let address = crate::routes::spark_addr_issuing::handle(
-            request.musig_id, 
-            request.amount,
-            network,
-        ).await?;
+        let address = crate::routes::spark_addr_issuing::handle(request.musig_id, request.amount, network).await?;
         Ok(IssueSparkDepositAddressResponse {
             addr_to_replenish: address,
         })

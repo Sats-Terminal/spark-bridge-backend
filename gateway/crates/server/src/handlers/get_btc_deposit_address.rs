@@ -2,7 +2,7 @@ use crate::error::GatewayError;
 use crate::init::AppState;
 use anyhow::bail;
 use axum::{Json, extract::State};
-use gateway_flow_processor::types::{IssueBtcDepositAddressRequest, FlowProcessorMessage, FlowProcessorResponse};
+use gateway_flow_processor::types::{FlowProcessorMessage, FlowProcessorResponse, IssueBtcDepositAddressRequest};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use tracing::{debug, instrument};
@@ -38,13 +38,15 @@ async fn _handle_inner(
     debug!("[handler-btc-addr-issuing] Handling request: {request:?}");
     let possible_response = state
         .flow_sender
-        .send_messsage(FlowProcessorMessage::IssueBtcDepositAddress(IssueBtcDepositAddressRequest {
-            musig_id: frost::types::MusigId::User {
-                rune_id: request.rune_id,
-                user_public_key: bitcoin::secp256k1::PublicKey::from_str(&request.user_public_key)?,
+        .send_messsage(FlowProcessorMessage::IssueBtcDepositAddress(
+            IssueBtcDepositAddressRequest {
+                musig_id: frost::types::MusigId::User {
+                    rune_id: request.rune_id,
+                    user_public_key: bitcoin::secp256k1::PublicKey::from_str(&request.user_public_key)?,
+                },
+                amount: request.amount,
             },
-            amount: request.amount,
-        }))
+        ))
         .await?;
     if let FlowProcessorResponse::IssueDepositAddress(flow_resp) = possible_response {
         Ok(Json(GetBtcDepositAddressResponse {

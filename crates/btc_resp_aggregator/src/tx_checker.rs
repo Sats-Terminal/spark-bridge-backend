@@ -6,18 +6,19 @@ use gateway_api::api::{Review, TxCheckCallbackResponse};
 use global_utils::api_result_request::ApiResponseOwned;
 use global_utils::common_types::{TxIdWrapped, UrlWrapped};
 use global_utils::network::convert_to_http_url;
-use serde::{Deserialize, Serialize};
 use std::net::{IpAddr, ToSocketAddrs};
 use std::sync::Arc;
 use titan_client::Transaction;
+use tracing::instrument;
 use url::Url;
 
 const INDEXER_SUBSCRIBE_TX_ENDPOINT: &str = "/track_tx";
-pub type BtcTxChekerIdentifier = u16;
+const TX_CHECKER_LOG_PATH: &str = "[tx_checker-track_tx]";
+pub type BtcTxCheckerIdentifier = u16;
 
 #[derive(Clone)]
 pub struct BtcTxChecker {
-    pub identifier: BtcTxChekerIdentifier,
+    pub identifier: BtcTxCheckerIdentifier,
     tx_id_status_storage: Arc<dyn BtcTxIdStatusStorage>, // TODO: implement signer storage
     total_participants: u16,
     threshold: u16,
@@ -29,8 +30,9 @@ pub struct BtcTxChecker {
 
 impl BtcTxChecker {
     pub const LOOPBACK_ENDPOINT_PATH: &'static str = "/api/verifier/receive/loopback_btc_indexer_response";
+    #[instrument(level = "trace", skip(tx_id_status_storage), fields(path = TX_CHECKER_LOG_PATH))]
     pub fn new(
-        identifier: BtcTxChekerIdentifier,
+        identifier: BtcTxCheckerIdentifier,
         total_participants: u16,
         threshold: u16,
         gateway_addr: (IpAddr, u16),
@@ -49,6 +51,7 @@ impl BtcTxChecker {
         })
     }
 
+    #[instrument(level = "trace", skip(self), ret, fields(path = TX_CHECKER_LOG_PATH))]
     pub async fn save_tx(&self, request: &CheckTxRequest) -> Result<(), BtcTxCheckerError> {
         self.tx_id_status_storage
             .set_tx_id_value(
@@ -62,6 +65,7 @@ impl BtcTxChecker {
         Ok(())
     }
 
+    #[instrument(level = "trace", skip(self), ret, fields(path = TX_CHECKER_LOG_PATH))]
     pub async fn subscribe_indexer_to_loopback_addr(&self, tx_id: Txid) -> Result<(), BtcTxCheckerError> {
         self.tx_id_status_storage
             .set_tx_id_status(tx_id, &TxidStatus::Created)
@@ -79,6 +83,7 @@ impl BtcTxChecker {
     }
 
     #[inline]
+    #[instrument(level = "trace", skip(self), ret, fields(path = TX_CHECKER_LOG_PATH))]
     fn check_tx(&self, tx_to_check: Transaction) -> TxCheckCallbackResponse {
         TxCheckCallbackResponse {
             identifier: self.identifier,
@@ -87,6 +92,7 @@ impl BtcTxChecker {
         }
     }
 
+    #[instrument(level = "trace", skip(self), ret, fields(path = TX_CHECKER_LOG_PATH))]
     pub async fn notify_gateway(&self, request: BtcIndexerCallbackResponse) -> Result<(), BtcTxCheckerError> {
         match request {
             BtcIndexerCallbackResponse::Ok { data } => {
@@ -99,6 +105,7 @@ impl BtcTxChecker {
                 Ok(())
             }
             BtcIndexerCallbackResponse::Err { code, message } => {
+                //todo: maybe notify gateway about failure?
                 Err(BtcTxCheckerError::IndexerResponseError { code, message })
             }
         }

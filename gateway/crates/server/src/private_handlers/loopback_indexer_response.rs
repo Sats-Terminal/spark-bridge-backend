@@ -1,21 +1,18 @@
-use crate::error::{FlowProcessorError, PrivateApiError};
+use crate::error::PrivateApiError;
 use crate::init::PrivateAppState;
 use axum::Json;
 use axum::extract::State;
-use global_utils::api_result_request::ApiResponseOwned;
+use gateway_api::api::{Review, TxCheckCallbackResponse};
 use serde::{Deserialize, Serialize};
 use titan_client::Transaction;
 use tracing::{info, instrument};
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct CallbackResponse {}
 
 /// Handles Btc address issuing for replenishment
 #[instrument(level = "info", skip(state, request), fields(request = ?request), ret)]
 pub async fn handle(
     State(state): State<PrivateAppState>,
     //todo: change Transaction on another type generated from gateway or remove it
-    Json(request): Json<CallbackResponse>,
+    Json(request): Json<TxCheckCallbackResponse>,
 ) -> Result<Json<()>, PrivateApiError> {
     _handle_inner(state, request)
         .await
@@ -23,9 +20,10 @@ pub async fn handle(
 }
 
 #[instrument(level = "debug", skip(state, request), fields(request = ?request), ret)]
-async fn _handle_inner(state: PrivateAppState, request: CallbackResponse) -> anyhow::Result<Json<()>> {
+async fn _handle_inner(state: PrivateAppState, request: TxCheckCallbackResponse) -> anyhow::Result<Json<()>> {
     info!("Invoking handle inner with request: {:?}", request);
     //todo: spawn task to make spark transaction if all is ok, if not, save error
+    state.btc_resp_checker.save_verifier_response(request).await?;
     Ok(Json(()))
 }
 

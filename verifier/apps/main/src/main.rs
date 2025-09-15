@@ -9,7 +9,7 @@ use tokio::net::TcpListener;
 use tracing::instrument;
 use verifier_config_parser::config::ServerConfig;
 use verifier_local_db_store::storage::LocalDbStorage;
-use verifier_utils::verifier_entities::{create_btc_resp_aggregator, create_frost_signer};
+use verifier_utils::verifier_entities::{create_btc_tx_checker, create_frost_signer};
 
 #[instrument(level = "debug", ret)]
 #[tokio::main]
@@ -34,7 +34,7 @@ async fn main() -> anyhow::Result<()> {
         shared_store.clone(),
         shared_store.clone(),
     );
-    let tx_id_status_checker = create_btc_resp_aggregator(
+    let tx_id_status_checker = create_btc_tx_checker(
         app_config.frost_signer,
         app_config.btc_indexer,
         shared_store.clone(),

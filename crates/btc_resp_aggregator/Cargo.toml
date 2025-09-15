@@ -8,15 +8,20 @@ readme.workspace = true
 
 [dependencies]
 async-trait = { workspace = true }
-thiserror = { workspace = true }
-titan-client = { workspace = true }
 bitcoin = { workspace = true }
+btc_indexer_api = { workspace = true }
 frost-secp256k1-tr = { workspace = true }
-serde = { workspace = true }
-url = { workspace = true }
+gateway_api = { workspace = true }
 global_utils = { workspace = true }
 persistent_storage = { workspace = true }
-sqlx = { workspace = true }
 reqwest = { workspace = true }
-btc_indexer_api = { workspace = true }
-gateway_api = { workspace = true }
+serde = { workspace = true }
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+titan-client = { workspace = true }
+tracing = { workspace = true }
+url = { workspace = true }
+uuid = { workspace = true }
+futures = { workspace = true }
+tokio-util = { workspace = true }

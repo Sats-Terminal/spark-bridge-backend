@@ -21,7 +21,7 @@ pub fn create_frost_signer(
     )
 }
 
-pub fn create_btc_resp_aggregator(
+pub fn create_btc_tx_checker(
     signer_config: SignerConfig,
     btc_indexer_config: BtcIndexerConfig,
     tx_id_storage: Arc<dyn BtcTxIdStatusStorage>,

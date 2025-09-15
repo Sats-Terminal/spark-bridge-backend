@@ -51,7 +51,10 @@ impl FlowSender {
 
 #[async_trait::async_trait]
 impl TypedMessageSender<IssueBtcDepositAddressRequest, IssueBtcDepositAddressResponse> for FlowSender {
-    async fn send(&self, dkg_message: IssueBtcDepositAddressRequest) -> Result<IssueBtcDepositAddressResponse, FlowProcessorError> {
+    async fn send(
+        &self,
+        dkg_message: IssueBtcDepositAddressRequest,
+    ) -> Result<IssueBtcDepositAddressResponse, FlowProcessorError> {
         let response = self
             .send_messsage(FlowProcessorMessage::IssueBtcDepositAddress(dkg_message))
             .await?;
@@ -66,7 +69,10 @@ impl TypedMessageSender<IssueBtcDepositAddressRequest, IssueBtcDepositAddressRes
 
 #[async_trait::async_trait]
 impl TypedMessageSender<IssueSparkDepositAddressRequest, IssueSparkDepositAddressResponse> for FlowSender {
-    async fn send(&self, dkg_message: IssueSparkDepositAddressRequest) -> Result<IssueSparkDepositAddressResponse, FlowProcessorError> {
+    async fn send(
+        &self,
+        dkg_message: IssueSparkDepositAddressRequest,
+    ) -> Result<IssueSparkDepositAddressResponse, FlowProcessorError> {
         let response = self
             .send_messsage(FlowProcessorMessage::IssueSparkDepositAddress(dkg_message))
             .await?;

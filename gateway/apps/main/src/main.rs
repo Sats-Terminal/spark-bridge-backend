@@ -31,9 +31,10 @@ async fn main() -> anyhow::Result<()> {
     };
     let shared_db_pool = Arc::new(db_pool);
 
+    // Aggregators creation
     let frost_aggregator =
-        create_aggregator_from_config(app_config.clone(), shared_db_pool.clone(), shared_db_pool.clone());
-    let btc_resp_checker_aggregator = create_btc_resp_checker_aggregator_from_config(app_config.clone());
+        create_aggregator_from_config(app_config.clone(), shared_db_pool.clone(), shared_db_pool.clone())?;
+    let btc_resp_checker_aggregator = Arc::new(create_btc_resp_checker_aggregator_from_config(app_config.clone())?);
 
     let (mut flow_processor, flow_sender) = create_flow_processor(
         shared_db_pool,
@@ -46,22 +47,35 @@ async fn main() -> anyhow::Result<()> {
         flow_processor.run().await;
     });
 
-    let public_app = gateway_server::init::create_public_app(flow_sender.clone()).await?;
-    let addr_to_listen_public = (lookup_ip_addr(&app_config.server.ip)?, app_config.server.port);
+    let private_app =
+        gateway_server::init::create_private_app(flow_sender.clone(), btc_resp_checker_aggregator.clone()).await?;
+    let addr_to_listen_private = (
+        lookup_ip_addr(&app_config.server_private_api.ip)?,
+        app_config.server_private_api.port,
+    );
+    let listener_private = TcpListener::bind(addr_to_listen_private.clone())
+        .await
+        .map_err(|e| anyhow!("Failed to bind to private address: {}", e))?;
+    let private_app_server = axum::serve(listener_private, private_app).into_future();
+
+    let addr_to_listen_public = (
+        lookup_ip_addr(&app_config.server_public.ip)?,
+        app_config.server_public.port,
+    );
+    let public_app = gateway_server::init::create_public_app(
+        flow_sender.clone(),
+        btc_resp_checker_aggregator.clone(),
+        addr_to_listen_public,
+    )
+    .await?;
+    let addr_to_listen_public = (
+        lookup_ip_addr(&app_config.server_public.ip)?,
+        app_config.server_public.port,
+    );
     let listener_public = TcpListener::bind(addr_to_listen_public)
         .await
         .map_err(|e| anyhow!("Failed to bind to public address: {}", e))?;
     let public_app_server = axum::serve(listener_public, public_app).into_future();
-
-    let private_app = gateway_flow_processor::init::create_private_app(flow_sender).await?;
-    let addr_to_listen_private = (
-        lookup_ip_addr(&app_config.flow_processor_private_api.ip)?,
-        app_config.flow_processor_private_api.port,
-    );
-    let listener_private = TcpListener::bind(addr_to_listen_private)
-        .await
-        .map_err(|e| anyhow!("Failed to bind to private address: {}", e))?;
-    let private_app_server = axum::serve(listener_private, private_app).into_future();
 
     let (public_res, private_res) = futures::join!(public_app_server, private_app_server);
     match public_res {

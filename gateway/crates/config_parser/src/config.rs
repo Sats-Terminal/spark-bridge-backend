@@ -37,6 +37,8 @@ pub struct VerifierConfig {
 pub struct AggregatorConfig {
     pub threshold: u16,
     pub total_participants: u16,
+    /// Need for configuring Btc confirmation aggregator, can be used as an additional argument in Frost Aggreagator
+    pub update_interval_milliseconds: u64,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -78,7 +80,7 @@ pub struct VerifiersConfig(pub Vec<VerifierConfig>);
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ServerConfig {
     #[serde(rename(deserialize = "application"))]
-    pub server: AppConfig,
+    pub server_public: AppConfig,
     #[serde(rename = "verifiers_config")]
     pub verifiers: VerifiersConfig,
     #[serde(rename = "aggregator_config")]
@@ -86,7 +88,7 @@ pub struct ServerConfig {
     #[serde(rename = "flow_processor_config")]
     pub flow_processor: FlowProcessorConfig,
     #[serde(rename = "private_api_config")]
-    pub flow_processor_private_api: PrivateApiConfig,
+    pub server_private_api: PrivateApiConfig,
 }
 
 pub fn get_cargo_manifest_dir() -> String {

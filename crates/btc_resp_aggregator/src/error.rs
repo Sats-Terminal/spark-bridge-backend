@@ -1,4 +1,5 @@
 use persistent_storage::error::DbError;
+use reqwest::StatusCode;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -11,6 +12,8 @@ pub enum BtcAggregatorError {
     Internal(String),
     #[error("HTTP error: {0}")]
     HttpError(String),
+    #[error("Failed to send notification to verifier code: {code}, error: {message}")]
+    FailedToSendMsgToVerifier { code: u16, message: String },
 }
 
 #[derive(Debug, Error)]

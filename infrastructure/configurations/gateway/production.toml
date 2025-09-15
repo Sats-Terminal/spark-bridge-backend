@@ -23,6 +23,7 @@ address = "http://verifier3-service:8070"
 [aggregator_config]
 threshold = 2
 total_participants = 3
+update_interval_milliseconds = 10000
 
 [flow_processor_config]
 cancellation_retries = 10

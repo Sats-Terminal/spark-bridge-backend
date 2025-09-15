@@ -1,12 +1,14 @@
 use crate::error::BtcAggregatorError;
 use async_trait::async_trait;
 use bitcoin::Txid;
+use bitcoin::secp256k1::PublicKey;
 use global_utils::api_result_request::ApiResponseOwned;
 use global_utils::common_types::UrlWrapped;
 use persistent_storage::error::DbError;
 use serde::{Deserialize, Serialize};
 use sqlx;
 use url::Url;
+use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -16,7 +18,11 @@ pub struct CheckTxResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CheckTxRequest {
+    pub uuid: Uuid,
     pub tx_id: Txid,
+    pub public_key: PublicKey,
+    /// Address which would be used for response to private api in gateway
+    /// (for collection of responses from verifiers about correctness of given tx_id)
     pub loopback_addr: Url,
 }
 

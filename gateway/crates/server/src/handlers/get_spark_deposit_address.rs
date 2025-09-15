@@ -1,8 +1,8 @@
 use crate::error::GatewayError;
 use crate::init::AppState;
 use axum::{Json, extract::State};
-use gateway_flow_processor::types::{IssueSparkDepositAddressRequest};
 use gateway_flow_processor::flow_sender::TypedMessageSender;
+use gateway_flow_processor::types::IssueSparkDepositAddressRequest;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use tracing::{debug, instrument};
@@ -38,7 +38,7 @@ pub async fn handle(
         })
         .await
         .map_err(|e| GatewayError::FlowProcessorError(format!("Failed to issue deposit address for bridging: {e}")))?;
-    
+
     return Ok(Json(GetSparkDepositAddressResponse {
         address: response.addr_to_replenish,
     }));

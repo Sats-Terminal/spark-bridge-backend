@@ -9,3 +9,5 @@ readme.workspace = true
 [dependencies]
 titan-client = { workspace = true }
 serde = { workspace = true }
+uuid = { workspace = true }
+global_utils = { workspace = true }
