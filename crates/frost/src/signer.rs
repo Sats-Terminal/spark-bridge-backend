@@ -1,7 +1,8 @@
 use crate::{errors::SignerError, traits::*, types::*};
 use frost_secp256k1_tr::{Identifier, keys::Tweak};
 use rand_core::OsRng;
-use std::sync::Arc;
+use std::{collections::BTreeSet, sync::Arc};
+use tokio::sync::Mutex;
 
 #[derive(Clone)]
 pub struct FrostSigner {
@@ -10,6 +11,7 @@ pub struct FrostSigner {
     sign_session_storage: Arc<dyn SignerSignSessionStorage>,
     total_participants: u16,
     threshold: u16,
+    locked_musig_ids: Arc<Mutex<BTreeSet<MusigId>>>,
 }
 
 impl FrostSigner {
@@ -26,11 +28,32 @@ impl FrostSigner {
             identifier: identifier.try_into().unwrap(),
             total_participants,
             threshold,
+            locked_musig_ids: Arc::new(Mutex::new(BTreeSet::new())),
         }
     }
 
+    pub async fn lock_musig_id(&self, musig_id: MusigId) -> Result<(), SignerError> {
+        let mut locked_musig_ids = self.locked_musig_ids.lock().await;
+        if locked_musig_ids.contains(&musig_id) {
+            return Err(SignerError::MusigAlreadyExists(format!("Musig id already exists: {:?}", musig_id)));
+        }
+        locked_musig_ids.insert(musig_id.clone());
+        Ok(())
+    }
+
+    pub async fn unlock_musig_id(&self, musig_id: MusigId) -> Result<(), SignerError> {
+        let mut locked_musig_ids = self.locked_musig_ids.lock().await;
+        let removed = locked_musig_ids.remove(&musig_id);
+        if !removed {
+            return Err(SignerError::MusigNotFound(format!("Something bad went wrong: {:?}", musig_id)));
+        }
+        Ok(())
+    }
+
     pub async fn dkg_round_1(&self, request: DkgRound1Request) -> Result<DkgRound1Response, SignerError> {
-        let musig_id = request.musig_id;
+        self.lock_musig_id(request.musig_id.clone()).await?;
+
+        let musig_id = request.musig_id.clone();
         let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id.clone()).await?;
 
         match musig_id_data {
@@ -58,7 +81,10 @@ impl FrostSigner {
                     round1_package: package,
                 })
             }
-            _ => Err(SignerError::InvalidUserState("User key state is not Null".to_string())),
+            _ => {
+                self.unlock_musig_id(musig_id).await?;
+                Err(SignerError::MusigAlreadyExists(format!("Musig id already exists: {:?}", request.musig_id)))
+            }
         }
     }
 
@@ -97,7 +123,7 @@ impl FrostSigner {
     }
 
     pub async fn dkg_finalize(&self, request: DkgFinalizeRequest) -> Result<DkgFinalizeResponse, SignerError> {
-        let musig_id = request.musig_id;
+        let musig_id = request.musig_id.clone();
         let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id.clone()).await?;
 
         match musig_id_data {
@@ -123,6 +149,9 @@ impl FrostSigner {
                         },
                     )
                     .await?;
+
+                self.unlock_musig_id(musig_id).await?;
+
                 Ok(DkgFinalizeResponse { public_key_package })
             }
             _ => Err(SignerError::InvalidUserState(
