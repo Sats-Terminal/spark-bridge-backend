@@ -38,32 +38,8 @@ pub enum FlowProcessorError {
     Secp256k1Error(#[from] secp256k1::Error),
     #[error("Failed conversion to TweakedPubkey error: {0}")]
     TweakingConversionError(String),
-    #[error("Occurred problem with issuing btc addr: {0}")]
-    BtcAddrIssueError(#[from] BtcAddrIssueErrorEnum),
-}
-
-#[derive(Error, Debug)]
-pub enum BtcAddrIssueErrorEnum {
-    #[error("Unfinished dkg state, please wait for completion. got: {got}, has to be Finalized")]
-    UnfinishedDkgState { got: String },
-    #[error("No required entry in db for request: {0:?}, while MuSigId exists")]
-    NoDepositAddrInfoInDb(IssueBtcDepositAddressRequest),
-    #[error("Occurred error on Aggregator, failed to finalize dkg, err: {0}")]
-    AggregatorError(#[from] AggregatorError),
-    #[error("Failed to change pubkey address, err: {context}")]
-    ChangePubkeyAddr { context: String },
-    #[error(
-        "Obtained wrong status on issuing btc addr for replenishment, context: '{context}', got: {got:?}, expected: {expected:?}"
-    )]
-    WrongStatus {
-        context: String,
-        got: DepositStatus,
-        expected: DepositStatus,
-    },
-    #[error("Database error occurred, err: {0}")]
-    DbError(#[from] DbError),
-    #[error("Invalid data error: {0}")]
-    InvalidDataError(String),
+    #[error("Unfinished dkg state: {0}")]
+    UnfinishedDkgState(String),
 }
 
 impl IntoResponse for PrivateApiError {

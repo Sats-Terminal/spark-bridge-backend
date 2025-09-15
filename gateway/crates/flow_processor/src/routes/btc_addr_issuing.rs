@@ -1,4 +1,4 @@
-use crate::error::{BtcAddrIssueErrorEnum, FlowProcessorError};
+use crate::error::FlowProcessorError;
 use crate::flow_router::FlowProcessorRouter;
 use crate::types::IssueBtcDepositAddressRequest;
 use bitcoin::Address;
@@ -7,7 +7,7 @@ use frost::types::AggregatorDkgState;
 use frost::utils::convert_public_key_package;
 use gateway_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositAddressStorage, DepositStatus};
 use frost::utils::{get_address, generate_nonce};
-use tracing::{debug, info, instrument};
+use tracing;
 
 const LOG_PATH: &str = "flow_processor:routes:btc_addr_issuing";
 
@@ -15,40 +15,26 @@ pub async fn handle(
     flow_processor: &mut FlowProcessorRouter,
     request: IssueBtcDepositAddressRequest,
 ) -> Result<Address, FlowProcessorError> {
-    info!("[{LOG_PATH}] Handling btc addr issuing ...");
-    _handle_inner(flow_processor, &request)
-        .await
-        .map_err(|e| FlowProcessorError::BtcAddrIssueError(e))
-}
-
-#[instrument(skip(flow_processor, request), level = "trace", ret)]
-async fn _handle_inner(
-    flow_processor: &mut FlowProcessorRouter,
-    request: &IssueBtcDepositAddressRequest,
-) -> Result<Address, BtcAddrIssueErrorEnum> {
     let local_db_storage = flow_processor.storage.clone();
 
     let public_key_package = 
         match flow_processor.storage.get_musig_id_data(&request.musig_id).await? {
             None => {
-                debug!("[{LOG_PATH}] Missing musig, running dkg from the beginning ...");
-                let pubkey_package = flow_processor.frost_aggregator.run_dkg_flow(&request.musig_id).await?;
-                debug!("[{LOG_PATH}] DKG processing was successfully completed");
+                tracing::debug!("[{LOG_PATH}] Missing musig, running dkg from the beginning ...");
+                let pubkey_package = flow_processor.frost_aggregator.run_dkg_flow(&request.musig_id).await
+                    .map_err(|e| FlowProcessorError::FrostAggregatorError(format!("Failed to run DKG flow: {}", e)))?;
+                tracing::debug!("[{LOG_PATH}] DKG processing was successfully completed");
                 pubkey_package
             }
             Some(x) => {
-                debug!("[{LOG_PATH}] Musig exists, obtaining dkg pubkey ...");
+                tracing::debug!("[{LOG_PATH}] Musig exists, obtaining dkg pubkey ...");
                 // extract data from db, get nonce and generate new one, return it to user
                 match x.dkg_state {
                     AggregatorDkgState::DkgRound1 { .. } => {
-                        return Err(BtcAddrIssueErrorEnum::UnfinishedDkgState {
-                            got: "AggregatorDkgState::DkgRound1".to_string(),
-                        });
+                        return Err(FlowProcessorError::UnfinishedDkgState("Should be DkgFinalized, got DkgRound1".to_string()));
                     }
                     AggregatorDkgState::DkgRound2 { .. } => {
-                        return Err(BtcAddrIssueErrorEnum::UnfinishedDkgState {
-                            got: "AggregatorDkgState::DkgRound2".to_string(),
-                        });
+                        return Err(FlowProcessorError::UnfinishedDkgState("Should be DkgFinalized, got DkgRound2".to_string()));
                     }
                     AggregatorDkgState::DkgFinalized {
                         public_key_package: pubkey_package,
@@ -60,9 +46,9 @@ async fn _handle_inner(
 
     let nonce = generate_nonce();
     let public_key = convert_public_key_package(&public_key_package)
-        .map_err(|e| BtcAddrIssueErrorEnum::InvalidDataError(e.to_string()))?;
+        .map_err(|e| FlowProcessorError::InvalidDataError(format!("Failed to convert public key package: {}", e)))?;
     let address = get_address(public_key, nonce, flow_processor.network)
-        .map_err(|e| BtcAddrIssueErrorEnum::InvalidDataError(format!("Failed to create address: {}", e)))?;
+        .map_err(|e| FlowProcessorError::InvalidDataError(format!("Failed to create address: {}", e)))?;
 
     local_db_storage
         .set_deposit_addr_info(

@@ -93,6 +93,7 @@ impl FlowProcessorRouter {
             request.amount,
             network,
             self.frost_aggregator.clone(),
+            self.storage.clone(),
         ).await?;
         Ok(IssueSparkDepositAddressResponse {
             addr_to_replenish: address,
