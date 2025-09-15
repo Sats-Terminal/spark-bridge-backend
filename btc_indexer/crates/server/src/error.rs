@@ -21,17 +21,17 @@ pub enum ServerError {
 }
 
 mod response_conversion {
-    use axum::http::StatusCode;
-
     use super::*;
+    use axum::http::StatusCode;
+    use global_utils::api_result_request::ErrorIntoStatusMsgTuple;
     impl axum::response::IntoResponse for ServerError {
         fn into_response(self) -> axum::response::Response {
             self.into_status_msg_tuple().into_response()
         }
     }
 
-    impl ServerError {
-        pub fn into_status_msg_tuple(self) -> (StatusCode, String) {
+    impl ErrorIntoStatusMsgTuple for ServerError {
+        fn into_status_msg_tuple(self) -> (StatusCode, String) {
             match self {
                 ServerError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
                 ServerError::NotFound(msg) => (StatusCode::NOT_FOUND, msg),

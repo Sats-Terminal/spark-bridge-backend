@@ -1,6 +1,10 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+pub trait ErrorIntoStatusMsgTuple {
+    fn into_status_msg_tuple(self) -> (axum::http::StatusCode, String);
+}
+
 #[derive(Debug, Clone, Serialize, Eq, PartialEq, ToSchema)]
 pub enum ApiResponse<'a, T> {
     #[serde(rename = "ok")]
@@ -16,6 +20,10 @@ pub enum ApiResponseOwned<T> {
     #[serde(rename = "err")]
     Err { code: u16, message: String },
 }
+
+#[derive(Serialize, ToSchema, Debug)]
+#[schema(example = json!({ }))]
+pub struct Empty {}
 
 impl<'a, T: Serialize> ApiResponse<'a, T> {
     pub fn ok(data: &'a T) -> ApiResponse<'a, T> {
@@ -75,8 +83,10 @@ impl<'a, T: Deserialize<'a> + Serialize + Clone> ApiResponseOwned<T> {
     }
 }
 
-impl<'a, T: Deserialize<'a> + Serialize + Clone> From<crate::error::Result<T>> for ApiResponseOwned<T> {
-    fn from(value: crate::error::Result<T>) -> Self {
+impl<'a, T: Deserialize<'a> + Serialize + Clone, E: ErrorIntoStatusMsgTuple> From<Result<T, E>>
+    for ApiResponseOwned<T>
+{
+    fn from(value: Result<T, E>) -> Self {
         match value {
             Ok(v) => ApiResponseOwned::ok(v),
             Err(e) => {
@@ -88,7 +98,7 @@ impl<'a, T: Deserialize<'a> + Serialize + Clone> From<crate::error::Result<T>> f
 }
 
 /// Uses result from indexer and builds Json encoded string as response
-fn _result_into_json<T: Serialize>(res: crate::error::Result<T>) -> String {
+fn _result_into_json<T: Serialize, E: ErrorIntoStatusMsgTuple>(res: Result<T, E>) -> String {
     match res {
         Ok(v) => ApiResponse::ok(&v).encode_string_json(),
         Err(e) => {

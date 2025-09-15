@@ -1,1 +1,1 @@
-pub mod frost_signer;
+pub mod verifier_entities;

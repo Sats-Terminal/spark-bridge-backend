@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 anyhow = { workspace = true }
+axum = { workspace = true }
 bitcoin = { workspace = true }
 dns-lookup = { workspace = true }
 frost-secp256k1-tr = { workspace = true }

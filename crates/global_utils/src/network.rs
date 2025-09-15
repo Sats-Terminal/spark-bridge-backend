@@ -1,6 +1,8 @@
 use crate::env_parser::{EnvParser, EnvParserError};
 use bitcoin::Network;
+use std::net::ToSocketAddrs;
 use std::str::FromStr;
+use url::Url;
 
 pub struct NetworkConfig {
     pub network: Network,
@@ -19,4 +21,16 @@ impl NetworkConfig {
             })?,
         })
     }
+}
+
+#[inline]
+pub fn convert_to_http_url(
+    addr: impl ToSocketAddrs,
+    endpoint: Option<impl AsRef<str>>,
+) -> Result<Url, url::ParseError> {
+    Url::from_str(&format!(
+        "http://{}{}",
+        addr.to_socket_addrs().unwrap().next().unwrap(),
+        endpoint.as_ref().map(|x| x.as_ref()).unwrap_or("")
+    ))
 }

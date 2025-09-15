@@ -1,12 +1,17 @@
 use crate::handlers;
-use crate::state::AppState;
 use axum::Router;
 use axum::routing::post;
-use gateway_flow_processor::flow_sender::FlowSender;
 use tracing::instrument;
 
+use gateway_flow_processor::flow_sender::FlowSender;
+
+#[derive(Clone)]
+pub struct AppState {
+    pub flow_sender: FlowSender,
+}
+
 #[instrument(level = "debug", skip(flow_sender), ret)]
-pub async fn create_app(flow_sender: FlowSender) -> anyhow::Result<Router> {
+pub async fn create_public_app(flow_sender: FlowSender) -> anyhow::Result<Router> {
     let state = AppState { flow_sender };
     Ok(Router::new()
         .route("/api/user/runes-address", post(handlers::get_runes_address::handle))

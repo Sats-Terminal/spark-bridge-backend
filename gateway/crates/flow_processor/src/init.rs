@@ -1,13 +1,15 @@
 use crate::flow_processor::FlowProcessor;
 use crate::flow_sender::FlowSender;
+use crate::handlers;
+use axum::Router;
+use axum::routing::post;
 use bitcoin::Network;
 use frost::aggregator::FrostAggregator;
-use std::sync::Arc;
-
 use gateway_local_db_store::storage::LocalDbStorage;
-use persistent_storage::init::PostgresRepo;
+use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
+use tracing::instrument;
 
 pub fn create_flow_processor(
     storage: Arc<LocalDbStorage>,
@@ -27,4 +29,20 @@ pub fn create_flow_processor(
     );
     let flow_sender = FlowSender::new(tx_sender, cancellation_token);
     (flow_processor, flow_sender)
+}
+
+#[derive(Clone)]
+pub struct PrivateAppState {
+    pub flow_sender: FlowSender,
+}
+
+#[instrument(level = "debug", skip(flow_sender), ret)]
+pub async fn create_private_app(flow_sender: FlowSender) -> anyhow::Result<Router> {
+    let state = PrivateAppState { flow_sender };
+    Ok(Router::new()
+        .route(
+            "/loopback_indexer_response",
+            post(handlers::loopback_indexer_response::handle),
+        )
+        .with_state(state))
 }

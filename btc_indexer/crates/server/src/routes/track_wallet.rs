@@ -1,10 +1,13 @@
 use std::sync::Arc;
 
+use crate::{AppState, error::ServerError};
 use axum::extract::{Json, State};
+use btc_indexer_api::api::{TrackWalletRequest, TrackWalletResponse};
 use btc_indexer_internals::{
     api::{AccountReplenishmentEvent, BtcIndexerApi},
     indexer::BtcIndexer,
 };
+use global_utils::api_result_request::{ApiResponseOwned, Empty};
 use global_utils::common_types::{UrlWrapped, get_uuid};
 use local_db_store_indexer::{
     PersistentRepoTrait,
@@ -19,19 +22,7 @@ use tracing::{debug, error, info, instrument, trace};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::{AppState, common::Empty, error::ServerError, routes::common::api_result_request::ApiResponseOwned};
-
 const PATH_TO_LOG: &str = "btc_indexer_server:track_wallet";
-
-#[derive(Debug, Deserialize, Serialize, ToSchema)]
-#[schema(example = json!({
-    "wallet": "sprt1pgss8fxt9jxuv4dgjwrg539s6u06ueausq076xvfej7wdah0htvjlxunt9fa4n",
-    "callback_url": "127.0.0.1:8080"
-}))]
-pub struct TrackWalletRequest {
-    pub wallet_id: String,
-    pub callback_url: UrlWrapped,
-}
 
 #[utoipa::path(
     post,
@@ -47,7 +38,7 @@ pub struct TrackWalletRequest {
 pub async fn handler(
     State(state): State<AppState<impl titan_client::TitanApi, impl PersistentRepoTrait + Clone + 'static>>,
     Json(payload): Json<TrackWalletRequest>,
-) -> Result<Json<Empty>, ServerError> {
+) -> Result<TrackWalletResponse, ServerError> {
     info!("Received TrackWalletRequest: {:?}", payload);
     let uuid = get_uuid();
     {

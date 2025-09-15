@@ -1,4 +1,5 @@
 use config::{Config, Environment};
+use global_utils::common_types::Url;
 use global_utils::config_variant::ConfigVariant;
 use serde::{Deserialize, Serialize};
 use spark_client::utils::spark_address::Network;
@@ -25,13 +26,13 @@ pub struct AppConfig {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub struct BtcIndexerConfig {
-    pub address: String,
+    pub address: Url,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub struct SparkBalanceCheckerConfig {
-    pub address: String,
+    pub address: Url,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -66,6 +67,7 @@ pub struct ServerConfig {
     pub btc_indexer: BtcIndexerConfig,
     #[serde(rename = "spark_balance_checker_url_config")]
     pub spark_balance_checker: SparkBalanceCheckerConfig,
+    #[serde(rename = "frost_signer_config")]
     pub frost_signer: SignerConfig,
 }
 

@@ -50,7 +50,6 @@ impl FlowSender {
 }
 
 #[async_trait::async_trait]
-
 impl TypedMessageSender<DkgFlowRequest, DkgFlowResponse> for FlowSender {
     async fn send(&self, dkg_message: DkgFlowRequest) -> Result<DkgFlowResponse, FlowProcessorError> {
         let response = self

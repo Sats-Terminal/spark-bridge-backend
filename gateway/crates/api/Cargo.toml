@@ -1,0 +1,11 @@
+[package]
+name = "gateway_api"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+readme.workspace = true
+
+[dependencies]
+titan-client = { workspace = true }
+serde = { workspace = true }

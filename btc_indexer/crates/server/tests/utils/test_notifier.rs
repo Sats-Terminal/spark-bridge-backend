@@ -2,10 +2,10 @@ use std::{fmt::Debug, net::SocketAddr, str::FromStr, sync::Arc};
 
 use axum::{Json, Router, extract::State, routing::post};
 use axum_test::TestServer;
+use btc_indexer_api::api::{BtcIndexerCallbackResponse, Empty};
 use btc_indexer_internals::api::AccountReplenishmentEvent;
-use btc_indexer_server::{
-    AppState, common::Empty, error::ServerError, routes::common::api_result_request::ApiResponseOwned,
-};
+use btc_indexer_server::{AppState, error::ServerError};
+use global_utils::api_result_request::ApiResponseOwned;
 use titan_client::Transaction;
 use tokio::sync::Mutex;
 use tracing::{error, info, instrument, warn};
@@ -21,14 +21,14 @@ pub const NOTIFY_WALLET_PATH: &'static str = "/notify_wallet";
 
 #[instrument]
 pub async fn create_test_notifier_track_tx(
-    oneshot_sender: tokio::sync::oneshot::Sender<ApiResponseOwned<Transaction>>,
+    oneshot_sender: tokio::sync::oneshot::Sender<BtcIndexerCallbackResponse>,
     socket_addr: &SocketAddr,
 ) -> anyhow::Result<TestServer> {
     let state = TestAppState {
         notifier: Arc::new(Mutex::new(Some(oneshot_sender))),
     };
     let app = Router::new()
-        .route(NOTIFY_TX_PATH, post(notify_handler::<ApiResponseOwned<Transaction>>))
+        .route(NOTIFY_TX_PATH, post(notify_handler::<BtcIndexerCallbackResponse>))
         .with_state(state);
     TestServer::builder()
         .http_transport()
@@ -104,10 +104,10 @@ async fn notify_wallet(
 
 #[instrument(skip(state))]
 async fn notify_tx(
-    State(mut state): State<TestAppState<ApiResponseOwned<Transaction>>>,
-    Json(payload): Json<ApiResponseOwned<Transaction>>,
+    State(mut state): State<TestAppState<BtcIndexerCallbackResponse>>,
+    Json(payload): Json<BtcIndexerCallbackResponse>,
 ) -> Result<Json<Empty>, ServerError> {
-    _notify_handler_inner::<ApiResponseOwned<Transaction>>(state, payload).await
+    _notify_handler_inner::<BtcIndexerCallbackResponse>(state, payload).await
 }
 
 #[instrument]
@@ -115,7 +115,7 @@ pub async fn spawn_notify_server_track_tx(
     socket_addr: SocketAddr,
 ) -> anyhow::Result<(
     Url,
-    tokio::sync::oneshot::Receiver<ApiResponseOwned<Transaction>>,
+    tokio::sync::oneshot::Receiver<BtcIndexerCallbackResponse>,
     TestServer,
 )> {
     let (tx, rx) = tokio::sync::oneshot::channel();

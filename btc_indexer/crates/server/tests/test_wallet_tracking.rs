@@ -1,13 +1,6 @@
 mod utils;
 
 mod mocked_tx_tracking {
-    use axum_test::TestServer;
-    use btc_indexer_internals::indexer::{BtcIndexer, IndexerParams, IndexerParamsWithApi};
-    use btc_indexer_server::routes::track_wallet::TrackWalletRequest;
-    use config_parser::config::{BtcRpcCredentials, ServerConfig};
-    use global_utils::common_types::UrlWrapped;
-    use tracing::{info, instrument};
-
     use crate::utils::{
         init::{TEST_LOGGER, obtain_random_localhost_socket_addr},
         mock::{
@@ -15,6 +8,12 @@ mod mocked_tx_tracking {
         },
         test_notifier::spawn_notify_server_track_wallet,
     };
+    use axum_test::TestServer;
+    use btc_indexer_api::api::TrackWalletRequest;
+    use btc_indexer_internals::indexer::{BtcIndexer, IndexerParams, IndexerParamsWithApi};
+    use config_parser::config::{BtcRpcCredentials, ServerConfig};
+    use global_utils::common_types::UrlWrapped;
+    use tracing::{info, instrument};
 
     pub async fn init_mocked_wallet_tracking_test_server() -> anyhow::Result<TestServer> {
         Ok(init_mocked_test_server(|| generate_mock_titan_indexer_wallet_tracking()).await?)

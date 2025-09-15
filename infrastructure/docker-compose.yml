@@ -32,6 +32,7 @@ services:
       - DATABASE_URL=postgres://${POSTGRES_USER:-admin_manager}:${POSTGRES_PASSWORD:-password}@persistent-db-storage_gateway:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-production_db_name}
     ports:
       - "8070:8060"
+      - "8069:8061"
     entrypoint: sh -c "sqlx migrate run && gateway_main"
 #    entrypoint: tail -f /dev/null
     depends_on:

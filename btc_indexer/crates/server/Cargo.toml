@@ -14,6 +14,7 @@ swagger = []
 axum = { workspace = true }
 bitcoin = { workspace = true }
 btc_indexer_internals = { workspace = true }
+btc_indexer_api = { workspace = true }
 config_parser = { workspace = true }
 global_utils = { workspace = true }
 local_db_store_indexer = { workspace = true }

@@ -1,11 +1,13 @@
 use crate::error::FlowProcessorError;
 use crate::flow_router::FlowProcessorRouter;
+use crate::types::BridgeRunesRequest;
 use frost::utils::convert_public_key_package;
-use tracing::info;
+use tracing::{info, instrument};
 
-const LOG_PATH: &str = "flow_processor:routes:bridge_runes_flow.rs";
+const LOG_PATH: &str = "flow_processor:routes:bridge_runes_flow";
 
-pub async fn handle(x: &mut FlowProcessorRouter) -> Result<(), FlowProcessorError> {
+#[instrument(skip(flow_processor), level = "trace", ret)]
+pub async fn handle(flow_processor: &mut FlowProcessorRouter) -> Result<(), FlowProcessorError> {
     info!("[{LOG_PATH}] Handling btc addr bridge runes flow ...");
     Ok(())
 }

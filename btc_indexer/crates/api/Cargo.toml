@@ -1,0 +1,15 @@
+[package]
+name = "btc_indexer_api"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+readme.workspace = true
+
+[dependencies]
+global_utils = { workspace = true }
+utoipa = { workspace = true }
+serde = { workspace = true }
+utoipa-swagger-ui = { workspace = true, features = ["axum"] }
+axum = { workspace = true }
+titan-client = { workspace = true }

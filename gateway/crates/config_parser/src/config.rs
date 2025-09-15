@@ -47,6 +47,15 @@ pub struct FlowProcessorConfig {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
+pub struct PrivateApiConfig {
+    #[serde(rename = "http_server_ip")]
+    pub ip: String,
+    #[serde(rename = "http_server_port")]
+    pub port: u16,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
 #[serde(transparent)]
 pub struct VerifiersConfig(pub Vec<VerifierConfig>);
 
@@ -76,6 +85,8 @@ pub struct ServerConfig {
     pub aggregator: AggregatorConfig,
     #[serde(rename = "flow_processor_config")]
     pub flow_processor: FlowProcessorConfig,
+    #[serde(rename = "private_api_config")]
+    pub flow_processor_private_api: PrivateApiConfig,
 }
 
 pub fn get_cargo_manifest_dir() -> String {
@@ -83,6 +94,13 @@ pub fn get_cargo_manifest_dir() -> String {
 }
 
 impl AppConfig {
+    #[inline]
+    pub fn get_app_binding_url(&self) -> crate::error::Result<SocketAddr> {
+        Ok(SocketAddr::from_str(&format!("{}:{}", self.ip, self.port))?)
+    }
+}
+
+impl PrivateApiConfig {
     #[inline]
     pub fn get_app_binding_url(&self) -> crate::error::Result<SocketAddr> {
         Ok(SocketAddr::from_str(&format!("{}:{}", self.ip, self.port))?)

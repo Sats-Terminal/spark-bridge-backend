@@ -1,0 +1,22 @@
+[package]
+name = "btc_resp_aggregator"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+readme.workspace = true
+
+[dependencies]
+async-trait = { workspace = true }
+thiserror = { workspace = true }
+titan-client = { workspace = true }
+bitcoin = { workspace = true }
+frost-secp256k1-tr = { workspace = true }
+serde = { workspace = true }
+url = { workspace = true }
+global_utils = { workspace = true }
+persistent_storage = { workspace = true }
+sqlx = { workspace = true }
+reqwest = { workspace = true }
+btc_indexer_api = { workspace = true }
+gateway_api = { workspace = true }

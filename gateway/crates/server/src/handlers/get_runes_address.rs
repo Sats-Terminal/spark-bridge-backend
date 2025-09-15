@@ -1,5 +1,5 @@
 use crate::error::GatewayError;
-use crate::state::AppState;
+use crate::init::AppState;
 use anyhow::bail;
 use axum::{Json, extract::State};
 use gateway_flow_processor::types::{DkgFlowRequest, FlowProcessorMessage, FlowProcessorResponse};

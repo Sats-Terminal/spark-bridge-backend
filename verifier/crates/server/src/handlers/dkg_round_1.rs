@@ -1,5 +1,5 @@
 use crate::errors::VerifierError;
-use crate::state::AppState;
+use crate::init::AppState;
 use axum::Json;
 use axum::extract::State;
 use frost::types::{DkgRound1Request, DkgRound1Response};
@@ -11,7 +11,6 @@ pub async fn handle(
     Json(request): Json<DkgRound1Request>,
 ) -> Result<Json<DkgRound1Response>, VerifierError> {
     let response = state.frost_signer.dkg_round_1(request).await?;
-    tracing::debug!("DKG round1 response: {:?}", response);
-
+    tracing::debug!("[verifier] DKG round1 response: {:?}", response);
     Ok(Json(response))
 }
