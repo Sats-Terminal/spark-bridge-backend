@@ -50,15 +50,30 @@ impl FlowSender {
 }
 
 #[async_trait::async_trait]
-impl TypedMessageSender<DkgFlowRequest, DkgFlowResponse> for FlowSender {
-    async fn send(&self, dkg_message: DkgFlowRequest) -> Result<DkgFlowResponse, FlowProcessorError> {
+impl TypedMessageSender<IssueBtcDepositAddressRequest, IssueBtcDepositAddressResponse> for FlowSender {
+    async fn send(&self, dkg_message: IssueBtcDepositAddressRequest) -> Result<IssueBtcDepositAddressResponse, FlowProcessorError> {
         let response = self
-            .send_messsage(FlowProcessorMessage::IssueDepositAddress(dkg_message))
+            .send_messsage(FlowProcessorMessage::IssueBtcDepositAddress(dkg_message))
             .await?;
         match response {
             FlowProcessorResponse::IssueDepositAddress(response) => Ok(response),
             x => Err(FlowProcessorError::InvalidResponseType(format!(
                 "Invalid response type, obtain: {x:?}, expected: [FlowProcessorResponse::RunDkgFlow]"
+            ))),
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl TypedMessageSender<IssueSparkDepositAddressRequest, IssueSparkDepositAddressResponse> for FlowSender {
+    async fn send(&self, dkg_message: IssueSparkDepositAddressRequest) -> Result<IssueSparkDepositAddressResponse, FlowProcessorError> {
+        let response = self
+            .send_messsage(FlowProcessorMessage::IssueSparkDepositAddress(dkg_message))
+            .await?;
+        match response {
+            FlowProcessorResponse::IssueSparkDepositAddress(response) => Ok(response),
+            x => Err(FlowProcessorError::InvalidResponseType(format!(
+                "Invalid response type, obtain: {x:?}, expected: [FlowProcessorResponse::IssueSparkDepositAddress]"
             ))),
         }
     }

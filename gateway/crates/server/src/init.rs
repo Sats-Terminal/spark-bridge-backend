@@ -14,7 +14,8 @@ pub struct AppState {
 pub async fn create_public_app(flow_sender: FlowSender) -> anyhow::Result<Router> {
     let state = AppState { flow_sender };
     Ok(Router::new()
-        .route("/api/user/runes-address", post(handlers::get_runes_address::handle))
+        .route("/api/user/get-btc-deposit-address", post(handlers::get_btc_deposit_address::handle))
+        .route("/api/user/get-spark-deposit-address", post(handlers::get_spark_deposit_address::handle))
         .route("/api/user/bridge-runes", post(handlers::bridge_runes::handle))
         .route("/api/user/exit-spark", post(handlers::exit_spark::handle))
         .route(

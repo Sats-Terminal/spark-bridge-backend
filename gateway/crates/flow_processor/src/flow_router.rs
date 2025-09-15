@@ -26,9 +26,14 @@ pub struct FlowProcessorRouter {
 impl FlowProcessorRouter {
     pub async fn run(mut self, message: FlowProcessorMessage) {
         let response = match message {
-            FlowProcessorMessage::IssueDepositAddress(request) => {
+            FlowProcessorMessage::IssueBtcDepositAddress(request) => {
                 let response = self.run_btc_addr_issuing(request, self.network).await;
                 let answer = response.map(|response| FlowProcessorResponse::IssueDepositAddress(response));
+                answer
+            }
+            FlowProcessorMessage::IssueSparkDepositAddress(request) => {
+                let response = self.run_spark_addr_issuing(request, self.network).await;
+                let answer = response.map(|response| FlowProcessorResponse::IssueSparkDepositAddress(response));
                 answer
             }
             FlowProcessorMessage::BridgeRunes(request) => {
@@ -55,12 +60,12 @@ impl FlowProcessorRouter {
     #[tracing::instrument(level = "trace", skip(self, request), ret)]
     async fn run_btc_addr_issuing(
         &mut self,
-        request: DkgFlowRequest,
+        request: IssueBtcDepositAddressRequest,
         network: Network,
-    ) -> Result<DkgFlowResponse, FlowProcessorError> {
+    ) -> Result<IssueBtcDepositAddressResponse, FlowProcessorError> {
         info!("[{LOG_PATH}] issuing btc addr to user with request: {request:?}");
         let pubkey = crate::routes::btc_addr_issuing::handle(self, request, network).await?;
-        Ok(DkgFlowResponse {
+        Ok(IssueBtcDepositAddressResponse {
             addr_to_replenish: pubkey,
         })
     }
@@ -74,6 +79,22 @@ impl FlowProcessorRouter {
         crate::routes::bridge_runes_flow::handle(self).await?;
         Ok(BridgeRunesResponse {
             message: format!("message for {}", request.request_id),
+        })
+    }
+
+    async fn run_spark_addr_issuing(
+        &mut self,
+        request: IssueSparkDepositAddressRequest,
+        network: Network,
+    ) -> Result<IssueSparkDepositAddressResponse, FlowProcessorError> {
+        info!("[{LOG_PATH}] issuing spark addr to user with request: {request:?}");
+        let address = crate::routes::spark_addr_issuing::handle(
+            request.musig_id, 
+            request.amount,
+            network,
+        ).await?;
+        Ok(IssueSparkDepositAddressResponse {
+            addr_to_replenish: address,
         })
     }
 

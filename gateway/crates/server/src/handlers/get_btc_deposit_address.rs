@@ -2,20 +2,20 @@ use crate::error::GatewayError;
 use crate::init::AppState;
 use anyhow::bail;
 use axum::{Json, extract::State};
-use gateway_flow_processor::types::{DkgFlowRequest, FlowProcessorMessage, FlowProcessorResponse};
+use gateway_flow_processor::types::{IssueBtcDepositAddressRequest, FlowProcessorMessage, FlowProcessorResponse};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use tracing::{debug, instrument};
 
 #[derive(Deserialize, Debug)]
-pub struct GetRunesAddressRequest {
+pub struct GetBtcDepositAddressRequest {
     pub user_public_key: String,
     pub rune_id: String,
     pub amount: u64,
 }
 
 #[derive(Serialize, Debug)]
-pub struct GetRunesAddressResponse {
+pub struct GetBtcDepositAddressResponse {
     pub address: String,
 }
 
@@ -23,8 +23,8 @@ pub struct GetRunesAddressResponse {
 #[instrument(level = "info", skip(state, request), fields(request = ?request), ret)]
 pub async fn handle(
     State(state): State<AppState>,
-    Json(request): Json<GetRunesAddressRequest>,
-) -> Result<Json<GetRunesAddressResponse>, GatewayError> {
+    Json(request): Json<GetBtcDepositAddressRequest>,
+) -> Result<Json<GetBtcDepositAddressResponse>, GatewayError> {
     _handle_inner(state, request)
         .await
         .map_err(|e| GatewayError::FlowProcessorError(format!("Failed to issue deposit address for bridging: {e}")))
@@ -33,12 +33,12 @@ pub async fn handle(
 #[instrument(level = "debug", skip(state, request), fields(request = ?request), ret)]
 async fn _handle_inner(
     state: AppState,
-    request: GetRunesAddressRequest,
-) -> anyhow::Result<Json<GetRunesAddressResponse>> {
+    request: GetBtcDepositAddressRequest,
+) -> anyhow::Result<Json<GetBtcDepositAddressResponse>> {
     debug!("[handler-btc-addr-issuing] Handling request: {request:?}");
     let possible_response = state
         .flow_sender
-        .send_messsage(FlowProcessorMessage::IssueDepositAddress(DkgFlowRequest {
+        .send_messsage(FlowProcessorMessage::IssueBtcDepositAddress(IssueBtcDepositAddressRequest {
             musig_id: frost::types::MusigId::User {
                 rune_id: request.rune_id,
                 user_public_key: bitcoin::secp256k1::PublicKey::from_str(&request.user_public_key)?,
@@ -47,7 +47,7 @@ async fn _handle_inner(
         }))
         .await?;
     if let FlowProcessorResponse::IssueDepositAddress(flow_resp) = possible_response {
-        Ok(Json(GetRunesAddressResponse {
+        Ok(Json(GetBtcDepositAddressResponse {
             address: flow_resp.addr_to_replenish.to_string(),
         }))
     } else {

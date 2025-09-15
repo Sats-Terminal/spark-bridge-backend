@@ -9,27 +9,40 @@ pub type OneshotFlowProcessorSender = oneshot::Sender<Result<FlowProcessorRespon
 pub type OneshotFlowProcessorReceiver = oneshot::Receiver<Result<FlowProcessorResponse, FlowProcessorError>>;
 
 pub enum FlowProcessorMessage {
-    IssueDepositAddress(DkgFlowRequest),
+    IssueBtcDepositAddress(IssueBtcDepositAddressRequest),
+    IssueSparkDepositAddress(IssueSparkDepositAddressRequest),
     BridgeRunes(BridgeRunesRequest),
     ExitSpark(ExitSparkRequest),
 }
 
 #[derive(Debug)]
 pub enum FlowProcessorResponse {
-    IssueDepositAddress(DkgFlowResponse),
+    IssueDepositAddress(IssueBtcDepositAddressResponse),
+    IssueSparkDepositAddress(IssueSparkDepositAddressResponse),
     BridgeRunes(BridgeRunesResponse),
     ExitSpark(ExitSparkResponse),
 }
 
 #[derive(Debug)]
-pub struct DkgFlowRequest {
+pub struct IssueBtcDepositAddressRequest {
     pub musig_id: MusigId,
     pub amount: u64,
 }
 
 #[derive(Debug)]
-pub struct DkgFlowResponse {
+pub struct IssueBtcDepositAddressResponse {
     pub addr_to_replenish: Address,
+}
+
+#[derive(Debug)]
+pub struct IssueSparkDepositAddressRequest {
+    pub musig_id: MusigId,
+    pub amount: u64,
+}
+
+#[derive(Debug)]
+pub struct IssueSparkDepositAddressResponse {
+    pub addr_to_replenish: String,
 }
 
 #[derive(Debug)]

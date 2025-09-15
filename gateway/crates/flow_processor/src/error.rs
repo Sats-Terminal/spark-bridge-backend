@@ -1,4 +1,4 @@
-use crate::types::DkgFlowRequest;
+use crate::types::IssueBtcDepositAddressRequest;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use bitcoin::secp256k1;
@@ -48,7 +48,7 @@ pub enum BtcAddrIssueErrorEnum {
     #[error("Unfinished dkg state, please wait for completion. got: {got}, has to be Finalized")]
     UnfinishedDkgState { got: String },
     #[error("No required entry in db for request: {0:?}, while MuSigId exists")]
-    NoDepositAddrInfoInDb(DkgFlowRequest),
+    NoDepositAddrInfoInDb(IssueBtcDepositAddressRequest),
     #[error("Occurred error on Aggregator, failed to finalize dkg, err: {0}")]
     AggregatorError(#[from] AggregatorError),
     #[error("Occurred error tweak generation, err: {0}")]

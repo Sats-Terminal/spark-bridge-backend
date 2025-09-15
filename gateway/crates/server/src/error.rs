@@ -10,6 +10,8 @@ pub enum GatewayError {
     BadRequest(String),
     #[error("Flow processor error: {0}")]
     FlowProcessorError(String),
+    #[error("Invalid data: {0}")]
+    InvalidData(String),
 }
 
 impl IntoResponse for GatewayError {
@@ -17,6 +19,7 @@ impl IntoResponse for GatewayError {
         match self {
             GatewayError::BadRequest(message) => (StatusCode::BAD_REQUEST, message).into_response(),
             GatewayError::FlowProcessorError(message) => (StatusCode::INTERNAL_SERVER_ERROR, message).into_response(),
+            GatewayError::InvalidData(message) => (StatusCode::BAD_REQUEST, message).into_response(),
         }
     }
 }
