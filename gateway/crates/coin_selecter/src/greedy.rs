@@ -2,7 +2,6 @@ use crate::CoinSelector;
 use async_trait::async_trait;
 use chrono::NaiveDateTime;
 use sqlx::FromRow;
-use gateway_local_db_store::schemas::utxo::*;
 use gateway_local_db_store::storage::Storage;
 use persistent_storage::error::DatabaseError;
 
