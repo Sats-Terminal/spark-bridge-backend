@@ -92,6 +92,7 @@ proto-hasher = { path = "./crates/proto-hasher" }
 verifier_local_db_store = { path = "./verifier/crates/local_db_store" }
 verifier_server = { path = "./verifier/crates/server" }
 verifier_config_parser = { path = "./verifier/crates/config_parser" }
+verifier_spark_balance_checker_client = { path = "./verifier/crates/spark_balance_checker_client" }
 
 # Verifier apps
 verifier_main = { path = "verifier/apps/main" }
