@@ -20,11 +20,38 @@ pub enum DepositStatus {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Eq, PartialEq)]
+pub struct VerifiersResponses {
+    pub responses: HashMap<u16, DepositStatus>,
+}
+
+impl VerifiersResponses {
+    pub fn new(status: DepositStatus, ids: Vec<u16>) -> Self {
+        let mut responses = HashMap::new();
+        for id in ids {
+            responses.insert(id, status.clone());
+        }
+        VerifiersResponses { responses }
+    }
+
+    pub fn check_all_verifiers_confirmed(&self) -> bool {
+        for response in self.responses.values() {
+            match response {
+                DepositStatus::Confirmed => continue,
+                DepositStatus::Failed => return false,
+                DepositStatus::WaitingForConfirmation => return false,
+                DepositStatus::Created => return false,
+            }
+        }
+        true
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub struct DepositStatusInfo {
     pub txid: Option<Txid>,
     pub status: DepositStatus,
-    pub verifiers_responses: Option<HashMap<u16, bool>>,
+    pub verifiers_responses: VerifiersResponses,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
@@ -32,7 +59,7 @@ pub struct DepositAddrInfo {
     pub address: Option<String>,
     pub is_btc: bool,
     pub amount: u64,
-    pub confirmation_status: DepositStatus,
+    pub confirmation_status: DepositStatusInfo,
 }
 
 #[async_trait]
@@ -50,7 +77,7 @@ impl DepositAddressStorage for LocalDbStorage {
         let public_key = musig_id.get_public_key();
         let rune_id = musig_id.get_rune_id();
 
-        let result: Option<(Option<String>, bool, i64, Json<DepositStatus>)> = sqlx::query_as(
+        let result: Option<(Option<String>, bool, i64, Json<DepositStatusInfo>)> = sqlx::query_as(
             "SELECT address, is_btc, amount, confirmation_status
             FROM verifier.deposit_address
             WHERE public_key = $1 AND rune_id = $2 AND nonce_tweak = $3",
@@ -108,7 +135,7 @@ impl DepositAddressStorage for LocalDbStorage {
     }
 
     async fn get_row_by_address(&self, address: String) -> Result<Option<(MusigId, Nonce, DepositAddrInfo)>, DbError> {
-        let result: Option<(String, String, Nonce, Option<String>, bool, i64, Json<DepositStatus>)> = sqlx::query_as(
+        let result: Option<(String, String, Nonce, Option<String>, bool, i64, Json<DepositStatusInfo>)> = sqlx::query_as(
             "SELECT public_key, rune_id, nonce_tweak, address, is_btc, amount, confirmation_status
             FROM gateway.deposit_address WHERE address = $1",
         )

@@ -3,7 +3,7 @@ use crate::types::*;
 use bitcoin::{KnownHrp, Network};
 use frost::aggregator::FrostAggregator;
 use gateway_local_db_store::storage::LocalDbStorage;
-use persistent_storage::init::PostgresRepo;
+use gateway_config_parser::config::VerifierConfig;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tracing;
@@ -15,6 +15,7 @@ const LOG_PATH: &str = "flow_processor";
 // This struct is used to route the message to the correct flow
 // This struct instance is created for each message that is sent to the flow processor
 pub struct FlowProcessorRouter {
+    pub verifier_configs: Arc<Vec<VerifierConfig>>,
     pub storage: Arc<LocalDbStorage>,
     pub flow_id: Uuid,
     pub response_sender: OneshotFlowProcessorSender,
@@ -89,6 +90,7 @@ impl FlowProcessorRouter {
     ) -> Result<IssueSparkDepositAddressResponse, FlowProcessorError> {
         info!("[{LOG_PATH}] issuing spark addr to user with request: {request:?}");
         let address = crate::routes::spark_addr_issuing::handle(
+            self.verifier_configs.clone(),
             request.musig_id, 
             request.amount,
             network,

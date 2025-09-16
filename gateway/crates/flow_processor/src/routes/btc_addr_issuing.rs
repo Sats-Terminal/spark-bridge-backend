@@ -5,7 +5,7 @@ use bitcoin::Address;
 use frost::traits::AggregatorMusigIdStorage;
 use frost::types::AggregatorDkgState;
 use frost::utils::convert_public_key_package;
-use gateway_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositAddressStorage, DepositStatus};
+use gateway_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositAddressStorage, DepositStatusInfo, DepositStatus, VerifiersResponses};
 use frost::utils::{get_address, generate_nonce};
 use tracing;
 
@@ -50,6 +50,8 @@ pub async fn handle(
     let address = get_address(public_key, nonce, flow_processor.network)
         .map_err(|e| FlowProcessorError::InvalidDataError(format!("Failed to create address: {}", e)))?;
 
+    let verifiers_responses = VerifiersResponses::new(DepositStatus::Created, flow_processor.verifier_configs.iter().map(|v| v.id).collect());
+
     local_db_storage
         .set_deposit_addr_info(
             &request.musig_id,
@@ -58,7 +60,11 @@ pub async fn handle(
                 address: Some(address.to_string()),
                 is_btc: true,
                 amount: request.amount,
-                confirmation_status: DepositStatus::Created,
+                confirmation_status: DepositStatusInfo {
+                    txid: None,
+                    status: DepositStatus::Created,
+                    verifiers_responses,
+                },
             },
         )
         .await?;

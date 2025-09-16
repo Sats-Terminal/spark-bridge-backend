@@ -4,7 +4,6 @@ use bitcoin::Network;
 use frost::aggregator::FrostAggregator;
 use gateway_local_db_store::storage::LocalDbStorage;
 use global_utils::common_types::get_uuid;
-use persistent_storage::init::PostgresRepo;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio;
@@ -13,11 +12,13 @@ use tokio::task::JoinHandle;
 use tokio::time::Duration;
 use tokio_util::sync::CancellationToken;
 use tracing;
+use gateway_config_parser::config::VerifierConfig;
 use uuid::Uuid;
 
 // This is core struct that handles flows execution
 // For each request it creates a thread that runs the flow
 pub struct FlowProcessor {
+    pub verifier_configs: Arc<Vec<VerifierConfig>>,
     pub tx_receiver: mpsc::Receiver<(FlowProcessorMessage, OneshotFlowProcessorSender)>,
     pub flow_receiver: mpsc::Receiver<Uuid>,
     pub flow_sender: mpsc::Sender<Uuid>,
@@ -31,6 +32,7 @@ pub struct FlowProcessor {
 
 impl FlowProcessor {
     pub fn new(
+        verifier_configs: Arc<Vec<VerifierConfig>>,
         tx_receiver: mpsc::Receiver<(FlowProcessorMessage, OneshotFlowProcessorSender)>,
         storage: Arc<LocalDbStorage>,
         cancellation_retries: u64,
@@ -40,6 +42,7 @@ impl FlowProcessor {
     ) -> Self {
         let (flow_sender, flow_receiver) = mpsc::channel::<Uuid>(1000);
         Self {
+            verifier_configs,
             tx_receiver,
             flow_receiver,
             flow_sender,
@@ -81,6 +84,7 @@ impl FlowProcessor {
                             let flow_id = get_uuid();
 
                             let router = FlowProcessorRouter{
+                                verifier_configs: self.verifier_configs.clone(),
                                 storage: self.storage.clone(),
                                 flow_id,
                                 response_sender,

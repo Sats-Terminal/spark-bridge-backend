@@ -6,7 +6,12 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WatchSparkDepositRequest {
+    pub musig_id: MusigId,
+    pub nonce: Nonce,
     pub address: String,
+    pub amount: u64,
+    pub btc_address: String,
+    pub txid: Txid,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -23,6 +28,4 @@ pub struct WatchRunesDepositRequest {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct WatchRunesDepositResponse {
-    pub address: String,
-}
+pub struct WatchRunesDepositResponse {}

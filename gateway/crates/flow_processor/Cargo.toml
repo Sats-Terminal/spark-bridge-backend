@@ -20,6 +20,7 @@ frost-secp256k1-tr = { workspace = true }
 titan-client = { workspace = true }
 serde = { version = "1.0.219", features = ["derive"] }
 spark_client = { workspace = true }
+gateway_config_parser = { workspace = true }
 
 [dev-dependencies]
 lrc20 = { workspace = true }

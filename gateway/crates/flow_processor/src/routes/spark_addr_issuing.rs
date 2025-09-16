@@ -9,10 +9,12 @@ use tracing;
 use frost::types::AggregatorDkgState;
 use frost::utils::convert_public_key_package;
 use frost::utils::generate_nonce;
-use gateway_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositAddressStorage, DepositStatus};
+use gateway_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositAddressStorage, DepositStatus, DepositStatusInfo, VerifiersResponses};
 use spark_client::utils::spark_address::{encode_spark_address, SparkAddressData};
+use gateway_config_parser::config::VerifierConfig;
 
 pub async fn handle(
+    verifier_configs: Arc<Vec<VerifierConfig>>,
     musig_id: MusigId,
     amount: u64,
     network: Network,
@@ -54,6 +56,8 @@ pub async fn handle(
         identity_public_key: public_key.to_string(),
         network: network.into(),
     }).map_err(|e| FlowProcessorError::InvalidDataError(e.to_string()))?;
+
+    let verifiers_responses = VerifiersResponses::new(DepositStatus::Created, verifier_configs.iter().map(|v| v.id).collect());
     
     storage.set_deposit_addr_info(
         &musig_id,
@@ -62,7 +66,11 @@ pub async fn handle(
             address: Some(address.clone()),
             is_btc: true,
             amount: amount,
-            confirmation_status: DepositStatus::Created,
+            confirmation_status: DepositStatusInfo {
+                txid: None,
+                status: DepositStatus::Created,
+                verifiers_responses,
+            },
         },
     )
     .await?;
