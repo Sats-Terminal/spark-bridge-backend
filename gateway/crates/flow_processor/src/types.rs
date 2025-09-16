@@ -46,7 +46,7 @@ pub struct IssueSparkDepositAddressResponse {
 
 #[derive(Debug)]
 pub struct BridgeRunesRequest {
-    pub address: Address,
+    pub btc_address: Address,
 }
 
 #[derive(Debug)]
@@ -56,7 +56,7 @@ pub struct BridgeRunesResponse {
 
 #[derive(Debug)]
 pub struct ExitSparkRequest {
-    pub request_id: Uuid,
+    pub spark_address: String,
 }
 
 #[derive(Debug)]

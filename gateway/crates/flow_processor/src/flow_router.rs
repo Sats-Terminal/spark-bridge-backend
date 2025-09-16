@@ -79,7 +79,7 @@ impl FlowProcessorRouter {
         info!("[{LOG_PATH}] bridging runes flow with request: {request:?}");
         crate::routes::bridge_runes_flow::handle(self).await?;
         Ok(BridgeRunesResponse {
-            message: format!("message for {}", request.address),
+            message: format!("message for {}", request.btc_address),
         })
     }
 
@@ -110,7 +110,7 @@ impl FlowProcessorRouter {
         info!("[{LOG_PATH}] exiting spark flow with request: {request:?}");
         crate::routes::exit_spark_flow::handle(self).await?;
         Ok(ExitSparkResponse {
-            message: format!("message for {}", request.request_id),
+            message: format!("message for {}", request.spark_address),
         })
     }
 }
