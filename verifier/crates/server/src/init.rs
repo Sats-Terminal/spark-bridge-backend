@@ -39,7 +39,7 @@ pub async fn create_app(
         )
         .route(
             "/api/btc-indexer/notify-runes-deposit",
-            post(handlers::indexer_notify_deposit::handle),
+            post(handlers::notify_runes_deposit::handle),
         )
         .route(
             "/api/gateway/watch-runes-deposit",
