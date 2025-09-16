@@ -20,6 +20,9 @@ impl From<SparkClientError> for ServerError {
             SparkClientError::ConfigError(message) => {
                 ServerError::InvalidData(format!("Spark client config error: {}", message))
             }
+            SparkClientError::SparkAddressError(message) => {
+                ServerError::DecodeError(format!("Spark client spark address error: {}", message))
+            }
         }
     }
 }

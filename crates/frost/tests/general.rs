@@ -152,3 +152,20 @@ async fn test_parallel_signing_sessions_via_aggregator() {
         "signatures for different messages should differ"
     );
 }
+
+
+use bitcoin::key::UntweakedPublicKey;
+use std::str::FromStr;
+use bitcoin::key::TapTweak;
+
+#[test]
+fn test_get_tweaked_public_key() {
+    let ctx = Secp256k1::new();
+
+    let our_public_key = PublicKey::from_str("038144ac71b61ab0e0a56967696a4f31a0cdd492cd3753d59aa978e0c8eaa5a60e").unwrap();
+
+    let untweaked_public_key: UntweakedPublicKey = our_public_key.into();
+    let (tweaked_public_key, _) = untweaked_public_key.tap_tweak(&ctx, None);
+
+    
+}
