@@ -10,5 +10,6 @@ persistent_storage = { workspace = true }
 gateway_local_db_store = { path = "../local_db_store" }
 chrono = { workspace = true }
 sqlx = { workspace = true }
+bitcoin = "0.32.7"
 
 [dev-dependencies]

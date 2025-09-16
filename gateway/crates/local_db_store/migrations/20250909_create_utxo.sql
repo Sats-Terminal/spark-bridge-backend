@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS gateway.utxo (
                                             txid TEXT NOT NULL,
                                             vout INT NOT NULL,
                                             amount BIGINT NOT NULL,
-                                            sats_amount BIGINT,
+                                            sats_amount BIGINT not null,
                                             rune_id TEXT NOT NULL,
                                             owner_pubkey TEXT NOT NULL,
                                             status TEXT NOT NULL DEFAULT 'unspent',

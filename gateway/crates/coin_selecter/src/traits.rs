@@ -1,6 +1,7 @@
+use crate::greedy::{Utxo, UtxoStorage};
 use async_trait::async_trait;
-use gateway_local_db_store::schemas::utxo::*;
 //use gateway_local_db_store::errors::*;
+use gateway_local_db_store::storage::Storage;
 use persistent_storage::error::DatabaseError;
 
 #[async_trait]
@@ -19,7 +20,7 @@ pub trait UtxoManager {
 }
 
 #[async_trait]
-impl UtxoManager for persistent_storage::init::PostgresRepo {
+impl UtxoManager for Storage {
     async fn unlock_utxos(&self, utxo_ids: &[i64]) -> Result<(), DatabaseError> {
         UtxoStorage::unlock_utxos(self, utxo_ids).await
     }
@@ -33,7 +34,7 @@ impl UtxoManager for persistent_storage::init::PostgresRepo {
 
         sqlx::query(query)
             .bind(utxo_ids)
-            .execute(&self.pool)
+            .execute(&self.postgres_repo.pool)
             .await
             .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
 
