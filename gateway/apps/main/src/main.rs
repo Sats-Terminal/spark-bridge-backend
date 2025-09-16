@@ -71,8 +71,13 @@ async fn main() {
         shared_db_pool.clone()
     );
 
-    // Create and run App
-    let app = create_app(flow_sender.clone(), deposit_verification_aggregator.clone()).await;
+    // Create App
+    let app = create_app(
+        flow_sender.clone(), 
+        deposit_verification_aggregator.clone()
+    ).await;
+
+    // Run App
     let addr_to_listen = format!("{}:{}", server_config.server_public.ip, server_config.server_public.port);
     let listener = TcpListener::bind(addr_to_listen).await.unwrap();
     axum::serve(listener, app).await.unwrap();
