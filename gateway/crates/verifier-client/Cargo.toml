@@ -10,3 +10,4 @@ thiserror = { workspace = true }
 frost = { workspace = true }
 async-trait = { workspace = true }
 gateway_config_parser = { workspace = true }
+gateway_deposit_verification = { workspace = true }

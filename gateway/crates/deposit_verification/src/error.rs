@@ -10,4 +10,6 @@ pub enum DepositVerificationError {
     StorageError(String),
     #[error("Flow processor error: {0}")]
     FlowProcessorError(String),
+    #[error("Http error: {0}")]
+    HttpError(String),
 }
