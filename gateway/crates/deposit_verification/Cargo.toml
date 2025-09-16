@@ -9,16 +9,12 @@ readme.workspace = true
 [dependencies]
 async-trait = { workspace = true }
 bitcoin = { workspace = true }
-btc_indexer_api = { workspace = true }
-frost-secp256k1-tr = { workspace = true }
 global_utils = { workspace = true }
 persistent_storage = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
-sqlx = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
-titan-client = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }
 uuid = { workspace = true }

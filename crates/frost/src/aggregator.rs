@@ -5,7 +5,7 @@ use std::{collections::BTreeMap, sync::Arc};
 use tracing::instrument;
 use uuid::Uuid;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FrostAggregator {
     verifiers: BTreeMap<Identifier, Arc<dyn SignerClient>>, // TODO: implement signer client
     musig_id_storage: Arc<dyn AggregatorMusigIdStorage>,    // TODO: implement aggregator storage storage

@@ -10,8 +10,6 @@ use tracing::instrument;
 use bitcoin::Txid;
 use std::collections::HashMap;
 
-type Nonce = [u8; 32];
-
 #[derive(Debug, Clone, Deserialize, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum DepositStatus {

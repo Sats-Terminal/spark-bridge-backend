@@ -1,0 +1,12 @@
+[package]
+name = "gateway_verifier_client"
+edition = "2024"
+
+[dependencies]
+serde = { workspace = true }
+reqwest = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+frost = { workspace = true }
+async-trait = { workspace = true }
+gateway_config_parser = { workspace = true }

@@ -4,7 +4,7 @@ use persistent_storage::{
     init::{PostgresPool, PostgresRepo},
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct LocalDbStorage {
     pub postgres_repo: PostgresRepo,
 }

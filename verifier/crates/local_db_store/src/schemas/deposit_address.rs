@@ -5,8 +5,7 @@ use serde::{Deserialize, Serialize};
 use frost::types::MusigId;
 use sqlx::types::Json;
 use bitcoin::Txid;
-
-type Nonce = [u8; 32];
+use frost::types::Nonce;
 
 #[derive(Debug, Clone, Deserialize, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]

@@ -57,12 +57,12 @@ pub async fn handle(
     
     storage.set_deposit_addr_info(
         &musig_id,
+        nonce,
         DepositAddrInfo {
-            nonce_tweak: nonce.to_vec(),
             address: Some(address.clone()),
             is_btc: true,
             amount: amount,
-            confirmation_status: DepositStatus::InitializedRunesSpark,
+            confirmation_status: DepositStatus::Created,
         },
     )
     .await?;

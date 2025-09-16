@@ -3,7 +3,7 @@ use frost_secp256k1_tr::{Identifier, keys::Tweak};
 use rand_core::OsRng;
 use std::sync::Arc;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FrostSigner {
     musig_id_storage: Arc<dyn SignerMusigIdStorage>, // TODO: implement signer storage
     identifier: Identifier,

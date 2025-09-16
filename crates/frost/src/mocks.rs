@@ -7,11 +7,12 @@ use tokio::sync::Mutex;
 use crate::{errors::AggregatorError, signer::FrostSigner, traits::*, types::*};
 use uuid::Uuid;
 
+#[derive(Debug, Clone)]
 pub struct MockSignerMusigIdStorage {
     storage: Arc<Mutex<BTreeMap<MusigId, SignerMusigIdData>>>,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
 pub struct MockSignerSignSessionStorage {
     storage: Arc<Mutex<BTreeMap<(MusigId, Uuid), SignerSignData>>>,
 }
@@ -63,10 +64,12 @@ impl SignerMusigIdStorage for MockSignerMusigIdStorage {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct MockAggregatorMusigIdStorage {
     storage: Arc<Mutex<BTreeMap<MusigId, AggregatorMusigIdData>>>,
 }
 
+#[derive(Debug, Clone)]
 pub struct MockAggregatorSignSessionStorage {
     storage: Arc<Mutex<BTreeMap<(MusigId, Uuid), AggregatorSignData>>>,
 }
@@ -119,7 +122,7 @@ impl AggregatorSignSessionStorage for MockAggregatorSignSessionStorage {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct MockSignerClient {
     signer: FrostSigner,
 }

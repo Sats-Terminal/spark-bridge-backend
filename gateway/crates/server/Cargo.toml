@@ -3,7 +3,6 @@ name = "gateway_server"
 edition = "2024"
 
 [dependencies]
-anyhow = { workspace = true }
 axum = { workspace = true }
 bitcoin = { workspace = true }
 frost = { workspace = true }
@@ -16,6 +15,7 @@ titan-client = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }
 uuid = { workspace = true }
+gateway_deposit_verification = { workspace = true }
 
 [dev-dependencies]
 serde_json = { workspace = true }

@@ -12,7 +12,7 @@ pub trait TypedMessageSender<S, R> {
 
 // This is helper struct that sends messages to the flow processor and waits for the response
 // This struct implements the TypedMessageSender trait for each type of message
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FlowSender {
     tx_sender: mpsc::Sender<(FlowProcessorMessage, OneshotFlowProcessorSender)>,
     cancellation_token: CancellationToken,

@@ -1,11 +1,11 @@
 use crate::error::GatewayError;
 use crate::init::AppState;
-use anyhow::bail;
 use axum::{Json, extract::State};
-use gateway_flow_processor::types::{FlowProcessorMessage, FlowProcessorResponse, IssueBtcDepositAddressRequest};
+use gateway_flow_processor::types::{FlowProcessorResponse, IssueBtcDepositAddressRequest};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use tracing::{debug, instrument};
+use gateway_flow_processor::flow_sender::TypedMessageSender;
 
 #[derive(Deserialize, Debug)]
 pub struct GetBtcDepositAddressRequest {
@@ -25,34 +25,21 @@ pub async fn handle(
     State(state): State<AppState>,
     Json(request): Json<GetBtcDepositAddressRequest>,
 ) -> Result<Json<GetBtcDepositAddressResponse>, GatewayError> {
-    _handle_inner(state, request)
-        .await
-        .map_err(|e| GatewayError::FlowProcessorError(format!("Failed to issue deposit address for bridging: {e}")))
-}
-
-#[instrument(level = "debug", skip(state, request), fields(request = ?request), ret)]
-async fn _handle_inner(
-    state: AppState,
-    request: GetBtcDepositAddressRequest,
-) -> anyhow::Result<Json<GetBtcDepositAddressResponse>> {
     debug!("[handler-btc-addr-issuing] Handling request: {request:?}");
     let possible_response = state
         .flow_sender
-        .send_messsage(FlowProcessorMessage::IssueBtcDepositAddress(
-            IssueBtcDepositAddressRequest {
+        .send(IssueBtcDepositAddressRequest {
                 musig_id: frost::types::MusigId::User {
                     rune_id: request.rune_id,
                     user_public_key: bitcoin::secp256k1::PublicKey::from_str(&request.user_public_key)?,
                 },
                 amount: request.amount,
             },
-        ))
-        .await?;
-    if let FlowProcessorResponse::IssueDepositAddress(flow_resp) = possible_response {
-        Ok(Json(GetBtcDepositAddressResponse {
-            address: flow_resp.addr_to_replenish.to_string(),
-        }))
-    } else {
-        bail!("[Erroneous response on flow processor: {possible_response:?}]")
-    }
+        )
+        .await
+        .map_err(|e| GatewayError::FlowProcessorError(format!("Failed to issue deposit address for replenishment: {e}")))?;
+    
+    Ok(Json(GetBtcDepositAddressResponse {
+        address: possible_response.addr_to_replenish.to_string(),
+    }))
 }

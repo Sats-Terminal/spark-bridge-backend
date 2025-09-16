@@ -1,6 +1,7 @@
 pub use persistent_storage::error::DbError;
 use persistent_storage::{config::*, init::PostgresPool, init::PostgresRepo};
 
+#[derive(Clone, Debug)]
 pub struct LocalDbStorage {
     pub postgres_repo: PostgresRepo,
 }

@@ -1,7 +1,0 @@
-[package]
-name = "verifier_utils"
-edition = "2024"
-
-[dependencies]
-frost = { workspace = true }
-verifier_config_parser = { workspace = true }

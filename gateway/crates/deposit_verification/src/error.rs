@@ -3,7 +3,7 @@ use reqwest::StatusCode;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub enum BtcAggregatorError {
+pub enum DepositVerificationError {
     #[error("Invalid request: {0}")]
     InvalidRequest(String),
 }
