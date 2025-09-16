@@ -1,98 +1,79 @@
-use anyhow::{anyhow, bail};
 use gateway_config_parser::config::ServerConfig;
 use gateway_flow_processor::init::create_flow_processor;
 use gateway_local_db_store::storage::LocalDbStorage;
 use global_utils::config_path::ConfigPath;
 use global_utils::config_variant::ConfigVariant;
-use global_utils::env_parser::lookup_ip_addr;
 use global_utils::logger::init_logger;
 use global_utils::network::NetworkConfig;
 use persistent_storage::config::PostgresDbCredentials;
 use persistent_storage::init::PostgresRepo;
 use std::sync::Arc;
 use tokio::net::TcpListener;
+use frost::aggregator::FrostAggregator;
 use tracing::instrument;
+use gateway_verifier_client::client::VerifierClient;
+use std::collections::{BTreeMap, HashMap};
+use frost_secp256k1_tr::Identifier;
+use frost::traits::SignerClient;
+use gateway_deposit_verification::aggregator::DepositVerificationAggregator;
+use gateway_deposit_verification::traits::VerificationClient;
+use gateway_server::init::create_app;
 
 #[instrument(level = "trace", ret)]
 #[tokio::main]
 async fn main() {
-    // let _ = dotenv::dotenv();
-    // let _logger_guard = init_logger();
+    let _ = dotenv::dotenv();
+    let _logger_guard = init_logger();
 
-    // let config_path = ConfigPath::from_env()?;
-    // let network_config = NetworkConfig::from_env()?;
-    // let app_config = ServerConfig::init_config(ConfigVariant::OnlyOneFilepath(config_path.path))?;
-    // tracing::debug!("App config: {:?}", app_config);
+    // Create Config
+    let config_path = ConfigPath::from_env().unwrap();
+    let network_config = NetworkConfig::from_env().unwrap();
+    let server_config = ServerConfig::init_config(ConfigVariant::OnlyOneFilepath(config_path.path)).unwrap();
+    tracing::debug!("App config: {:?}", server_config);
 
-    // let postgres_creds = PostgresDbCredentials::from_db_url()?;
-    // let db_pool = LocalDbStorage {
-    //     postgres_repo: PostgresRepo::from_config(postgres_creds).await?,
-    // };
-    // let shared_db_pool = Arc::new(db_pool);
+    // Create DB Pool
+    let postgres_creds = PostgresDbCredentials::from_db_url().unwrap();
+    let db_pool = LocalDbStorage {
+        postgres_repo: PostgresRepo::from_config(postgres_creds).await.unwrap(),
+    };
+    let shared_db_pool = Arc::new(db_pool);
 
-    // // Aggregators creation
-    // let frost_aggregator =
-    //     create_aggregator_from_config(app_config.clone(), shared_db_pool.clone(), shared_db_pool.clone())?;
-    // let btc_resp_checker_aggregator = Arc::new(create_btc_resp_checker_aggregator_from_config(app_config.clone())?);
+    // Create Frost Aggregator
+    let mut verifiers_map = BTreeMap::<Identifier, Arc<dyn SignerClient>>::new();
+    for verifier in server_config.clone().verifiers.0 {
+        let identifier: Identifier = verifier.id.try_into().unwrap();
+        let verifier_client = VerifierClient::new(verifier);
+        verifiers_map.insert(identifier, Arc::new(verifier_client));
+    }
+    let frost_aggregator = FrostAggregator::new(verifiers_map, shared_db_pool.clone(), shared_db_pool.clone());
 
-    // let (mut flow_processor, flow_sender) = create_flow_processor(
-    //     shared_db_pool,
-    //     app_config.flow_processor.cancellation_retries,
-    //     frost_aggregator,
-    //     network_config.network,
-    // );
+    // Create Flow Processor
+    let (mut flow_processor, flow_sender) = create_flow_processor(
+        Arc::new(server_config.clone().verifiers.0),
+        shared_db_pool.clone(),
+        server_config.flow_processor.cancellation_retries,
+        frost_aggregator,
+        network_config.network,
+    );
+    let _ = tokio::spawn(async move {
+        flow_processor.run().await;
+    });
 
-    // let _ = tokio::spawn(async move {
-    //     flow_processor.run().await;
-    // });
+    // Create Deposit Verification Aggregator
+    let mut verifier_clients_hash_map = HashMap::<u16, Arc<dyn VerificationClient>>::new();
+    for verifier in server_config.clone().verifiers.0 {
+        let verifier_client = VerifierClient::new(verifier.clone());
+        verifier_clients_hash_map.insert(verifier.id, Arc::new(verifier_client));
+    }
+    let deposit_verification_aggregator = DepositVerificationAggregator::new(
+        flow_sender.clone(), 
+        verifier_clients_hash_map, 
+        shared_db_pool.clone()
+    );
 
-    // let private_app =
-    //     gateway_server::init::create_private_app(flow_sender.clone(), btc_resp_checker_aggregator.clone()).await?;
-    // let addr_to_listen_private = (
-    //     lookup_ip_addr(&app_config.server_private_api.ip)?,
-    //     app_config.server_private_api.port,
-    // );
-    // let listener_private = TcpListener::bind(addr_to_listen_private.clone())
-    //     .await
-    //     .map_err(|e| anyhow!("Failed to bind to private address: {}", e))?;
-    // let private_app_server = axum::serve(listener_private, private_app).into_future();
-
-    // let addr_to_listen_public = (
-    //     lookup_ip_addr(&app_config.server_public.ip)?,
-    //     app_config.server_public.port,
-    // );
-    // let public_app = gateway_server::init::create_public_app(
-    //     flow_sender.clone(),
-    //     btc_resp_checker_aggregator.clone(),
-    //     addr_to_listen_public,
-    // )
-    // .await?;
-    // let addr_to_listen_public = (
-    //     lookup_ip_addr(&app_config.server_public.ip)?,
-    //     app_config.server_public.port,
-    // );
-    // let listener_public = TcpListener::bind(addr_to_listen_public)
-    //     .await
-    //     .map_err(|e| anyhow!("Failed to bind to public address: {}", e))?;
-    // let public_app_server = axum::serve(listener_public, public_app).into_future();
-
-    // let (public_res, private_res) = futures::join!(public_app_server, private_app_server);
-    // match public_res {
-    //     Ok(_) => match private_res {
-    //         Ok(_) => Ok(()),
-    //         Err(e_private) => {
-    //             bail!("Failed to serve private server: {}", e_private)
-    //         }
-    //     },
-    //     Err(e_public) => match private_res {
-    //         Ok(_) => Ok(()),
-    //         Err(e_private) => {
-    //             bail!(
-    //                 "Failed to serve private server: {} & public server: {}",
-    //                 e_private,
-    //                 e_public
-    //             )
-    //         }
-    //     },
-    // }
+    // Create and run App
+    let app = create_app(flow_sender.clone(), deposit_verification_aggregator.clone()).await;
+    let addr_to_listen = format!("{}:{}", server_config.server_public.ip, server_config.server_public.port);
+    let listener = TcpListener::bind(addr_to_listen).await.unwrap();
+    axum::serve(listener, app).await.unwrap();
 }
