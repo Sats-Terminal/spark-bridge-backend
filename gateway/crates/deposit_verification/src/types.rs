@@ -1,17 +1,28 @@
+use bitcoin::Address;
+use frost::types::MusigId;
+use frost::types::Nonce;
+use bitcoin::Txid;
+use serde::{Deserialize, Serialize};
 
-
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WatchSparkDepositRequest {
     pub address: String,
 }
 
-pub struct WatchSparkDepositResponse {
-    pub address: String,
-}
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct WatchSparkDepositResponse {}
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WatchRunesDepositRequest {
+    pub musig_id: MusigId,
+    pub nonce: Nonce,
     pub address: String,
+    pub amount: u64,
+    pub btc_address: String,
+    pub txid: Txid,
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WatchRunesDepositResponse {
     pub address: String,
 }

@@ -78,7 +78,7 @@ impl FlowProcessorRouter {
         info!("[{LOG_PATH}] bridging runes flow with request: {request:?}");
         crate::routes::bridge_runes_flow::handle(self).await?;
         Ok(BridgeRunesResponse {
-            message: format!("message for {}", request.request_id),
+            message: format!("message for {}", request.address),
         })
     }
 

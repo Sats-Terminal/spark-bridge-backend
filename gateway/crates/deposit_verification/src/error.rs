@@ -6,4 +6,8 @@ use thiserror::Error;
 pub enum DepositVerificationError {
     #[error("Invalid request: {0}")]
     InvalidRequest(String),
+    #[error("Storage error: {0}")]
+    StorageError(String),
+    #[error("Flow processor error: {0}")]
+    FlowProcessorError(String),
 }
