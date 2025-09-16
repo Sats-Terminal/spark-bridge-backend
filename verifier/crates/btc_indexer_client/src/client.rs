@@ -3,12 +3,13 @@ use serde::{Serialize, Deserialize};
 use crate::error::BtcIndexerClientError;
 use verifier_config_parser::config::BtcIndexerConfig;
 use url::Url;
+use bitcoin::Txid;
 
 const WATCH_RUNES_DEPOSIT_PATH: &str = "/track_tx";
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct WatchRunesDepositRequest {
-    pub tx_id: String,
+    pub tx_id: Txid,
     pub callback_url: Url,
 }
 
