@@ -93,6 +93,7 @@ verifier_local_db_store = { path = "./verifier/crates/local_db_store" }
 verifier_server = { path = "./verifier/crates/server" }
 verifier_config_parser = { path = "./verifier/crates/config_parser" }
 verifier_spark_balance_checker_client = { path = "./verifier/crates/spark_balance_checker_client" }
+verifier_btc_indexer_client = { path = "./verifier/crates/btc_indexer_client" }
 
 # Verifier apps
 verifier_main = { path = "verifier/apps/main" }

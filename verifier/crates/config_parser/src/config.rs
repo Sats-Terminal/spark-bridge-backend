@@ -23,6 +23,11 @@ pub struct AppConfig {
     pub network: Network,
 }
 
+// FIXME!!! This is super bad hardcode, delete these as soon as we have proper indexer logic
+pub fn construct_hardcoded_callback_url(app_config: &AppConfig) -> Url {
+    Url::parse(&format!("http://{}:{}/api/btc-indexer/notify-runes-deposit", app_config.ip, app_config.port)).unwrap()
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub struct BtcIndexerConfig {

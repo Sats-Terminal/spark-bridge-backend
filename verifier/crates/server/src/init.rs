@@ -3,16 +3,34 @@ use axum::Router;
 use axum::routing::post;
 use frost::signer::FrostSigner;
 use tracing::instrument;
+use verifier_btc_indexer_client::client::BtcIndexerClient;
+use verifier_spark_balance_checker_client::client::SparkBalanceCheckerClient;
+use verifier_config_parser::config::{BtcIndexerConfig, SparkBalanceCheckerConfig, AppConfig};
+use verifier_local_db_store::storage::LocalDbStorage;
 
 #[derive(Clone)]
 pub struct AppState {
     pub frost_signer: FrostSigner,
+    pub btc_indexer_client: BtcIndexerClient,
+    pub spark_balance_checker_client: SparkBalanceCheckerClient,
+    pub storage: LocalDbStorage,
+    pub app_config: AppConfig,
 }
 
 #[instrument(level = "debug", skip(frost_signer), ret)]
-pub async fn create_app(frost_signer: FrostSigner) -> Router {
+pub async fn create_app(
+    frost_signer: FrostSigner,
+    btc_indexer_config: BtcIndexerConfig,
+    spark_balance_checker_config: SparkBalanceCheckerConfig,
+    storage: LocalDbStorage,
+    app_config: AppConfig,
+) -> Router {
     let state = AppState {
         frost_signer,
+        btc_indexer_client: BtcIndexerClient::new(btc_indexer_config),
+        spark_balance_checker_client: SparkBalanceCheckerClient::new(spark_balance_checker_config),
+        storage,
+        app_config,
     };
     Router::new()
         .route(
