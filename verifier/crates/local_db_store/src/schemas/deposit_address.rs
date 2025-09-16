@@ -1,31 +1,25 @@
 use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
-use frost::types::MusigId;
 use persistent_storage::error::DbError;
 use serde::{Deserialize, Serialize};
-use sqlx::Connection;
+use frost::types::MusigId;
 use sqlx::types::Json;
-use tracing::instrument;
 use bitcoin::Txid;
-use std::collections::HashMap;
 
 type Nonce = [u8; 32];
 
 #[derive(Debug, Clone, Deserialize, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum DepositStatus {
-    Created,
     WaitingForConfirmation,
     Confirmed,
     Failed,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, Eq, PartialEq)]
-#[serde(rename_all = "snake_case")]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct DepositStatusInfo {
     pub txid: Option<Txid>,
     pub status: DepositStatus,
-    pub verifiers_responses: Option<HashMap<u16, bool>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
@@ -53,14 +47,15 @@ impl DepositAddressStorage for LocalDbStorage {
         let result: Option<(Option<String>, bool, i64, Json<DepositStatus>)> = sqlx::query_as(
             "SELECT address, is_btc, amount, confirmation_status
             FROM verifier.deposit_address
-            WHERE public_key = $1 AND rune_id = $2",
+            WHERE public_key = $1 AND rune_id = $2 AND nonce_tweak = $3",
         )
-            .bind(public_key.to_string())
-            .bind(rune_id)
-            .fetch_optional(&self.get_conn().await?)
-            .await
-            .map_err(|e| DbError::BadRequest(e.to_string()))?;
-        
+        .bind(public_key.to_string())
+        .bind(rune_id)
+        .bind(tweak)
+        .fetch_optional(&self.get_conn().await?)
+        .await
+        .map_err(|e| DbError::BadRequest(e.to_string()))?;
+
         Ok(result.map(|(address, is_btc, amount, confirmation_status)| DepositAddrInfo {
             address,
             is_btc,
@@ -75,9 +70,9 @@ impl DepositAddressStorage for LocalDbStorage {
         let rune_id = musig_id.get_rune_id();
 
         let _ = sqlx::query(
-            "INSERT INTO gateway.deposit_address (public_key, rune_id, nonce_tweak, address, is_btc, amount, confirmation_status)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
-            ON CONFLICT (public_key, rune_id, nonce_tweak) DO UPDATE SET confirmation_status = $7",
+            "INSERT INTO verifier.deposit_address (public_key, rune_id, nonce_tweak, address, is_btc, amount, confirmation_status)
+            VALUES ($1, $2, $3, $4, $5, $6, $7) 
+            ON CONFLICT (public_key, rune_id, nonce_tweak) DO UPDATE SET address = $4, is_btc = $5, amount = $6, confirmation_status = $7",
         )
             .bind(public_key.to_string())
             .bind(rune_id)
@@ -100,15 +95,16 @@ impl DepositAddressStorage for LocalDbStorage {
         let result: Option<(Json<DepositStatusInfo>, )> = sqlx::query_as(
             "SELECT confirmation_status
             FROM verifier.deposit_address
-            WHERE public_key = $1 AND rune_id = $2",
+            WHERE public_key = $1 AND rune_id = $2 AND nonce_tweak = $3",
         )
-        .bind(public_key.to_string())
-        .bind(rune_id)
-        .fetch_optional(&self.get_conn().await?)
-        .await
-        .map_err(|e| DbError::BadRequest(e.to_string()))?;
+            .bind(public_key.to_string())
+            .bind(rune_id)
+            .bind(tweak)
+            .fetch_optional(&self.get_conn().await?)
+            .await
+            .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
-        Ok(result.map(|deposit_status_info| deposit_status_info.0.0))
+        Ok(result.map(|confirmation_status| confirmation_status.0.0))
     }
 
     async fn update_confirmation_status(&self, musig_id: &MusigId, tweak: Nonce, confirmation_status: DepositStatusInfo) -> Result<(), DbError> {
@@ -116,11 +112,12 @@ impl DepositAddressStorage for LocalDbStorage {
         let rune_id = musig_id.get_rune_id();
 
         let _ = sqlx::query(
-            "UPDATE verifier.deposit_address SET confirmation_status = $1 WHERE public_key = $2 AND rune_id = $3",
+            "UPDATE verifier.deposit_address SET confirmation_status = $1 WHERE public_key = $2 AND rune_id = $3 AND nonce_tweak = $4",
         )
             .bind(Json(confirmation_status))
             .bind(public_key.to_string())
             .bind(rune_id)
+            .bind(tweak)
             .execute(&self.get_conn().await?)
             .await
             .map_err(|e| DbError::BadRequest(e.to_string()))?;
@@ -128,4 +125,3 @@ impl DepositAddressStorage for LocalDbStorage {
         Ok(())
     }
 }
-

@@ -15,4 +15,3 @@ verifier_local_db_store = { workspace = true }
 verifier_server = { workspace = true }
 verifier_utils = { workspace = true }
 frost = { workspace = true }
-btc_resp_aggregator = { workspace = true }

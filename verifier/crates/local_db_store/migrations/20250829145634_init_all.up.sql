@@ -24,14 +24,17 @@ CREATE TABLE IF NOT EXISTS verifier.sign_session
     FOREIGN KEY (public_key, rune_id) REFERENCES verifier.musig_identifier (public_key, rune_id)
 );
 
-CREATE TYPE STATUS_TRANSFERRING AS ENUM ('created', 'processing', 'received');
-
-CREATE TABLE IF NOT EXISTS verifier.tx_ids_statuses
+CREATE TABLE IF NOT EXISTS verifier.deposit_address
 (
-    tx_id                 TEXT                NOT NULL,
-    gateway_loopback_addr TEXT                NOT NULL,
-    tx_response_state     STATUS_TRANSFERRING NOT NULL,
-    PRIMARY KEY (tx_id)
+    nonce_tweak BYTEA NOT NULL,
+    public_key TEXT NOT NULL,
+    rune_id TEXT NOT NULL,
+    address TEXT,
+    is_btc BOOLEAN NOT NULL,
+    amount INTEGER NOT NULL,
+    confirmation_status JSON NOT NULL,
+    PRIMARY KEY (public_key, rune_id, nonce_tweak),
+    FOREIGN KEY (public_key, rune_id) REFERENCES verifier.musig_identifier(public_key, rune_id)
 );
 
 COMMIT;

@@ -1,6 +1,4 @@
 use async_trait::async_trait;
-use btc_resp_aggregator::error::BtcAggregatorError;
-use btc_resp_aggregator::traits::{CheckTxRequest, CheckTxResponse, TxCheckerClientTrait};
 use frost::errors::AggregatorError;
 use frost::traits::SignerClient as SignerClientTrait;
 use frost::traits::*;

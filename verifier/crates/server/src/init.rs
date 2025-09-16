@@ -23,10 +23,10 @@ pub async fn create_app(frost_signer: FrostSigner, btc_tx_checker: BtcTxChecker)
             post(handlers::watch_spark_address::handle),
         )
         .route(
-            BtcTxChecker::LOOPBACK_ENDPOINT_PATH,
-            post(handlers::loopback_btc_indexer_response::handle),
+            "/api/btc-indexer/notify-runes-deposit",
+            post(handlers::indexer_notify_deposit::handle),
         )
-        .route("/api/gateway/check-tx", post(handlers::check_tx::handle))
+        .route("/api/gateway/watch-runes-deposit", post(handlers::check_tx::handle))
         .route(
             "/api/gateway/watch-runes-address",
             post(handlers::watch_runes_address::handle),

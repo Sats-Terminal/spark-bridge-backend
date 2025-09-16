@@ -15,5 +15,4 @@ verifier_local_db_store = { workspace = true }
 frost = { workspace = true }
 titan-client = { workspace = true }
 global_utils = { workspace = true }
-btc_resp_aggregator = { workspace = true }
 btc_indexer_api = { workspace = true }

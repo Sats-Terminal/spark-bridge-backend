@@ -7,7 +7,6 @@ anyhow = { workspace = true }
 axum = { workspace = true }
 async-trait = { workspace = true }
 global_utils = { workspace = true }
-gateway_api = { workspace = true }
 persistent_storage = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }

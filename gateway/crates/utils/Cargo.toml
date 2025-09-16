@@ -6,7 +6,6 @@ edition = "2024"
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 bitcoin = { workspace = true }
-btc_resp_aggregator = { workspace = true }
 frost = { workspace = true }
 frost-secp256k1-tr = { workspace = true }
 gateway_config_parser = { workspace = true }

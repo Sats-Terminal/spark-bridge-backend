@@ -5,4 +5,3 @@ edition = "2024"
 [dependencies]
 frost = { workspace = true }
 verifier_config_parser = { workspace = true }
-btc_resp_aggregator = { workspace = true }
