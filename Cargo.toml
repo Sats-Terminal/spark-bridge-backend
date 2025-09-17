@@ -39,7 +39,6 @@ bitcoin = { version = "0.32.7", features = ["rand", "serde"] }
 bitcoincore-rpc = { version = "0.19.0" }
 chrono = { version = "0.4.41" }
 config = { version = "0.15.13" }
-chrono = "0.4"
 dns-lookup = { version = "3.0.0" }
 dotenv = { version = "0.15.0" }
 env_logger = "0.11.8"
@@ -111,6 +110,8 @@ gateway_local_db_store = { path = "gateway/crates/local_db_store" }
 gateway_flow_processor = { path = "gateway/crates/flow_processor" }
 gateway_utils = { path = "gateway/crates/utils" }
 gateway_spark_service = { path = "gateway/crates/spark_service" }
+gateway_runes_utxo_manager = { path = "gateway/crates/runes_utxo_manager" }
+gateway_session_storage = { path = "gateway/crates/session_storage" }
 
 # Gateway apps
 gateway_main = { path = "gateway/apps/main" }

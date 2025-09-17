@@ -1,46 +1,42 @@
-use crate::storage::Storage;
+use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
 use frost::traits::AggregatorMusigIdStorage;
 use frost::types::AggregatorDkgState;
 use frost::types::AggregatorMusigIdData;
 use frost::types::MusigId;
-use persistent_storage::error::DatabaseError;
+use persistent_storage::error::DbError;
 use sqlx::types::Json;
 
 #[async_trait]
-impl AggregatorMusigIdStorage for Storage {
-    async fn get_musig_id_data(&self, musig_id: MusigId) -> Result<Option<AggregatorMusigIdData>, DatabaseError> {
+impl AggregatorMusigIdStorage for LocalDbStorage {
+    async fn get_musig_id_data(&self, musig_id: MusigId) -> Result<Option<AggregatorMusigIdData>, DbError> {
         let public_key = musig_id.get_public_key();
         let rune_id = musig_id.get_rune_id();
 
         let result: Option<(Json<AggregatorDkgState>,)> = sqlx::query_as(
             "SELECT dkg_state 
-            FROM musig_identifier 
+            FROM gateway.musig_identifier
             WHERE public_key = $1 AND rune_id = $2",
         )
         .bind(public_key.to_string())
         .bind(rune_id)
         .fetch_optional(&self.get_conn().await?)
         .await
-        .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
+        .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
         Ok(result.map(|(json_dkg_state,)| AggregatorMusigIdData {
             dkg_state: json_dkg_state.0,
         }))
     }
 
-    async fn set_musig_id_data(
-        &self,
-        musig_id: MusigId,
-        user_state: AggregatorMusigIdData,
-    ) -> Result<(), DatabaseError> {
+    async fn set_musig_id_data(&self, musig_id: MusigId, user_state: AggregatorMusigIdData) -> Result<(), DbError> {
         let dkg_state = Json(user_state.dkg_state);
         let public_key = musig_id.get_public_key();
         let rune_id = musig_id.get_rune_id();
         let is_issuer = matches!(musig_id, MusigId::Issuer { .. });
 
         let _ = sqlx::query(
-            "INSERT INTO musig_identifier (public_key, rune_id, is_issuer, dkg_state) 
+            "INSERT INTO gateway.musig_identifier (public_key, rune_id, is_issuer, dkg_state)
             VALUES ($1, $2, $3, $4) 
             ON CONFLICT (public_key, rune_id) DO UPDATE SET dkg_state = $4",
         )
@@ -50,7 +46,7 @@ impl AggregatorMusigIdStorage for Storage {
         .bind(dkg_state)
         .execute(&self.get_conn().await?)
         .await
-        .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
+        .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
         Ok(())
     }
@@ -139,7 +135,7 @@ mod tests {
         let verifiers_map = create_verifiers_map_easy().await;
 
         let storage = Arc::new(
-            Storage::new("postgres://admin_manager:password@localhost:5470/production_db_name".to_string())
+            LocalDbStorage::new("postgres://admin_manager:password@localhost:5470/production_db_name".to_string())
                 .await
                 .unwrap(),
         );
