@@ -14,6 +14,7 @@ pub async fn handle(
     State(state): State<AppState>,
     Json(request): Json<BtcIndexerCallbackResponse>,
 ) -> Result<Json<()>, VerifierError> {
+    // TODO: This request should spawn task and immediately return Json(())
     match request {
         ApiResponseOwned::Ok { data: transaction } => {
             let txid = transaction.txid;
@@ -32,6 +33,7 @@ pub async fn handle(
             Ok(Json(()))
         }
         ApiResponseOwned::Err { code: _, message } => {
+            // TODO: I should set the confirmation status to failed, but I do not get txid.
             Err(VerifierError::BtcIndexerClientError(format!("Failed to notify runes deposit: {}", message)))
         }
     }
