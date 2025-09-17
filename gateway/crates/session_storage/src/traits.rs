@@ -10,7 +10,7 @@ use uuid::Uuid;
 #[derive(Debug, Clone, FromRow)]
 pub struct SessionRequest {
     pub session_id: Uuid,
-    pub request_type: String,
+    pub request_type: RequestType,
     pub status: SessionStatus,
     pub request: JsonValue,
     pub response: Option<JsonValue>,

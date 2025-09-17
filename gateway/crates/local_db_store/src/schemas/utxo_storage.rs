@@ -1,18 +1,37 @@
 use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
-use gateway_runes_utxo_manager::traits::{Utxo, UtxoStorage};
+use gateway_runes_utxo_manager::traits::{Utxo, UtxoManager, UtxoStatus, UtxoStorage};
 use persistent_storage::error::DbError;
+
+#[async_trait]
+impl UtxoManager for LocalDbStorage {
+    async fn unlock_utxos(&self, utxo_ids: &[i64]) -> Result<(), DbError> {
+        UtxoStorage::unlock_utxos_ids(self, utxo_ids).await
+    }
+
+    async fn mark_spent(&self, utxo_ids: &[i64]) -> Result<(), DbError> {
+        UtxoStorage::mark_spent_ids(self, utxo_ids).await
+    }
+}
 
 #[async_trait]
 impl UtxoStorage for LocalDbStorage {
     async fn insert_utxo(&self, utxo: Utxo) -> Result<Utxo, DbError> {
         let rec = sqlx::query_as::<_, Utxo>(
             r#"
-        INSERT INTO gateway.utxo
+    INSERT INTO gateway.utxo
         (txid, vout, amount, sats_amount, rune_id, owner_pubkey, status, block_height)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        RETURNING *
-        "#,
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    ON CONFLICT (txid, vout) DO UPDATE
+    SET amount = EXCLUDED.amount,
+        sats_amount = EXCLUDED.sats_amount,
+        rune_id = EXCLUDED.rune_id,
+        owner_pubkey = EXCLUDED.owner_pubkey,
+        status = EXCLUDED.status,
+        block_height = EXCLUDED.block_height,
+        updated_at = NOW()
+    RETURNING *
+    "#,
         )
         .bind(&utxo.txid)
         .bind(utxo.vout)
@@ -29,7 +48,7 @@ impl UtxoStorage for LocalDbStorage {
         Ok(rec)
     }
 
-    async fn update_status(&self, txid: &str, vout: i32, new_status: &str) -> Result<(), DbError> {
+    async fn update_status(&self, txid: &str, vout: i32, new_status: UtxoStatus) -> Result<(), DbError> {
         let rows = sqlx::query(
             r#"
             UPDATE gateway.utxo
@@ -40,7 +59,7 @@ impl UtxoStorage for LocalDbStorage {
         .bind(new_status)
         .bind(txid)
         .bind(vout)
-        .execute(&self.postgres_repo.pool)
+        .execute(&self.get_conn().await?)
         .await
         .map_err(|e| DbError::BadRequest(e.to_string()))?
         .rows_affected();
@@ -70,7 +89,7 @@ impl UtxoStorage for LocalDbStorage {
             .bind(utxo.sats_amount)
             .bind(&utxo.rune_id)
             .bind(&utxo.owner_pubkey)
-            .fetch_one(&self.postgres_repo.pool)
+            .fetch_one(&self.get_conn().await?)
             .await
             .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
@@ -101,7 +120,7 @@ impl UtxoStorage for LocalDbStorage {
         "#,
         )
         .bind(rune_id)
-        .fetch_all(&self.postgres_repo.pool)
+        .fetch_all(&self.get_conn().await?)
         .await
         .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
@@ -118,7 +137,7 @@ impl UtxoStorage for LocalDbStorage {
         )
         .bind(block_height)
         .bind(txid.to_string())
-        .execute(&self.postgres_repo.pool)
+        .execute(&self.get_conn().await?)
         .await
         .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
@@ -184,7 +203,7 @@ impl UtxoStorage for LocalDbStorage {
         Ok(locked_utxos)
     }
 
-    async fn unlock_utxos(&self, utxo_ids: &[i64]) -> Result<(), DbError> {
+    async fn unlock_utxos_ids(&self, utxo_ids: &[i64]) -> Result<(), DbError> {
         if utxo_ids.is_empty() {
             return Ok(());
         }
@@ -193,7 +212,23 @@ impl UtxoStorage for LocalDbStorage {
 
         sqlx::query(&query)
             .bind(utxo_ids)
-            .execute(&self.postgres_repo.pool)
+            .execute(&self.get_conn().await?)
+            .await
+            .map_err(|e| DbError::BadRequest(e.to_string()))?;
+
+        Ok(())
+    }
+
+    async fn mark_spent_ids(&self, utxo_ids: &[i64]) -> Result<(), DbError> {
+        if utxo_ids.is_empty() {
+            return Ok(());
+        }
+
+        let query = "UPDATE gateway.utxo SET status = 'spent', updated_at = now() WHERE id = ANY($1)";
+
+        sqlx::query(query)
+            .bind(utxo_ids)
+            .execute(&self.get_conn().await?)
             .await
             .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
@@ -210,7 +245,7 @@ impl UtxoStorage for LocalDbStorage {
         )
         .bind(block_height)
         .bind(txid.to_string())
-        .execute(&self.postgres_repo.pool)
+        .execute(&self.get_conn().await?)
         .await
         .map_err(|e| DbError::BadRequest(e.to_string()))?
         .rows_affected();

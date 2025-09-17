@@ -15,7 +15,7 @@ CREATE TYPE REQ_TYPE AS ENUM (
 CREATE TABLE IF NOT EXISTS gateway.session_requests
 (
     session_id   UUID PRIMARY KEY,
-    request_type TEXT           NOT NULL,
+    request_type REQ_TYPE       NOT NULL,
     status       SESSION_STATUS NOT NULL DEFAULT 'pending',
     request      JSONB          NOT NULL,
     response     JSONB,

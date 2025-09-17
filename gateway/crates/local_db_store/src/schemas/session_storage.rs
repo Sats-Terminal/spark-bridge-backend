@@ -1,6 +1,7 @@
 use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
 use gateway_session_storage::traits::{RequestType, SessionRequest, SessionStatus, SessionStorage};
+use global_utils::common_types::get_uuid;
 use persistent_storage::error::DbError;
 use sqlx::types::JsonValue;
 use uuid::Uuid;
@@ -8,7 +9,7 @@ use uuid::Uuid;
 #[async_trait]
 impl SessionStorage for LocalDbStorage {
     async fn create_session(&self, request_type: RequestType, request_data: JsonValue) -> Result<Uuid, DbError> {
-        let session_id = Uuid::new_v4();
+        let session_id = get_uuid();
 
         sqlx::query(
             r#"
