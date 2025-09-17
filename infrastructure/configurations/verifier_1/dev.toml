@@ -4,10 +4,10 @@ http_server_port = 8071
 network = "regtest"
 
 [btc_indexer_url_config]
-address="http://localhost:8079"
+address="http://localhost:8070"
 
 [spark_balance_checker_url_config]
-address="http://localhost:8078"
+address="http://localhost:8090"
 
 [frost_signer_config]
 identifier = 1

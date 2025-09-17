@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS verifier.deposit_address
     rune_id TEXT NOT NULL,
     address TEXT,
     is_btc BOOLEAN NOT NULL,
-    amount INTEGER NOT NULL,
+    amount BIGINT NOT NULL,
     confirmation_status JSON NOT NULL,
     txid TEXT,
     PRIMARY KEY (public_key, rune_id, nonce_tweak),

@@ -42,5 +42,9 @@ pub async fn create_app(
             "/api/verifier/notify-spark-address",
             post(handlers::notify_spark_address::handle),
         )
+        .route(
+            "/api/user/bridge-runes",
+            post(handlers::bridge_runes::handle),
+        )
         .with_state(state)
 }

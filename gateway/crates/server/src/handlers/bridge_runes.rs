@@ -13,16 +13,11 @@ pub struct BridgeRunesSparkRequest {
     pub txid: Txid,
 }
 
-#[derive(Serialize, Debug)]
-pub struct BridgeRunesSparkResponse {
-    pub message: String,
-}
-
 #[instrument(level = "info", skip(request, state), fields(request = ?request), ret)]
 pub async fn handle(
     State(state): State<AppState>,
     Json(request): Json<BridgeRunesSparkRequest>,
-) -> Result<Json<BridgeRunesSparkResponse>, GatewayError> {
+) -> Result<Json<()>, GatewayError> {
     let btc_address = Address::from_str(&request.btc_address)
         .map_err(|e| GatewayError::InvalidData(format!("Failed to parse btc address: {e}")))?
         .require_network(state.network)
@@ -32,7 +27,5 @@ pub async fn handle(
         .await
         .map_err(|e| GatewayError::DepositVerificationError(format!("Failed to verify runes deposit: {}", e)))?;
 
-    Ok(Json(BridgeRunesSparkResponse {
-        message: "success".to_string(),
-    }))
+    Ok(Json(()))
 }

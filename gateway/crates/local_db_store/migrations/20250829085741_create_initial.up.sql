@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS gateway.deposit_address
     rune_id TEXT NOT NULL,
     address TEXT,
     is_btc BOOLEAN NOT NULL,
-    amount INTEGER NOT NULL,
+    amount BIGINT NOT NULL,
     txid TEXT,
     confirmation_status JSON NOT NULL,
     PRIMARY KEY (public_key, rune_id, nonce_tweak),

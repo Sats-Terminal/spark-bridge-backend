@@ -23,6 +23,7 @@ impl VerifierClient {
         url: Url,
         request: T,
     ) -> Result<U, VerifierClientError> {
+        tracing::info!("Sending request to URL: {}", url);
         let response = self
             .client
             .post(url)

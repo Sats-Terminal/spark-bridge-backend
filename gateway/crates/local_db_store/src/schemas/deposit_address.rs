@@ -83,7 +83,7 @@ impl DepositAddressStorage for LocalDbStorage {
         let rune_id = musig_id.get_rune_id();
 
         let result: Option<(Option<String>, bool, i64, Option<String>, Json<DepositStatusInfo>)> = sqlx::query_as(
-            "SELECT address, is_btc, amount, confirmation_status
+            "SELECT address, is_btc, amount, txid, confirmation_status
             FROM verifier.deposit_address
             WHERE public_key = $1 AND rune_id = $2 AND nonce_tweak = $3",
         )
@@ -119,9 +119,9 @@ impl DepositAddressStorage for LocalDbStorage {
         let rune_id = musig_id.get_rune_id();
 
         let _ = sqlx::query(
-            "INSERT INTO gateway.deposit_address (public_key, rune_id, nonce_tweak, address, is_btc, amount, confirmation_status)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
-            ON CONFLICT (public_key, rune_id, nonce_tweak) DO UPDATE SET confirmation_status = $7",
+            "INSERT INTO gateway.deposit_address (public_key, rune_id, nonce_tweak, address, is_btc, amount, txid, confirmation_status)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            ON CONFLICT (public_key, rune_id, nonce_tweak) DO UPDATE SET confirmation_status = $8",
         )
             .bind(public_key.to_string())
             .bind(rune_id)
@@ -129,6 +129,7 @@ impl DepositAddressStorage for LocalDbStorage {
             .bind(deposit_addr_info.address)
             .bind(deposit_addr_info.is_btc)
             .bind(deposit_addr_info.amount as i64)
+            .bind(deposit_addr_info.txid.map(|txid| txid.to_string()))
             .bind(confirmation_status)
             .execute(&self.get_conn().await?)
             .await
@@ -152,7 +153,7 @@ impl DepositAddressStorage for LocalDbStorage {
 
     async fn get_row_by_address(&self, address: String) -> Result<Option<(MusigId, Nonce, DepositAddrInfo)>, DbError> {
         let result: Option<(String, String, Nonce, Option<String>, bool, i64, Option<String>, Json<DepositStatusInfo>)> = sqlx::query_as(
-            "SELECT public_key, rune_id, nonce_tweak, address, is_btc, amount, confirmation_status
+            "SELECT public_key, rune_id, nonce_tweak, address, is_btc, amount, txid, confirmation_status
             FROM gateway.deposit_address WHERE address = $1",
         )
             .bind(address)

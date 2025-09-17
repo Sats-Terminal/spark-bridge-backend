@@ -8,6 +8,7 @@ use bitcoin::{Address, Txid};
 use futures::future::join_all;
 use gateway_flow_processor::types::{BridgeRunesRequest, ExitSparkRequest};
 use std::collections::HashMap;
+use tracing;
 
 #[derive(Clone, Debug)]
 pub struct DepositVerificationAggregator {
@@ -30,6 +31,7 @@ impl DepositVerificationAggregator {
         btc_address: Address,
         txid: Txid,
     ) -> Result<(), DepositVerificationError> {
+        tracing::info!("Verifying runes deposit for address: {}", btc_address);
         let (musig_id, nonce, deposit_addr_info) = self.storage.get_row_by_address(btc_address.to_string()).await
             .map_err(|e| DepositVerificationError::StorageError(format!("Error getting deposit address info: {:?}", e)))?
             .ok_or(DepositVerificationError::StorageError("Deposit address info not found".to_string()))?;
@@ -81,6 +83,7 @@ impl DepositVerificationAggregator {
         txid: Txid,
         verifier_response: DepositStatus,
     ) -> Result<(), DepositVerificationError> {
+        tracing::info!("Retrieving confirmation status for txid: {}", txid);
         let mut confirmation_status_info = self.storage.get_confirmation_status_by_txid(txid).await
             .map_err(|e| DepositVerificationError::StorageError(format!("Error getting confirmation status: {:?}", e)))?
             .ok_or(DepositVerificationError::StorageError("Confirmation status not found".to_string()))?;
@@ -104,6 +107,7 @@ impl DepositVerificationAggregator {
                 btc_address,
             }).await
                 .map_err(|e| DepositVerificationError::FlowProcessorError(format!("Error sending bridge runes request: {:?}", e)))?;
+            tracing::info!("Bridge runes request sent for address");
         }
 
         Ok(())
