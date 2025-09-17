@@ -1,4 +1,4 @@
-use crate::storage::Storage;
+use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
 use bitcoin::secp256k1::PublicKey;
 use frost::traits::AggregatorSignSessionStorage;
@@ -11,7 +11,7 @@ use sqlx::types::Json;
 use uuid::Uuid;
 
 #[async_trait]
-impl AggregatorSignSessionStorage for Storage {
+impl AggregatorSignSessionStorage for LocalDbStorage {
     async fn get_sign_data(
         &self,
         musig_id: MusigId,

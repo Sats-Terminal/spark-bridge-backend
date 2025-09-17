@@ -1,7 +1,7 @@
 use crate::greedy::{Utxo, UtxoStorage};
 use async_trait::async_trait;
 //use gateway_local_db_store::errors::*;
-use gateway_local_db_store::storage::Storage;
+use gateway_local_db_store::storage::LocalDbStorage;
 use persistent_storage::error::DatabaseError;
 
 #[async_trait]
@@ -16,7 +16,7 @@ pub trait UtxoManager {
 }
 
 #[async_trait]
-impl UtxoManager for Storage {
+impl UtxoManager for LocalDbStorage {
     async fn unlock_utxos(&self, utxo_ids: &[i64]) -> Result<(), DatabaseError> {
         UtxoStorage::unlock_utxos(self, utxo_ids).await
     }

@@ -1,5 +1,5 @@
 use chrono::Utc;
-use gateway_local_db_store::storage::Storage;
+use gateway_local_db_store::storage::LocalDbStorage;
 use persistent_storage::error::DatabaseError;
 use runes_utxo_manager::greedy::{Utxo, UtxoStorage};
 use runes_utxo_manager::session_tracker::{RequestType, SessionStatus, SessionStorage, SessionTracker};
@@ -9,10 +9,10 @@ use serde_json::json;
 use sqlx::Executor;
 use uuid::Uuid;
 
-async fn make_repo() -> Storage {
+async fn make_repo() -> LocalDbStorage {
     let url = "postgresql://admin_manager:password@localhost:5432/production_db_name";
 
-    Storage::new(url.into()).await.unwrap()
+    LocalDbStorage::new(url.into()).await.unwrap()
 }
 
 #[tokio::test]
@@ -371,7 +371,7 @@ fn create_test_utxos() -> Vec<Utxo> {
     ]
 }
 
-async fn cleanup_test_db(repo: &Storage) {
+async fn cleanup_test_db(repo: &LocalDbStorage) {
     sqlx::query("TRUNCATE gateway.utxo RESTART IDENTITY CASCADE")
         .execute(&repo.postgres_repo.pool)
         .await
@@ -708,7 +708,7 @@ async fn test_comprehensive_flow() -> Result<(), DatabaseError> {
     Ok(())
 }
 
-async fn setup_test_table(repo: &Storage) {
+async fn setup_test_table(repo: &LocalDbStorage) {
     sqlx::query(
         r#"
             CREATE TABLE IF NOT EXISTS gateway.session_requests (
@@ -731,7 +731,7 @@ async fn setup_test_table(repo: &Storage) {
     .expect("Failed to create test table");
 }
 
-async fn cleanup_sessions(repo: &Storage) {
+async fn cleanup_sessions(repo: &LocalDbStorage) {
     sqlx::query("TRUNCATE gateway.session_requests")
         .execute(&repo.postgres_repo.pool)
         .await

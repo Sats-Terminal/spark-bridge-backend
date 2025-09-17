@@ -1,12 +1,12 @@
 use crate::CoinSelector;
 use async_trait::async_trait;
 use chrono::NaiveDateTime;
-use gateway_local_db_store::storage::Storage;
+use gateway_local_db_store::storage::LocalDbStorage;
 use persistent_storage::error::DatabaseError;
 use sqlx::FromRow;
 
 pub struct GreedySelector<'a> {
-    pub repo: &'a Storage,
+    pub repo: &'a LocalDbStorage,
 }
 
 #[async_trait]
@@ -44,7 +44,7 @@ pub trait UtxoStorage {
 }
 
 #[async_trait]
-impl UtxoStorage for Storage {
+impl UtxoStorage for LocalDbStorage {
     async fn insert_utxo(&self, utxo: Utxo) -> Result<Utxo, DatabaseError> {
         let rec = sqlx::query_as::<_, Utxo>(
             r#"

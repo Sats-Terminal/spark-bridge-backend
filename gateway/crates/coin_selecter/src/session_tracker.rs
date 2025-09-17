@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use chrono::NaiveDateTime;
-use gateway_local_db_store::storage::Storage;
+use gateway_local_db_store::storage::LocalDbStorage;
 use persistent_storage::error::DatabaseError;
 use persistent_storage::init::PostgresRepo;
 use serde_json::Value as JsonValue;
@@ -270,11 +270,11 @@ impl SessionStorage for PostgresRepo {
 }
 
 pub struct SessionTracker<'a> {
-    pub repo: &'a Storage,
+    pub repo: &'a LocalDbStorage,
 }
 
 impl<'a> SessionTracker<'a> {
-    pub fn new(repo: &'a Storage) -> Self {
+    pub fn new(repo: &'a LocalDbStorage) -> Self {
         Self { repo }
     }
 
