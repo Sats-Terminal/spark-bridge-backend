@@ -47,32 +47,25 @@ impl VerifiersResponses {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, Eq, PartialEq)]
-#[serde(rename_all = "snake_case")]
-pub struct DepositStatusInfo {
-    pub status: DepositStatus,
-    pub verifiers_responses: VerifiersResponses,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct DepositAddrInfo {
     pub address: Option<String>,
     pub is_btc: bool,
     pub amount: u64,
     pub txid: Option<Txid>,
-    pub confirmation_status: DepositStatusInfo,
+    pub confirmation_status: VerifiersResponses,
 }
 
 #[async_trait]
 pub trait DepositAddressStorage: Send + Sync + Debug {
     async fn get_deposit_addr_info(&self, musig_id: &MusigId, tweak: Nonce) -> Result<Option<DepositAddrInfo>, DbError>;
     async fn set_deposit_addr_info(&self, musig_id: &MusigId, tweak: Nonce, deposit_addr_info: DepositAddrInfo) -> Result<(), DbError>;
-    async fn update_confirmation_status_by_address(&self, address: String, confirmation_status: DepositStatusInfo) -> Result<(), DbError>;
+    async fn set_confirmation_status_by_address(&self, address: String, confirmation_status: VerifiersResponses) -> Result<(), DbError>;
     async fn get_row_by_address(&self, address: String) -> Result<Option<(MusigId, Nonce, DepositAddrInfo)>, DbError>;
-    async fn get_confirmation_status_by_address(&self, address: String) -> Result<Option<DepositStatusInfo>, DbError>;
+    async fn get_confirmation_status_by_address(&self, address: String) -> Result<Option<VerifiersResponses>, DbError>;
     async fn set_txid(&self, address: String, txid: Txid) -> Result<(), DbError>;
-    async fn get_confirmation_status_by_txid(&self, txid: Txid) -> Result<Option<DepositStatusInfo>, DbError>;
-    async fn update_confirmation_status_by_txid(&self, txid: Txid, confirmation_status: DepositStatusInfo) -> Result<(), DbError>;
+    async fn get_confirmation_status_by_txid(&self, txid: Txid) -> Result<Option<VerifiersResponses>, DbError>;
+    async fn update_confirmation_status_by_txid(&self, txid: Txid, verifier_id: u16, confirmation_status: DepositStatus) -> Result<(), DbError>;
     async fn get_address_by_txid(&self, txid: Txid) -> Result<Option<Address>, DbError>;
 }
 
@@ -82,7 +75,7 @@ impl DepositAddressStorage for LocalDbStorage {
         let public_key = musig_id.get_public_key();
         let rune_id = musig_id.get_rune_id();
 
-        let result: Option<(Option<String>, bool, i64, Option<String>, Json<DepositStatusInfo>)> = sqlx::query_as(
+        let result: Option<(Option<String>, bool, i64, Option<String>, Json<VerifiersResponses>)> = sqlx::query_as(
             "SELECT address, is_btc, amount, txid, confirmation_status
             FROM gateway.deposit_address
             WHERE public_key = $1 AND rune_id = $2 AND nonce_tweak = $3",
@@ -138,7 +131,7 @@ impl DepositAddressStorage for LocalDbStorage {
         Ok(())
     }
 
-    async fn update_confirmation_status_by_address(&self, address: String, confirmation_status: DepositStatusInfo) -> Result<(), DbError> {
+    async fn set_confirmation_status_by_address(&self, address: String, confirmation_status: VerifiersResponses) -> Result<(), DbError> {
         let _ = sqlx::query(
             "UPDATE gateway.deposit_address SET confirmation_status = $1 WHERE address = $2",
         )
@@ -152,7 +145,7 @@ impl DepositAddressStorage for LocalDbStorage {
     }
 
     async fn get_row_by_address(&self, address: String) -> Result<Option<(MusigId, Nonce, DepositAddrInfo)>, DbError> {
-        let result: Option<(String, String, Nonce, Option<String>, bool, i64, Option<String>, Json<DepositStatusInfo>)> = sqlx::query_as(
+        let result: Option<(String, String, Nonce, Option<String>, bool, i64, Option<String>, Json<VerifiersResponses>)> = sqlx::query_as(
             "SELECT public_key, rune_id, nonce_tweak, address, is_btc, amount, txid, confirmation_status
             FROM gateway.deposit_address WHERE address = $1",
         )
@@ -185,8 +178,8 @@ impl DepositAddressStorage for LocalDbStorage {
         }
     }
 
-    async fn get_confirmation_status_by_address(&self, address: String) -> Result<Option<DepositStatusInfo>, DbError> {
-        let result: Option<(Json<DepositStatusInfo>, )> = sqlx::query_as(
+    async fn get_confirmation_status_by_address(&self, address: String) -> Result<Option<VerifiersResponses>, DbError> {
+        let result: Option<(Json<VerifiersResponses>, )> = sqlx::query_as(
             "SELECT confirmation_status
             FROM gateway.deposit_address WHERE address = $1",
         )
@@ -211,8 +204,8 @@ impl DepositAddressStorage for LocalDbStorage {
         Ok(())
     }
 
-    async fn get_confirmation_status_by_txid(&self, txid: Txid) -> Result<Option<DepositStatusInfo>, DbError> {
-        let result: Option<(Json<DepositStatusInfo>, )> = sqlx::query_as(
+    async fn get_confirmation_status_by_txid(&self, txid: Txid) -> Result<Option<VerifiersResponses>, DbError> {
+        let result: Option<(Json<VerifiersResponses>, )> = sqlx::query_as(
             "SELECT confirmation_status
             FROM gateway.deposit_address WHERE txid = $1",
         )
@@ -224,15 +217,35 @@ impl DepositAddressStorage for LocalDbStorage {
         Ok(result.map(|deposit_status_info| deposit_status_info.0.0))
     }
 
-    async fn update_confirmation_status_by_txid(&self, txid: Txid, confirmation_status: DepositStatusInfo) -> Result<(), DbError> {
+    async fn update_confirmation_status_by_txid(&self, txid: Txid, verifier_id: u16, confirmation_status: DepositStatus) -> Result<(), DbError> {
+        let mut tx = self.get_conn().await?.begin().await?;
+
+        let result: Option<(Json<VerifiersResponses>,)> = sqlx::query_as(
+            "SELECT confirmation_status
+            FROM gateway.deposit_address WHERE txid = $1",
+        )
+            .bind(txid.to_string())
+            .fetch_optional(&mut *tx)
+            .await
+            .map_err(|e| DbError::BadRequest(e.to_string()))?;
+
+        let mut status = match result {
+            Some((status, )) => status.0,
+            None => return Err(DbError::BadRequest("Confirmation status not found".to_string())),
+        };
+
+        status.responses.insert(verifier_id, confirmation_status);
+
         let _ = sqlx::query(
             "UPDATE gateway.deposit_address SET confirmation_status = $1 WHERE txid = $2",
         )
-            .bind(Json(confirmation_status))
+            .bind(Json(status))
             .bind(txid.to_string())
-            .execute(&self.get_conn().await?)
+            .execute(&mut *tx)
             .await
-            .map_err(|e| DbError::BadRequest(e.to_string()))?;
+            .map_err(|e| DbError::BadRequest(format!("Failed to update confirmation status: {}", e)))?;
+
+        let _ = tx.commit().await.map_err(|e| DbError::BadRequest(format!("Failed to commit transaction: {}", e)))?;
 
         Ok(())
     }

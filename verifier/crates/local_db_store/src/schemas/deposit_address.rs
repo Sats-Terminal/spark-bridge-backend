@@ -30,8 +30,8 @@ pub struct DepositAddrInfo {
 pub trait DepositAddressStorage {
     async fn get_deposit_addr_info(&self, musig_id: &MusigId, tweak: Nonce) -> Result<Option<DepositAddrInfo>, DbError>;
     async fn set_deposit_addr_info(&self, musig_id: &MusigId, tweak: Nonce, deposit_addr_info: DepositAddrInfo) -> Result<(), DbError>;
-    async fn update_confirmation_status_by_address(&self, address: String, confirmation_status: DepositStatus) -> Result<(), DbError>;
-    async fn update_confirmation_status_by_txid(&self, txid: Txid, confirmation_status: DepositStatus) -> Result<(), DbError>;
+    async fn set_confirmation_status_by_address(&self, address: String, confirmation_status: DepositStatus) -> Result<(), DbError>;
+    async fn set_confirmation_status_by_txid(&self, txid: Txid, confirmation_status: DepositStatus) -> Result<(), DbError>;
 }
 
 #[async_trait]
@@ -95,7 +95,7 @@ impl DepositAddressStorage for LocalDbStorage {
         Ok(())
     }
 
-    async fn update_confirmation_status_by_address(&self, address: String, confirmation_status: DepositStatus) -> Result<(), DbError> {
+    async fn set_confirmation_status_by_address(&self, address: String, confirmation_status: DepositStatus) -> Result<(), DbError> {
         let _ = sqlx::query(
             "UPDATE verifier.deposit_address SET confirmation_status = $1 WHERE address = $2",
         )
@@ -108,7 +108,7 @@ impl DepositAddressStorage for LocalDbStorage {
         Ok(())
     }
 
-    async fn update_confirmation_status_by_txid(&self, txid: Txid, confirmation_status: DepositStatus) -> Result<(), DbError> {
+    async fn set_confirmation_status_by_txid(&self, txid: Txid, confirmation_status: DepositStatus) -> Result<(), DbError> {
         let _ = sqlx::query(
             "UPDATE verifier.deposit_address SET confirmation_status = $1 WHERE txid = $2",
         )

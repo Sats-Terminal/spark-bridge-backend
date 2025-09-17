@@ -9,7 +9,7 @@ use tracing;
 use frost::types::AggregatorDkgState;
 use frost::utils::convert_public_key_package;
 use frost::utils::generate_nonce;
-use gateway_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositAddressStorage, DepositStatus, DepositStatusInfo, VerifiersResponses};
+use gateway_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositAddressStorage, DepositStatus, VerifiersResponses};
 use spark_client::utils::spark_address::{encode_spark_address, SparkAddressData};
 use gateway_config_parser::config::VerifierConfig;
 
@@ -67,10 +67,7 @@ pub async fn handle(
             is_btc: true,
             amount: amount,
             txid: None,
-            confirmation_status: DepositStatusInfo {
-                status: DepositStatus::Created,
-                verifiers_responses,
-            },
+            confirmation_status: verifiers_responses,
         },
     )
     .await?;

@@ -20,7 +20,7 @@ pub async fn handle(
             let txid = transaction.txid;
             let verifier_response = DepositStatus::Confirmed;
 
-            state.storage.update_confirmation_status_by_txid(txid, verifier_response.clone())
+            state.storage.set_confirmation_status_by_txid(txid, verifier_response.clone())
                 .await
                 .map_err(|e| VerifierError::StorageError(format!("Failed to update confirmation status: {}", e)))?;
 

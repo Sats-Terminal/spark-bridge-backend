@@ -5,7 +5,7 @@ use bitcoin::Address;
 use frost::traits::AggregatorMusigIdStorage;
 use frost::types::AggregatorDkgState;
 use frost::utils::convert_public_key_package;
-use gateway_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositAddressStorage, DepositStatusInfo, DepositStatus, VerifiersResponses};
+use gateway_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositAddressStorage, DepositStatus, VerifiersResponses};
 use frost::utils::{get_address, generate_nonce};
 use tracing;
 
@@ -61,10 +61,7 @@ pub async fn handle(
                 is_btc: true,
                 amount: request.amount,
                 txid: None,
-                confirmation_status: DepositStatusInfo {
-                    status: DepositStatus::Created,
-                    verifiers_responses,
-                },
+                confirmation_status: verifiers_responses,
             },
         )
         .await?;

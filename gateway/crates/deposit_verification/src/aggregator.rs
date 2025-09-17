@@ -3,7 +3,7 @@ use crate::traits::VerificationClient;
 use std::sync::Arc;
 use crate::types::*;
 use crate::error::DepositVerificationError;
-use gateway_local_db_store::schemas::deposit_address::{DepositAddressStorage, DepositStatusInfo, DepositStatus, VerifiersResponses};
+use gateway_local_db_store::schemas::deposit_address::{DepositAddressStorage, DepositStatus, VerifiersResponses};
 use bitcoin::{Address, Txid};
 use futures::future::join_all;
 use gateway_flow_processor::types::{BridgeRunesRequest, ExitSparkRequest};
@@ -65,10 +65,7 @@ impl DepositVerificationAggregator {
         let ids = self.verifiers.keys().cloned().collect();
         let verifiers_responses = VerifiersResponses::new(DepositStatus::WaitingForConfirmation, ids);
 
-        self.storage.update_confirmation_status_by_address(btc_address.to_string(), DepositStatusInfo {
-            status: DepositStatus::WaitingForConfirmation,
-            verifiers_responses,
-        }).await
+        self.storage.set_confirmation_status_by_address(btc_address.to_string(), verifiers_responses).await
             .map_err(|e| DepositVerificationError::StorageError(format!("Error updating confirmation status: {:?}", e)))?;
 
         self.storage.set_txid(btc_address.to_string(), txid).await
@@ -86,19 +83,16 @@ impl DepositVerificationAggregator {
         verifier_response: DepositStatus,
     ) -> Result<(), DepositVerificationError> {
         tracing::info!("Retrieving confirmation status for txid: {}, verifier: {}", txid, verifier_id);
-        let mut confirmation_status_info = self.storage.get_confirmation_status_by_txid(txid).await
+
+        self.storage.update_confirmation_status_by_txid(txid, verifier_id, verifier_response).await
+            .map_err(|e| DepositVerificationError::StorageError(format!("Error updating confirmation status: {:?}", e)))?;
+
+        let confirmation_status_info = self.storage.get_confirmation_status_by_txid(txid).await
             .map_err(|e| DepositVerificationError::StorageError(format!("Error getting confirmation status: {:?}", e)))?
             .ok_or(DepositVerificationError::StorageError("Confirmation status not found".to_string()))?;
 
-        confirmation_status_info.verifiers_responses.responses.insert(verifier_id, verifier_response);
-        let all_verifiers_confirmed = confirmation_status_info.verifiers_responses.check_all_verifiers_confirmed();
+        let all_verifiers_confirmed = confirmation_status_info.check_all_verifiers_confirmed();
 
-        if all_verifiers_confirmed {
-            confirmation_status_info.status = DepositStatus::Confirmed;
-        }
-
-        self.storage.update_confirmation_status_by_txid(txid, confirmation_status_info).await
-            .map_err(|e| DepositVerificationError::StorageError(format!("Error updating confirmation status: {:?}", e)))?;
 
         let btc_address = self.storage.get_address_by_txid(txid).await
             .map_err(|e| DepositVerificationError::StorageError(format!("Error getting address by txid: {:?}", e)))?
@@ -157,12 +151,8 @@ impl DepositVerificationAggregator {
         }
 
         let all_verifiers_confirmed = verifiers_responses.check_all_verifiers_confirmed();
-        let status = if all_verifiers_confirmed { DepositStatus::Confirmed } else { DepositStatus::Failed };
 
-        self.storage.update_confirmation_status_by_address(spark_address.to_string(), DepositStatusInfo {
-            status,
-            verifiers_responses,
-        }).await
+        self.storage.set_confirmation_status_by_address(spark_address.to_string(), verifiers_responses).await
             .map_err(|e| DepositVerificationError::StorageError(format!("Error updating confirmation status: {:?}", e)))?;
 
         if all_verifiers_confirmed {

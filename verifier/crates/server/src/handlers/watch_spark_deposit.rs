@@ -6,7 +6,6 @@ use frost::types::MusigId;
 use frost::types::Nonce;
 use crate::init::AppState;
 use verifier_local_db_store::schemas::deposit_address::DepositAddressStorage;
-use bitcoin::Txid;
 use verifier_local_db_store::schemas::deposit_address::{DepositStatus, DepositAddrInfo};
 use verifier_spark_balance_checker_client::client::GetBalanceRequest;
 
@@ -52,7 +51,7 @@ pub async fn handle(
         false => DepositStatus::Failed,
     };
 
-    state.storage.update_confirmation_status_by_address(request.address.to_string(), confirmation_status.clone()).await.map_err(|e| VerifierError::StorageError(format!("Failed to update confirmation status: {}", e)))?;
+    state.storage.set_confirmation_status_by_address(request.address.to_string(), confirmation_status.clone()).await.map_err(|e| VerifierError::StorageError(format!("Failed to update confirmation status: {}", e)))?;
 
     Ok(Json(WatchSparkDepositResponse {
         verifier_response: confirmation_status,
