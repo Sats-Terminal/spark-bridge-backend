@@ -11,7 +11,7 @@ services:
     environment:
       - COMMIT_INTERVAL=5
       - BITCOIN_RPC_URL=http://bitcoind:18443
-      - BITCOIN_RPC_USERNAME=$bitcoin
+      - BITCOIN_RPC_USERNAME=bitcoin
       - BITCOIN_RPC_PASSWORD=bitcoinpass
       - CHAIN=regtest
       - HTTP_LISTEN=0.0.0.0:3030
