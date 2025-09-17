@@ -2,34 +2,69 @@
 
 # You should run this script from the root of the project
 
-# Function to run docker compose and wait for initialization
-run_docker_compose_with_wait() {
-    echo "Starting docker compose with file: $compose_file"
-    docker compose -f "./infrastructure/databases.docker-compose.yml" up -d
-    
-    echo "Docker compose started successfully. Waiting 10 seconds for initialization..."
-    sleep 5
-    echo "Initialization wait complete."
-}
-
 GATEWAY_DATABASE_URL="postgres://postgres:postgres@localhost:5470/gateway"
 VERIFIER_1_DATABASE_URL="postgres://postgres:postgres@localhost:5471/verifier"
 VERIFIER_2_DATABASE_URL="postgres://postgres:postgres@localhost:5472/verifier"
 VERIFIER_3_DATABASE_URL="postgres://postgres:postgres@localhost:5473/verifier"
 BTC_INDEXER_DATABASE_URL="postgres://postgres:postgres@localhost:5474/btc_indexer"
 
+GATEWAY_MIGRATION_PATH="./gateway/crates/local_db_store/migrations"
+VERIFIER_MIGRATION_PATH="./verifier/crates/local_db_store/migrations"
+BTC_INDEXER_MIGRATION_PATH="./btc_indexer/crates/local_db_store/migrations"
+
+GATEWAY_CONFIG_PATH="./infrastructure/configurations/gateway/dev.toml"
+VERIFIER_1_CONFIG_PATH="./infrastructure/configurations/verifier_1/dev.toml"
+VERIFIER_2_CONFIG_PATH="./infrastructure/configurations/verifier_2/dev.toml"
+VERIFIER_3_CONFIG_PATH="./infrastructure/configurations/verifier_3/dev.toml"
+BTC_INDEXER_CONFIG_PATH="./infrastructure/configurations/btc_indexer/dev.toml"
+
+RUN_GATEWAY_SCRIPT="./infrastructure/scripts/run-gateway.sh"
+RUN_VERIFIER_SCRIPT="./infrastructure/scripts/run-verifier.sh"
+
+GATEWAY_LOG_PATH="./logs/gateway.log"
+VERIFIER_1_LOG_PATH="./logs/verifier_1.log"
+VERIFIER_2_LOG_PATH="./logs/verifier_2.log"
+VERIFIER_3_LOG_PATH="./logs/verifier_3.log"
+
+# Function to run docker compose and wait for initialization
+run_docker_compose_with_wait() {
+    echo "Starting docker compose with file: $compose_file"
+    docker compose -f "./infrastructure/databases.docker-compose.yml" up -d
+    echo "Initialization wait complete."
+}
+
 migrate_databases() {
     echo "Migrating databases..."
-    sqlx migrate run --database-url $GATEWAY_DATABASE_URL --source ./gateway/crates/local_db_store/migrations
-    sqlx migrate run --database-url $VERIFIER_1_DATABASE_URL --source ./verifier/crates/local_db_store/migrations
-    sqlx migrate run --database-url $VERIFIER_2_DATABASE_URL --source ./verifier/crates/local_db_store/migrations
-    sqlx migrate run --database-url $VERIFIER_3_DATABASE_URL --source ./verifier/crates/local_db_store/migrations
-    sqlx migrate run --database-url $BTC_INDEXER_DATABASE_URL --source ./btc_indexer/crates/local_db_store/migrations
+    sqlx migrate run --database-url $GATEWAY_DATABASE_URL --source $GATEWAY_MIGRATION_PATH
+    sqlx migrate run --database-url $VERIFIER_1_DATABASE_URL --source $VERIFIER_MIGRATION_PATH
+    sqlx migrate run --database-url $VERIFIER_2_DATABASE_URL --source $VERIFIER_MIGRATION_PATH
+    sqlx migrate run --database-url $VERIFIER_3_DATABASE_URL --source $VERIFIER_MIGRATION_PATH
+    sqlx migrate run --database-url $BTC_INDEXER_DATABASE_URL --source $BTC_INDEXER_MIGRATION_PATH
     echo "Databases migrated successfully."
 }
 
 run_services() {
     echo "Running services..."
+
+    pm2 start $RUN_GATEWAY_SCRIPT \
+        --name gateway \
+        --log $GATEWAY_LOG_PATH \
+        -- $GATEWAY_CONFIG_PATH
+    
+    pm2 start $RUN_VERIFIER_SCRIPT \
+        --name verifier_1 \
+        --log $VERIFIER_1_LOG_PATH \
+        -- $VERIFIER_1_CONFIG_PATH
+    
+    pm2 start $RUN_VERIFIER_SCRIPT \
+        --name verifier_2 \
+        --log $VERIFIER_2_LOG_PATH \
+        -- $VERIFIER_2_CONFIG_PATH
+    
+    pm2 start $RUN_VERIFIER_SCRIPT \
+        --name verifier_3 \
+        --log $VERIFIER_3_LOG_PATH \
+        -- $VERIFIER_3_CONFIG_PATH
 }
 
 main() {
