@@ -2,6 +2,8 @@
 
 # You should run this script from the root of the project
 
+set -e
+
 GATEWAY_DATABASE_URL="postgres://postgres:postgres@localhost:5470/gateway"
 VERIFIER_1_DATABASE_URL="postgres://postgres:postgres@localhost:5471/verifier"
 VERIFIER_2_DATABASE_URL="postgres://postgres:postgres@localhost:5472/verifier"
@@ -17,7 +19,10 @@ VERIFIER_1_CONFIG_PATH="./infrastructure/configurations/verifier_1/dev.toml"
 VERIFIER_2_CONFIG_PATH="./infrastructure/configurations/verifier_2/dev.toml"
 VERIFIER_3_CONFIG_PATH="./infrastructure/configurations/verifier_3/dev.toml"
 BTC_INDEXER_CONFIG_PATH="./infrastructure/configurations/btc_indexer/dev.toml"
+SPARK_BALANCE_CHECKER_CONFIG_PATH="./infrastructure/configurations/spark_balance_checker/dev.toml"
 
+RUN_SPARK_BALANCE_CHECKER_SCRIPT="./infrastructure/scripts/run-spark-balance-checker.sh"
+RUN_BTC_INDEXER_SCRIPT="./infrastructure/scripts/run-btc-indexer.sh"
 RUN_GATEWAY_SCRIPT="./infrastructure/scripts/run-gateway.sh"
 RUN_VERIFIER_SCRIPT="./infrastructure/scripts/run-verifier.sh"
 

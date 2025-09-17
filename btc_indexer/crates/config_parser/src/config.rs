@@ -39,6 +39,12 @@ pub struct ServerConfig {
     pub app_config: AppConfig,
     #[serde(rename(deserialize = "btc_indexer"))]
     pub btc_indexer_config: BtcIndexerParams,
+    #[serde(rename(deserialize = "database"))]
+    pub database_config: DatabaseConfig,
+    #[serde(rename(deserialize = "network"))]
+    pub network_config: NetworkConfig,
+    #[serde(rename(deserialize = "titan"))]
+    pub titan_config: TitanConfig,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -49,10 +55,15 @@ pub struct AppConfig {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BtcRpcCredentials {
-    pub url: SocketAddr,
+    pub url: String,
     pub network: Network,
     pub name: String,
     pub password: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct DatabaseConfig {
+    pub url: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -68,6 +79,11 @@ impl AppConfig {
             self.http_server_ip, self.http_server_port
         ))?)
     }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct TitanConfig {
+    pub url: String,
 }
 
 impl ServerConfig {
@@ -157,15 +173,7 @@ impl BtcRpcCredentials {
     #[instrument(level = "trace", ret)]
     pub fn new() -> crate::error::Result<Self> {
         Ok(Self {
-            url: SocketAddr::new(
-                lookup_ip_addr(&env_parser::obtain_env_value(BITCOIN_RPC_HOST)?)?,
-                u16::from_str(&env_parser::obtain_env_value(BITCOIN_RPC_PORT)?).map_err(|e| {
-                    ConfigParserError::ParseIntError {
-                        var_name: BITCOIN_RPC_PORT.to_string(),
-                        err: e,
-                    }
-                })?,
-            ),
+            url: env_parser::obtain_env_value(BITCOIN_RPC_HOST)?,
             network: NetworkConfig::from_env()
                 .map_err(|e| ConfigParserError::ParseNetworkError(e.to_string()))?
                 .network,

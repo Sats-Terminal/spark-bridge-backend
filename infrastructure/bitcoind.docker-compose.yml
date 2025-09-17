@@ -1,0 +1,55 @@
+services:
+  titan:
+    image: ghcr.io/saturnbtc/titan:latest
+    restart: always
+    depends_on:
+      bitcoind:
+        condition: service_healthy
+    ports:
+      - 0.0.0.0:8080:8080
+      - 0.0.0.0:3030:3030
+    environment:
+      - COMMIT_INTERVAL=5
+      - BITCOIN_RPC_URL=http://bitcoind:18443
+      - BITCOIN_RPC_USERNAME=$bitcoin
+      - BITCOIN_RPC_PASSWORD=bitcoinpass
+      - CHAIN=regtest
+      - HTTP_LISTEN=0.0.0.0:3030
+      - TCP_ADDRESS=0.0.0.0:8080
+    volumes:
+      - "titan-data:/home/titan/data"
+
+  bitcoind:
+    image: bitcoin/bitcoin
+    ports:
+      - 0.0.0.0:18443:18443
+    volumes:
+      - "btcd-data:/var/lib/bitcoin-core"
+    command: |
+      -${BITCOIN_NETWORK:-regtest}
+      -rpcallowip=0.0.0.0/0
+      -datadir=/var/lib/bitcoin-core
+      -rpcbind=bitcoind
+      -rpcuser=bitcoin
+      -rpcpassword=bitcoinpass
+      -fallbackfee=0.00000001
+      -txindex
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "bitcoin-cli",
+          "-regtest",
+          "-rpcconnect=bitcoind",
+          "-rpcport=18443",
+          "-rpcuser=bitcoin",
+          "-rpcpassword=bitcoinpass",
+          "getblockchaininfo",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  titan-data:
+  btcd-data:

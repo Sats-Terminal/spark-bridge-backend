@@ -132,3 +132,6 @@ btc_indexer_internals = { path = "./btc_indexer/crates/indexer_internals" }
 btc_indexer_server = { path = "./btc_indexer/crates/server", features = ["swagger"] }
 config_parser = { path = "./btc_indexer/crates/config_parser" }
 local_db_store_indexer = { path = "./btc_indexer/crates/local_db_store" }
+
+# Btc indexer apps
+btc_indexer_main = { path = "./btc_indexer/apps/main" }
