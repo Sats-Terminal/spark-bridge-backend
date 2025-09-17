@@ -30,11 +30,16 @@ GATEWAY_LOG_PATH="./logs/gateway.log"
 VERIFIER_1_LOG_PATH="./logs/verifier_1.log"
 VERIFIER_2_LOG_PATH="./logs/verifier_2.log"
 VERIFIER_3_LOG_PATH="./logs/verifier_3.log"
+SPARK_BALANCE_CHECKER_LOG_PATH="./logs/spark_balance_checker.log"
+BTC_INDEXER_LOG_PATH="./logs/btc_indexer.log"
+
+SPARK_BALANCE_CHECKER_CA_PEM_PATH="./infrastructure/configurations/spark_balance_checker/ca.pem"
 
 # Function to run docker compose and wait for initialization
 run_docker_compose_with_wait() {
     echo "Starting docker compose with file: $compose_file"
     docker compose -f "./infrastructure/databases.docker-compose.yml" up -d
+    docker compose -f "./infrastructure/bitcoind.docker-compose.yml" up -d
     echo "Initialization wait complete."
 }
 
@@ -70,6 +75,16 @@ run_services() {
         --name verifier_3 \
         --log $VERIFIER_3_LOG_PATH \
         -- $VERIFIER_3_CONFIG_PATH
+
+    pm2 start $RUN_SPARK_BALANCE_CHECKER_SCRIPT \
+        --name spark_balance_checker \
+        --log $SPARK_BALANCE_CHECKER_LOG_PATH \
+        -- $SPARK_BALANCE_CHECKER_CONFIG_PATH $SPARK_BALANCE_CHECKER_CA_PEM_PATH
+
+    pm2 start $RUN_BTC_INDEXER_SCRIPT \
+        --name btc_indexer \
+        --log $BTC_INDEXER_LOG_PATH \
+        -- $BTC_INDEXER_CONFIG_PATH
 }
 
 main() {

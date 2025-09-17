@@ -3,6 +3,7 @@
 down_docker_compose() {
     echo "Shutting down docker compose..."
     docker compose -f "./infrastructure/databases.docker-compose.yml" down -v
+    docker compose -f "./infrastructure/bitcoind.docker-compose.yml" down -v
     echo "Docker compose shut down successfully."
 }
 

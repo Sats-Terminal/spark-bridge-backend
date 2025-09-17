@@ -1,8 +1,7 @@
 use serde::{Deserialize, Serialize};
 use spark_client::common::config::SparkOperatorConfig;
-
+use bitcoin::Network;
 use std::{fmt::Debug, net::SocketAddr, str::FromStr};
-
 use crate::error::ConfigParserError;
 use config::{Config, Environment};
 use global_utils::config_variant::ConfigVariant;
@@ -37,6 +36,13 @@ pub struct ServerConfig {
     pub app_config: AppConfig,
     #[serde(rename(deserialize = "spark_operators"))]
     pub spark_operators: Vec<SparkOperatorConfig>,
+    #[serde(rename(deserialize = "network"))]
+    pub network: NetworkConfig,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct NetworkConfig {
+    pub network: Network,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -153,4 +159,10 @@ pub fn obtain_tonic_ca_cert(config_variant: ConfigVariant) -> crate::error::Resu
 
 pub fn get_cargo_manifest_dir() -> String {
     std::env::var(CARGO_MANIFEST_DIR).unwrap()
+}
+
+pub fn get_certificate(path: String) -> crate::error::Result<Certificate> {
+    let file = std::fs::read(path.clone())
+        .map_err(|err| ConfigParserError::FailedToOpenFile { err, path: path.to_string() })?;
+    Ok(Certificate::from_pem(file))
 }
