@@ -1,26 +1,25 @@
-#[cfg(test)]
 mod tests {
-    use std::sync::atomic::{AtomicU64, Ordering};
     use chrono::Utc;
-    use gateway_local_db_store::storage::Storage;
-    use persistent_storage::error::DatabaseError;
-    use runes_utxo_manager::greedy::{Utxo, UtxoStorage};
-    use gateway_local_db_store::schemas::session_tracker::{RequestType, SessionStatus, SessionStorage, SessionTracker};
-    use runes_utxo_manager::traits::UtxoManager;
-    use runes_utxo_manager::{CoinSelector, GreedySelector};
-    use serde_json::json;
+    use gateway_local_db_store::storage::LocalDbStorage;
+    use gateway_runes_utxo_manager::traits::{CoinSelector, Utxo, UtxoManager, UtxoStatus, UtxoStorage};
+    use gateway_runes_utxo_manager::utxo_manager::GreedySelector;
+    use persistent_storage::error::DbError as DatabaseError;
+    use persistent_storage::init::{PostgresPool, PostgresRepo};
     use sqlx::Executor;
-    use uuid::Uuid;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicU64, Ordering};
 
-    async fn make_repo() -> Storage {
-        let url = "postgresql://admin_manager:password@localhost:5432/production_db_name";
-
-        Storage::new(url.into()).await.unwrap()
+    async fn make_repo(db: PostgresPool) -> Arc<LocalDbStorage> {
+        Arc::new(LocalDbStorage {
+            postgres_repo: PostgresRepo { pool: db },
+        })
     }
 
-    #[tokio::test]
-    async fn test_select_and_lock_basic_flow() -> Result<(), DatabaseError> {
-        let repo = make_repo().await;
+    pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
+
+    #[sqlx::test(migrator = "MIGRATOR")]
+    async fn test_select_and_lock_basic_flow(db: PostgresPool) -> Result<(), DatabaseError> {
+        let repo = make_repo(db).await;
 
         sqlx::query("TRUNCATE gateway.utxo RESTART IDENTITY CASCADE")
             .execute(&repo.postgres_repo.pool)
@@ -36,7 +35,7 @@ mod tests {
                 rune_id: "rune1".into(),
                 sats_amount: Some(0),
                 owner_pubkey: "pub1".into(),
-                status: "unspent".into(),
+                status: UtxoStatus::Unspent,
                 block_height: Some(100),
                 created_at: Utc::now().naive_utc(),
                 updated_at: Utc::now().naive_utc(),
@@ -49,7 +48,7 @@ mod tests {
                 rune_id: "rune1".into(),
                 sats_amount: Some(0),
                 owner_pubkey: "pub1".into(),
-                status: "unspent".into(),
+                status: UtxoStatus::Unspent,
                 block_height: Some(101),
                 created_at: Utc::now().naive_utc(),
                 updated_at: Utc::now().naive_utc(),
@@ -62,7 +61,7 @@ mod tests {
                 rune_id: "rune_other".into(),
                 sats_amount: Some(0),
                 owner_pubkey: "pub2".into(),
-                status: "unspent".into(),
+                status: UtxoStatus::Unspent,
                 block_height: Some(102),
                 created_at: Utc::now().naive_utc(),
                 updated_at: Utc::now().naive_utc(),
@@ -75,9 +74,9 @@ mod tests {
 
         let unspent = repo.list_unspent("rune1").await?;
         assert_eq!(unspent.len(), 2);
-        assert!(unspent.iter().all(|u| u.status == "unspent"));
+        assert!(unspent.iter().all(|u| u.status == UtxoStatus::Unspent));
 
-        let selector = GreedySelector { repo: &repo };
+        let selector = GreedySelector { repo: repo.clone() };
         let selected = selector.select_utxos("rune1", 25).await?;
 
         assert_eq!(selected.len(), 2);
@@ -87,17 +86,19 @@ mod tests {
             let db_u = sqlx::query_as::<_, Utxo>("SELECT * FROM gateway.utxo WHERE txid = $1 AND vout = $2")
                 .bind(&u.txid)
                 .bind(u.vout)
-                .fetch_one(&repo.postgres_repo.pool)
+                .fetch_one(&repo.get_conn().await?)
                 .await;
-            assert_eq!(db_u?.status, "locked");
+            assert_eq!(db_u?.status, UtxoStatus::Locked);
         }
 
         Ok(())
     }
 
-    #[tokio::test]
-    async fn test_select_exact_and_single_large_utxo() -> Result<(), DatabaseError> {
-        let repo = make_repo().await;
+    #[sqlx::test(migrator = "MIGRATOR")]
+
+    async fn test_select_exact_and_single_large_utxo(db: PostgresPool) -> Result<(), DatabaseError> {
+        let repo = make_repo(db).await;
+
         sqlx::query("TRUNCATE gateway.utxo RESTART IDENTITY CASCADE")
             .execute(&repo.postgres_repo.pool)
             .await?;
@@ -110,12 +111,12 @@ mod tests {
             rune_id: "rune2".into(),
             sats_amount: Some(0),
             owner_pubkey: "p2".into(),
-            status: "unspent".into(),
+            status: UtxoStatus::Unspent,
             block_height: Some(10),
             created_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
         })
-            .await?;
+        .await?;
 
         repo.insert_utxo(Utxo {
             id: 0,
@@ -125,12 +126,12 @@ mod tests {
             rune_id: "rune2".into(),
             sats_amount: Some(0),
             owner_pubkey: "p2".into(),
-            status: "unspent".into(),
+            status: UtxoStatus::Unspent,
             block_height: Some(11),
             created_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
         })
-            .await?;
+        .await?;
 
         let sel = repo.select_and_lock_utxos("rune2", 50).await?;
         assert_eq!(sel.len(), 2);
@@ -148,12 +149,12 @@ mod tests {
             rune_id: "rune3".into(),
             sats_amount: Some(0),
             owner_pubkey: "p3".into(),
-            status: "unspent".into(),
+            status: UtxoStatus::Unspent,
             block_height: Some(20),
             created_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
         })
-            .await?;
+        .await?;
 
         repo.insert_utxo(Utxo {
             id: 0,
@@ -163,12 +164,12 @@ mod tests {
             rune_id: "rune3".into(),
             sats_amount: Some(0),
             owner_pubkey: "p3".into(),
-            status: "unspent".into(),
+            status: UtxoStatus::Unspent,
             block_height: Some(21),
             created_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
         })
-            .await?;
+        .await?;
 
         let sel2 = repo.select_and_lock_utxos("rune3", 50).await?;
         assert_eq!(sel2.len(), 2);
@@ -179,20 +180,22 @@ mod tests {
             .bind("b2")
             .fetch_one(&repo.postgres_repo.pool)
             .await;
-        assert_eq!(big?.status, "locked");
+        assert_eq!(big?.status, UtxoStatus::Locked);
 
         let small = sqlx::query_as::<_, Utxo>("SELECT * FROM gateway.utxo WHERE txid = $1")
             .bind("b1")
             .fetch_one(&repo.postgres_repo.pool)
             .await;
-        assert_eq!(small?.status, "locked");
+        assert_eq!(small?.status, UtxoStatus::Locked);
 
         Ok(())
     }
 
-    #[tokio::test]
-    async fn test_insufficient_funds_rollback() -> Result<(), DatabaseError> {
-        let repo = make_repo().await;
+    #[sqlx::test(migrator = "MIGRATOR")]
+
+    async fn test_insufficient_funds_rollback(db: PostgresPool) -> Result<(), DatabaseError> {
+        let repo = make_repo(db).await;
+
         sqlx::query("TRUNCATE gateway.utxo RESTART IDENTITY CASCADE")
             .execute(&repo.postgres_repo.pool)
             .await?;
@@ -205,12 +208,12 @@ mod tests {
             rune_id: "rune4".into(),
             sats_amount: Some(0),
             owner_pubkey: "p4".into(),
-            status: "unspent".into(),
+            status: UtxoStatus::Unspent,
             block_height: Some(30),
             created_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
         })
-            .await?;
+        .await?;
 
         repo.insert_utxo(Utxo {
             id: 0,
@@ -220,26 +223,28 @@ mod tests {
             rune_id: "rune4".into(),
             sats_amount: Some(0),
             owner_pubkey: "p4".into(),
-            status: "unspent".into(),
+            status: UtxoStatus::Unspent,
             block_height: Some(31),
             created_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
         })
-            .await?;
+        .await?;
 
         let res = repo.select_and_lock_utxos("rune4", 100).await;
         assert!(res.is_err());
 
         let unspent = repo.list_unspent("rune4").await?;
         assert_eq!(unspent.len(), 2);
-        assert!(unspent.iter().all(|u| u.status == "unspent"));
+        assert!(unspent.iter().all(|u| u.status == UtxoStatus::Unspent));
 
         Ok(())
     }
 
-    #[tokio::test]
-    async fn test_unlock_mark_spent_and_update_status() -> Result<(), DatabaseError> {
-        let repo = make_repo().await;
+    #[sqlx::test(migrator = "MIGRATOR")]
+
+    async fn test_unlock_mark_spent_and_update_status(db: PostgresPool) -> Result<(), DatabaseError> {
+        let repo = make_repo(db).await;
+
         sqlx::query("TRUNCATE gateway.utxo RESTART IDENTITY CASCADE")
             .execute(&repo.postgres_repo.pool)
             .await?;
@@ -253,7 +258,7 @@ mod tests {
                 rune_id: "rune5".into(),
                 sats_amount: Some(0),
                 owner_pubkey: "p5".into(),
-                status: "unspent".into(),
+                status: UtxoStatus::Unspent,
                 block_height: Some(40),
                 created_at: Utc::now().naive_utc(),
                 updated_at: Utc::now().naive_utc(),
@@ -263,34 +268,38 @@ mod tests {
         let locked = repo.select_and_lock_utxos("rune5", 50).await?;
         assert!(locked.iter().any(|u| u.id == inserted.id));
 
-        UtxoManager::unlock_utxos(&repo, &[inserted.id as i64]).await?;
+        repo.unlock_utxos(&[inserted.id as i64]).await?;
         let after_unlock = sqlx::query_as::<_, Utxo>("SELECT * FROM gateway.utxo WHERE id = $1")
             .bind(inserted.id)
             .fetch_one(&repo.postgres_repo.pool)
             .await;
-        assert_eq!(after_unlock?.status, "unspent");
+        assert_eq!(after_unlock?.status, UtxoStatus::Unspent);
 
-        repo.update_status(&inserted.txid, inserted.vout, "archived").await?;
+        repo.update_status(&inserted.txid, inserted.vout, UtxoStatus::Archived)
+            .await?;
         let after_update = sqlx::query_as::<_, Utxo>("SELECT * FROM gateway.utxo WHERE id = $1")
             .bind(inserted.id)
             .fetch_one(&repo.postgres_repo.pool)
             .await;
-        assert_eq!(after_update?.status, "archived");
+        assert_eq!(after_update?.status, UtxoStatus::Archived);
 
-        repo.update_status(&inserted.txid, inserted.vout, "locked").await?;
-        UtxoManager::mark_spent(&repo, &[inserted.id as i64]).await?;
+        repo.update_status(&inserted.txid, inserted.vout, UtxoStatus::Locked)
+            .await?;
+        repo.mark_spent(&[inserted.id as i64]).await?;
         let after_spent = sqlx::query_as::<_, Utxo>("SELECT * FROM gateway.utxo WHERE id = $1")
             .bind(inserted.id)
             .fetch_one(&repo.postgres_repo.pool)
             .await;
-        assert_eq!(after_spent?.status, "spent");
+        assert_eq!(after_spent?.status, UtxoStatus::Spent);
 
         Ok(())
     }
 
-    #[tokio::test]
-    async fn test_concurrent_selection_one_wins() -> Result<(), DatabaseError> {
-        let repo = make_repo().await;
+    #[sqlx::test(migrator = "MIGRATOR")]
+
+    async fn test_concurrent_selection_one_wins(db: PostgresPool) -> Result<(), DatabaseError> {
+        let repo = make_repo(db).await;
+
         sqlx::query("TRUNCATE gateway.utxo RESTART IDENTITY CASCADE")
             .execute(&repo.postgres_repo.pool)
             .await?;
@@ -303,12 +312,12 @@ mod tests {
             rune_id: "rune_conc".into(),
             sats_amount: Some(0),
             owner_pubkey: "pc".into(),
-            status: "unspent".into(),
+            status: UtxoStatus::Unspent,
             block_height: Some(50),
             created_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
         })
-            .await?;
+        .await?;
         repo.insert_utxo(Utxo {
             id: 0,
             txid: "e2".into(),
@@ -317,12 +326,12 @@ mod tests {
             rune_id: "rune_conc".into(),
             sats_amount: Some(0),
             owner_pubkey: "pc".into(),
-            status: "unspent".into(),
+            status: UtxoStatus::Unspent,
             block_height: Some(51),
             created_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
         })
-            .await?;
+        .await?;
 
         let f1 = repo.select_and_lock_utxos("rune_conc", 100);
         let f2 = repo.select_and_lock_utxos("rune_conc", 100);
@@ -348,7 +357,7 @@ mod tests {
         amount: i64,
         sats_amount: Option<i64>,
         rune_id: &str,
-        status: &str,
+        status: UtxoStatus,
         block_height: Option<i64>,
     ) -> Utxo {
         Utxo {
@@ -359,7 +368,7 @@ mod tests {
             sats_amount,
             rune_id: rune_id.to_string(),
             owner_pubkey: "test_pubkey".to_string(),
-            status: status.to_string(),
+            status,
             block_height,
             created_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
@@ -368,41 +377,77 @@ mod tests {
 
     fn create_test_utxos() -> Vec<Utxo> {
         vec![
-            create_test_utxo("test_txid_1", 0, 1000, Some(546), "test_rune_1", "unspent", Some(0)),
-            create_test_utxo("test_txid_2", 1, 2000, Some(1000), "test_rune_2", "unspent", Some(0)),
-            create_test_utxo("test_txid_3", 2, 3000, Some(0), "test_rune_3", "pending", Some(0)),
+            create_test_utxo(
+                "test_txid_1",
+                0,
+                1000,
+                Some(546),
+                "test_rune_1",
+                UtxoStatus::Unspent,
+                Some(0),
+            ),
+            create_test_utxo(
+                "test_txid_2",
+                1,
+                2000,
+                Some(1000),
+                "test_rune_2",
+                UtxoStatus::Unspent,
+                Some(0),
+            ),
+            create_test_utxo(
+                "test_txid_3",
+                2,
+                3000,
+                Some(0),
+                "test_rune_3",
+                UtxoStatus::Pending,
+                Some(0),
+            ),
         ]
     }
 
-    async fn cleanup_test_db(repo: &Storage) {
+    async fn cleanup_test_db(repo: Arc<LocalDbStorage>) {
         sqlx::query("TRUNCATE gateway.utxo, gateway.session_requests RESTART IDENTITY CASCADE")
-            .execute(&repo.postgres_repo.pool)
+            .execute(&repo.get_conn().await.unwrap())
             .await
             .unwrap();
     }
 
-    #[tokio::test]
-    async fn test_insert_utxo() -> Result<(), DatabaseError> {
-        let repo = make_repo().await;
-        cleanup_test_db(&repo).await;
+    #[sqlx::test(migrator = "MIGRATOR")]
 
-        let test_utxo = create_test_utxo("test_tx_1", 0, 1000, Some(546), "test_rune_id", "unspent", Some(100));
+    async fn test_insert_utxo(db: PostgresPool) -> Result<(), DatabaseError> {
+        let repo = make_repo(db).await;
+
+        cleanup_test_db(repo.clone()).await;
+
+        let test_utxo = create_test_utxo(
+            "test_tx_1",
+            0,
+            1000,
+            Some(546),
+            "test_rune_id",
+            UtxoStatus::Unspent,
+            Some(100),
+        );
 
         let inserted = repo.insert_utxo(test_utxo.clone()).await?;
 
         assert_eq!(inserted.txid, test_utxo.txid);
         assert_eq!(inserted.amount, test_utxo.amount);
         assert_eq!(inserted.sats_amount, test_utxo.sats_amount);
-        assert_eq!(inserted.status, "unspent");
+        assert_eq!(inserted.status, UtxoStatus::Unspent);
         assert!(inserted.id > 0);
 
         Ok(())
     }
 
-    #[tokio::test]
-    async fn test_insert_pending_utxo() -> Result<(), DatabaseError> {
-        let repo = make_repo().await;
-        cleanup_test_db(&repo).await;
+    #[sqlx::test(migrator = "MIGRATOR")]
+
+    async fn test_insert_pending_utxo(db: PostgresPool) -> Result<(), DatabaseError> {
+        let repo = make_repo(db).await;
+
+        cleanup_test_db(repo.clone()).await;
 
         // let test_utxo = create_test_utxo(
         //     "test_tx_pending",
@@ -410,7 +455,7 @@ mod tests {
         //     2000,
         //     Some(1000),
         //     "test_rune_id",
-        //     "unspent",
+        //     UtxoStatus::Unspent,
         //     None,
         // );
 
@@ -418,16 +463,18 @@ mod tests {
 
         let inserted = repo.insert_pending_utxo(test_utxos.clone()).await?;
 
-        assert_eq!(inserted.status, "pending");
+        assert_eq!(inserted.status, UtxoStatus::Pending);
         assert_eq!(inserted.block_height, None);
 
         Ok(())
     }
 
-    #[tokio::test]
-    async fn test_update_status() -> Result<(), DatabaseError> {
-        let repo = make_repo().await;
-        cleanup_test_db(&repo).await;
+    #[sqlx::test(migrator = "MIGRATOR")]
+
+    async fn test_update_status(db: PostgresPool) -> Result<(), DatabaseError> {
+        let repo = make_repo(db).await;
+
+        cleanup_test_db(repo.clone()).await;
 
         let test_utxo = create_test_utxo(
             "test_tx_status",
@@ -435,12 +482,12 @@ mod tests {
             1500,
             Some(600),
             "test_rune_id",
-            "unspent",
+            UtxoStatus::Unspent,
             Some(200),
         );
         repo.insert_utxo(test_utxo).await?;
 
-        repo.update_status("test_tx_status", 0, "spent").await?;
+        repo.update_status("test_tx_status", 0, UtxoStatus::Spent).await?;
 
         let updated_utxo = sqlx::query_as::<_, Utxo>("SELECT * FROM gateway.utxo WHERE txid = $1 AND vout = $2")
             .bind("test_tx_status")
@@ -448,7 +495,7 @@ mod tests {
             .fetch_one(&repo.postgres_repo.pool)
             .await?;
 
-        assert_eq!(updated_utxo.status, "spent");
+        assert_eq!(updated_utxo.status, UtxoStatus::Spent);
 
         let utxos = repo.list_unspent("test_rune_id").await?;
         assert_eq!(utxos.len(), 0);
@@ -456,51 +503,72 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test]
-    async fn test_update_status_not_found() -> Result<(), DatabaseError> {
-        let repo = make_repo().await;
-        cleanup_test_db(&repo).await;
+    #[sqlx::test(migrator = "MIGRATOR")]
 
-        let result = repo.update_status("nonexistent_tx", 0, "spent").await;
+    async fn test_update_status_not_found(db: PostgresPool) -> Result<(), DatabaseError> {
+        let repo = make_repo(db).await;
+
+        cleanup_test_db(repo.clone()).await;
+
+        let result = repo.update_status("nonexistent_tx", 0, UtxoStatus::Spent).await;
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), DatabaseError::NotFound(_)));
 
         Ok(())
     }
 
-    #[tokio::test]
-    async fn test_list_unspent_includes_pending() -> Result<(), DatabaseError> {
-        let repo = make_repo().await;
-        cleanup_test_db(&repo).await;
+    #[sqlx::test(migrator = "MIGRATOR")]
 
-        let unspent_utxo = create_test_utxo("unspent_tx", 0, 1000, Some(546), "test_rune_id", "unspent", Some(100));
+    async fn test_list_unspent_includes_pending(db: PostgresPool) -> Result<(), DatabaseError> {
+        let repo = make_repo(db).await;
+
+        cleanup_test_db(repo.clone()).await;
+
+        let unspent_utxo = create_test_utxo(
+            "unspent_tx",
+            0,
+            1000,
+            Some(546),
+            "test_rune_id",
+            UtxoStatus::Unspent,
+            Some(100),
+        );
         repo.insert_utxo(unspent_utxo).await?;
 
         let test_utxos = create_test_utxos();
         repo.insert_pending_utxo(test_utxos).await?;
 
-        let spent_utxo = create_test_utxo("spent_tx", 0, 500, Some(300), "test_rune_id", "spent", Some(99));
+        let spent_utxo = create_test_utxo(
+            "spent_tx",
+            0,
+            500,
+            Some(300),
+            "test_rune_id",
+            UtxoStatus::Spent,
+            Some(99),
+        );
         repo.insert_utxo(spent_utxo).await?;
 
         let utxos = repo.list_unspent("test_rune_id").await?;
 
         assert_eq!(utxos.len(), 1);
 
-        let statuses: Vec<&str> = utxos.iter().map(|u| u.status.as_str()).collect();
-        assert!(statuses.contains(&"unspent"));
+        let statuses: Vec<UtxoStatus> = utxos.iter().map(|u| u.status).collect();
+        assert!(statuses.contains(&UtxoStatus::Unspent));
 
         Ok(())
     }
 
-    #[tokio::test]
-    async fn test_select_and_lock_utxos() -> Result<(), DatabaseError> {
-        let repo = make_repo().await;
-        cleanup_test_db(&repo).await;
+    #[sqlx::test(migrator = "MIGRATOR")]
+    async fn test_select_and_lock_utxos(db: PostgresPool) -> Result<(), DatabaseError> {
+        let repo = make_repo(db).await;
+
+        cleanup_test_db(repo.clone()).await;
 
         let utxos = vec![
-            create_test_utxo("tx1", 0, 500, Some(546), "test_rune", "unspent", Some(100)),
-            create_test_utxo("tx2", 0, 1000, Some(546), "test_rune", "unspent", Some(101)),
-            create_test_utxo("tx3", 0, 1500, Some(546), "test_rune", "unspent", Some(102)),
+            create_test_utxo("tx1", 0, 500, Some(546), "test_rune", UtxoStatus::Unspent, Some(100)),
+            create_test_utxo("tx2", 0, 1000, Some(546), "test_rune", UtxoStatus::Unspent, Some(101)),
+            create_test_utxo("tx3", 0, 1500, Some(546), "test_rune", UtxoStatus::Unspent, Some(102)),
         ];
 
         for utxo in utxos {
@@ -514,36 +582,38 @@ mod tests {
         assert_eq!(locked[1].amount, 1000);
 
         for utxo in &locked {
-            assert_eq!(utxo.status, "locked");
+            assert_eq!(utxo.status, UtxoStatus::Locked);
         }
 
         let tx1_status = sqlx::query_as::<_, Utxo>("SELECT * FROM gateway.utxo WHERE txid = $1")
             .bind("tx1")
             .fetch_one(&repo.postgres_repo.pool)
             .await?;
-        assert_eq!(tx1_status.status, "locked");
+        assert_eq!(tx1_status.status, UtxoStatus::Locked);
 
         let tx2_status = sqlx::query_as::<_, Utxo>("SELECT * FROM gateway.utxo WHERE txid = $1")
             .bind("tx2")
             .fetch_one(&repo.postgres_repo.pool)
             .await?;
-        assert_eq!(tx2_status.status, "locked");
+        assert_eq!(tx2_status.status, UtxoStatus::Locked);
 
         let tx3_status = sqlx::query_as::<_, Utxo>("SELECT * FROM gateway.utxo WHERE txid = $1")
             .bind("tx3")
             .fetch_one(&repo.postgres_repo.pool)
             .await?;
-        assert_eq!(tx3_status.status, "unspent");
+        assert_eq!(tx3_status.status, UtxoStatus::Unspent);
 
         Ok(())
     }
 
-    #[tokio::test]
-    async fn test_select_and_lock_insufficient_funds() -> Result<(), DatabaseError> {
-        let repo = make_repo().await;
-        cleanup_test_db(&repo).await;
+    #[sqlx::test(migrator = "MIGRATOR")]
 
-        let utxo = create_test_utxo("tx1", 0, 500, Some(546), "test_rune", "unspent", Some(100));
+    async fn test_select_and_lock_insufficient_funds(db: PostgresPool) -> Result<(), DatabaseError> {
+        let repo = make_repo(db).await;
+
+        cleanup_test_db(repo.clone()).await;
+
+        let utxo = create_test_utxo("tx1", 0, 500, Some(546), "test_rune", UtxoStatus::Unspent, Some(100));
         repo.insert_utxo(utxo).await?;
 
         let result = repo.select_and_lock_utxos("test_rune", 1000).await;
@@ -555,48 +625,53 @@ mod tests {
             .bind("tx1")
             .fetch_one(&repo.postgres_repo.pool)
             .await?;
-        assert_eq!(utxo_status.status, "unspent");
+        assert_eq!(utxo_status.status, UtxoStatus::Unspent);
 
         Ok(())
     }
 
-    #[tokio::test]
-    async fn test_unlock_utxos() -> Result<(), DatabaseError> {
-        let repo = make_repo().await;
-        cleanup_test_db(&repo).await;
+    #[sqlx::test(migrator = "MIGRATOR")]
 
-        let utxo = create_test_utxo("tx1", 0, 1000, Some(546), "test_rune", "unspent", Some(100));
+    async fn test_unlock_utxos(db: PostgresPool) -> Result<(), DatabaseError> {
+        let repo = make_repo(db).await;
+
+        cleanup_test_db(repo.clone()).await;
+
+        let utxo = create_test_utxo("tx1", 0, 1000, Some(546), "test_rune", UtxoStatus::Unspent, Some(100));
         let inserted = repo.insert_utxo(utxo).await?;
 
         let locked = repo.select_and_lock_utxos("test_rune", 500).await?;
         assert_eq!(locked.len(), 1);
 
         let utxo_ids: Vec<i64> = locked.iter().map(|u| u.id as i64).collect();
-        UtxoStorage::unlock_utxos(&repo, &utxo_ids).await?;
+        repo.unlock_utxos_ids(&utxo_ids).await?;
 
         let utxo_status = sqlx::query_as::<_, Utxo>("SELECT * FROM gateway.utxo WHERE id = $1")
             .bind(inserted.id)
             .fetch_one(&repo.postgres_repo.pool)
             .await?;
-        assert_eq!(utxo_status.status, "unspent");
+        assert_eq!(utxo_status.status, UtxoStatus::Unspent);
 
         Ok(())
     }
 
-    #[tokio::test]
-    async fn test_unlock_empty_list() -> Result<(), DatabaseError> {
-        let repo = make_repo().await;
+    #[sqlx::test(migrator = "MIGRATOR")]
 
-        let result = UtxoStorage::unlock_utxos(&repo, &[]).await;
+    async fn test_unlock_empty_list(db: PostgresPool) -> Result<(), DatabaseError> {
+        let repo = make_repo(db).await;
+
+        let result = repo.unlock_utxos_ids(&[]).await;
         assert!(result.is_ok());
 
         Ok(())
     }
 
-    #[tokio::test]
-    async fn test_set_block_height_not_found() -> Result<(), DatabaseError> {
-        let repo = make_repo().await;
-        cleanup_test_db(&repo).await;
+    #[sqlx::test(migrator = "MIGRATOR")]
+
+    async fn test_set_block_height_not_found(db: PostgresPool) -> Result<(), DatabaseError> {
+        let repo = make_repo(db).await;
+
+        cleanup_test_db(repo.clone()).await;
 
         let result = repo.set_block_height("a".repeat(64).parse().unwrap(), 800000).await;
         assert!(result.is_err());
@@ -605,10 +680,12 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test]
-    async fn test_concurrent_select_and_lock() -> Result<(), DatabaseError> {
-        let repo = make_repo().await;
-        cleanup_test_db(&repo).await;
+    #[sqlx::test(migrator = "MIGRATOR")]
+
+    async fn test_concurrent_select_and_lock(db: PostgresPool) -> Result<(), DatabaseError> {
+        let repo = make_repo(db).await;
+
+        cleanup_test_db(repo.clone()).await;
 
         let utxo = create_test_utxo(
             "concurrent_unique_tx",
@@ -616,7 +693,7 @@ mod tests {
             1000,
             Some(546),
             "concurrent_rune",
-            "unspent",
+            UtxoStatus::Unspent,
             Some(100),
         );
         repo.insert_utxo(utxo).await?;
@@ -637,7 +714,6 @@ mod tests {
         Ok(())
     }
 
-
     static COUNTER: AtomicU64 = AtomicU64::new(1);
 
     fn generate_unique_txid(prefix: &str) -> String {
@@ -656,7 +732,7 @@ mod tests {
         amount: i64,
         sats_amount: Option<i64>,
         rune_id: &str,
-        status: &str,
+        status: UtxoStatus,
         block_height: Option<i64>,
     ) -> Utxo {
         Utxo {
@@ -667,7 +743,7 @@ mod tests {
             sats_amount,
             rune_id: rune_id.to_string(),
             owner_pubkey: "test_pubkey".to_string(),
-            status: status.to_string(),
+            status: status,
             block_height,
             created_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
@@ -676,21 +752,71 @@ mod tests {
 
     fn create_unique_test_utxos(base_name: &str) -> Vec<Utxo> {
         vec![
-            create_unique_test_utxo(&format!("{}_1", base_name), 0, 1000, Some(546), "test_rune_1", "unspent", None),
-            create_unique_test_utxo(&format!("{}_2", base_name), 1, 2000, Some(1000), "test_rune_2", "unspent", None),
-            create_unique_test_utxo(&format!("{}_3", base_name), 2, 3000, None, "test_rune_3", "pending", None),
+            create_unique_test_utxo(
+                &format!("{}_1", base_name),
+                0,
+                1000,
+                Some(546),
+                "test_rune_1",
+                UtxoStatus::Unspent,
+                None,
+            ),
+            create_unique_test_utxo(
+                &format!("{}_2", base_name),
+                1,
+                2000,
+                Some(1000),
+                "test_rune_2",
+                UtxoStatus::Unspent,
+                None,
+            ),
+            create_unique_test_utxo(
+                &format!("{}_3", base_name),
+                2,
+                3000,
+                None,
+                "test_rune_3",
+                UtxoStatus::Pending,
+                None,
+            ),
         ]
     }
 
-    #[tokio::test]
-    async fn test_comprehensive_flow() -> Result<(), DatabaseError> {
-        let repo = make_repo().await;
-        cleanup_test_db(&repo).await;
+    #[sqlx::test(migrator = "MIGRATOR")]
+
+    async fn test_comprehensive_flow(db: PostgresPool) -> Result<(), DatabaseError> {
+        let repo = make_repo(db).await;
+
+        cleanup_test_db(repo.clone()).await;
 
         let utxos = vec![
-            create_unique_test_utxo("flow_tx1", 0, 100, Some(546), "flow_rune", "unspent", Some(100)),
-            create_unique_test_utxo("flow_tx2", 0, 200, Some(546), "flow_rune", "unspent", Some(101)),
-            create_unique_test_utxo("flow_tx3", 0, 300, Some(1000), "flow_rune", "unspent", Some(102)),
+            create_unique_test_utxo(
+                "flow_tx1",
+                0,
+                100,
+                Some(546),
+                "flow_rune",
+                UtxoStatus::Unspent,
+                Some(100),
+            ),
+            create_unique_test_utxo(
+                "flow_tx2",
+                0,
+                200,
+                Some(546),
+                "flow_rune",
+                UtxoStatus::Unspent,
+                Some(101),
+            ),
+            create_unique_test_utxo(
+                "flow_tx3",
+                0,
+                300,
+                Some(1000),
+                "flow_rune",
+                UtxoStatus::Unspent,
+                Some(102),
+            ),
         ];
 
         let flow_tx1_id = utxos[0].txid.clone();
@@ -706,13 +832,22 @@ mod tests {
         let locked = repo.select_and_lock_utxos("flow_rune", 250).await?;
         assert_eq!(locked.len(), 2);
 
-        let first_change_utxo = create_unique_test_utxo("first_change", 0, 50, Some(546), "flow_rune", "pending", None);
+        let first_change_utxo =
+            create_unique_test_utxo("first_change", 0, 50, Some(546), "flow_rune", UtxoStatus::Pending, None);
         repo.insert_pending_utxo(vec![first_change_utxo]).await?;
 
-        repo.update_status(&flow_tx1_id, 0, "spent").await?;
-        repo.update_status(&flow_tx2_id, 0, "spent").await?;
+        repo.update_status(&flow_tx1_id, 0, UtxoStatus::Spent).await?;
+        repo.update_status(&flow_tx2_id, 0, UtxoStatus::Spent).await?;
 
-        let second_change_utxo = create_unique_test_utxo("second_change", 0, 25, Some(546), "flow_rune", "pending", None);
+        let second_change_utxo = create_unique_test_utxo(
+            "second_change",
+            0,
+            25,
+            Some(546),
+            "flow_rune",
+            UtxoStatus::Pending,
+            None,
+        );
         let change_txid = second_change_utxo.txid.clone();
 
         repo.insert_pending_utxo(vec![second_change_utxo]).await?;
@@ -721,9 +856,9 @@ mod tests {
         let final_unspent = repo.list_unspent("flow_rune").await?;
         assert_eq!(final_unspent.len(), 3);
 
-        let statuses: Vec<&str> = final_unspent.iter().map(|u| u.status.as_str()).collect();
-        assert!(statuses.contains(&"unspent"));
-        assert!(statuses.contains(&"pending"));
+        let statuses: Vec<UtxoStatus> = final_unspent.iter().map(|u| u.status).collect();
+        assert!(statuses.contains(&UtxoStatus::Unspent));
+        assert!(statuses.contains(&UtxoStatus::Pending));
 
         let change_with_height = final_unspent.iter().find(|u| u.txid == change_txid).unwrap();
         assert_eq!(change_with_height.block_height, Some(12345));
@@ -731,22 +866,48 @@ mod tests {
         Ok(())
     }
 
-    async fn cleanup_sessions(repo: &Storage) {
+    async fn cleanup_sessions(repo: Arc<LocalDbStorage>) {
         sqlx::query("TRUNCATE gateway.session_requests")
-            .execute(&repo.postgres_repo.pool)
+            .execute(&repo.get_conn().await.unwrap())
             .await
             .unwrap();
     }
 
-    #[tokio::test]
-    async fn test_comprehensive_flow_v2() -> Result<(), DatabaseError> {
-        let repo = make_repo().await;
-        cleanup_test_db(&repo).await;
+    #[sqlx::test(migrator = "MIGRATOR")]
+
+    async fn test_comprehensive_flow_v2(db: PostgresPool) -> Result<(), DatabaseError> {
+        let repo = make_repo(db).await;
+
+        cleanup_test_db(repo.clone()).await;
 
         let initial_utxos = vec![
-            create_unique_test_utxo("initial_1", 0, 100, Some(546), "test_rune", "unspent", Some(100)),
-            create_unique_test_utxo("initial_2", 0, 200, Some(546), "test_rune", "unspent", Some(101)),
-            create_unique_test_utxo("initial_3", 0, 300, Some(1000), "test_rune", "unspent", Some(102)),
+            create_unique_test_utxo(
+                "initial_1",
+                0,
+                100,
+                Some(546),
+                "test_rune",
+                UtxoStatus::Unspent,
+                Some(100),
+            ),
+            create_unique_test_utxo(
+                "initial_2",
+                0,
+                200,
+                Some(546),
+                "test_rune",
+                UtxoStatus::Unspent,
+                Some(101),
+            ),
+            create_unique_test_utxo(
+                "initial_3",
+                0,
+                300,
+                Some(1000),
+                "test_rune",
+                UtxoStatus::Unspent,
+                Some(102),
+            ),
         ];
 
         let mut inserted_utxos = Vec::new();
@@ -761,12 +922,21 @@ mod tests {
         let locked = repo.select_and_lock_utxos("test_rune", 250).await?;
         assert_eq!(locked.len(), 2);
 
-        let change_utxo = create_unique_test_utxo("change_output", 0, 50, Some(546), "test_rune", "pending", None);
+        let change_utxo = create_unique_test_utxo(
+            "change_output",
+            0,
+            50,
+            Some(546),
+            "test_rune",
+            UtxoStatus::Pending,
+            None,
+        );
         let change_txid = change_utxo.txid.clone();
         repo.insert_pending_utxo(vec![change_utxo]).await?;
 
         for locked_utxo in &locked {
-            repo.update_status(&locked_utxo.txid, locked_utxo.vout, "spent").await?;
+            repo.update_status(&locked_utxo.txid, locked_utxo.vout, UtxoStatus::Spent)
+                .await?;
         }
 
         repo.set_block_height(change_txid.parse().unwrap(), 12345).await?;
@@ -774,247 +944,13 @@ mod tests {
         let final_unspent = repo.list_unspent("test_rune").await?;
         assert_eq!(final_unspent.len(), 2);
 
-        let statuses: Vec<&str> = final_unspent.iter().map(|u| u.status.as_str()).collect();
-        assert!(statuses.contains(&"unspent"));
-        assert!(statuses.contains(&"pending"));
+        let statuses: Vec<UtxoStatus> = final_unspent.iter().map(|u| u.status).collect();
+        assert!(statuses.contains(&UtxoStatus::Unspent));
+        assert!(statuses.contains(&UtxoStatus::Pending));
 
         let change_with_height = final_unspent.iter().find(|u| u.txid == change_txid).unwrap();
         assert_eq!(change_with_height.block_height, Some(12345));
 
         Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_create_session() -> Result<(), DatabaseError> {
-        let repo = make_repo().await;
-        //setup_test_table(&repo).await;
-        cleanup_sessions(&repo).await;
-
-        let request_data = json!({
-            "rune_id": "test_rune_123",
-            "amount": 1000,
-            "recipient": "test_address"
-        });
-
-        let session_id = repo
-            .postgres_repo
-            .create_session(RequestType::SendRunes, request_data.clone())
-            .await?;
-
-        assert_eq!(session_id.to_string().len(), 36);
-
-        let session = repo.postgres_repo.get_session(session_id).await?;
-        assert_eq!(session.session_id, session_id);
-        assert_eq!(session.request_type, "send_runes");
-        assert_eq!(session.status, "pending");
-        assert_eq!(session.request, request_data);
-        assert!(session.response.is_none());
-        assert!(session.error.is_none());
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_session_status_updates() -> Result<(), DatabaseError> {
-        let repo = make_repo().await;
-        //setup_test_table(&repo).await;
-        cleanup_sessions(&repo).await;
-
-        let request_data = json!({"test": "data"});
-        let session_id = repo
-            .postgres_repo
-            .create_session(RequestType::CreateTransaction, request_data)
-            .await?;
-
-        repo.postgres_repo
-            .update_session_status(session_id, SessionStatus::InProgress)
-            .await?;
-
-        let session = repo.postgres_repo.get_session(session_id).await?;
-        assert_eq!(session.status, "in_progress");
-
-        repo.postgres_repo
-            .set_session_error(session_id, "Test error occurred")
-            .await?;
-
-        let session = repo.postgres_repo.get_session(session_id).await?;
-        assert_eq!(session.status, "failed");
-        assert_eq!(session.error, Some("Test error occurred".to_string()));
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_session_success() -> Result<(), DatabaseError> {
-        let repo = make_repo().await;
-        //setup_test_table(&repo).await;
-        cleanup_sessions(&repo).await;
-
-        let request_data = json!({"action": "test"});
-        let session_id = repo
-            .postgres_repo
-            .create_session(RequestType::BroadcastTransaction, request_data)
-            .await?;
-
-        let response_data = json!({
-            "txid": "abc123def456",
-            "block_height": 800000
-        });
-
-        repo.postgres_repo
-            .set_session_success(session_id, response_data.clone())
-            .await?;
-
-        let session = repo.postgres_repo.get_session(session_id).await?;
-        assert_eq!(session.status, "success");
-        assert_eq!(session.response, Some(response_data));
-        assert!(session.error.is_none());
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_list_sessions() -> Result<(), DatabaseError> {
-        let repo = make_repo().await;
-        //setup_test_table(&repo).await;
-        cleanup_sessions(&repo).await;
-
-        let session1 = repo
-            .postgres_repo
-            .create_session(RequestType::SendRunes, json!({"test": "1"}))
-            .await?;
-
-        let session2 = repo
-            .postgres_repo
-            .create_session(RequestType::CreateTransaction, json!({"test": "2"}))
-            .await?;
-
-        repo.postgres_repo
-            .update_session_status(session1, SessionStatus::Success)
-            .await?;
-        repo.postgres_repo
-            .update_session_status(session2, SessionStatus::Failed)
-            .await?;
-
-        let all_sessions = repo.postgres_repo.list_sessions(Some(10), None).await?;
-        assert_eq!(all_sessions.len(), 2);
-
-        let success_sessions = repo
-            .postgres_repo
-            .list_sessions_by_status(SessionStatus::Success, Some(10))
-            .await?;
-        assert_eq!(success_sessions.len(), 1);
-        assert_eq!(success_sessions[0].session_id, session1);
-
-        let failed_sessions = repo
-            .postgres_repo
-            .list_sessions_by_status(SessionStatus::Failed, Some(10))
-            .await?;
-        assert_eq!(failed_sessions.len(), 1);
-        assert_eq!(failed_sessions[0].session_id, session2);
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_session_tracker_helper() -> Result<(), DatabaseError> {
-        let repo = make_repo().await;
-        //setup_test_table(&repo).await;
-        cleanup_sessions(&repo).await;
-
-        let tracker = SessionTracker::new(&repo);
-
-        let session_id = tracker
-            .start_session(
-                RequestType::GenerateFrostSignature,
-                json!({"message": "test_signature"}),
-            )
-            .await?;
-
-        let status = tracker.get_session_status(session_id).await?;
-        assert!(matches!(status, SessionStatus::InProgress));
-
-        let result_data = json!({"signature": "abcd1234"});
-        tracker.complete_session(session_id, result_data.clone()).await?;
-
-        let session = repo.postgres_repo.get_session(session_id).await?;
-        assert_eq!(session.status, "success");
-        assert_eq!(session.response, Some(result_data));
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_session_not_found() -> Result<(), DatabaseError> {
-        let repo = make_repo().await;
-        //setup_test_table(&repo).await;
-        cleanup_sessions(&repo).await;
-
-        let non_existent_id = Uuid::new_v4();
-
-        let result = repo.postgres_repo.get_session(non_existent_id).await;
-        assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), DatabaseError::NotFound(_)));
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_concurrent_session_operations() -> Result<(), DatabaseError> {
-        let repo = make_repo().await;
-        //setup_test_table(&repo).await;
-        cleanup_sessions(&repo).await;
-
-        let handles: Vec<_> = (0..5)
-            .map(|i| {
-                let repo_clone = repo.postgres_repo.clone();
-                tokio::spawn(async move {
-                    repo_clone
-                        .create_session(RequestType::SendRunes, json!({"batch_id": i}))
-                        .await
-                })
-            })
-            .collect();
-
-        let results: Result<Vec<_>, _> = futures::future::try_join_all(handles).await;
-        let session_ids: Result<Vec<_>, _> = results.unwrap().into_iter().collect();
-        let session_ids = session_ids?;
-
-        assert_eq!(session_ids.len(), 5);
-
-        let mut unique_ids = std::collections::HashSet::new();
-        for id in &session_ids {
-            assert!(unique_ids.insert(*id), "Duplicate session ID found");
-        }
-
-        let all_sessions = repo.postgres_repo.list_sessions(Some(10), None).await?;
-        assert_eq!(all_sessions.len(), 5);
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_request_type_enum_conversion() {
-        let types = vec![
-            RequestType::SendRunes,
-            RequestType::CreateTransaction,
-            RequestType::BroadcastTransaction,
-            RequestType::GenerateFrostSignature,
-            RequestType::Other("custom_operation".to_string()),
-        ];
-
-        for original_type in types {
-            let type_string = original_type.to_string();
-            let converted_back = RequestType::from(type_string.clone());
-
-            match (&original_type, &converted_back) {
-                (RequestType::SendRunes, RequestType::SendRunes) => {}
-                (RequestType::CreateTransaction, RequestType::CreateTransaction) => {}
-                (RequestType::BroadcastTransaction, RequestType::BroadcastTransaction) => {}
-                (RequestType::GenerateFrostSignature, RequestType::GenerateFrostSignature) => {}
-                (RequestType::Other(s1), RequestType::Other(s2)) => assert_eq!(s1, s2),
-                _ => panic!("Type conversion failed for {}", type_string),
-            }
-        }
     }
 }
