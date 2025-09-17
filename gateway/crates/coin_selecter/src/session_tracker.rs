@@ -1,12 +1,12 @@
-use std::fmt::Display;
 use async_trait::async_trait;
 use chrono::NaiveDateTime;
-use persistent_storage::init::PostgresRepo;
-use sqlx::FromRow;
-use persistent_storage::error::DatabaseError;
-use serde_json::Value as JsonValue;
-use uuid::Uuid;
 use gateway_local_db_store::storage::Storage;
+use persistent_storage::error::DatabaseError;
+use persistent_storage::init::PostgresRepo;
+use serde_json::Value as JsonValue;
+use sqlx::FromRow;
+use std::fmt::Display;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, FromRow)]
 pub struct SessionRequest {
@@ -88,29 +88,13 @@ impl From<String> for SessionStatus {
 
 #[async_trait]
 pub trait SessionStorage {
-    async fn create_session(
-        &self,
-        request_type: RequestType,
-        request_data: JsonValue,
-    ) -> Result<Uuid, DatabaseError>;
+    async fn create_session(&self, request_type: RequestType, request_data: JsonValue) -> Result<Uuid, DatabaseError>;
 
-    async fn update_session_status(
-        &self,
-        session_id: Uuid,
-        status: SessionStatus,
-    ) -> Result<(), DatabaseError>;
+    async fn update_session_status(&self, session_id: Uuid, status: SessionStatus) -> Result<(), DatabaseError>;
 
-    async fn set_session_error(
-        &self,
-        session_id: Uuid,
-        error: &str,
-    ) -> Result<(), DatabaseError>;
+    async fn set_session_error(&self, session_id: Uuid, error: &str) -> Result<(), DatabaseError>;
 
-    async fn set_session_success(
-        &self,
-        session_id: Uuid,
-        response_data: JsonValue,
-    ) -> Result<(), DatabaseError>;
+    async fn set_session_success(&self, session_id: Uuid, response_data: JsonValue) -> Result<(), DatabaseError>;
 
     async fn get_session(&self, session_id: Uuid) -> Result<SessionRequest, DatabaseError>;
 
@@ -129,11 +113,7 @@ pub trait SessionStorage {
 
 #[async_trait]
 impl SessionStorage for PostgresRepo {
-    async fn create_session(
-        &self,
-        request_type: RequestType,
-        request_data: JsonValue,
-    ) -> Result<Uuid, DatabaseError> {
+    async fn create_session(&self, request_type: RequestType, request_data: JsonValue) -> Result<Uuid, DatabaseError> {
         let session_id = Uuid::new_v4();
 
         sqlx::query(
@@ -143,22 +123,18 @@ impl SessionStorage for PostgresRepo {
             VALUES ($1, $2, $3, $4)
             "#,
         )
-            .bind(session_id)
-            .bind(request_type.to_string())
-            .bind(SessionStatus::Pending.to_string())
-            .bind(&request_data)
-            .execute(&self.pool)
-            .await
-            .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
+        .bind(session_id)
+        .bind(request_type.to_string())
+        .bind(SessionStatus::Pending.to_string())
+        .bind(&request_data)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
 
         Ok(session_id)
     }
 
-    async fn update_session_status(
-        &self,
-        session_id: Uuid,
-        status: SessionStatus,
-    ) -> Result<(), DatabaseError> {
+    async fn update_session_status(&self, session_id: Uuid, status: SessionStatus) -> Result<(), DatabaseError> {
         let rows = sqlx::query(
             r#"
             UPDATE gateway.session_requests
@@ -166,27 +142,21 @@ impl SessionStorage for PostgresRepo {
             WHERE session_id = $2
             "#,
         )
-            .bind(status.to_string())
-            .bind(session_id)
-            .execute(&self.pool)
-            .await
-            .map_err(|e| DatabaseError::BadRequest(e.to_string()))?
-            .rows_affected();
+        .bind(status.to_string())
+        .bind(session_id)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| DatabaseError::BadRequest(e.to_string()))?
+        .rows_affected();
 
         if rows == 0 {
-            return Err(DatabaseError::NotFound(format!(
-                "Session {} not found", session_id
-            )));
+            return Err(DatabaseError::NotFound(format!("Session {} not found", session_id)));
         }
 
         Ok(())
     }
 
-    async fn set_session_error(
-        &self,
-        session_id: Uuid,
-        error: &str,
-    ) -> Result<(), DatabaseError> {
+    async fn set_session_error(&self, session_id: Uuid, error: &str) -> Result<(), DatabaseError> {
         let rows = sqlx::query(
             r#"
             UPDATE gateway.session_requests
@@ -194,28 +164,22 @@ impl SessionStorage for PostgresRepo {
             WHERE session_id = $3
             "#,
         )
-            .bind(SessionStatus::Failed.to_string())
-            .bind(error)
-            .bind(session_id)
-            .execute(&self.pool)
-            .await
-            .map_err(|e| DatabaseError::BadRequest(e.to_string()))?
-            .rows_affected();
+        .bind(SessionStatus::Failed.to_string())
+        .bind(error)
+        .bind(session_id)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| DatabaseError::BadRequest(e.to_string()))?
+        .rows_affected();
 
         if rows == 0 {
-            return Err(DatabaseError::NotFound(format!(
-                "Session {} not found", session_id
-            )));
+            return Err(DatabaseError::NotFound(format!("Session {} not found", session_id)));
         }
 
         Ok(())
     }
 
-    async fn set_session_success(
-        &self,
-        session_id: Uuid,
-        response_data: JsonValue,
-    ) -> Result<(), DatabaseError> {
+    async fn set_session_success(&self, session_id: Uuid, response_data: JsonValue) -> Result<(), DatabaseError> {
         let rows = sqlx::query(
             r#"
             UPDATE gateway.session_requests
@@ -223,18 +187,16 @@ impl SessionStorage for PostgresRepo {
             WHERE session_id = $3
             "#,
         )
-            .bind(SessionStatus::Success.to_string())
-            .bind(&response_data)
-            .bind(session_id)
-            .execute(&self.pool)
-            .await
-            .map_err(|e| DatabaseError::BadRequest(e.to_string()))?
-            .rows_affected();
+        .bind(SessionStatus::Success.to_string())
+        .bind(&response_data)
+        .bind(session_id)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| DatabaseError::BadRequest(e.to_string()))?
+        .rows_affected();
 
         if rows == 0 {
-            return Err(DatabaseError::NotFound(format!(
-                "Session {} not found", session_id
-            )));
+            return Err(DatabaseError::NotFound(format!("Session {} not found", session_id)));
         }
 
         Ok(())
@@ -247,15 +209,13 @@ impl SessionStorage for PostgresRepo {
             WHERE session_id = $1
             "#,
         )
-            .bind(session_id)
-            .fetch_one(&self.pool)
-            .await
-            .map_err(|e| match e {
-                sqlx::Error::RowNotFound => {
-                    DatabaseError::NotFound(format!("Session {} not found", session_id))
-                }
-                _ => DatabaseError::BadRequest(e.to_string()),
-            })?;
+        .bind(session_id)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => DatabaseError::NotFound(format!("Session {} not found", session_id)),
+            _ => DatabaseError::BadRequest(e.to_string()),
+        })?;
 
         Ok(session)
     }
@@ -275,11 +235,11 @@ impl SessionStorage for PostgresRepo {
             LIMIT $1 OFFSET $2
             "#,
         )
-            .bind(limit)
-            .bind(offset)
-            .fetch_all(&self.pool)
-            .await
-            .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
 
         Ok(sessions)
     }
@@ -299,11 +259,11 @@ impl SessionStorage for PostgresRepo {
             LIMIT $2
             "#,
         )
-            .bind(status.to_string())
-            .bind(limit)
-            .fetch_all(&self.pool)
-            .await
-            .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
+        .bind(status.to_string())
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
 
         Ok(sessions)
     }
@@ -323,24 +283,26 @@ impl<'a> SessionTracker<'a> {
         request_type: RequestType,
         request_data: JsonValue,
     ) -> Result<Uuid, DatabaseError> {
-        let session_id = self.repo.postgres_repo.create_session(request_type, request_data).await?;
-        self.repo.postgres_repo.update_session_status(session_id, SessionStatus::InProgress).await?;
+        let session_id = self
+            .repo
+            .postgres_repo
+            .create_session(request_type, request_data)
+            .await?;
+        self.repo
+            .postgres_repo
+            .update_session_status(session_id, SessionStatus::InProgress)
+            .await?;
         Ok(session_id)
     }
 
-    pub async fn complete_session(
-        &self,
-        session_id: Uuid,
-        response_data: JsonValue,
-    ) -> Result<(), DatabaseError> {
-        self.repo.postgres_repo.set_session_success(session_id, response_data).await
+    pub async fn complete_session(&self, session_id: Uuid, response_data: JsonValue) -> Result<(), DatabaseError> {
+        self.repo
+            .postgres_repo
+            .set_session_success(session_id, response_data)
+            .await
     }
 
-    pub async fn fail_session(
-        &self,
-        session_id: Uuid,
-        error: &str,
-    ) -> Result<(), DatabaseError> {
+    pub async fn fail_session(&self, session_id: Uuid, error: &str) -> Result<(), DatabaseError> {
         self.repo.postgres_repo.set_session_error(session_id, error).await
     }
 

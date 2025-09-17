@@ -27,7 +27,7 @@ impl AggregatorSignSessionStorage for Storage {
             Option<Vec<u8>>,
         )> = sqlx::query_as(
             "SELECT sign_state, metadata, message_hash, tweak 
-            FROM sign_session 
+            FROM gateway.sign_session 
             WHERE public_key = $1 AND rune_id = $2 AND session_id = $3",
         )
         .bind(public_key.to_string())
@@ -58,7 +58,7 @@ impl AggregatorSignSessionStorage for Storage {
         let rune_id = musig_id.get_rune_id();
 
         let _ = sqlx::query(
-            "INSERT INTO sign_session (public_key, rune_id, session_id, sign_state, metadata, message_hash, tweak) 
+            "INSERT INTO gateway.sign_session (public_key, rune_id, session_id, sign_state, metadata, message_hash, tweak) 
             VALUES ($1, $2, $3, $4, $5, $6, $7) 
             ON CONFLICT (session_id) DO UPDATE SET sign_state = $4",
         )

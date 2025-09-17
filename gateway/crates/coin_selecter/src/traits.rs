@@ -6,11 +6,7 @@ use persistent_storage::error::DatabaseError;
 
 #[async_trait]
 pub trait CoinSelector {
-    async fn select_utxos(
-        &self,
-        rune_id: &str,
-        target_amount: i64,
-    ) -> Result<Vec<Utxo>, DatabaseError>;
+    async fn select_utxos(&self, rune_id: &str, target_amount: i64) -> Result<Vec<Utxo>, DatabaseError>;
 }
 
 #[async_trait]

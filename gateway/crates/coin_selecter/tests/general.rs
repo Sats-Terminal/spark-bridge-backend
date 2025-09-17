@@ -12,9 +12,7 @@ use uuid::Uuid;
 async fn make_repo() -> Storage {
     let url = "postgresql://admin_manager:password@localhost:5432/production_db_name";
 
-    Storage::new(url.into())
-        .await
-        .unwrap()
+    Storage::new(url.into()).await.unwrap()
 }
 
 #[tokio::test]
@@ -113,7 +111,8 @@ async fn test_select_exact_and_single_large_utxo() -> Result<(), DatabaseError> 
         block_height: Some(10),
         created_at: Utc::now().naive_utc(),
         updated_at: Utc::now().naive_utc(),
-    }).await?;
+    })
+    .await?;
 
     repo.insert_utxo(Utxo {
         id: 0,
@@ -127,7 +126,8 @@ async fn test_select_exact_and_single_large_utxo() -> Result<(), DatabaseError> 
         block_height: Some(11),
         created_at: Utc::now().naive_utc(),
         updated_at: Utc::now().naive_utc(),
-    }).await?;
+    })
+    .await?;
 
     let sel = repo.select_and_lock_utxos("rune2", 50).await?;
     assert_eq!(sel.len(), 2);
@@ -149,7 +149,8 @@ async fn test_select_exact_and_single_large_utxo() -> Result<(), DatabaseError> 
         block_height: Some(20),
         created_at: Utc::now().naive_utc(),
         updated_at: Utc::now().naive_utc(),
-    }).await?;
+    })
+    .await?;
 
     repo.insert_utxo(Utxo {
         id: 0,
@@ -163,7 +164,8 @@ async fn test_select_exact_and_single_large_utxo() -> Result<(), DatabaseError> 
         block_height: Some(21),
         created_at: Utc::now().naive_utc(),
         updated_at: Utc::now().naive_utc(),
-    }).await?;
+    })
+    .await?;
 
     let sel2 = repo.select_and_lock_utxos("rune3", 50).await?;
     assert_eq!(sel2.len(), 2);
@@ -204,7 +206,8 @@ async fn test_insufficient_funds_rollback() -> Result<(), DatabaseError> {
         block_height: Some(30),
         created_at: Utc::now().naive_utc(),
         updated_at: Utc::now().naive_utc(),
-    }).await?;
+    })
+    .await?;
 
     repo.insert_utxo(Utxo {
         id: 0,
@@ -218,7 +221,8 @@ async fn test_insufficient_funds_rollback() -> Result<(), DatabaseError> {
         block_height: Some(31),
         created_at: Utc::now().naive_utc(),
         updated_at: Utc::now().naive_utc(),
-    }).await?;
+    })
+    .await?;
 
     let res = repo.select_and_lock_utxos("rune4", 100).await;
     assert!(res.is_err());
@@ -237,19 +241,21 @@ async fn test_unlock_mark_spent_and_update_status() -> Result<(), DatabaseError>
         .execute(&repo.postgres_repo.pool)
         .await?;
 
-    let inserted = repo.insert_utxo(Utxo {
-        id: 0,
-        txid: "d1".into(),
-        vout: 0,
-        amount: 100,
-        rune_id: "rune5".into(),
-        sats_amount: None,
-        owner_pubkey: "p5".into(),
-        status: "unspent".into(),
-        block_height: Some(40),
-        created_at: Utc::now().naive_utc(),
-        updated_at: Utc::now().naive_utc(),
-    }).await?;
+    let inserted = repo
+        .insert_utxo(Utxo {
+            id: 0,
+            txid: "d1".into(),
+            vout: 0,
+            amount: 100,
+            rune_id: "rune5".into(),
+            sats_amount: None,
+            owner_pubkey: "p5".into(),
+            status: "unspent".into(),
+            block_height: Some(40),
+            created_at: Utc::now().naive_utc(),
+            updated_at: Utc::now().naive_utc(),
+        })
+        .await?;
 
     let locked = repo.select_and_lock_utxos("rune5", 50).await?;
     assert!(locked.iter().any(|u| u.id == inserted.id));
@@ -298,7 +304,8 @@ async fn test_concurrent_selection_one_wins() -> Result<(), DatabaseError> {
         block_height: Some(50),
         created_at: Utc::now().naive_utc(),
         updated_at: Utc::now().naive_utc(),
-    }).await?;
+    })
+    .await?;
     repo.insert_utxo(Utxo {
         id: 0,
         txid: "e2".into(),
@@ -311,13 +318,17 @@ async fn test_concurrent_selection_one_wins() -> Result<(), DatabaseError> {
         block_height: Some(51),
         created_at: Utc::now().naive_utc(),
         updated_at: Utc::now().naive_utc(),
-    }).await?;
+    })
+    .await?;
 
     let f1 = repo.select_and_lock_utxos("rune_conc", 100);
     let f2 = repo.select_and_lock_utxos("rune_conc", 100);
     let (r1, r2) = tokio::join!(f1, f2);
 
-    let ok_count = [r1.as_ref().ok(), r2.as_ref().ok()].iter().filter(|x| x.is_some()).count();
+    let ok_count = [r1.as_ref().ok(), r2.as_ref().ok()]
+        .iter()
+        .filter(|x| x.is_some())
+        .count();
     assert!(ok_count >= 1, "at least one success");
     assert!(ok_count <= 1, "once more - at least one success");
 
@@ -354,36 +365,11 @@ fn create_test_utxo(
 
 fn create_test_utxos() -> Vec<Utxo> {
     vec![
-        create_test_utxo(
-            "test_txid_1",
-            0,
-            1000,
-            Some(546),
-            "test_rune_1",
-            "unspent",
-            None,
-        ),
-        create_test_utxo(
-            "test_txid_2",
-            1,
-            2000,
-            Some(1000),
-            "test_rune_2",
-            "unspent",
-            None,
-        ),
-        create_test_utxo(
-            "test_txid_3",
-            2,
-            3000,
-            None,
-            "test_rune_3",
-            "pending",
-            None,
-        ),
+        create_test_utxo("test_txid_1", 0, 1000, Some(546), "test_rune_1", "unspent", None),
+        create_test_utxo("test_txid_2", 1, 2000, Some(1000), "test_rune_2", "unspent", None),
+        create_test_utxo("test_txid_3", 2, 3000, None, "test_rune_3", "pending", None),
     ]
 }
-
 
 async fn cleanup_test_db(repo: &Storage) {
     sqlx::query("TRUNCATE gateway.utxo RESTART IDENTITY CASCADE")
@@ -397,15 +383,7 @@ async fn test_insert_utxo() -> Result<(), DatabaseError> {
     let repo = make_repo().await;
     cleanup_test_db(&repo).await;
 
-    let test_utxo = create_test_utxo(
-        "test_tx_1",
-        0,
-        1000,
-        Some(546),
-        "test_rune_id",
-        "unspent",
-        Some(100),
-    );
+    let test_utxo = create_test_utxo("test_tx_1", 0, 1000, Some(546), "test_rune_id", "unspent", Some(100));
 
     let inserted = repo.insert_utxo(test_utxo.clone()).await?;
 
@@ -461,9 +439,7 @@ async fn test_update_status() -> Result<(), DatabaseError> {
 
     repo.update_status("test_tx_status", 0, "spent").await?;
 
-    let updated_utxo = sqlx::query_as::<_, Utxo>(
-        "SELECT * FROM gateway.utxo WHERE txid = $1 AND vout = $2"
-    )
+    let updated_utxo = sqlx::query_as::<_, Utxo>("SELECT * FROM gateway.utxo WHERE txid = $1 AND vout = $2")
         .bind("test_tx_status")
         .bind(0)
         .fetch_one(&repo.postgres_repo.pool)
@@ -494,15 +470,7 @@ async fn test_list_unspent_includes_pending() -> Result<(), DatabaseError> {
     let repo = make_repo().await;
     cleanup_test_db(&repo).await;
 
-    let unspent_utxo = create_test_utxo(
-        "unspent_tx",
-        0,
-        1000,
-        Some(546),
-        "test_rune_id",
-        "unspent",
-        Some(100),
-    );
+    let unspent_utxo = create_test_utxo("unspent_tx", 0, 1000, Some(546), "test_rune_id", "unspent", Some(100));
     repo.insert_utxo(unspent_utxo).await?;
 
     // let pending_utxo = create_test_utxo(
@@ -518,15 +486,7 @@ async fn test_list_unspent_includes_pending() -> Result<(), DatabaseError> {
     let test_utxos = create_test_utxos();
     repo.insert_pending_utxo(test_utxos).await?;
 
-    let spent_utxo = create_test_utxo(
-        "spent_tx",
-        0,
-        500,
-        Some(300),
-        "test_rune_id",
-        "spent",
-        Some(99),
-    );
+    let spent_utxo = create_test_utxo("spent_tx", 0, 500, Some(300), "test_rune_id", "spent", Some(99));
     repo.insert_utxo(spent_utxo).await?;
 
     let utxos = repo.list_unspent("test_rune_id").await?;
@@ -678,7 +638,15 @@ async fn test_concurrent_select_and_lock() -> Result<(), DatabaseError> {
     let repo = make_repo().await;
     cleanup_test_db(&repo).await;
 
-    let utxo = create_test_utxo("concurrent_unique_tx", 0, 1000, Some(546), "concurrent_rune", "unspent", Some(100));
+    let utxo = create_test_utxo(
+        "concurrent_unique_tx",
+        0,
+        1000,
+        Some(546),
+        "concurrent_rune",
+        "unspent",
+        Some(100),
+    );
     repo.insert_utxo(utxo).await?;
 
     let f1 = repo.select_and_lock_utxos("concurrent_rune", 500);
@@ -758,9 +726,9 @@ async fn setup_test_table(repo: &Storage) {
             CREATE INDEX IF NOT EXISTS idx_session_requests_type ON gateway.session_requests(request_type);
             "#,
     )
-        .execute(&repo.postgres_repo.pool)
-        .await
-        .expect("Failed to create test table");
+    .execute(&repo.postgres_repo.pool)
+    .await
+    .expect("Failed to create test table");
 }
 
 async fn cleanup_sessions(repo: &Storage) {
@@ -777,15 +745,15 @@ async fn test_create_session() -> Result<(), DatabaseError> {
     cleanup_sessions(&repo).await;
 
     let request_data = json!({
-            "rune_id": "test_rune_123",
-            "amount": 1000,
-            "recipient": "test_address"
-        });
+        "rune_id": "test_rune_123",
+        "amount": 1000,
+        "recipient": "test_address"
+    });
 
-    let session_id = repo.postgres_repo.create_session(
-        RequestType::SendRunes,
-        request_data.clone(),
-    ).await?;
+    let session_id = repo
+        .postgres_repo
+        .create_session(RequestType::SendRunes, request_data.clone())
+        .await?;
 
     assert_eq!(session_id.to_string().len(), 36);
 
@@ -807,17 +775,21 @@ async fn test_session_status_updates() -> Result<(), DatabaseError> {
     cleanup_sessions(&repo).await;
 
     let request_data = json!({"test": "data"});
-    let session_id = repo.postgres_repo.create_session(
-        RequestType::CreateTransaction,
-        request_data,
-    ).await?;
+    let session_id = repo
+        .postgres_repo
+        .create_session(RequestType::CreateTransaction, request_data)
+        .await?;
 
-    repo.postgres_repo.update_session_status(session_id, SessionStatus::InProgress).await?;
+    repo.postgres_repo
+        .update_session_status(session_id, SessionStatus::InProgress)
+        .await?;
 
     let session = repo.postgres_repo.get_session(session_id).await?;
     assert_eq!(session.status, "in_progress");
 
-    repo.postgres_repo.set_session_error(session_id, "Test error occurred").await?;
+    repo.postgres_repo
+        .set_session_error(session_id, "Test error occurred")
+        .await?;
 
     let session = repo.postgres_repo.get_session(session_id).await?;
     assert_eq!(session.status, "failed");
@@ -833,17 +805,19 @@ async fn test_session_success() -> Result<(), DatabaseError> {
     cleanup_sessions(&repo).await;
 
     let request_data = json!({"action": "test"});
-    let session_id = repo.postgres_repo.create_session(
-        RequestType::BroadcastTransaction,
-        request_data,
-    ).await?;
+    let session_id = repo
+        .postgres_repo
+        .create_session(RequestType::BroadcastTransaction, request_data)
+        .await?;
 
     let response_data = json!({
-            "txid": "abc123def456",
-            "block_height": 800000
-        });
+        "txid": "abc123def456",
+        "block_height": 800000
+    });
 
-    repo.postgres_repo.set_session_success(session_id, response_data.clone()).await?;
+    repo.postgres_repo
+        .set_session_success(session_id, response_data.clone())
+        .await?;
 
     let session = repo.postgres_repo.get_session(session_id).await?;
     assert_eq!(session.status, "success");
@@ -859,33 +833,37 @@ async fn test_list_sessions() -> Result<(), DatabaseError> {
     //setup_test_table(&repo).await;
     cleanup_sessions(&repo).await;
 
-    let session1 = repo.postgres_repo.create_session(
-        RequestType::SendRunes,
-        json!({"test": "1"}),
-    ).await?;
+    let session1 = repo
+        .postgres_repo
+        .create_session(RequestType::SendRunes, json!({"test": "1"}))
+        .await?;
 
-    let session2 = repo.postgres_repo.create_session(
-        RequestType::CreateTransaction,
-        json!({"test": "2"}),
-    ).await?;
+    let session2 = repo
+        .postgres_repo
+        .create_session(RequestType::CreateTransaction, json!({"test": "2"}))
+        .await?;
 
-    repo.postgres_repo.update_session_status(session1, SessionStatus::Success).await?;
-    repo.postgres_repo.update_session_status(session2, SessionStatus::Failed).await?;
+    repo.postgres_repo
+        .update_session_status(session1, SessionStatus::Success)
+        .await?;
+    repo.postgres_repo
+        .update_session_status(session2, SessionStatus::Failed)
+        .await?;
 
     let all_sessions = repo.postgres_repo.list_sessions(Some(10), None).await?;
     assert_eq!(all_sessions.len(), 2);
 
-    let success_sessions = repo.postgres_repo.list_sessions_by_status(
-        SessionStatus::Success,
-        Some(10)
-    ).await?;
+    let success_sessions = repo
+        .postgres_repo
+        .list_sessions_by_status(SessionStatus::Success, Some(10))
+        .await?;
     assert_eq!(success_sessions.len(), 1);
     assert_eq!(success_sessions[0].session_id, session1);
 
-    let failed_sessions = repo.postgres_repo.list_sessions_by_status(
-        SessionStatus::Failed,
-        Some(10)
-    ).await?;
+    let failed_sessions = repo
+        .postgres_repo
+        .list_sessions_by_status(SessionStatus::Failed, Some(10))
+        .await?;
     assert_eq!(failed_sessions.len(), 1);
     assert_eq!(failed_sessions[0].session_id, session2);
 
@@ -900,10 +878,12 @@ async fn test_session_tracker_helper() -> Result<(), DatabaseError> {
 
     let tracker = SessionTracker::new(&repo);
 
-    let session_id = tracker.start_session(
-        RequestType::GenerateFrostSignature,
-        json!({"message": "test_signature"}),
-    ).await?;
+    let session_id = tracker
+        .start_session(
+            RequestType::GenerateFrostSignature,
+            json!({"message": "test_signature"}),
+        )
+        .await?;
 
     let status = tracker.get_session_status(session_id).await?;
     assert!(matches!(status, SessionStatus::InProgress));
@@ -939,15 +919,16 @@ async fn test_concurrent_session_operations() -> Result<(), DatabaseError> {
     //setup_test_table(&repo).await;
     cleanup_sessions(&repo).await;
 
-    let handles: Vec<_> = (0..5).map(|i| {
-        let repo_clone = repo.postgres_repo.clone();
-        tokio::spawn(async move {
-            repo_clone.create_session(
-                RequestType::SendRunes,
-                json!({"batch_id": i}),
-            ).await
+    let handles: Vec<_> = (0..5)
+        .map(|i| {
+            let repo_clone = repo.postgres_repo.clone();
+            tokio::spawn(async move {
+                repo_clone
+                    .create_session(RequestType::SendRunes, json!({"batch_id": i}))
+                    .await
+            })
         })
-    }).collect();
+        .collect();
 
     let results: Result<Vec<_>, _> = futures::future::try_join_all(handles).await;
     let session_ids: Result<Vec<_>, _> = results.unwrap().into_iter().collect();
@@ -981,10 +962,10 @@ async fn test_request_type_enum_conversion() {
         let converted_back = RequestType::from(type_string.clone());
 
         match (&original_type, &converted_back) {
-            (RequestType::SendRunes, RequestType::SendRunes) => {},
-            (RequestType::CreateTransaction, RequestType::CreateTransaction) => {},
-            (RequestType::BroadcastTransaction, RequestType::BroadcastTransaction) => {},
-            (RequestType::GenerateFrostSignature, RequestType::GenerateFrostSignature) => {},
+            (RequestType::SendRunes, RequestType::SendRunes) => {}
+            (RequestType::CreateTransaction, RequestType::CreateTransaction) => {}
+            (RequestType::BroadcastTransaction, RequestType::BroadcastTransaction) => {}
+            (RequestType::GenerateFrostSignature, RequestType::GenerateFrostSignature) => {}
             (RequestType::Other(s1), RequestType::Other(s2)) => assert_eq!(s1, s2),
             _ => panic!("Type conversion failed for {}", type_string),
         }

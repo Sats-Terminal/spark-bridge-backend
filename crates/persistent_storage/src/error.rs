@@ -23,5 +23,4 @@ pub enum DatabaseError {
     AggregatorError(String),
     #[error("Database not found: {0}")]
     NotFound(String),
-
 }
