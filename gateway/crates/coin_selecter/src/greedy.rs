@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use chrono::NaiveDateTime;
 use gateway_local_db_store::storage::Storage;
 use persistent_storage::error::DatabaseError;
-use sqlx::FromRow;
+use sqlx::{FromRow, Transaction, Postgres};
 
 pub struct GreedySelector<'a> {
     pub repo: &'a Storage,
@@ -42,6 +42,9 @@ pub trait UtxoStorage {
     async fn unlock_utxos(&self, utxo_ids: &[i64]) -> Result<(), DatabaseError>;
     async fn mark_spent(&self, utxo_ids: &[i64]) -> Result<(), DatabaseError>;
     async fn set_block_height(&self, txid: bitcoin::Txid, block_height: i64) -> Result<(), DatabaseError>;
+
+    async fn get_candidate_utxos_for_update(&self, rune_id: &str, tx: &mut Transaction<'_, Postgres>) -> Result<Vec<Utxo>, DatabaseError>;
+    async fn lock_utxos_by_ids(&self, utxo_ids: &[i32], tx: &mut Transaction<'_, Postgres>) -> Result<Vec<Utxo>, DatabaseError>;
 }
 
 #[async_trait]
@@ -63,17 +66,17 @@ impl UtxoStorage for Storage {
     RETURNING *
     "#,
         )
-        .bind(&utxo.txid)
-        .bind(utxo.vout)
-        .bind(utxo.amount)
-        .bind(utxo.sats_amount)
-        .bind(&utxo.rune_id)
-        .bind(&utxo.owner_pubkey)
-        .bind(&utxo.status)
-        .bind(utxo.block_height)
-        .fetch_one(&self.postgres_repo.pool)
-        .await
-        .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
+            .bind(&utxo.txid)
+            .bind(utxo.vout)
+            .bind(utxo.amount)
+            .bind(utxo.sats_amount)
+            .bind(&utxo.rune_id)
+            .bind(&utxo.owner_pubkey)
+            .bind(&utxo.status)
+            .bind(utxo.block_height)
+            .fetch_one(&self.postgres_repo.pool)
+            .await
+            .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
 
         Ok(rec)
     }
@@ -86,13 +89,13 @@ impl UtxoStorage for Storage {
             WHERE txid = $2 AND vout = $3
             "#,
         )
-        .bind(new_status)
-        .bind(txid)
-        .bind(vout)
-        .execute(&self.postgres_repo.pool)
-        .await
-        .map_err(|e| DatabaseError::BadRequest(e.to_string()))?
-        .rows_affected();
+            .bind(new_status)
+            .bind(txid)
+            .bind(vout)
+            .execute(&self.postgres_repo.pool)
+            .await
+            .map_err(|e| DatabaseError::BadRequest(e.to_string()))?
+            .rows_affected();
 
         if rows == 0 {
             return Err(DatabaseError::NotFound(format!("UTXO {txid}:{vout} not found")));
@@ -113,15 +116,15 @@ impl UtxoStorage for Storage {
             RETURNING *
             "#,
             )
-            .bind(&utxo.txid)
-            .bind(utxo.vout)
-            .bind(utxo.amount)
-            .bind(utxo.sats_amount)
-            .bind(&utxo.rune_id)
-            .bind(&utxo.owner_pubkey)
-            .fetch_one(&self.postgres_repo.pool)
-            .await
-            .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
+                .bind(&utxo.txid)
+                .bind(utxo.vout)
+                .bind(utxo.amount)
+                .bind(utxo.sats_amount)
+                .bind(&utxo.rune_id)
+                .bind(&utxo.owner_pubkey)
+                .fetch_one(&self.postgres_repo.pool)
+                .await
+                .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
 
             inserted.push(rec);
         }
@@ -149,10 +152,10 @@ impl UtxoStorage for Storage {
             amount ASC
         "#,
         )
-        .bind(rune_id)
-        .fetch_all(&self.postgres_repo.pool)
-        .await
-        .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
+            .bind(rune_id)
+            .fetch_all(&self.postgres_repo.pool)
+            .await
+            .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
 
         Ok(rows)
     }
@@ -165,11 +168,11 @@ impl UtxoStorage for Storage {
         WHERE txid = $2 AND status = 'pending'
         "#,
         )
-        .bind(block_height)
-        .bind(txid.to_string())
-        .execute(&self.postgres_repo.pool)
-        .await
-        .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
+            .bind(block_height)
+            .bind(txid.to_string())
+            .execute(&self.postgres_repo.pool)
+            .await
+            .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
 
         Ok(())
     }
@@ -182,19 +185,7 @@ impl UtxoStorage for Storage {
             .await
             .map_err(|e| DatabaseError::BadRequest(format!("Failed to begin transaction: {}", e)))?;
 
-        let candidates = sqlx::query_as::<_, Utxo>(
-            r#"
-    SELECT *
-    FROM gateway.utxo
-    WHERE rune_id = $1 AND status IN ('unspent', 'pending')
-    ORDER BY amount ASC
-    FOR UPDATE SKIP LOCKED
-    "#,
-        )
-        .bind(rune_id)
-        .fetch_all(&mut *tx)
-        .await
-        .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
+        let candidates = self.get_candidate_utxos_for_update(rune_id, &mut tx).await?;
 
         let mut selected = Vec::new();
         let mut total = 0;
@@ -213,18 +204,7 @@ impl UtxoStorage for Storage {
         }
 
         let ids: Vec<i32> = selected.iter().map(|u| u.id).collect();
-        let locked_utxos = sqlx::query_as::<_, Utxo>(
-            r#"
-        UPDATE gateway.utxo
-        SET status = 'locked', updated_at = now()
-        WHERE id = ANY($1)
-        RETURNING *
-        "#,
-        )
-        .bind(&ids)
-        .fetch_all(&mut *tx)
-        .await
-        .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
+        let locked_utxos = self.lock_utxos_by_ids(&ids, &mut tx).await?;
 
         tx.commit()
             .await
@@ -273,17 +253,52 @@ impl UtxoStorage for Storage {
         WHERE txid = $2
         "#,
         )
-        .bind(block_height)
-        .bind(txid.to_string())
-        .execute(&self.postgres_repo.pool)
-        .await
-        .map_err(|e| DatabaseError::BadRequest(e.to_string()))?
-        .rows_affected();
+            .bind(block_height)
+            .bind(txid.to_string())
+            .execute(&self.postgres_repo.pool)
+            .await
+            .map_err(|e| DatabaseError::BadRequest(e.to_string()))?
+            .rows_affected();
 
         if rows == 0 {
             return Err(DatabaseError::NotFound(format!("No UTXOs found for txid: {}", txid)));
         }
 
         Ok(())
+    }
+
+    async fn get_candidate_utxos_for_update(&self, rune_id: &str, tx: &mut Transaction<'_, Postgres>) -> Result<Vec<Utxo>, DatabaseError> {
+        let candidates = sqlx::query_as::<_, Utxo>(
+            r#"
+        SELECT *
+        FROM gateway.utxo
+        WHERE rune_id = $1 AND status IN ('unspent', 'pending')
+        ORDER BY amount ASC
+        FOR UPDATE SKIP LOCKED
+        "#,
+        )
+            .bind(rune_id)
+            .fetch_all(&mut **tx)
+            .await
+            .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
+
+        Ok(candidates)
+    }
+
+    async fn lock_utxos_by_ids(&self, utxo_ids: &[i32], tx: &mut Transaction<'_, Postgres>) -> Result<Vec<Utxo>, DatabaseError> {
+        let locked_utxos = sqlx::query_as::<_, Utxo>(
+            r#"
+        UPDATE gateway.utxo
+        SET status = 'locked', updated_at = now()
+        WHERE id = ANY($1)
+        RETURNING *
+        "#,
+        )
+            .bind(utxo_ids)
+            .fetch_all(&mut **tx)
+            .await
+            .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
+
+        Ok(locked_utxos)
     }
 }
