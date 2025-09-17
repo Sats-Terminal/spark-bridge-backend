@@ -74,6 +74,8 @@ impl DepositVerificationAggregator {
         self.storage.set_txid(btc_address.to_string(), txid).await
             .map_err(|e| DepositVerificationError::StorageError(format!("Error setting txid: {:?}", e)))?;
 
+        tracing::info!("Runes deposit verification sent for address: {}", btc_address);
+
         Ok(())
     }
 
@@ -83,7 +85,7 @@ impl DepositVerificationAggregator {
         txid: Txid,
         verifier_response: DepositStatus,
     ) -> Result<(), DepositVerificationError> {
-        tracing::info!("Retrieving confirmation status for txid: {}", txid);
+        tracing::info!("Retrieving confirmation status for txid: {}, verifier: {}", txid, verifier_id);
         let mut confirmation_status_info = self.storage.get_confirmation_status_by_txid(txid).await
             .map_err(|e| DepositVerificationError::StorageError(format!("Error getting confirmation status: {:?}", e)))?
             .ok_or(DepositVerificationError::StorageError("Confirmation status not found".to_string()))?;
@@ -104,11 +106,13 @@ impl DepositVerificationAggregator {
 
         if all_verifiers_confirmed {
             self.flow_sender.send(BridgeRunesRequest {
-                btc_address,
+                btc_address: btc_address.clone(),
             }).await
                 .map_err(|e| DepositVerificationError::FlowProcessorError(format!("Error sending bridge runes request: {:?}", e)))?;
             tracing::info!("Bridge runes request sent for address");
         }
+
+        tracing::info!("Runes deposit verification completed for verifier: {}, address: {}", verifier_id, btc_address);
 
         Ok(())
     }
