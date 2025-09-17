@@ -23,4 +23,6 @@ pub enum DbError {
     SignerError(String),
     #[error("Aggregator error: {0}")]
     AggregatorError(String),
+    #[error("Decode error: {0}")]
+    DecodeError(String),
 }

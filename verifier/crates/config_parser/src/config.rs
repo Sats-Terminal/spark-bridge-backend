@@ -48,6 +48,12 @@ pub struct SignerConfig {
     pub total_participants: u16,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub struct GatewayConfig {
+    pub address: Url,
+}
+
 /// Struct used for initialization of different kinds of configurations
 ///
 /// Example of using local configuration:
@@ -74,6 +80,8 @@ pub struct ServerConfig {
     pub spark_balance_checker: SparkBalanceCheckerConfig,
     #[serde(rename = "frost_signer_config")]
     pub frost_signer: SignerConfig,
+    #[serde(rename = "gateway_config")]
+    pub gateway: GatewayConfig,
 }
 
 pub fn get_cargo_manifest_dir() -> String {

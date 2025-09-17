@@ -11,7 +11,6 @@ pub struct WatchSparkDepositRequest {
     pub address: String,
     pub amount: u64,
     pub btc_address: String,
-    pub txid: Txid,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

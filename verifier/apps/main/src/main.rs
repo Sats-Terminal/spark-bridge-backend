@@ -39,10 +39,11 @@ async fn main() {
     // Create App
     let app = verifier_server::init::create_app(
         frost_signer, 
-        server_config.btc_indexer, 
-        server_config.spark_balance_checker, 
+        server_config.btc_indexer.clone(), 
+        server_config.spark_balance_checker.clone(), 
+        server_config.gateway.clone(), 
         storage.clone(), 
-        server_config.server.clone()
+        server_config.clone(),
     ).await;
 
     // Run App

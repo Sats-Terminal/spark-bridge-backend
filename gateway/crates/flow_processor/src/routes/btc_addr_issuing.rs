@@ -60,8 +60,8 @@ pub async fn handle(
                 address: Some(address.to_string()),
                 is_btc: true,
                 amount: request.amount,
+                txid: None,
                 confirmation_status: DepositStatusInfo {
-                    txid: None,
                     status: DepositStatus::Created,
                     verifiers_responses,
                 },

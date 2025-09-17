@@ -16,6 +16,7 @@ tracing = { workspace = true }
 url = { workspace = true }
 uuid = { workspace = true }
 gateway_deposit_verification = { workspace = true }
+gateway_local_db_store = { workspace = true }
 
 [dev-dependencies]
 serde_json = { workspace = true }

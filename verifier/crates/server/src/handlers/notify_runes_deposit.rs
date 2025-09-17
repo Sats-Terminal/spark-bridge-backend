@@ -4,23 +4,35 @@ use axum::Json;
 use axum::extract::State;
 use btc_indexer_api::api::BtcIndexerCallbackResponse;
 use tracing::instrument;
-use serde::{Deserialize, Serialize};
 use verifier_local_db_store::schemas::deposit_address::DepositStatus;
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct NotifySparkDepositResponse {
-    pub verifier_response: DepositStatus,
-}
+use global_utils::api_result_request::ApiResponseOwned;
+use verifier_local_db_store::schemas::deposit_address::DepositAddressStorage;
+use verifier_gateway_client::client::NotifyRunesDepositRequest;
 
 #[instrument(level = "debug", skip_all, ret)]
 pub async fn handle(
     State(state): State<AppState>,
     Json(request): Json<BtcIndexerCallbackResponse>,
-) -> Result<Json<NotifySparkDepositResponse>, VerifierError> {
-    
-    // TODO: when we will have proper indexer logic, we will update the confirmation status here
+) -> Result<Json<()>, VerifierError> {
+    match request {
+        ApiResponseOwned::Ok { data: transaction } => {
+            let txid = transaction.txid;
+            let verifier_response = DepositStatus::Confirmed;
 
-    Ok(Json(NotifySparkDepositResponse {
-        verifier_response: DepositStatus::Confirmed,
-    }))
+            state.storage.update_confirmation_status_by_txid(txid, verifier_response.clone())
+                .await
+                .map_err(|e| VerifierError::StorageError(format!("Failed to update confirmation status: {}", e)))?;
+
+            state.gateway_client.notify_runes_deposit(NotifyRunesDepositRequest {
+                verifier_id: state.server_config.frost_signer.identifier,
+                txid,
+                verifier_response,
+            }).await.map_err(|e| VerifierError::GatewayClientError(format!("Failed to notify runes deposit: {}", e)))?;
+
+            Ok(Json(()))
+        }
+        ApiResponseOwned::Err { code: _, message } => {
+            Err(VerifierError::BtcIndexerClientError(format!("Failed to notify runes deposit: {}", message)))
+        }
+    }
 }

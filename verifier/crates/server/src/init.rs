@@ -8,14 +8,18 @@ use verifier_spark_balance_checker_client::client::SparkBalanceCheckerClient;
 use verifier_config_parser::config::{BtcIndexerConfig, SparkBalanceCheckerConfig, AppConfig};
 use verifier_local_db_store::storage::LocalDbStorage;
 use std::sync::Arc;
+use verifier_gateway_client::client::GatewayClient;
+use verifier_config_parser::config::GatewayConfig;
+use verifier_config_parser::config::ServerConfig;
 
 #[derive(Clone)]
 pub struct AppState {
     pub frost_signer: FrostSigner,
     pub btc_indexer_client: BtcIndexerClient,
     pub spark_balance_checker_client: SparkBalanceCheckerClient,
+    pub gateway_client: GatewayClient,
     pub storage: Arc<LocalDbStorage>,
-    pub app_config: AppConfig,
+    pub server_config: ServerConfig,
 }
 
 #[instrument(level = "debug", skip(frost_signer), ret)]
@@ -23,15 +27,17 @@ pub async fn create_app(
     frost_signer: FrostSigner,
     btc_indexer_config: BtcIndexerConfig,
     spark_balance_checker_config: SparkBalanceCheckerConfig,
+    gateway_client: GatewayConfig,
     storage: Arc<LocalDbStorage>,
-    app_config: AppConfig,
+    server_config: ServerConfig,
 ) -> Router {
     let state = AppState {
         frost_signer,
         btc_indexer_client: BtcIndexerClient::new(btc_indexer_config),
         spark_balance_checker_client: SparkBalanceCheckerClient::new(spark_balance_checker_config),
+        gateway_client: GatewayClient::new(gateway_client),
         storage,
-        app_config,
+        server_config,
     };
     Router::new()
         .route(

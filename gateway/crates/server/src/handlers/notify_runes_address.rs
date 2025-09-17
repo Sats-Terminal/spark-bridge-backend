@@ -7,24 +7,22 @@ use global_utils::network::convert_to_http_url;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use tracing::instrument;
-use uuid::Uuid;
+use bitcoin::Txid;
+use gateway_local_db_store::schemas::deposit_address::DepositStatus;
 
 #[derive(Deserialize, Debug)]
 pub struct NotifyRunesAddressRequest {
-    pub address: String,
-}
-
-#[derive(Serialize, Debug)]
-pub struct NotifyRunesAddressResponse {
-    pub address: String,
+    pub verifier_id: u16,
+    pub txid: Txid,
+    pub verifier_response: DepositStatus,
 }
 
 #[instrument(level = "info", skip(request, state), fields(request = ?request), ret)]
 pub async fn handle(
     State(state): State<AppState>,
     Json(request): Json<NotifyRunesAddressRequest>,
-) -> Result<Json<NotifyRunesAddressResponse>, GatewayError> {
-    Ok(Json(NotifyRunesAddressResponse {
-        address: request.address,
-    }))
+) -> Result<Json<()>, GatewayError> {
+    state.deposit_verification_aggregator.notify_runes_deposit(request.verifier_id, request.txid, request.verifier_response);
+
+    Ok(Json(()))
 }

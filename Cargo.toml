@@ -94,6 +94,7 @@ verifier_server = { path = "./verifier/crates/server" }
 verifier_config_parser = { path = "./verifier/crates/config_parser" }
 verifier_spark_balance_checker_client = { path = "./verifier/crates/spark_balance_checker_client" }
 verifier_btc_indexer_client = { path = "./verifier/crates/btc_indexer_client" }
+verifier_gateway_client = { path = "./verifier/crates/gateway_client" }
 
 # Verifier apps
 verifier_main = { path = "verifier/apps/main" }

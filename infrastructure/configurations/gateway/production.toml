@@ -4,10 +4,6 @@ http_server_port = 8060
 btc_network = "regtest"
 spark_network = "Regtest"
 
-[private_api_config]
-http_server_ip = "0.0.0.0"
-http_server_port = 8061
-
 [[verifiers_config]]
 id = 1
 address = "http://verifier1-service:8070"

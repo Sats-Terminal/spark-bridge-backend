@@ -13,3 +13,6 @@ address="http://spark-balance-checker-service:8070"
 identifier = 3
 threshold = 2
 total_participants = 3
+
+[gateway_config]
+address = "http://gateway-service:8060"

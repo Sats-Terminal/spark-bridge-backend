@@ -19,6 +19,8 @@ pub enum VerifierError {
     BtcIndexerClientError(String),
     #[error("Spark balance checker client error: {0}")]
     SparkBalanceCheckerClientError(String),
+    #[error("Gateway client error: {0}")]
+    GatewayClientError(String),
 }
 
 impl IntoResponse for VerifierError {
@@ -30,6 +32,7 @@ impl IntoResponse for VerifierError {
             VerifierError::DecodeError(error) => (StatusCode::BAD_REQUEST, error.to_string()).into_response(),
             VerifierError::BtcIndexerClientError(error) => (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()).into_response(),
             VerifierError::SparkBalanceCheckerClientError(error) => (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()).into_response(),
+            VerifierError::GatewayClientError(error) => (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()).into_response(),
         }
     }
 }

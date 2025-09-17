@@ -3,7 +3,7 @@ use axum::Json;
 use axum::extract::State;
 use serde::{Deserialize, Serialize};
 use frost::types::MusigId;
-use verifier_local_db_store::schemas::deposit_address::{DepositAddressStorage, DepositAddrInfo, DepositStatusInfo, DepositStatus};
+use verifier_local_db_store::schemas::deposit_address::{DepositAddressStorage, DepositAddrInfo, DepositStatus};
 use frost::types::Nonce;
 use crate::init::AppState;
 use bitcoin::Txid;
@@ -35,14 +35,12 @@ pub async fn handle(
             address: request.address,
             is_btc: false,
             amount: request.amount,
-            confirmation_status: DepositStatusInfo {
-                txid: request.txid,
-                status: DepositStatus::WaitingForConfirmation,
-            },
+            txid: None,
+            confirmation_status: DepositStatus::WaitingForConfirmation,
         },
     ).await.map_err(|e| VerifierError::StorageError(format!("Failed to set deposit address info: {}", e)))?;
 
-    let callback_url = construct_hardcoded_callback_url(&state.app_config);
+    let callback_url = construct_hardcoded_callback_url(&state.server_config.server);
 
     state.btc_indexer_client.watch_runes_deposit(IndexerWatchRunesDepositRequest {
         tx_id: request.txid,

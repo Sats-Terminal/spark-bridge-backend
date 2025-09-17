@@ -64,11 +64,13 @@ impl DepositVerificationAggregator {
         let verifiers_responses = VerifiersResponses::new(DepositStatus::WaitingForConfirmation, ids);
 
         self.storage.update_confirmation_status_by_address(btc_address.to_string(), DepositStatusInfo {
-            txid: None,
             status: DepositStatus::WaitingForConfirmation,
             verifiers_responses,
         }).await
             .map_err(|e| DepositVerificationError::StorageError(format!("Error updating confirmation status: {:?}", e)))?;
+
+        self.storage.set_txid(btc_address.to_string(), txid).await
+            .map_err(|e| DepositVerificationError::StorageError(format!("Error setting txid: {:?}", e)))?;
 
         Ok(())
     }
@@ -76,10 +78,10 @@ impl DepositVerificationAggregator {
     pub async fn notify_runes_deposit(
         &self,
         verifier_id: u16,
-        btc_address: Address,
+        txid: Txid,
         verifier_response: DepositStatus,
     ) -> Result<(), DepositVerificationError> {
-        let mut confirmation_status_info = self.storage.get_confirmation_status_by_address(btc_address.to_string()).await
+        let mut confirmation_status_info = self.storage.get_confirmation_status_by_txid(txid).await
             .map_err(|e| DepositVerificationError::StorageError(format!("Error getting confirmation status: {:?}", e)))?
             .ok_or(DepositVerificationError::StorageError("Confirmation status not found".to_string()))?;
 
@@ -90,8 +92,12 @@ impl DepositVerificationAggregator {
             confirmation_status_info.status = DepositStatus::Confirmed;
         }
 
-        self.storage.update_confirmation_status_by_address(btc_address.to_string(), confirmation_status_info).await
+        self.storage.update_confirmation_status_by_txid(txid, confirmation_status_info).await
             .map_err(|e| DepositVerificationError::StorageError(format!("Error updating confirmation status: {:?}", e)))?;
+
+        let btc_address = self.storage.get_address_by_txid(txid).await
+            .map_err(|e| DepositVerificationError::StorageError(format!("Error getting address by txid: {:?}", e)))?
+            .ok_or(DepositVerificationError::StorageError("Address not found".to_string()))?;
 
         if all_verifiers_confirmed {
             self.flow_sender.send(BridgeRunesRequest {
@@ -106,14 +112,12 @@ impl DepositVerificationAggregator {
     pub async fn verify_spark_deposit(
         &self,
         spark_address: String,
-        txid: Txid,
     ) -> Result<(), DepositVerificationError> {
         let (musig_id, nonce, deposit_addr_info) = self.storage.get_row_by_address(spark_address.to_string()).await
             .map_err(|e| DepositVerificationError::StorageError(format!("Error getting deposit address info: {:?}", e)))?
             .ok_or(DepositVerificationError::StorageError("Deposit address info not found".to_string()))?;
 
         let watch_spark_deposit_request = WatchSparkDepositRequest {
-            txid,
             musig_id: musig_id.clone(),
             nonce,
             address: spark_address.clone(),
@@ -148,7 +152,6 @@ impl DepositVerificationAggregator {
         let status = if all_verifiers_confirmed { DepositStatus::Confirmed } else { DepositStatus::Failed };
 
         self.storage.update_confirmation_status_by_address(spark_address.to_string(), DepositStatusInfo {
-            txid: Some(txid),
             status,
             verifiers_responses,
         }).await

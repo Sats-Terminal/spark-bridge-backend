@@ -66,8 +66,8 @@ pub async fn handle(
             address: Some(address.clone()),
             is_btc: true,
             amount: amount,
+            txid: None,
             confirmation_status: DepositStatusInfo {
-                txid: None,
                 status: DepositStatus::Created,
                 verifiers_responses,
             },
