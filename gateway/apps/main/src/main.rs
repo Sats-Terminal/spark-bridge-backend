@@ -75,7 +75,8 @@ async fn main() {
     // Create App
     let app = create_app(
         flow_sender.clone(), 
-        deposit_verification_aggregator.clone()
+        deposit_verification_aggregator.clone(),
+        server_config.network.network,
     ).await;
 
     // Run App

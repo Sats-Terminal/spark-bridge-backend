@@ -4,12 +4,13 @@ use axum::Json;
 use axum::extract::State;
 use tracing::instrument;
 use serde::{Deserialize, Serialize};
+use bitcoin::{Txid, Address};
+use std::str::FromStr;
 
 #[derive(Deserialize, Debug)]
 pub struct BridgeRunesSparkRequest {
-    pub user_public_key: String,
-    pub rune_id: String,
-    pub amount: u64,
+    pub btc_address: String,
+    pub txid: Txid,
 }
 
 #[derive(Serialize, Debug)]
@@ -22,8 +23,15 @@ pub async fn handle(
     State(state): State<AppState>,
     Json(request): Json<BridgeRunesSparkRequest>,
 ) -> Result<Json<BridgeRunesSparkResponse>, GatewayError> {
-    // todo add logic to minting tokens
-    // todo: extract saved spark address
+    let btc_address = Address::from_str(&request.btc_address)
+        .map_err(|e| GatewayError::InvalidData(format!("Failed to parse btc address: {e}")))?
+        .require_network(state.network)
+        .map_err(|e| GatewayError::InvalidData(format!("Failed to parse btc address: {e}")))?;
+
+    let _ = state.deposit_verification_aggregator.verify_runes_deposit(btc_address, request.txid)
+        .await
+        .map_err(|e| GatewayError::DepositVerificationError(format!("Failed to verify runes deposit: {}", e)))?;
+
     Ok(Json(BridgeRunesSparkResponse {
         message: "success".to_string(),
     }))

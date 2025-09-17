@@ -3,22 +3,24 @@ use axum::Router;
 use axum::routing::post;
 use gateway_deposit_verification::aggregator::DepositVerificationAggregator;
 use gateway_flow_processor::flow_sender::FlowSender;
-use std::sync::Arc;
 use tracing::instrument;
-use crate::error::GatewayError;
+use bitcoin::Network;
 
 #[derive(Clone)]
 pub struct AppState {
     pub flow_sender: FlowSender,
     pub deposit_verification_aggregator: DepositVerificationAggregator,
+    pub network: Network,
 }
 
 #[instrument(level = "debug", skip(flow_sender), ret)]
 pub async fn create_app(
     flow_sender: FlowSender,
     deposit_verification_aggregator: DepositVerificationAggregator,
+    network: Network,
 ) -> Router {
     let state = AppState {
+        network,
         flow_sender,
         deposit_verification_aggregator,
     };

@@ -17,6 +17,8 @@ pub enum GatewayError {
     Secp256k1Error(#[from] secp256k1::Error),
     #[error("Failed to parse url, err: {0}")]
     UrlParseError(#[from] url::ParseError),
+    #[error("Deposit verification error: {0}")]
+    DepositVerificationError(String),
 }
 
 impl IntoResponse for GatewayError {
@@ -30,6 +32,9 @@ impl IntoResponse for GatewayError {
             }
             GatewayError::UrlParseError(message) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, message.to_string()).into_response()
+            }
+            GatewayError::DepositVerificationError(message) => {
+                (StatusCode::INTERNAL_SERVER_ERROR, message).into_response()
             }
         }
     }
