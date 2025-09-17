@@ -1,51 +1,11 @@
-use crate::CoinSelector;
+use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
-use chrono::NaiveDateTime;
-use gateway_local_db_store::storage::LocalDbStorage;
-use persistent_storage::error::DatabaseError;
-use sqlx::FromRow;
-
-pub struct GreedySelector<'a> {
-    pub repo: &'a LocalDbStorage,
-}
-
-#[async_trait]
-impl<'a> CoinSelector for GreedySelector<'a> {
-    async fn select_utxos(&self, rune_id: &str, target_amount: i64) -> Result<Vec<Utxo>, DatabaseError> {
-        self.repo.select_and_lock_utxos(rune_id, target_amount).await
-    }
-}
-
-#[derive(Debug, Clone, FromRow)]
-pub struct Utxo {
-    pub id: i32,
-    pub txid: String,
-    pub vout: i32,
-    pub amount: i64,
-    pub rune_id: String,
-    pub sats_amount: Option<i64>,
-    pub owner_pubkey: String,
-    pub status: String,
-    pub block_height: Option<i64>,
-    pub created_at: NaiveDateTime,
-    pub updated_at: NaiveDateTime,
-}
-
-#[async_trait]
-pub trait UtxoStorage {
-    async fn insert_utxo(&self, utxo: Utxo) -> Result<Utxo, DatabaseError>;
-    async fn update_status(&self, txid: &str, vout: i32, new_status: &str) -> Result<(), DatabaseError>;
-    async fn insert_pending_utxo(&self, utxo: Vec<Utxo>) -> Result<Utxo, DatabaseError>;
-    async fn list_unspent(&self, rune_id: &str) -> Result<Vec<Utxo>, DatabaseError>;
-    async fn confirm_pending_utxo(&self, txid: bitcoin::Txid, block_height: i64) -> Result<(), DatabaseError>;
-    async fn select_and_lock_utxos(&self, rune_id: &str, target_amount: i64) -> Result<Vec<Utxo>, DatabaseError>;
-    async fn unlock_utxos(&self, utxo_ids: &[i64]) -> Result<(), DatabaseError>;
-    async fn set_block_height(&self, txid: bitcoin::Txid, block_height: i64) -> Result<(), DatabaseError>;
-}
+use gateway_runes_utxo_manager::traits::{Utxo, UtxoStorage};
+use persistent_storage::error::DbError;
 
 #[async_trait]
 impl UtxoStorage for LocalDbStorage {
-    async fn insert_utxo(&self, utxo: Utxo) -> Result<Utxo, DatabaseError> {
+    async fn insert_utxo(&self, utxo: Utxo) -> Result<Utxo, DbError> {
         let rec = sqlx::query_as::<_, Utxo>(
             r#"
         INSERT INTO gateway.utxo
@@ -64,12 +24,12 @@ impl UtxoStorage for LocalDbStorage {
         .bind(utxo.block_height)
         .fetch_one(&self.postgres_repo.pool)
         .await
-        .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
+        .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
         Ok(rec)
     }
 
-    async fn update_status(&self, txid: &str, vout: i32, new_status: &str) -> Result<(), DatabaseError> {
+    async fn update_status(&self, txid: &str, vout: i32, new_status: &str) -> Result<(), DbError> {
         let rows = sqlx::query(
             r#"
             UPDATE gateway.utxo
@@ -82,17 +42,17 @@ impl UtxoStorage for LocalDbStorage {
         .bind(vout)
         .execute(&self.postgres_repo.pool)
         .await
-        .map_err(|e| DatabaseError::BadRequest(e.to_string()))?
+        .map_err(|e| DbError::BadRequest(e.to_string()))?
         .rows_affected();
 
         if rows == 0 {
-            return Err(DatabaseError::NotFound(format!("UTXO {txid}:{vout} not found")));
+            return Err(DbError::NotFound(format!("UTXO {txid}:{vout} not found")));
         }
 
         Ok(())
     }
 
-    async fn insert_pending_utxo(&self, utxos: Vec<Utxo>) -> Result<Utxo, DatabaseError> {
+    async fn insert_pending_utxo(&self, utxos: Vec<Utxo>) -> Result<Utxo, DbError> {
         let mut inserted = Vec::new();
 
         for utxo in utxos {
@@ -112,7 +72,7 @@ impl UtxoStorage for LocalDbStorage {
             .bind(&utxo.owner_pubkey)
             .fetch_one(&self.postgres_repo.pool)
             .await
-            .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
+            .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
             inserted.push(rec);
         }
@@ -122,7 +82,7 @@ impl UtxoStorage for LocalDbStorage {
         let mut base = inserted
             .into_iter()
             .next()
-            .ok_or_else(|| DatabaseError::BadRequest("Empty utxo list".to_string()))?;
+            .ok_or_else(|| DbError::BadRequest("Empty utxo list".to_string()))?;
 
         base.amount = total_amount;
         base.sats_amount = Option::from(total_sats);
@@ -130,7 +90,7 @@ impl UtxoStorage for LocalDbStorage {
         Ok(base)
     }
 
-    async fn list_unspent(&self, rune_id: &str) -> Result<Vec<Utxo>, DatabaseError> {
+    async fn list_unspent(&self, rune_id: &str) -> Result<Vec<Utxo>, DbError> {
         let rows = sqlx::query_as::<_, Utxo>(
             r#"
         SELECT * FROM gateway.utxo
@@ -143,12 +103,12 @@ impl UtxoStorage for LocalDbStorage {
         .bind(rune_id)
         .fetch_all(&self.postgres_repo.pool)
         .await
-        .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
+        .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
         Ok(rows)
     }
 
-    async fn confirm_pending_utxo(&self, txid: bitcoin::Txid, block_height: i64) -> Result<(), DatabaseError> {
+    async fn confirm_pending_utxo(&self, txid: bitcoin::Txid, block_height: i64) -> Result<(), DbError> {
         sqlx::query(
             r#"
         UPDATE gateway.utxo
@@ -160,18 +120,18 @@ impl UtxoStorage for LocalDbStorage {
         .bind(txid.to_string())
         .execute(&self.postgres_repo.pool)
         .await
-        .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
+        .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
         Ok(())
     }
 
-    async fn select_and_lock_utxos(&self, rune_id: &str, target_amount: i64) -> Result<Vec<Utxo>, DatabaseError> {
+    async fn select_and_lock_utxos(&self, rune_id: &str, target_amount: i64) -> Result<Vec<Utxo>, DbError> {
         let mut tx = self
             .postgres_repo
             .pool
             .begin()
             .await
-            .map_err(|e| DatabaseError::BadRequest(format!("Failed to begin transaction: {}", e)))?;
+            .map_err(|e| DbError::BadRequest(format!("Failed to begin transaction: {}", e)))?;
 
         let candidates = sqlx::query_as::<_, Utxo>(
             r#"
@@ -185,7 +145,7 @@ impl UtxoStorage for LocalDbStorage {
         .bind(rune_id)
         .fetch_all(&mut *tx)
         .await
-        .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
+        .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
         let mut selected = Vec::new();
         let mut total = 0;
@@ -200,7 +160,7 @@ impl UtxoStorage for LocalDbStorage {
 
         if total < target_amount {
             tx.rollback().await.ok();
-            return Err(DatabaseError::BadRequest("Not enough funds".into()));
+            return Err(DbError::BadRequest("Not enough funds".into()));
         }
 
         let ids: Vec<i32> = selected.iter().map(|u| u.id).collect();
@@ -215,16 +175,16 @@ impl UtxoStorage for LocalDbStorage {
         .bind(&ids)
         .fetch_all(&mut *tx)
         .await
-        .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
+        .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
         tx.commit()
             .await
-            .map_err(|e| DatabaseError::BadRequest(format!("Failed to commit transaction: {}", e)))?;
+            .map_err(|e| DbError::BadRequest(format!("Failed to commit transaction: {}", e)))?;
 
         Ok(locked_utxos)
     }
 
-    async fn unlock_utxos(&self, utxo_ids: &[i64]) -> Result<(), DatabaseError> {
+    async fn unlock_utxos(&self, utxo_ids: &[i64]) -> Result<(), DbError> {
         if utxo_ids.is_empty() {
             return Ok(());
         }
@@ -235,12 +195,12 @@ impl UtxoStorage for LocalDbStorage {
             .bind(utxo_ids)
             .execute(&self.postgres_repo.pool)
             .await
-            .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
+            .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
         Ok(())
     }
 
-    async fn set_block_height(&self, txid: bitcoin::Txid, block_height: i64) -> Result<(), DatabaseError> {
+    async fn set_block_height(&self, txid: bitcoin::Txid, block_height: i64) -> Result<(), DbError> {
         let rows = sqlx::query(
             r#"
         UPDATE gateway.utxo
@@ -252,11 +212,11 @@ impl UtxoStorage for LocalDbStorage {
         .bind(txid.to_string())
         .execute(&self.postgres_repo.pool)
         .await
-        .map_err(|e| DatabaseError::BadRequest(e.to_string()))?
+        .map_err(|e| DbError::BadRequest(e.to_string()))?
         .rows_affected();
 
         if rows == 0 {
-            return Err(DatabaseError::NotFound(format!("No UTXOs found for txid: {}", txid)));
+            return Err(DbError::NotFound(format!("No UTXOs found for txid: {}", txid)));
         }
 
         Ok(())

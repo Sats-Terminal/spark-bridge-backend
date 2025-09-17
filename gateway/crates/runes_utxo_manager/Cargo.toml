@@ -1,23 +1,18 @@
 [package]
-name = "gateway_local_db_store"
+name = "gateway_runes_utxo_manager"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 
 [dependencies]
 async-trait = { workspace = true }
 bitcoin = { workspace = true }
 chrono = { workspace = true }
-frost = { workspace = true }
-gateway_session_storage = { workspace = true }
-gateway_runes_utxo_manager = { workspace = true }
+futures = { workspace = true }
 persistent_storage = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true }
-thiserror = { workspace = true }
 tokio = { workspace = true }
 uuid = { workspace = true }
+serde = { workspace = true }
 
 [dev-dependencies]
-global_utils = { workspace = true }
-lrc20 = { workspace = true }
-frost-secp256k1-tr = { workspace = true }

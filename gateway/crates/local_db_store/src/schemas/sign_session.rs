@@ -6,17 +6,13 @@ use frost::types::AggregatorSignData;
 use frost::types::AggregatorSignState;
 use frost::types::MusigId;
 use frost::types::SigningMetadata;
-use persistent_storage::error::DatabaseError;
+use persistent_storage::error::DbError;
 use sqlx::types::Json;
 use uuid::Uuid;
 
 #[async_trait]
 impl AggregatorSignSessionStorage for LocalDbStorage {
-    async fn get_sign_data(
-        &self,
-        musig_id: MusigId,
-        session_id: Uuid,
-    ) -> Result<Option<AggregatorSignData>, DatabaseError> {
+    async fn get_sign_data(&self, musig_id: MusigId, session_id: Uuid) -> Result<Option<AggregatorSignData>, DbError> {
         let public_key = musig_id.get_public_key();
         let rune_id = musig_id.get_rune_id();
 
@@ -35,7 +31,7 @@ impl AggregatorSignSessionStorage for LocalDbStorage {
         .bind(session_id.to_string())
         .fetch_optional(&self.get_conn().await?)
         .await
-        .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
+        .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
         Ok(result.map(
             |(json_sign_state, json_metadata, message_hash, tweak)| AggregatorSignData {
@@ -52,7 +48,7 @@ impl AggregatorSignSessionStorage for LocalDbStorage {
         musig_id: MusigId,
         session_id: Uuid,
         sign_data: AggregatorSignData,
-    ) -> Result<(), DatabaseError> {
+    ) -> Result<(), DbError> {
         let sign_state = Json(sign_data.sign_state);
         let public_key = musig_id.get_public_key();
         let rune_id = musig_id.get_rune_id();
@@ -71,7 +67,7 @@ impl AggregatorSignSessionStorage for LocalDbStorage {
         .bind(sign_data.tweak.clone())
         .execute(&self.get_conn().await?)
         .await
-        .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
+        .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
         Ok(())
     }

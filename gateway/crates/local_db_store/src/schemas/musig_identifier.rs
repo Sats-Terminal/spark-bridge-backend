@@ -4,12 +4,12 @@ use frost::traits::AggregatorMusigIdStorage;
 use frost::types::AggregatorDkgState;
 use frost::types::AggregatorMusigIdData;
 use frost::types::MusigId;
-use persistent_storage::error::DatabaseError;
+use persistent_storage::error::DbError;
 use sqlx::types::Json;
 
 #[async_trait]
 impl AggregatorMusigIdStorage for LocalDbStorage {
-    async fn get_musig_id_data(&self, musig_id: MusigId) -> Result<Option<AggregatorMusigIdData>, DatabaseError> {
+    async fn get_musig_id_data(&self, musig_id: MusigId) -> Result<Option<AggregatorMusigIdData>, DbError> {
         let public_key = musig_id.get_public_key();
         let rune_id = musig_id.get_rune_id();
 
@@ -22,18 +22,14 @@ impl AggregatorMusigIdStorage for LocalDbStorage {
         .bind(rune_id)
         .fetch_optional(&self.get_conn().await?)
         .await
-        .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
+        .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
         Ok(result.map(|(json_dkg_state,)| AggregatorMusigIdData {
             dkg_state: json_dkg_state.0,
         }))
     }
 
-    async fn set_musig_id_data(
-        &self,
-        musig_id: MusigId,
-        user_state: AggregatorMusigIdData,
-    ) -> Result<(), DatabaseError> {
+    async fn set_musig_id_data(&self, musig_id: MusigId, user_state: AggregatorMusigIdData) -> Result<(), DbError> {
         let dkg_state = Json(user_state.dkg_state);
         let public_key = musig_id.get_public_key();
         let rune_id = musig_id.get_rune_id();
@@ -50,7 +46,7 @@ impl AggregatorMusigIdStorage for LocalDbStorage {
         .bind(dkg_state)
         .execute(&self.get_conn().await?)
         .await
-        .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
+        .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
         Ok(())
     }
