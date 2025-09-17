@@ -16,3 +16,6 @@ total_participants = 3
 
 [gateway_config]
 address = "http://gateway-service:8060"
+
+[database_config]
+url = "postgres://postgres:postgres@postgres-verifier_1:5432/verifier"

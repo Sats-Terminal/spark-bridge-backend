@@ -31,7 +31,9 @@ async fn main() {
     tracing::debug!("App config: {:?}", server_config);
 
     // Create DB Pool
-    let postgres_creds = PostgresDbCredentials::from_db_url().unwrap();
+    let postgres_creds = PostgresDbCredentials {
+        url: server_config.database.url.clone(),
+    };
     let db_pool = LocalDbStorage {
         postgres_repo: PostgresRepo::from_config(postgres_creds).await.unwrap(),
     };

@@ -8,7 +8,7 @@ run_docker_compose_with_wait() {
     docker compose -f "./infrastructure/databases.docker-compose.yml" up -d
     
     echo "Docker compose started successfully. Waiting 10 seconds for initialization..."
-    sleep 10
+    sleep 5
     echo "Initialization wait complete."
 }
 
@@ -29,12 +29,13 @@ migrate_databases() {
 }
 
 run_services() {
-    
+    echo "Running services..."
 }
 
 main() {
     run_docker_compose_with_wait
     migrate_databases
+    run_services
 }
 
 

@@ -16,3 +16,6 @@ total_participants = 3
 
 [gateway_config]
 address = "http://localhost:8060"
+
+[database_config]
+url = "postgres://postgres:postgres@localhost:5471/verifier"

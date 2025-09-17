@@ -54,6 +54,12 @@ pub struct GatewayConfig {
     pub address: Url,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub struct DatabaseConfig {
+    pub url: String,
+}
+
 /// Struct used for initialization of different kinds of configurations
 ///
 /// Example of using local configuration:
@@ -82,6 +88,8 @@ pub struct ServerConfig {
     pub frost_signer: SignerConfig,
     #[serde(rename = "gateway_config")]
     pub gateway: GatewayConfig,
+    #[serde(rename = "database_config")]
+    pub database: DatabaseConfig,
 }
 
 pub fn get_cargo_manifest_dir() -> String {

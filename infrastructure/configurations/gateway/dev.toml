@@ -5,10 +5,6 @@ network = "regtest"
 http_server_ip = "127.0.0.1"
 http_server_port = 8060
 
-[private_api_config]
-http_server_ip = "127.0.0.1"
-http_server_port = 8061
-
 [[verifiers_config]]
 id = 1
 address = "http://localhost:8071"
@@ -28,3 +24,6 @@ update_interval_milliseconds = 10000
 
 [flow_processor_config]
 cancellation_retries = 10
+
+[database_config]
+url = "postgres://postgres:postgres@localhost:5470/gateway"
