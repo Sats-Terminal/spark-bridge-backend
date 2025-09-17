@@ -2,6 +2,7 @@ use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
 use gateway_runes_utxo_manager::traits::{Utxo, UtxoManager, UtxoStatus, UtxoStorage};
 use persistent_storage::error::DbError;
+use sqlx::{Postgres, Transaction};
 
 #[async_trait]
 impl UtxoManager for LocalDbStorage {
@@ -152,19 +153,7 @@ impl UtxoStorage for LocalDbStorage {
             .await
             .map_err(|e| DbError::BadRequest(format!("Failed to begin transaction: {}", e)))?;
 
-        let candidates = sqlx::query_as::<_, Utxo>(
-            r#"
-    SELECT *
-    FROM gateway.utxo
-    WHERE rune_id = $1 AND status IN ('unspent', 'pending')
-    ORDER BY amount ASC
-    FOR UPDATE SKIP LOCKED
-    "#,
-        )
-        .bind(rune_id)
-        .fetch_all(&mut *tx)
-        .await
-        .map_err(|e| DbError::BadRequest(e.to_string()))?;
+        let candidates = get_candidate_utxos_for_update(rune_id, &mut tx).await?;
 
         let mut selected = Vec::new();
         let mut total = 0;
@@ -183,18 +172,7 @@ impl UtxoStorage for LocalDbStorage {
         }
 
         let ids: Vec<i32> = selected.iter().map(|u| u.id).collect();
-        let locked_utxos = sqlx::query_as::<_, Utxo>(
-            r#"
-        UPDATE gateway.utxo
-        SET status = 'locked', updated_at = now()
-        WHERE id = ANY($1)
-        RETURNING *
-        "#,
-        )
-        .bind(&ids)
-        .fetch_all(&mut *tx)
-        .await
-        .map_err(|e| DbError::BadRequest(e.to_string()))?;
+        let locked_utxos = lock_utxos_by_ids(&ids, &mut tx).await?;
 
         tx.commit()
             .await
@@ -256,4 +234,42 @@ impl UtxoStorage for LocalDbStorage {
 
         Ok(())
     }
+}
+
+async fn get_candidate_utxos_for_update(
+    rune_id: &str,
+    tx: &mut Transaction<'_, Postgres>,
+) -> Result<Vec<Utxo>, DbError> {
+    let candidates = sqlx::query_as::<_, Utxo>(
+        r#"
+        SELECT *
+        FROM gateway.utxo
+        WHERE rune_id = $1 AND status IN ('unspent', 'pending')
+        ORDER BY amount ASC
+        FOR UPDATE SKIP LOCKED
+        "#,
+    )
+    .bind(rune_id)
+    .fetch_all(&mut **tx)
+    .await
+    .map_err(|e| DbError::BadRequest(e.to_string()))?;
+
+    Ok(candidates)
+}
+
+async fn lock_utxos_by_ids(utxo_ids: &[i32], tx: &mut Transaction<'_, Postgres>) -> Result<Vec<Utxo>, DbError> {
+    let locked_utxos = sqlx::query_as::<_, Utxo>(
+        r#"
+        UPDATE gateway.utxo
+        SET status = 'locked', updated_at = now()
+        WHERE id = ANY($1)
+        RETURNING *
+        "#,
+    )
+    .bind(utxo_ids)
+    .fetch_all(&mut **tx)
+    .await
+    .map_err(|e| DbError::BadRequest(e.to_string()))?;
+
+    Ok(locked_utxos)
 }
