@@ -25,6 +25,7 @@ revert_migrations() {
 shut_down_services() {
     echo "Shutting down services..."
     pm2 delete all
+    rm -rf ./logs
 }
 
 main() {
