@@ -40,6 +40,7 @@ pub trait UtxoStorage {
     async fn confirm_pending_utxo(&self, txid: bitcoin::Txid, block_height: i64) -> Result<(), DatabaseError>;
     async fn select_and_lock_utxos(&self, rune_id: &str, target_amount: i64) -> Result<Vec<Utxo>, DatabaseError>;
     async fn unlock_utxos(&self, utxo_ids: &[i64]) -> Result<(), DatabaseError>;
+    async fn mark_spent(&self, utxo_ids: &[i64]) -> Result<(), DatabaseError>;
     async fn set_block_height(&self, txid: bitcoin::Txid, block_height: i64) -> Result<(), DatabaseError>;
 }
 
@@ -48,11 +49,19 @@ impl UtxoStorage for Storage {
     async fn insert_utxo(&self, utxo: Utxo) -> Result<Utxo, DatabaseError> {
         let rec = sqlx::query_as::<_, Utxo>(
             r#"
-        INSERT INTO gateway.utxo
+    INSERT INTO gateway.utxo
         (txid, vout, amount, sats_amount, rune_id, owner_pubkey, status, block_height)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        RETURNING *
-        "#,
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    ON CONFLICT (txid, vout) DO UPDATE
+    SET amount = EXCLUDED.amount,
+        sats_amount = EXCLUDED.sats_amount,
+        rune_id = EXCLUDED.rune_id,
+        owner_pubkey = EXCLUDED.owner_pubkey,
+        status = EXCLUDED.status,
+        block_height = EXCLUDED.block_height,
+        updated_at = NOW()
+    RETURNING *
+    "#,
         )
         .bind(&utxo.txid)
         .bind(utxo.vout)
@@ -232,6 +241,22 @@ impl UtxoStorage for Storage {
         let query = format!("UPDATE gateway.utxo SET status = 'unspent', updated_at = now() WHERE id = ANY($1)");
 
         sqlx::query(&query)
+            .bind(utxo_ids)
+            .execute(&self.postgres_repo.pool)
+            .await
+            .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
+
+        Ok(())
+    }
+
+    async fn mark_spent(&self, utxo_ids: &[i64]) -> Result<(), DatabaseError> {
+        if utxo_ids.is_empty() {
+            return Ok(());
+        }
+
+        let query = "UPDATE gateway.utxo SET status = 'spent', updated_at = now() WHERE id = ANY($1)";
+
+        sqlx::query(query)
             .bind(utxo_ids)
             .execute(&self.postgres_repo.pool)
             .await

@@ -22,18 +22,6 @@ impl UtxoManager for Storage {
     }
 
     async fn mark_spent(&self, utxo_ids: &[i64]) -> Result<(), DatabaseError> {
-        if utxo_ids.is_empty() {
-            return Ok(());
-        }
-
-        let query = "UPDATE gateway.utxo SET status = 'spent', updated_at = now() WHERE id = ANY($1)";
-
-        sqlx::query(query)
-            .bind(utxo_ids)
-            .execute(&self.postgres_repo.pool)
-            .await
-            .map_err(|e| DatabaseError::BadRequest(e.to_string()))?;
-
-        Ok(())
+        UtxoStorage::mark_spent(self,utxo_ids).await
     }
 }

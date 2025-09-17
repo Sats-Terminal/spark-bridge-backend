@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use chrono::NaiveDateTime;
-use gateway_local_db_store::storage::Storage;
+use crate::storage::Storage;
 use persistent_storage::error::DatabaseError;
 use persistent_storage::init::PostgresRepo;
 use serde_json::Value as JsonValue;
