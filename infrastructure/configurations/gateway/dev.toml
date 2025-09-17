@@ -1,8 +1,9 @@
+[network_config]
+network = "regtest"
+
 [application]
 http_server_ip = "127.0.0.1"
 http_server_port = 8060
-btc_network = "regtest"
-spark_network = "Regtest"
 
 [private_api_config]
 http_server_ip = "127.0.0.1"

@@ -2,7 +2,7 @@ use config::{Config, Environment};
 use global_utils::common_types::Url;
 use global_utils::config_variant::ConfigVariant;
 use serde::{Deserialize, Serialize};
-use spark_client::utils::spark_address::Network;
+use bitcoin::Network;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use tracing::{debug, instrument, trace};

@@ -1,11 +1,10 @@
-use bitcoin::Network as BtcNetwork;
 use config::{Config, Environment};
 use global_utils::config_variant::ConfigVariant;
 use serde::{Deserialize, Serialize};
-use spark_client::utils::spark_address::Network as SparkNetwork;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use tracing::{debug, instrument, trace};
+use global_utils::network::NetworkConfig;
 
 const CONFIG_FOLDER_NAME: &str = "../../infrastructure/configuration";
 const PRODUCTION_CONFIG_FOLDER_NAME: &str = "configuration_gateway";
@@ -19,10 +18,6 @@ pub struct AppConfig {
     pub ip: String,
     #[serde(rename = "http_server_port")]
     pub port: u16,
-    #[serde(rename = "btc_network")]
-    pub btc_network: BtcNetwork,
-    #[serde(rename = "spark_network")]
-    pub spark_network: SparkNetwork,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -89,6 +84,8 @@ pub struct ServerConfig {
     pub flow_processor: FlowProcessorConfig,
     #[serde(rename = "private_api_config")]
     pub server_private_api: PrivateApiConfig,
+    #[serde(rename = "network_config")]
+    pub network: NetworkConfig,
 }
 
 pub fn get_cargo_manifest_dir() -> String {

@@ -27,7 +27,6 @@ async fn main() {
 
     // Create Config
     let config_path = ConfigPath::from_env().unwrap();
-    let network_config = NetworkConfig::from_env().unwrap();
     let server_config = ServerConfig::init_config(ConfigVariant::OnlyOneFilepath(config_path.path)).unwrap();
     tracing::debug!("App config: {:?}", server_config);
 
@@ -53,7 +52,7 @@ async fn main() {
         shared_db_pool.clone(),
         server_config.flow_processor.cancellation_retries,
         frost_aggregator,
-        network_config.network,
+        server_config.network.network,
     );
     let _ = tokio::spawn(async move {
         flow_processor.run().await;

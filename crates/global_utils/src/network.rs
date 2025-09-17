@@ -3,7 +3,9 @@ use bitcoin::Network;
 use std::net::ToSocketAddrs;
 use std::str::FromStr;
 use url::Url;
+use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NetworkConfig {
     pub network: Network,
 }
