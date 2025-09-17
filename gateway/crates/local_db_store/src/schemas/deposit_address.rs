@@ -84,7 +84,7 @@ impl DepositAddressStorage for LocalDbStorage {
 
         let result: Option<(Option<String>, bool, i64, Option<String>, Json<DepositStatusInfo>)> = sqlx::query_as(
             "SELECT address, is_btc, amount, txid, confirmation_status
-            FROM verifier.deposit_address
+            FROM gateway.deposit_address
             WHERE public_key = $1 AND rune_id = $2 AND nonce_tweak = $3",
         )
             .bind(public_key.to_string())
@@ -140,7 +140,7 @@ impl DepositAddressStorage for LocalDbStorage {
 
     async fn update_confirmation_status_by_address(&self, address: String, confirmation_status: DepositStatusInfo) -> Result<(), DbError> {
         let _ = sqlx::query(
-            "UPDATE verifier.deposit_address SET confirmation_status = $1 WHERE address = $2",
+            "UPDATE gateway.deposit_address SET confirmation_status = $1 WHERE address = $2",
         )
             .bind(Json(confirmation_status))
             .bind(address)
