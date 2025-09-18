@@ -33,7 +33,6 @@ CREATE TABLE IF NOT EXISTS gateway.deposit_address
     address TEXT,
     is_btc BOOLEAN NOT NULL,
     amount BIGINT NOT NULL,
-    txid TEXT,
     confirmation_status JSON NOT NULL,
     PRIMARY KEY (public_key, rune_id, nonce_tweak),
     FOREIGN KEY (public_key, rune_id) REFERENCES gateway.musig_identifier(public_key, rune_id)

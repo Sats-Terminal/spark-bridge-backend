@@ -1,7 +1,7 @@
 CREATE TYPE UTXO_STATUS AS ENUM (
     'pending',
     'confirmed',
-    'spent',
+    'spent'
 );
 
 CREATE TABLE IF NOT EXISTS gateway.utxo
@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS gateway.utxo
     vout         INT         NOT NULL,
     amount       BIGINT      NOT NULL,
     rune_id      TEXT        NOT NULL,
+    sats_fee_amount BIGINT   ,
     status       UTXO_STATUS NOT NULL DEFAULT 'pending',
     btc_address  TEXT        NOT NULL,
     transaction  JSONB,

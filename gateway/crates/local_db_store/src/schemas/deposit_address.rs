@@ -85,7 +85,7 @@ impl DepositAddressStorage for LocalDbStorage {
             .fetch_optional(&self.get_conn().await?)
             .await
             .map_err(|e| DbError::BadRequest(e.to_string()))?;
-        
+
         match result {
             Some((address, is_btc, amount, txid_str, confirmation_status)) => {
                 let txid = match txid_str {
@@ -96,13 +96,12 @@ impl DepositAddressStorage for LocalDbStorage {
                     address,
                     is_btc,
                     amount: amount as u64,
-                    txid,
                     confirmation_status: confirmation_status.0,
                 }))
             }
             None => Ok(None),
         }
-        
+
     }
 
     async fn set_deposit_addr_info(&self, musig_id: &MusigId, tweak: Nonce, deposit_addr_info: DepositAddrInfo) -> Result<(), DbError> {
@@ -121,7 +120,6 @@ impl DepositAddressStorage for LocalDbStorage {
             .bind(deposit_addr_info.address)
             .bind(deposit_addr_info.is_btc)
             .bind(deposit_addr_info.amount as i64)
-            .bind(deposit_addr_info.txid.map(|txid| txid.to_string()))
             .bind(confirmation_status)
             .execute(&self.get_conn().await?)
             .await
@@ -168,7 +166,6 @@ impl DepositAddressStorage for LocalDbStorage {
                     address,
                     is_btc,
                     amount: amount as u64,
-                    txid,
                     confirmation_status: confirmation_status.0,
                 };
                 Ok(Some((musig_id, nonce, deposit_addr_info)))
