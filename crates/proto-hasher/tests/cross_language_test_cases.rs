@@ -3,9 +3,9 @@ use std::{env, fs, path::PathBuf};
 use hex::ToHex;
 use lazy_static::lazy_static;
 use prost_reflect::{DescriptorPool, DynamicMessage, MessageDescriptor};
-use proto_hasher::ProtoHasher;
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
+use proto_hasher::ProtoHasher;
 use spark_protos::SPARK_FILE_DESCRIPTOR_SET;
 
 fn get_spark_descriptor_set() -> DescriptorPool {
@@ -50,10 +50,7 @@ fn lookup_msg(desc_full_name: &str) -> MessageDescriptor {
 
 fn resolve_json_path() -> PathBuf {
     let base = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let p = base
-        .join("crates/generic/proto-hasher/tests")
-        .join("data")
-        .join(JSON_FILE);
+    let p = base.join("crates/generic/proto-hasher/tests").join("data").join(JSON_FILE);
     if p.exists() {
         return p;
     }
@@ -73,14 +70,20 @@ fn resolve_json_path() -> PathBuf {
 fn test_spark_invoice_fields_json_cases() {
     assert_eq!(SPARK_INVOICE_FIELDS_DESC.full_name(), FULL_NAME);
 
-    let data = fs::read(&*JSON_PATH).unwrap_or_else(|e| panic!("read json cases {}: {e}", JSON_PATH.display()));
+    let data = fs::read(&*JSON_PATH)
+        .unwrap_or_else(|e| panic!("read json cases {}: {e}", JSON_PATH.display()));
 
-    let file: CrossLangFile = serde_json::from_slice(&data).unwrap_or_else(|e| panic!("unmarshal json: {e}"));
+    let file: CrossLangFile =
+        serde_json::from_slice(&data).unwrap_or_else(|e| panic!("unmarshal json: {e}"));
 
     let hasher = ProtoHasher::new();
 
+
     for tc in file.test_cases {
-        let dm = DynamicMessage::deserialize(SPARK_INVOICE_FIELDS_DESC.clone(), &tc.spark_invoice_fields)
+        let dm = DynamicMessage::deserialize(
+            SPARK_INVOICE_FIELDS_DESC.clone(),
+            &tc.spark_invoice_fields,
+        )
             .expect("failed to deserialize proto");
 
         let got = hasher
@@ -89,7 +92,11 @@ fn test_spark_invoice_fields_json_cases() {
 
         let got_hex = got.encode_hex::<String>();
 
-        let expected = tc.expected_hash_hex.unwrap_or_default().trim().to_string();
+        let expected = tc
+            .expected_hash_hex
+            .unwrap_or_default()
+            .trim()
+            .to_string();
 
         if expected.is_empty() || expected.eq_ignore_ascii_case("TBD") {
             println!("COMPUTED_HASH {}: {}", tc.name, got_hex);

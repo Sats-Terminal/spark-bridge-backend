@@ -1,9 +1,9 @@
-use crate::errors::ProtoHasherError;
-use crate::google_protobuf::{GoogleValue, is_google_proto_value_null};
-use bitcoin::hashes::sha256::Hash as Sha256Hash;
+use std::collections::HashMap;
 use bitcoin::hashes::{Hash, HashEngine};
 use prost_reflect::{DynamicMessage, FieldDescriptor, Kind, MapKey, MessageDescriptor, ReflectMessage, Value};
-use std::collections::HashMap;
+use bitcoin::hashes::sha256::Hash as Sha256Hash;
+use crate::errors::ProtoHasherError;
+use crate::google_protobuf::{is_google_proto_value_null, GoogleValue};
 
 const BOOL_IDENTIFIER: &str = "b";
 pub(crate) const MAP_IDENTIFIER: &str = "d";
@@ -241,14 +241,18 @@ fn hash_fields(message: DynamicMessage) -> Result<Vec<FieldHashEntry>, ProtoHash
 fn hash_field(fd: &FieldDescriptor, value: &Value) -> Result<Option<FieldHashEntry>, ProtoHasherError> {
     let k_hash = hash_field_key(fd);
     let Some(v_hash) = hash_field_value(fd, value)? else {
-        return Ok(None);
+        return Ok(None)
     };
 
-    Ok(Some(FieldHashEntry {
-        number: fd.number(),
-        k_hash,
-        v_hash,
-    }))
+    Ok(
+        Some(
+            FieldHashEntry {
+                number: fd.number(),
+                k_hash,
+                v_hash,
+            }
+        )
+    )
 }
 
 pub(crate) fn hash_field_key(fd: &FieldDescriptor) -> Sha256Hash {
@@ -257,10 +261,13 @@ pub(crate) fn hash_field_key(fd: &FieldDescriptor) -> Sha256Hash {
 
 pub(crate) fn hash_field_value(fd: &FieldDescriptor, value: &Value) -> Result<Option<Sha256Hash>, ProtoHasherError> {
     if fd.is_list() {
-        let list = value.as_list().ok_or(ProtoHasherError::ValueTypeMismatch {
-            expected: "list",
-            found: value_type_label(value),
-        })?;
+        let list = value.as_list()
+            .ok_or(
+                ProtoHasherError::ValueTypeMismatch {
+                    expected: "list",
+                    found: value_type_label(value),
+                }
+            )?;
         return hash_list(&fd.kind(), list);
     }
     if fd.is_map() {
@@ -271,10 +278,13 @@ pub(crate) fn hash_field_value(fd: &FieldDescriptor, value: &Value) -> Result<Op
         let key_fd = entry_md.map_entry_key_field();
         let value_fd = entry_md.map_entry_value_field();
 
-        let map_value = value.as_map().ok_or(ProtoHasherError::ValueTypeMismatch {
-            expected: "map",
-            found: value_type_label(value),
-        })?;
+        let map_value = value.as_map()
+            .ok_or(
+                ProtoHasherError::ValueTypeMismatch {
+                    expected: "map",
+                    found: value_type_label(value),
+                }
+            )?;
         return hash_map(&key_fd, &value_fd, map_value);
     }
 
@@ -293,18 +303,14 @@ pub(crate) fn hash_list(kind: &Kind, list: &[Value]) -> Result<Option<Sha256Hash
     for value in list {
         let hash = hash_value(kind, value)?;
         if let Some(hash) = hash {
-            hash_engine.input(hash.as_byte_array());
+        hash_engine.input(hash.as_byte_array());
         }
     }
 
     Ok(Some(Sha256Hash::from_engine(hash_engine)))
 }
 
-pub(crate) fn hash_map(
-    key_fd: &FieldDescriptor,
-    value_fd: &FieldDescriptor,
-    map: &HashMap<MapKey, Value>,
-) -> Result<Option<Sha256Hash>, ProtoHasherError> {
+pub(crate) fn hash_map(key_fd: &FieldDescriptor, value_fd: &FieldDescriptor, map: &HashMap<MapKey, Value>) -> Result<Option<Sha256Hash>, ProtoHasherError> {
     let mut hash_entries = vec![];
 
     for (key, value) in map {
@@ -323,7 +329,7 @@ pub(crate) fn hash_map(
     }
 
     if hash_entries.is_empty() {
-        return Ok(None);
+        return Ok(None)
     }
 
     hash_entries.sort_by(|a, b| a.0.cmp(&b.0));

@@ -1,14 +1,13 @@
 use bitcoin::secp256k1::PublicKey;
 
+use token_identifier::TokenIdentifier;
 use crate::{
     spark_hash::SparkHash,
-    token_identifier::TokenIdentifier,
     token_leaf::{TokenLeafOutput, TokenLeafToSpend},
 };
-use serde::{Deserialize, Serialize};
 
 /// The request for a token transfer.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct TokenTransfer {
     /// The pre-computed token transaction hash to use as transfer ID (if None, will be computed)
     pub transfer_hash: Option<SparkHash>,

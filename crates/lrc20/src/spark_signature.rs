@@ -1,11 +1,10 @@
 use bitcoin::secp256k1::{self, ecdsa, schnorr};
-use serde::{Deserialize, Serialize};
 
 /// Represents the signature of an operator for a token transaction.
 ///
 /// This enum defines the different types of signatures that can be used for a token transaction.
 /// It includes ECDSA and Schnorr signatures.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SparkSignature {
     /// Represents an ECDSA signature.
     ECDSA(ecdsa::Signature),
@@ -48,15 +47,15 @@ impl SparkSignature {
     /// Converts the signature to a byte array.
     ///
     /// This method serializes the signature into a byte array.
-    /// It supports both DER and compact serialization formats.
+    /// For ECDSA signatures, it uses DER encoding.
+    /// For Schnorr signatures, it uses the standard 64-byte format.
     ///
     /// # Returns
-    /// A byte array in `[u8; 64]` representing the signature.
-    pub fn bytes(&self) -> [u8; 64] {
+    /// A Vec<u8> representing the signature (variable length for ECDSA DER, 64 bytes for Schnorr).
+    pub fn bytes(&self) -> Vec<u8> {
         match self {
-            // TODO: probably should use DER encoding
-            SparkSignature::ECDSA(signature) => signature.serialize_compact(),
-            SparkSignature::Schnorr(signature) => signature.serialize(),
+            SparkSignature::ECDSA(signature) => signature.serialize_der().to_vec(),
+            SparkSignature::Schnorr(signature) => signature.serialize().to_vec(),
         }
     }
 }

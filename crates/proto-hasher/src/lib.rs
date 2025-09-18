@@ -1,6 +1,7 @@
 //! Proto hasher
 
 use bitcoin::hashes::sha256::Hash as Sha256Hash;
+use prost_reflect::{DynamicMessage, ReflectMessage};
 
 /// Hash functions
 pub mod hashing;
@@ -10,9 +11,7 @@ pub(crate) mod google_protobuf;
 
 /// Errors
 pub mod errors;
-
 use errors::ProtoHasherError;
-use prost_reflect::{DynamicMessage, ReflectMessage};
 
 /// Main function for hashing protobufs
 pub use hashing::hash_message;
@@ -47,7 +46,7 @@ impl ProtoHasher {
                     descriptor.full_name().to_owned(),
                 ));
             }
-            _ => {}
+            _ => {},
         };
 
         let hash = hash_message(message)?.ok_or(ProtoHasherError::NothingToHash)?;
