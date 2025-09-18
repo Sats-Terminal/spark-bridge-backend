@@ -1,10 +1,10 @@
 use config::{Config, Environment};
 use global_utils::config_variant::ConfigVariant;
+use global_utils::network::NetworkConfig;
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::str::FromStr;
 use tracing::{debug, instrument, trace};
-use global_utils::network::NetworkConfig;
 
 const CONFIG_FOLDER_NAME: &str = "../../infrastructure/configuration";
 const PRODUCTION_CONFIG_FOLDER_NAME: &str = "configuration_gateway";

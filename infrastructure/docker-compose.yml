@@ -163,7 +163,7 @@ services:
     restart: always
     environment:
       - RUST_LOG=trace
-      - APP_ENVIRONMENT=production
+      - CONFIG_PATH=/configuration_indexer/production.toml
       - BITCOIN_NETWORK=${BITCOIN_NETWORK:-regtest}
       - BITCOIN_RPC_HOST=bitcoind
       - BITCOIN_RPC_PORT=${BITCOIN_RPC_PORT:-18443}
@@ -268,7 +268,8 @@ services:
     restart: always
     environment:
       - RUST_LOG=trace
-      - APP_ENVIRONMENT=production
+      - CA_PEM_PATH=/configuration_spark_balance_checker/ca.pem
+      - CONFIG_PATH=/configuration_spark_balance_checker/production.toml
     networks:
       all-network:
     ports:

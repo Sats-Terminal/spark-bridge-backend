@@ -2,8 +2,8 @@ use crate::error::FlowProcessorError;
 use crate::types::*;
 use bitcoin::{KnownHrp, Network};
 use frost::aggregator::FrostAggregator;
-use gateway_local_db_store::storage::LocalDbStorage;
 use gateway_config_parser::config::VerifierConfig;
+use gateway_local_db_store::storage::LocalDbStorage;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tracing;
@@ -91,12 +91,13 @@ impl FlowProcessorRouter {
         info!("[{LOG_PATH}] issuing spark addr to user with request: {request:?}");
         let address = crate::routes::spark_addr_issuing::handle(
             self.verifier_configs.clone(),
-            request.musig_id, 
+            request.musig_id,
             request.amount,
             network,
             self.frost_aggregator.clone(),
             self.storage.clone(),
-        ).await?;
+        )
+        .await?;
         Ok(IssueSparkDepositAddressResponse {
             addr_to_replenish: address,
         })

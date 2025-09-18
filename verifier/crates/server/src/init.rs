@@ -2,15 +2,15 @@ use crate::handlers;
 use axum::Router;
 use axum::routing::post;
 use frost::signer::FrostSigner;
+use std::sync::Arc;
 use tracing::instrument;
 use verifier_btc_indexer_client::client::BtcIndexerClient;
-use verifier_spark_balance_checker_client::client::SparkBalanceCheckerClient;
-use verifier_config_parser::config::{BtcIndexerConfig, SparkBalanceCheckerConfig, AppConfig};
-use verifier_local_db_store::storage::LocalDbStorage;
-use std::sync::Arc;
-use verifier_gateway_client::client::GatewayClient;
 use verifier_config_parser::config::GatewayConfig;
 use verifier_config_parser::config::ServerConfig;
+use verifier_config_parser::config::{AppConfig, BtcIndexerConfig, SparkBalanceCheckerConfig};
+use verifier_gateway_client::client::GatewayClient;
+use verifier_local_db_store::storage::LocalDbStorage;
+use verifier_spark_balance_checker_client::client::SparkBalanceCheckerClient;
 
 #[derive(Clone)]
 pub struct AppState {

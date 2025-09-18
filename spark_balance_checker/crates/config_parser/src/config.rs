@@ -1,10 +1,10 @@
-use serde::{Deserialize, Serialize};
-use spark_client::common::config::SparkOperatorConfig;
-use bitcoin::Network;
-use std::{fmt::Debug, net::SocketAddr, str::FromStr};
 use crate::error::ConfigParserError;
+use bitcoin::Network;
 use config::{Config, Environment};
 use global_utils::config_variant::ConfigVariant;
+use serde::{Deserialize, Serialize};
+use spark_client::common::config::SparkOperatorConfig;
+use std::{fmt::Debug, net::SocketAddr, str::FromStr};
 use tonic::transport::Certificate;
 use tracing::{debug, instrument, trace};
 
@@ -162,7 +162,9 @@ pub fn get_cargo_manifest_dir() -> String {
 }
 
 pub fn get_certificate(path: String) -> crate::error::Result<Certificate> {
-    let file = std::fs::read(path.clone())
-        .map_err(|err| ConfigParserError::FailedToOpenFile { err, path: path.to_string() })?;
+    let file = std::fs::read(path.clone()).map_err(|err| ConfigParserError::FailedToOpenFile {
+        err,
+        path: path.to_string(),
+    })?;
     Ok(Certificate::from_pem(file))
 }

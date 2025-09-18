@@ -2,6 +2,7 @@ use crate::flow_router::FlowProcessorRouter;
 use crate::types::*;
 use bitcoin::Network;
 use frost::aggregator::FrostAggregator;
+use gateway_config_parser::config::VerifierConfig;
 use gateway_local_db_store::storage::LocalDbStorage;
 use global_utils::common_types::get_uuid;
 use std::collections::HashMap;
@@ -12,7 +13,6 @@ use tokio::task::JoinHandle;
 use tokio::time::Duration;
 use tokio_util::sync::CancellationToken;
 use tracing;
-use gateway_config_parser::config::VerifierConfig;
 use uuid::Uuid;
 
 // This is core struct that handles flows execution

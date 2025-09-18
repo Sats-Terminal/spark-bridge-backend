@@ -2,10 +2,10 @@ use crate::error::GatewayError;
 use crate::init::AppState;
 use axum::Json;
 use axum::extract::State;
-use tracing::instrument;
+use bitcoin::{Address, Txid};
 use serde::{Deserialize, Serialize};
-use bitcoin::{Txid, Address};
 use std::str::FromStr;
+use tracing::instrument;
 
 #[derive(Deserialize, Debug)]
 pub struct BridgeRunesSparkRequest {
@@ -23,7 +23,9 @@ pub async fn handle(
         .require_network(state.network)
         .map_err(|e| GatewayError::InvalidData(format!("Failed to parse btc address: {e}")))?;
 
-    let _ = state.deposit_verification_aggregator.verify_runes_deposit(btc_address, request.txid)
+    let _ = state
+        .deposit_verification_aggregator
+        .verify_runes_deposit(btc_address, request.txid)
         .await
         .map_err(|e| GatewayError::DepositVerificationError(format!("Failed to verify runes deposit: {}", e)))?;
 

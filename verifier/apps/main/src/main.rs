@@ -1,8 +1,8 @@
 use anyhow::anyhow;
+use frost::signer::FrostSigner;
 use global_utils::config_path::ConfigPath;
 use global_utils::config_variant::ConfigVariant;
 use global_utils::logger::init_logger;
-use frost::signer::FrostSigner;
 use persistent_storage::{config::PostgresDbCredentials, init::PostgresRepo};
 use std::sync::Arc;
 use tokio::net::TcpListener;
@@ -40,13 +40,14 @@ async fn main() {
 
     // Create App
     let app = verifier_server::init::create_app(
-        frost_signer, 
-        server_config.btc_indexer.clone(), 
-        server_config.spark_balance_checker.clone(), 
-        server_config.gateway.clone(), 
-        storage.clone(), 
+        frost_signer,
+        server_config.btc_indexer.clone(),
+        server_config.spark_balance_checker.clone(),
+        server_config.gateway.clone(),
+        storage.clone(),
         server_config.clone(),
-    ).await;
+    )
+    .await;
 
     // Run App
     let addr_to_listen = format!("{}:{}", server_config.server.ip, server_config.server.port);
