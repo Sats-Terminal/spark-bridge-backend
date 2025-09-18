@@ -26,4 +26,4 @@ update_interval_milliseconds = 10000
 cancellation_retries = 10
 
 [database_config]
-url = "postgres://postgres:postgres@postgres-gateway:5432/gateway"
+url = "postgres://admin_manager:password@persistent-db-storage_gateway:5432/production_db_name"

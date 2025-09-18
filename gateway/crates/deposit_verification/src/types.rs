@@ -1,8 +1,10 @@
+use bitcoin::Txid;
 use frost::types::MusigId;
 use frost::types::Nonce;
 use bitcoin::OutPoint;
 use serde::{Deserialize, Serialize};
 use gateway_local_db_store::schemas::deposit_address::DepositStatus;
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WatchSparkDepositRequest {

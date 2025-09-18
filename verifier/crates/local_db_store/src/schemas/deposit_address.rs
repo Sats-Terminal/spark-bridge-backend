@@ -1,11 +1,11 @@
 use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
+use bitcoin::Txid;
+use frost::types::MusigId;
+use frost::types::Nonce;
 use persistent_storage::error::DbError;
 use serde::{Deserialize, Serialize};
-use frost::types::MusigId;
 use sqlx::types::Json;
-use bitcoin::Txid;
-use frost::types::Nonce;
 use std::str::FromStr;
 
 #[derive(Debug, Clone, Deserialize, Serialize, Eq, PartialEq)]
@@ -36,7 +36,11 @@ pub trait DepositAddressStorage {
 
 #[async_trait]
 impl DepositAddressStorage for LocalDbStorage {
-    async fn get_deposit_addr_info(&self, musig_id: &MusigId, tweak: Nonce) -> Result<Option<DepositAddrInfo>, DbError> {
+    async fn get_deposit_addr_info(
+        &self,
+        musig_id: &MusigId,
+        tweak: Nonce,
+    ) -> Result<Option<DepositAddrInfo>, DbError> {
         let public_key = musig_id.get_public_key();
         let rune_id = musig_id.get_rune_id();
 
@@ -55,7 +59,10 @@ impl DepositAddressStorage for LocalDbStorage {
         match result {
             Some((address, is_btc, amount, txid_str, confirmation_status)) => {
                 let txid = match txid_str {
-                    Some(s) => Some(Txid::from_str(&s).map_err(|e| DbError::DecodeError(format!("Failed to decode txid: {}", e)))?),
+                    Some(s) => Some(
+                        Txid::from_str(&s)
+                            .map_err(|e| DbError::DecodeError(format!("Failed to decode txid: {}", e)))?,
+                    ),
                     None => None,
                 };
 
@@ -71,7 +78,12 @@ impl DepositAddressStorage for LocalDbStorage {
         }
     }
 
-    async fn set_deposit_addr_info(&self, musig_id: &MusigId, tweak: Nonce, deposit_addr_info: DepositAddrInfo) -> Result<(), DbError> {
+    async fn set_deposit_addr_info(
+        &self,
+        musig_id: &MusigId,
+        tweak: Nonce,
+        deposit_addr_info: DepositAddrInfo,
+    ) -> Result<(), DbError> {
         let confirmation_status = Json(deposit_addr_info.confirmation_status);
         let public_key = musig_id.get_public_key();
         let rune_id = musig_id.get_rune_id();

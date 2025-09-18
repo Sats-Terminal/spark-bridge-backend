@@ -2,8 +2,8 @@ use crate::errors::AggregatorError;
 use crate::types::*;
 use async_trait::async_trait;
 use persistent_storage::error::DbError;
-use uuid::Uuid;
 use std::fmt::Debug;
+use uuid::Uuid;
 
 #[async_trait]
 pub trait SignerClient: Send + Sync + Debug {

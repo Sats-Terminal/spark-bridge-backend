@@ -1,23 +1,23 @@
+use frost::aggregator::FrostAggregator;
+use frost::traits::SignerClient;
+use frost_secp256k1_tr::Identifier;
 use gateway_config_parser::config::ServerConfig;
+use gateway_deposit_verification::aggregator::DepositVerificationAggregator;
+use gateway_deposit_verification::traits::VerificationClient;
 use gateway_flow_processor::init::create_flow_processor;
 use gateway_local_db_store::storage::LocalDbStorage;
+use gateway_server::init::create_app;
+use gateway_verifier_client::client::VerifierClient;
 use global_utils::config_path::ConfigPath;
 use global_utils::config_variant::ConfigVariant;
 use global_utils::logger::init_logger;
 use global_utils::network::NetworkConfig;
 use persistent_storage::config::PostgresDbCredentials;
 use persistent_storage::init::PostgresRepo;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 use tokio::net::TcpListener;
-use frost::aggregator::FrostAggregator;
 use tracing::instrument;
-use gateway_verifier_client::client::VerifierClient;
-use std::collections::{BTreeMap, HashMap};
-use frost_secp256k1_tr::Identifier;
-use frost::traits::SignerClient;
-use gateway_deposit_verification::aggregator::DepositVerificationAggregator;
-use gateway_deposit_verification::traits::VerificationClient;
-use gateway_server::init::create_app;
 
 #[instrument(level = "trace", ret)]
 #[tokio::main]
@@ -66,21 +66,22 @@ async fn main() {
         let verifier_client = VerifierClient::new(verifier.clone());
         verifier_clients_hash_map.insert(verifier.id, Arc::new(verifier_client));
     }
-    let deposit_verification_aggregator = DepositVerificationAggregator::new(
-        flow_sender.clone(), 
-        verifier_clients_hash_map, 
-        shared_db_pool.clone()
-    );
+    let deposit_verification_aggregator =
+        DepositVerificationAggregator::new(flow_sender.clone(), verifier_clients_hash_map, shared_db_pool.clone());
 
     // Create App
     let app = create_app(
-        flow_sender.clone(), 
+        flow_sender.clone(),
         deposit_verification_aggregator.clone(),
         server_config.network.network,
-    ).await;
+    )
+    .await;
 
     // Run App
-    let addr_to_listen = format!("{}:{}", server_config.server_public.ip, server_config.server_public.port);
+    let addr_to_listen = format!(
+        "{}:{}",
+        server_config.server_public.ip, server_config.server_public.port
+    );
     let listener = TcpListener::bind(addr_to_listen).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }

@@ -1,7 +1,10 @@
 use crate::error::FlowProcessorError;
+use bitcoin::Network;
+use frost::aggregator::FrostAggregator;
 use frost::traits::AggregatorMusigIdStorage;
 use tracing;
 use frost::types::AggregatorDkgState;
+use frost::types::MusigId;
 use frost::utils::convert_public_key_package;
 use frost::utils::generate_nonce;
 use gateway_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositAddressStorage, DepositStatus, VerifiersResponses};
@@ -38,7 +41,6 @@ pub async fn handle(
                 }
             }
         };
-
 
     let nonce = generate_nonce();
     let public_key = convert_public_key_package(&public_key_package)

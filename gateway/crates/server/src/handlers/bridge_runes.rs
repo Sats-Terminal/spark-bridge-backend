@@ -2,10 +2,11 @@ use crate::error::GatewayError;
 use crate::init::AppState;
 use axum::Json;
 use axum::extract::State;
-use tracing::instrument;
+use bitcoin::{Address, Txid};
 use serde::{Deserialize, Serialize};
 use bitcoin::{Txid, OutPoint, Address};
 use std::str::FromStr;
+use tracing::instrument;
 
 #[derive(Deserialize, Debug)]
 pub struct BridgeRunesSparkRequest {

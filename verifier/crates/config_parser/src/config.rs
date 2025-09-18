@@ -1,8 +1,8 @@
+use bitcoin::Network;
 use config::{Config, Environment};
 use global_utils::common_types::Url;
 use global_utils::config_variant::ConfigVariant;
 use serde::{Deserialize, Serialize};
-use bitcoin::Network;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use tracing::{debug, instrument, trace};
@@ -25,7 +25,11 @@ pub struct AppConfig {
 
 // FIXME!!! This is super bad hardcode, delete these as soon as we have proper indexer logic
 pub fn construct_hardcoded_callback_url(app_config: &AppConfig) -> Url {
-    Url::parse(&format!("http://{}:{}/api/btc-indexer/notify-runes-deposit", app_config.ip, app_config.port)).unwrap()
+    Url::parse(&format!(
+        "http://{}:{}/api/btc-indexer/notify-runes-deposit",
+        app_config.ip, app_config.port
+    ))
+    .unwrap()
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

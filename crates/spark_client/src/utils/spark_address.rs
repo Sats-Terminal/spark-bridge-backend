@@ -1,8 +1,8 @@
 use bech32::{Bech32m, Hrp};
+use bitcoin::Network as BitcoinNetwork;
 use hex;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
-use bitcoin::Network as BitcoinNetwork;
 
 use crate::common::error::SparkAddressError;
 
@@ -128,7 +128,8 @@ pub fn decode_spark_address(addr: String) -> Result<SparkAddressData, SparkAddre
     // Reject legacy Bech32 (BIP-173) by re-encoding with Bech32m and
     // comparing the checksum. If it differs, the original variant must
     // have been classic Bech32.
-    let reencoded = bech32::encode::<Bech32m>(hrp, &proto).map_err(|e| SparkAddressError::DecodeError(e.to_string()))?;
+    let reencoded =
+        bech32::encode::<Bech32m>(hrp, &proto).map_err(|e| SparkAddressError::DecodeError(e.to_string()))?;
     if reencoded.to_lowercase() != addr.to_lowercase() {
         return Err(SparkAddressError::DecodeError(
             "decode_spark_address error: Invalid variant".to_string(),
@@ -157,8 +158,8 @@ pub fn decode_spark_address(addr: String) -> Result<SparkAddressData, SparkAddre
 }
 
 pub fn encode_spark_address(data: &SparkAddressData) -> Result<String, SparkAddressError> {
-
-    let key_bytes = hex::decode(&data.identity_public_key).map_err(|e| SparkAddressError::DecodeError(e.to_string()))?;
+    let key_bytes =
+        hex::decode(&data.identity_public_key).map_err(|e| SparkAddressError::DecodeError(e.to_string()))?;
     if key_bytes.len() != 33 {
         return Err(SparkAddressError::DecodeError(format!(
             "decode_spark_address error: Wrong key length: {}",

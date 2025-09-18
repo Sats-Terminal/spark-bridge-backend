@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use axum::{Router, routing::post};
 use btc_indexer_internals::indexer::BtcIndexer;
-use local_db_store_indexer::init::LocalDbIndexer;
+use local_db_store_indexer::init::LocalDbStorage;
 use titan_client::TitanClient;
 use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
@@ -11,31 +11,33 @@ use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 use uuid::Uuid;
 
-pub type CachedTasks = Arc<RwLock<HashMap<Uuid, CancellationToken>>>;
-
 #[derive(Clone)]
 pub struct AppState<C, Db> {
     pub http_client: reqwest::Client,
-    pub persistent_storage: Db,
+    pub persistent_storage: Arc<Db>,
     pub btc_indexer: Arc<BtcIndexer<C, Db>>,
-    pub cached_tasks: CachedTasks,
+    pub task_executor: CancellationToken,
 }
 
 #[derive(OpenApi)]
-#[openapi(paths(crate::routes::track_tx::handler, crate::routes::track_wallet::handler))]
+#[openapi(paths(crate::routes::track_tx::handler))]
 struct ApiDoc;
 
 #[instrument(skip(db_pool, btc_indexer))]
-pub async fn create_app(db_pool: LocalDbIndexer, btc_indexer: BtcIndexer<TitanClient, LocalDbIndexer>) -> Router {
+pub async fn create_app(db_pool: LocalDbStorage, btc_indexer: BtcIndexer<TitanClient, LocalDbStorage>) -> Router {
+    // We're opening already tracking task for our txs
+    let (btc_indexer, db_pool) = (Arc::new(btc_indexer), Arc::new(db_pool));
+    let task_token = CancellationToken::new();
+    // btc_indexer_internals::tx_tracking_task::spawn(task_token.clone(), db_pool.clone(), btc_indexer.btc_indexer_params, );
+
     let state = AppState {
         http_client: reqwest::Client::new(),
         persistent_storage: db_pool,
-        btc_indexer: Arc::new(btc_indexer),
-        cached_tasks: Arc::new(Default::default()),
+        btc_indexer,
+        task_executor: task_token,
     };
     let app = Router::new()
         .route("/track_tx", post(crate::routes::track_tx::handler))
-        .route("/track_wallet", post(crate::routes::track_wallet::handler))
         .with_state(state);
 
     #[cfg(feature = "swagger")]

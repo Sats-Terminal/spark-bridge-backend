@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use bitcoin::OutPoint;
 use gateway_local_db_store::schemas::deposit_address::DepositStatus;
+use serde::{Deserialize, Serialize};
+use tracing::instrument;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct NotifyRunesAddressRequest {

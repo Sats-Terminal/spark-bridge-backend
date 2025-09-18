@@ -10,17 +10,17 @@ use tracing::instrument;
 
 /// Has to be understood as "LocalDb - Indexer"
 #[derive(Clone)]
-pub struct LocalDbIndexer {
+pub struct LocalDbStorage {
     pub postgres_repo: PersistentRepoShared,
 }
 
-impl Debug for LocalDbIndexer {
+impl Debug for LocalDbStorage {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "Postgres DB")
     }
 }
 
-impl LocalDbIndexer {
+impl LocalDbStorage {
     #[instrument(level = "trace", ret)]
     pub async fn from_config(creds: PostgresDbCredentials) -> Result<Self, DbError> {
         let pool = PostgresRepo::from_config(creds).await?;
@@ -32,7 +32,7 @@ impl LocalDbIndexer {
 }
 
 #[async_trait]
-impl PersistentRepoTrait for LocalDbIndexer {
+impl PersistentRepoTrait for LocalDbStorage {
     async fn get_conn(&self) -> Result<PersistentDbConn, DbError> {
         self.postgres_repo.get_conn().await
     }

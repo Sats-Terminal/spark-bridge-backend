@@ -27,7 +27,7 @@ use crate::utils::{
 
 mod mock_testing {
     use global_utils::config_variant::ConfigVariant;
-    use local_db_store_indexer::init::LocalDbIndexer;
+    use local_db_store_indexer::init::LocalDbStorage;
 
     use super::*;
 
@@ -38,7 +38,7 @@ mod mock_testing {
         dotenv::dotenv()?;
         let _logger_guard = &*TEST_LOGGER;
         let btc_rpc_creds = BtcRpcCredentials::new()?;
-        let db_pool = LocalDbIndexer::from_config(PostgresDbCredentials::from_envs()?).await?;
+        let db_pool = LocalDbStorage::from_config(PostgresDbCredentials::from_envs()?).await?;
         let app_config = ServerConfig::init_config(ConfigVariant::Local)?;
         let indexer = BtcIndexer::with_api(IndexerParams {
             btc_rpc_creds,
@@ -60,7 +60,7 @@ mod mock_testing {
         dotenv::dotenv()?;
         let _logger_guard = &*TEST_LOGGER;
         let btc_rpc_creds = BtcRpcCredentials::new()?;
-        let db_pool = LocalDbIndexer::from_config(PostgresDbCredentials::from_envs()?).await?;
+        let db_pool = LocalDbStorage::from_config(PostgresDbCredentials::from_envs()?).await?;
         let app_config = ServerConfig::init_config(ConfigVariant::Local)?;
 
         let generate_utxos = |addr: &str, index: u64| {
@@ -153,7 +153,7 @@ mod mock_testing {
         dotenv::dotenv()?;
         let _logger_guard = &*TEST_LOGGER;
         let btc_rpc_creds = BtcRpcCredentials::new()?;
-        let db_pool = LocalDbIndexer::from_config(PostgresDbCredentials::from_envs()?).await?;
+        let db_pool = LocalDbStorage::from_config(PostgresDbCredentials::from_envs()?).await?;
         let app_config = ServerConfig::init_config(ConfigVariant::Local)?;
 
         let generate_transaction = |tx_id: &Txid, index: u64| Transaction {
@@ -205,7 +205,7 @@ mod mock_testing {
             titan_api_client: mocked_indexer,
         })?;
         debug!("Tracking tx changes..");
-        let oneshot = indexer.track_tx_changes(tx_id, uuid).await?;
+        let oneshot = indexer.check_tx_changes(tx_id, uuid).await?;
         debug!("Receiving oneshot event..");
         let result = oneshot.await?;
         debug!("Event: {result:?}");

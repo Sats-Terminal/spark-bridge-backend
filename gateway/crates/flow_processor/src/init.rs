@@ -2,11 +2,11 @@ use crate::flow_processor::FlowProcessor;
 use crate::flow_sender::FlowSender;
 use bitcoin::Network;
 use frost::aggregator::FrostAggregator;
+use gateway_config_parser::config::VerifierConfig;
 use gateway_local_db_store::storage::LocalDbStorage;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
-use gateway_config_parser::config::VerifierConfig;
 
 pub fn create_flow_processor(
     verifier_configs: Arc<Vec<VerifierConfig>>,

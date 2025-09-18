@@ -1,10 +1,10 @@
 use crate::handlers;
 use axum::Router;
 use axum::routing::post;
+use bitcoin::Network;
 use gateway_deposit_verification::aggregator::DepositVerificationAggregator;
 use gateway_flow_processor::flow_sender::FlowSender;
 use tracing::instrument;
-use bitcoin::Network;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -38,9 +38,6 @@ pub async fn create_app(
             "/api/verifier/notify-runes-deposit",
             post(handlers::notify_runes_deposit::handle),
         )
-        .route(
-            "/api/user/bridge-runes",
-            post(handlers::bridge_runes::handle),
-        )
+        .route("/api/user/bridge-runes", post(handlers::bridge_runes::handle))
         .with_state(state)
 }

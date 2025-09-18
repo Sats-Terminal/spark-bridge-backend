@@ -1,12 +1,14 @@
 use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
+use bitcoin::Address;
+use bitcoin::Txid;
 use frost::types::MusigId;
 use frost::types::Nonce;
 use persistent_storage::error::DbError;
 use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
 use sqlx::types::Json;
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::str::FromStr;
 
 #[derive(Debug, Clone, Deserialize, Serialize, Eq, PartialEq)]
@@ -66,7 +68,11 @@ pub trait DepositAddressStorage: Send + Sync + Debug {
 
 #[async_trait]
 impl DepositAddressStorage for LocalDbStorage {
-    async fn get_deposit_addr_info(&self, musig_id: &MusigId, tweak: Nonce) -> Result<Option<DepositAddrInfo>, DbError> {
+    async fn get_deposit_addr_info(
+        &self,
+        musig_id: &MusigId,
+        tweak: Nonce,
+    ) -> Result<Option<DepositAddrInfo>, DbError> {
         let public_key = musig_id.get_public_key();
         let rune_id = musig_id.get_rune_id();
 
@@ -137,10 +143,10 @@ impl DepositAddressStorage for LocalDbStorage {
             "SELECT public_key, rune_id, nonce_tweak, address, is_btc, amount, confirmation_status
             FROM gateway.deposit_address WHERE address = $1",
         )
-            .bind(address)
-            .fetch_optional(&self.get_conn().await?)
-            .await
-            .map_err(|e| DbError::BadRequest(e.to_string()))?;
+        .bind(address)
+        .fetch_optional(&self.get_conn().await?)
+        .await
+        .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
         match result {
             Some((public_key, rune_id, nonce_tweak, address, is_btc, amount, confirmation_status)) => {

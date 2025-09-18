@@ -1,7 +1,8 @@
 use crate::error::GatewayClientError;
-use reqwest::Client;
-use verifier_config_parser::config::GatewayConfig;
 use bitcoin::Txid;
+use reqwest::Client;
+use serde::{Deserialize, Serialize};
+use verifier_config_parser::config::GatewayConfig;
 use verifier_local_db_store::schemas::deposit_address::DepositStatus;
 use serde::{Serialize, Deserialize};
 use tracing;
@@ -23,7 +24,10 @@ pub struct NotifyRunesDepositRequest {
 
 impl GatewayClient {
     pub fn new(config: GatewayConfig) -> Self {
-        Self { config, client: Client::new() }
+        Self {
+            config,
+            client: Client::new(),
+        }
     }
 
     pub async fn notify_runes_deposit(&self, request: NotifyRunesDepositRequest) -> Result<(), GatewayClientError> {
@@ -31,7 +35,12 @@ impl GatewayClient {
         let url = self.config.address.join(NOTIFY_RUNES_DEPOSIT_PATH)
             .map_err(|e| GatewayClientError::DeserializeError(format!("Failed to join URL: {:?}", e)))?;
 
-        let response = self.client.post(url).json(&request).send().await
+        let response = self
+            .client
+            .post(url)
+            .json(&request)
+            .send()
+            .await
             .map_err(|e| GatewayClientError::HttpError(format!("Failed to send request: {:?}", e)))?;
 
         if response.status().is_success() {

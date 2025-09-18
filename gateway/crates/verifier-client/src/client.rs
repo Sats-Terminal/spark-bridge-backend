@@ -1,8 +1,8 @@
+use crate::error::VerifierClientError;
+use gateway_config_parser::config::VerifierConfig;
 use reqwest::{Client, Url};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
-use crate::error::VerifierClientError;
-use gateway_config_parser::config::VerifierConfig;
 
 #[derive(Clone, Debug)]
 pub struct VerifierClient {
@@ -33,10 +33,9 @@ impl VerifierClient {
             .map_err(|e| VerifierClientError::DeserializeError(format!("Failed to send HTTP request: {:?}", e)))?;
 
         if response.status().is_success() {
-            let response: U = response
-                .json()
-                .await
-                .map_err(|e| VerifierClientError::DeserializeError(format!("Failed to deserialize response: {:?}", e)))?;
+            let response: U = response.json().await.map_err(|e| {
+                VerifierClientError::DeserializeError(format!("Failed to deserialize response: {:?}", e))
+            })?;
             Ok(response)
         } else {
             Err(VerifierClientError::HttpError(format!(

@@ -28,11 +28,19 @@ impl IntoResponse for VerifierError {
         match self {
             VerifierError::BadRequest(message) => (StatusCode::BAD_REQUEST, message).into_response(),
             VerifierError::DkgError(error) => (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()).into_response(),
-            VerifierError::StorageError(error) => (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()).into_response(),
+            VerifierError::StorageError(error) => {
+                (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()).into_response()
+            }
             VerifierError::DecodeError(error) => (StatusCode::BAD_REQUEST, error.to_string()).into_response(),
-            VerifierError::BtcIndexerClientError(error) => (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()).into_response(),
-            VerifierError::SparkBalanceCheckerClientError(error) => (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()).into_response(),
-            VerifierError::GatewayClientError(error) => (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()).into_response(),
+            VerifierError::BtcIndexerClientError(error) => {
+                (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()).into_response()
+            }
+            VerifierError::SparkBalanceCheckerClientError(error) => {
+                (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()).into_response()
+            }
+            VerifierError::GatewayClientError(error) => {
+                (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()).into_response()
+            }
         }
     }
 }

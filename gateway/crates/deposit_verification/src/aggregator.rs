@@ -1,6 +1,5 @@
-use gateway_flow_processor::flow_sender::{FlowSender, TypedMessageSender};
+use crate::error::DepositVerificationError;
 use crate::traits::VerificationClient;
-use std::sync::Arc;
 use crate::types::*;
 use crate::error::DepositVerificationError;
 use gateway_local_db_store::schemas::deposit_address::{DepositStatus, VerifiersResponses, DepositAddressStorage};
@@ -8,8 +7,13 @@ use gateway_local_db_store::schemas::utxo_storage::{UtxoStorage, Utxo, UtxoStatu
 use gateway_local_db_store::storage::LocalDbStorage;
 use bitcoin::{Address, OutPoint};
 use futures::future::join_all;
+use gateway_flow_processor::flow_sender::{FlowSender, TypedMessageSender};
 use gateway_flow_processor::types::{BridgeRunesRequest, ExitSparkRequest};
+use gateway_local_db_store::schemas::deposit_address::{
+    DepositAddressStorage, DepositStatus, DepositStatusInfo, VerifiersResponses,
+};
 use std::collections::HashMap;
+use std::sync::Arc;
 use tracing;
 use bitcoin::address::NetworkUnchecked;
 
@@ -26,7 +30,11 @@ impl DepositVerificationAggregator {
         verifiers: HashMap<u16, Arc<dyn VerificationClient>>,
         storage: Arc<LocalDbStorage>,
     ) -> Self {
-        Self { flow_sender, verifiers, storage }
+        Self {
+            flow_sender,
+            verifiers,
+            storage,
+        }
     }
 
     pub async fn verify_runes_deposit(
@@ -174,13 +182,14 @@ impl DepositVerificationAggregator {
             .map_err(|e| DepositVerificationError::StorageError(format!("Error updating confirmation status: {:?}", e)))?;
 
         if all_verifiers_confirmed {
-            self.flow_sender.send(ExitSparkRequest {
-                spark_address,
-            }).await
-                .map_err(|e| DepositVerificationError::FlowProcessorError(format!("Error sending bridge spark request: {:?}", e)))?;
+            self.flow_sender
+                .send(ExitSparkRequest { spark_address })
+                .await
+                .map_err(|e| {
+                    DepositVerificationError::FlowProcessorError(format!("Error sending bridge spark request: {:?}", e))
+                })?;
         }
 
         Ok(())
     }
-
 }

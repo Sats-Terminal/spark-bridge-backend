@@ -8,6 +8,7 @@ readme.workspace = true
 
 [dependencies]
 async-trait = { workspace = true }
+btc_indexer_api = { workspace = true }
 bitcoincore-rpc = { workspace = true }
 config_parser = { workspace = true }
 global_utils = { workspace = true }
