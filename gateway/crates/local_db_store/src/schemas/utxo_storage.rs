@@ -17,7 +17,6 @@ pub struct Utxo {
     pub sats_fee_amount: u64,
 }
 
-// Отдельная структура для работы с базой данных
 #[derive(Debug, Clone, sqlx::FromRow)]
 struct UtxoRow {
     pub txid: String,
