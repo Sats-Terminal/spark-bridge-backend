@@ -12,20 +12,17 @@ use frost::utils::generate_nonce;
 use gateway_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositAddressStorage, DepositStatus, VerifiersResponses};
 use spark_client::utils::spark_address::{encode_spark_address, SparkAddressData};
 use gateway_config_parser::config::VerifierConfig;
+use crate::flow_router::FlowProcessorRouter;
 
 pub async fn handle(
-    verifier_configs: Arc<Vec<VerifierConfig>>,
-    musig_id: MusigId,
-    amount: u64,
-    network: Network,
-    frost_aggregator: FrostAggregator,
-    storage: Arc<LocalDbStorage>,
+    flow_router: &mut FlowProcessorRouter,
+    request: IssueSparkDepositAddressRequest,
 ) -> Result<String, FlowProcessorError> {
     let public_key_package = 
-        match storage.get_musig_id_data(&musig_id).await? {
+        match flow_router.storage.get_musig_id_data(&request.musig_id).await? {
             None => {
                 tracing::debug!("Missing musig, running dkg from the beginning ...");
-                let pubkey_package = frost_aggregator.run_dkg_flow(&musig_id).await
+                let pubkey_package = flow_router.frost_aggregator.run_dkg_flow(&request.musig_id).await
                     .map_err(|e| FlowProcessorError::FrostAggregatorError(format!("Failed to run DKG flow: {}", e)))?;
                 tracing::debug!("DKG processing was successfully completed");
                 pubkey_package
@@ -59,14 +56,13 @@ pub async fn handle(
 
     let verifiers_responses = VerifiersResponses::new(DepositStatus::Created, verifier_configs.iter().map(|v| v.id).collect());
     
-    storage.set_deposit_addr_info(
-        &musig_id,
+    flow_router.storage.set_deposit_addr_info(
+        &request.musig_id,
         nonce,
         DepositAddrInfo {
             address: Some(address.clone()),
             is_btc: true,
             amount: amount,
-            txid: None,
             confirmation_status: verifiers_responses,
         },
     )

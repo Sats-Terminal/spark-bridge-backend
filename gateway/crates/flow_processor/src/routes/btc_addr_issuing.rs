@@ -60,7 +60,6 @@ pub async fn handle(
                 address: Some(address.to_string()),
                 is_btc: true,
                 amount: request.amount,
-                txid: None,
                 confirmation_status: verifiers_responses,
             },
         )

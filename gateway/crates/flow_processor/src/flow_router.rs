@@ -77,7 +77,7 @@ impl FlowProcessorRouter {
         request: BridgeRunesRequest,
     ) -> Result<BridgeRunesResponse, FlowProcessorError> {
         info!("[{LOG_PATH}] bridging runes flow with request: {request:?}");
-        crate::routes::bridge_runes_flow::handle(self).await?;
+        crate::routes::bridge_runes_flow::handle(self, request).await?;
         Ok(BridgeRunesResponse {
             message: format!("message for {}", request.btc_address),
         })
@@ -90,12 +90,8 @@ impl FlowProcessorRouter {
     ) -> Result<IssueSparkDepositAddressResponse, FlowProcessorError> {
         info!("[{LOG_PATH}] issuing spark addr to user with request: {request:?}");
         let address = crate::routes::spark_addr_issuing::handle(
-            self.verifier_configs.clone(),
-            request.musig_id, 
-            request.amount,
-            network,
-            self.frost_aggregator.clone(),
-            self.storage.clone(),
+            self,
+            request,
         ).await?;
         Ok(IssueSparkDepositAddressResponse {
             addr_to_replenish: address,
