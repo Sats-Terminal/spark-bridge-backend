@@ -4,7 +4,6 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use verifier_config_parser::config::GatewayConfig;
 use verifier_local_db_store::schemas::deposit_address::DepositStatus;
-use serde::{Serialize, Deserialize};
 use tracing;
 
 const NOTIFY_RUNES_DEPOSIT_PATH: &str = "/api/verifier/notify-runes-deposit";

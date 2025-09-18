@@ -2,7 +2,6 @@ use crate::error::GatewayError;
 use crate::init::AppState;
 use axum::Json;
 use axum::extract::State;
-use bitcoin::{Address, Txid};
 use serde::{Deserialize, Serialize};
 use bitcoin::{Txid, OutPoint, Address};
 use std::str::FromStr;

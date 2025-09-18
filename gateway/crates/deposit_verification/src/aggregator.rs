@@ -1,7 +1,6 @@
 use crate::error::DepositVerificationError;
 use crate::traits::VerificationClient;
 use crate::types::*;
-use crate::error::DepositVerificationError;
 use gateway_local_db_store::schemas::deposit_address::{DepositStatus, VerifiersResponses, DepositAddressStorage};
 use gateway_local_db_store::schemas::utxo_storage::{UtxoStorage, Utxo, UtxoStatus};
 use gateway_local_db_store::storage::LocalDbStorage;
@@ -9,9 +8,6 @@ use bitcoin::{Address, OutPoint};
 use futures::future::join_all;
 use gateway_flow_processor::flow_sender::{FlowSender, TypedMessageSender};
 use gateway_flow_processor::types::{BridgeRunesRequest, ExitSparkRequest};
-use gateway_local_db_store::schemas::deposit_address::{
-    DepositAddressStorage, DepositStatus, DepositStatusInfo, VerifiersResponses,
-};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tracing;
