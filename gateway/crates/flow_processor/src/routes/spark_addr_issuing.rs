@@ -1,17 +1,12 @@
-use bitcoin::Network;
 use crate::error::FlowProcessorError;
 use frost::traits::AggregatorMusigIdStorage;
-use frost::types::MusigId;
-use frost::aggregator::FrostAggregator;
-use gateway_local_db_store::storage::LocalDbStorage;
-use std::sync::Arc;
 use tracing;
 use frost::types::AggregatorDkgState;
 use frost::utils::convert_public_key_package;
 use frost::utils::generate_nonce;
 use gateway_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositAddressStorage, DepositStatus, VerifiersResponses};
 use spark_client::utils::spark_address::{encode_spark_address, SparkAddressData};
-use gateway_config_parser::config::VerifierConfig;
+use crate::types::IssueSparkDepositAddressRequest;
 use crate::flow_router::FlowProcessorRouter;
 
 pub async fn handle(
@@ -51,18 +46,18 @@ pub async fn handle(
 
     let address = encode_spark_address(&SparkAddressData {
         identity_public_key: public_key.to_string(),
-        network: network.into(),
+        network: flow_router.network.into(),
     }).map_err(|e| FlowProcessorError::InvalidDataError(e.to_string()))?;
 
-    let verifiers_responses = VerifiersResponses::new(DepositStatus::Created, verifier_configs.iter().map(|v| v.id).collect());
+    let verifiers_responses = VerifiersResponses::new(DepositStatus::Created, flow_router.verifier_configs.iter().map(|v| v.id).collect());
     
     flow_router.storage.set_deposit_addr_info(
-        &request.musig_id,
-        nonce,
         DepositAddrInfo {
-            address: Some(address.clone()),
+            musig_id: request.musig_id.clone(),
+            nonce,
+            address: address.clone(),
             is_btc: true,
-            amount: amount,
+            amount: request.amount,
             confirmation_status: verifiers_responses,
         },
     )

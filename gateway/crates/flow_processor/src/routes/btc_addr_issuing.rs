@@ -54,10 +54,10 @@ pub async fn handle(
 
     local_db_storage
         .set_deposit_addr_info(
-            &request.musig_id,
-            nonce,
             DepositAddrInfo {
-                address: Some(address.to_string()),
+                musig_id: request.musig_id.clone(),
+                nonce,
+                address: address.to_string(),
                 is_btc: true,
                 amount: request.amount,
                 confirmation_status: verifiers_responses,

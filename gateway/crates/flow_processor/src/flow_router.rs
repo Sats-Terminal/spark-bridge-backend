@@ -79,7 +79,7 @@ impl FlowProcessorRouter {
         info!("[{LOG_PATH}] bridging runes flow with request: {request:?}");
         crate::routes::bridge_runes_flow::handle(self, request).await?;
         Ok(BridgeRunesResponse {
-            message: format!("message for {}", request.btc_address),
+            message: "message for btc address".to_string(),
         })
     }
 
