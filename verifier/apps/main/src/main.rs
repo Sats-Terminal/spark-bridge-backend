@@ -18,7 +18,7 @@ async fn main() {
 
     // Create Config
     let config_path = ConfigPath::from_env().unwrap();
-    let server_config = ServerConfig::init_config(ConfigVariant::OnlyOneFilepath(config_path.path)).unwrap();
+    let server_config = ServerConfig::init_config(config_path.path);
     tracing::debug!("App config: {:?}", server_config);
 
     // Create DB Pool

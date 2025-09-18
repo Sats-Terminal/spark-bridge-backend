@@ -13,7 +13,7 @@ async fn main() {
 
     // Init configs
     let config_path = ConfigPath::from_env().unwrap();
-    let config = ServerConfig::init_config(ConfigVariant::OnlyOneFilepath(config_path.path)).unwrap();
+    let config = ServerConfig::init_config(config_path.path);
     let app = create_app(config.spark.clone())
     .await;
 
