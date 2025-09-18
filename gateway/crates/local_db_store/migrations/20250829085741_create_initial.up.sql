@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS gateway.musig_identifier
 );
 
 CREATE TABLE IF NOT EXISTS gateway.sign_session
+CREATE TABLE IF NOT EXISTS gateway.sign_session
 (
     session_id TEXT NOT NULL,
     public_key TEXT NOT NULL,

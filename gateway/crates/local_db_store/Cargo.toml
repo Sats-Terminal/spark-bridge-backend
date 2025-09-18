@@ -8,19 +8,19 @@ async-trait = { workspace = true }
 bitcoin = { workspace = true }
 chrono = { workspace = true }
 frost = { workspace = true }
+gateway_runes_utxo_manager = { workspace = true }
+gateway_session_storage = { workspace = true }
 global_utils = { workspace = true }
 persistent_storage = { workspace = true }
-serde = { workspace = true  }
 serde_json = { workspace = true }
 sqlx = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true }
-
+serde = { workspace = true }
 
 [dev-dependencies]
-anyhow = { workspace = true }
-global_utils = { workspace = true }
 lrc20 = { workspace = true }
 frost-secp256k1-tr = { workspace = true }
+futures = {workspace = true}

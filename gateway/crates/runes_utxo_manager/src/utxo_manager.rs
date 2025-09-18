@@ -1,15 +1,16 @@
-use crate::CoinSelector;
+use crate::traits::{CoinSelector, Utxo, UtxoStorage};
 use async_trait::async_trait;
-use gateway_local_db_store::schemas::utxo::*;
+use chrono::NaiveDateTime;
 use persistent_storage::error::DbError;
-use persistent_storage::init::PostgresRepo;
+use sqlx::FromRow;
+use std::sync::Arc;
 
-pub struct GreedySelector<'a> {
-    pub repo: &'a PostgresRepo,
+pub struct GreedySelector {
+    pub repo: Arc<dyn UtxoStorage>,
 }
 
 #[async_trait]
-impl<'a> CoinSelector for GreedySelector<'a> {
+impl CoinSelector for GreedySelector {
     async fn select_utxos(&self, rune_id: &str, target_amount: i64) -> Result<Vec<Utxo>, DbError> {
         self.repo.select_and_lock_utxos(rune_id, target_amount).await
     }
