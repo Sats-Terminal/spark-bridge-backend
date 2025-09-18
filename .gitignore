@@ -17,6 +17,7 @@ Cargo.lock
 /tests/*.js
 
 # Disable logs that have obtained during run
+/logs
 *.log
 .env
 

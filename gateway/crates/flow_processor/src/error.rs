@@ -1,10 +1,4 @@
-use crate::types::IssueBtcDepositAddressRequest;
-use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
 use bitcoin::secp256k1;
-use frost::errors::AggregatorError;
-use gateway_local_db_store::schemas::deposit_address::DepositStatus;
-use global_utils::api_result_request::ErrorIntoStatusMsgTuple;
 use persistent_storage::error::DbError;
 use thiserror::Error;
 

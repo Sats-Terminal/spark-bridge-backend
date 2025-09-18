@@ -1,4 +1,4 @@
-pub mod api_result_request;
+pub mod common_resp;
 pub mod common_types;
 pub mod config_path;
 pub mod config_variant;

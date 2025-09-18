@@ -18,6 +18,8 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }
 uuid = { workspace = true }
+btc_indexer_api = { workspace = true }
+titan-client = { workspace = true }
 
 [dev-dependencies]
 bitcoin = { workspace = true }

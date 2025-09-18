@@ -71,6 +71,25 @@ impl PartialSchema for TxIdWrapped {
     }
 }
 
+impl Type<sqlx::Postgres> for TxIdWrapped {
+    fn type_info() -> PgTypeInfo {
+        <String as Type<sqlx::Postgres>>::type_info()
+    }
+}
+
+impl Encode<'_, sqlx::Postgres> for TxIdWrapped {
+    fn encode_by_ref(&self, buf: &mut <Postgres as Database>::ArgumentBuffer<'_>) -> Result<IsNull, BoxDynError> {
+        <String as Encode<sqlx::Postgres>>::encode_by_ref(&self.0.to_string(), buf)
+    }
+}
+
+impl<'r> Decode<'r, sqlx::Postgres> for TxIdWrapped {
+    fn decode(value: PgValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
+        let s = <String as Decode<sqlx::Postgres>>::decode(value)?;
+        Ok(TxIdWrapped(Txid::from_str(&s)?))
+    }
+}
+
 impl utoipa::ToSchema for TxIdWrapped {
     fn name() -> std::borrow::Cow<'static, str> {
         std::borrow::Cow::Borrowed("TransactionId")

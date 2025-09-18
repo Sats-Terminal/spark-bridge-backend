@@ -1,11 +1,13 @@
 use std::{sync::Arc, time::Duration};
 
+use crate::api::{AccountReplenishmentEvent, BtcIndexerApi};
 use async_trait::async_trait;
 use bitcoincore_rpc::{Client, RawTx, RpcApi, bitcoin, json};
+use btc_indexer_api::api::{Amount, ResponseMeta, VOut};
 use config_parser::config::{BtcIndexerParams, BtcRpcCredentials};
 use local_db_store_indexer::{
     PersistentRepoTrait,
-    init::LocalDbIndexer,
+    init::LocalDbStorage,
     schemas::runes_spark::btc_indexer_work_checkpoint::{BtcIndexerWorkCheckpoint, StatusBtcIndexer, Update},
 };
 use sqlx::types::chrono::Utc;
@@ -13,17 +15,15 @@ use titan_client::{TitanApi, TitanClient};
 use titan_types::{AddressTxOut, Transaction};
 use tokio::sync::oneshot;
 use tokio_util::sync::CancellationToken;
-use tracing::{error, instrument, log::debug, trace};
+use tracing::{error, instrument, log::debug, trace, warn};
 use uuid::Uuid;
-
-use crate::api::{AccountReplenishmentEvent, BtcIndexerApi};
 
 const BTC_INDEXER_LOG_PATH: &str = "btc_indexer";
 const TX_TRACKING_LOG_PATH: &str = "btc_indexer:tx_tracking";
 const ACCOUNT_TRACKING_LOG_PATH: &str = "btc_indexer:account_tracking";
 
 pub struct BtcIndexer<C, Db> {
-    btc_indexer_params: BtcIndexerParams,
+    pub btc_indexer_params: BtcIndexerParams,
     //todo: maybe move into traits?
     persistent_storage: Db,
     indexer_client: C,
@@ -42,9 +42,9 @@ pub struct IndexerParams<Db> {
     pub btc_indexer_params: BtcIndexerParams,
 }
 
-impl BtcIndexer<TitanClient, LocalDbIndexer> {
+impl BtcIndexer<TitanClient, LocalDbStorage> {
     #[instrument(skip(params))]
-    pub fn with_api(params: IndexerParams<LocalDbIndexer>) -> crate::error::Result<Self> {
+    pub fn with_api(params: IndexerParams<LocalDbStorage>) -> crate::error::Result<Self> {
         let titan_api_client = TitanClient::new(&params.btc_rpc_creds.url.to_string());
         Self::new(IndexerParamsWithApi {
             indexer_params: params,
@@ -135,43 +135,6 @@ impl<C: TitanApi, Db: PersistentRepoTrait> BtcIndexer<C, Db> {
         trace!("[{ACCOUNT_TRACKING_LOG_PATH}] Account tracking task spawned");
     }
 
-    #[instrument(level = "trace", skip(titan_client, event_tx), ret)]
-    fn spawn_tx_tracking_task(
-        titan_client: C,
-        event_tx: oneshot::Sender<Transaction>,
-        tx_id: bitcoin::Txid,
-        update_interval_millis: u64,
-        cancellation_token: CancellationToken,
-    ) {
-        let mut interval = tokio::time::interval(Duration::from_millis(update_interval_millis));
-        tokio::spawn(async move {
-            // todo: save about user that begun transaction to renew connection in bad cases
-            'checking_loop: loop {
-                tokio::select! {
-                    _ = cancellation_token.cancelled() => {
-                        debug!("[{TX_TRACKING_LOG_PATH}] Closing [Btc indexer] account updating task, because of cancellation token");
-                        break 'checking_loop;
-                    },
-                    _ = interval.tick() => {
-                        match titan_client.get_transaction(&tx_id).await{
-                            Ok(data) => {
-                                if data.status.confirmed {
-                                    let _ = event_tx.send(data);
-                                    // todo: save data in db
-                                    break 'checking_loop;
-                                }
-                            }
-                            Err(e) => {
-                                error!("[{TX_TRACKING_LOG_PATH}] Failed to retrieve account data by address: {e}")
-                            }
-                        };
-                    }
-                }
-            }
-        });
-        trace!("[{TX_TRACKING_LOG_PATH}] Transaction tracking task spawned");
-    }
-
     async fn mark_entry_as_processing(&self, uuid: &Uuid) -> crate::error::Result<()> {
         {
             let mut conn = self.persistent_storage.get_conn().await?;
@@ -192,42 +155,33 @@ impl<C: TitanApi, Db: PersistentRepoTrait> BtcIndexer<C, Db> {
 
 #[async_trait]
 impl<C: TitanApi, Db: PersistentRepoTrait> BtcIndexerApi for BtcIndexer<C, Db> {
+    #[inline]
     #[instrument(level = "debug", skip(self))]
-    async fn track_tx_changes(
+    async fn check_tx_changes(
         &self,
         tx_id: bitcoin::Txid,
-        uuid: Uuid,
-    ) -> crate::error::Result<oneshot::Receiver<Transaction>> {
-        let (event_tx, event_rx) = oneshot::channel::<Transaction>();
-        self.mark_entry_as_processing(&uuid).await?;
-        Self::spawn_tx_tracking_task(
-            self.indexer_client.clone(),
-            event_tx,
-            tx_id,
-            self.btc_indexer_params.update_interval_millis,
-            self.cancellation_token.child_token(),
-        );
-        Ok(event_rx)
-    }
+        amount: Amount,
+        v_out: VOut,
+    ) -> crate::error::Result<Option<ResponseMeta>> {
+        //todo: check whether tx is in db
 
-    #[instrument(level = "debug", skip(self, account_id), fields(account_id = account_id.as_ref()))]
-    async fn track_account_changes(
-        &self,
-        account_id: impl AsRef<str> + Send,
-        uuid: Uuid,
-    ) -> crate::error::Result<oneshot::Receiver<AccountReplenishmentEvent>> {
-        let account_id = account_id.as_ref().to_string();
-        let (event_tx, event_rx) = oneshot::channel::<AccountReplenishmentEvent>();
-        self.mark_entry_as_processing(&uuid).await?;
-        Self::spawn_account_tracking_task(
-            self.indexer_client.clone(),
-            uuid,
-            event_tx,
-            account_id,
-            self.btc_indexer_params.update_interval_millis,
-            self.cancellation_token.child_token(),
-        );
-        Ok(event_rx)
+        // match self.indexer_client.get_transaction(&tx_id).await {
+        //     Ok(data) => {
+        //         if data.status.confirmed {
+        //             //todo: write transaction into db and wait for strong confirmation
+        //
+        //             check_block_height() ;
+        //         } else{
+        //             // the transaction doesn't included in blockchain
+        //             Ok(None)
+        //         }
+        //     }
+        //     Err(e) => {
+        //         warn!("[{TX_TRACKING_LOG_PATH}] Failed to retrieve information : {e}");
+        //         Ok(None)
+        //     }
+        // }
+        todo!()
     }
 
     #[instrument(level = "debug", skip(self))]

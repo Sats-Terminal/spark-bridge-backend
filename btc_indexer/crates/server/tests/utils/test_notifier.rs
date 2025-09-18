@@ -2,10 +2,10 @@ use std::{fmt::Debug, net::SocketAddr, str::FromStr, sync::Arc};
 
 use axum::{Json, Router, extract::State, routing::post};
 use axum_test::TestServer;
-use btc_indexer_api::api::{BtcIndexerCallbackResponse, Empty};
+use btc_indexer_api::api::BtcIndexerCallbackResponse;
 use btc_indexer_internals::api::AccountReplenishmentEvent;
 use btc_indexer_server::{AppState, error::ServerError};
-use global_utils::api_result_request::ApiResponseOwned;
+use global_utils::common_resp::Empty;
 use titan_client::Transaction;
 use tokio::sync::Mutex;
 use tracing::{error, info, instrument, warn};
@@ -29,26 +29,6 @@ pub async fn create_test_notifier_track_tx(
     };
     let app = Router::new()
         .route(NOTIFY_TX_PATH, post(notify_handler::<BtcIndexerCallbackResponse>))
-        .with_state(state);
-    TestServer::builder()
-        .http_transport()
-        .http_transport_with_ip_port(Some(socket_addr.ip()), Some(socket_addr.port()))
-        .build(app.into_make_service())
-}
-
-#[instrument]
-pub async fn create_test_notifier_track_wallet(
-    oneshot_sender: tokio::sync::oneshot::Sender<ApiResponseOwned<AccountReplenishmentEvent>>,
-    socket_addr: &SocketAddr,
-) -> anyhow::Result<TestServer> {
-    let state = TestAppState {
-        notifier: Arc::new(Mutex::new(Some(oneshot_sender))),
-    };
-    let app = Router::new()
-        .route(
-            NOTIFY_WALLET_PATH,
-            post(notify_handler::<ApiResponseOwned<AccountReplenishmentEvent>>),
-        )
         .with_state(state);
     TestServer::builder()
         .http_transport()
@@ -95,14 +75,6 @@ async fn _notify_handler_inner<T: Clone + Send + Sync + Debug>(
 }
 
 #[instrument(skip(state))]
-async fn notify_wallet(
-    State(mut state): State<TestAppState<ApiResponseOwned<AccountReplenishmentEvent>>>,
-    Json(payload): Json<ApiResponseOwned<AccountReplenishmentEvent>>,
-) -> Result<Json<Empty>, ServerError> {
-    _notify_handler_inner::<ApiResponseOwned<AccountReplenishmentEvent>>(state, payload).await
-}
-
-#[instrument(skip(state))]
 async fn notify_tx(
     State(mut state): State<TestAppState<BtcIndexerCallbackResponse>>,
     Json(payload): Json<BtcIndexerCallbackResponse>,
@@ -121,24 +93,7 @@ pub async fn spawn_notify_server_track_tx(
     let (tx, rx) = tokio::sync::oneshot::channel();
     let test_notifier = create_test_notifier_track_tx(tx, &socket_addr).await?;
     Ok((
-        Url::from_str(&format!("http://{socket_addr}{NOTIFY_TX_PATH}"))?,
-        rx,
-        test_notifier,
-    ))
-}
-
-#[instrument]
-pub async fn spawn_notify_server_track_wallet(
-    socket_addr: SocketAddr,
-) -> anyhow::Result<(
-    Url,
-    tokio::sync::oneshot::Receiver<ApiResponseOwned<AccountReplenishmentEvent>>,
-    TestServer,
-)> {
-    let (tx, rx) = tokio::sync::oneshot::channel();
-    let test_notifier = create_test_notifier_track_wallet(tx, &socket_addr).await?;
-    Ok((
-        Url::from_str(&format!("http://{socket_addr}{NOTIFY_WALLET_PATH}"))?,
+        Url::from_str(&format!("http://{}{NOTIFY_TX_PATH}", socket_addr.to_string()))?,
         rx,
         test_notifier,
     ))

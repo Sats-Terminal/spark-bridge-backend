@@ -37,6 +37,9 @@ mod mocked_tx_tracking {
                     "fb0c9ab881331ec7acdd85d79e3197dcaf3f95055af1703aeee87e0d853e81ec",
                 )?),
                 callback_url: UrlWrapped(url_to_listen),
+                btc_address: "".to_string(),
+                v_out: 0,
+                amount: 0,
             })
             .await;
         info!("First subscription [track_tx] response: {:?}", response);

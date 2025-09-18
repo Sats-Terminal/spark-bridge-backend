@@ -66,7 +66,7 @@ pub struct DatabaseConfig {
     pub url: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct BtcIndexerParams {
     pub update_interval_millis: u64,
 }

@@ -3,7 +3,7 @@ use config_parser::config::{BtcRpcCredentials, ServerConfig};
 use global_utils::config_path::ConfigPath;
 use global_utils::config_variant::ConfigVariant;
 use global_utils::{env_parser::lookup_ip_addr, logger::init_logger};
-use local_db_store_indexer::{PostgresDbCredentials, init::LocalDbIndexer};
+use local_db_store_indexer::{PostgresDbCredentials, init::LocalDbStorage};
 use tokio::net::TcpListener;
 use tracing::instrument;
 
@@ -19,7 +19,7 @@ async fn main() -> anyhow::Result<()> {
     let (btc_creds, postgres_creds) = (BtcRpcCredentials::new()?, PostgresDbCredentials::from_envs()?);
 
     // Init App
-    let db_pool = LocalDbIndexer::from_config(postgres_creds).await?;
+    let db_pool = LocalDbStorage::from_config(postgres_creds).await?;
     let btc_indexer = BtcIndexer::with_api(IndexerParams {
         btc_rpc_creds: btc_creds,
         db_pool: db_pool.clone(),

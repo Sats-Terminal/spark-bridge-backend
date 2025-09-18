@@ -15,7 +15,7 @@ use btc_indexer_server::AppState;
 use config_parser::config::{BtcRpcCredentials, ServerConfig};
 use global_utils::config_variant::ConfigVariant;
 use global_utils::logger::{LoggerGuard, init_logger};
-use local_db_store_indexer::{PostgresDbCredentials, init::LocalDbIndexer};
+use local_db_store_indexer::{PostgresDbCredentials, init::LocalDbStorage};
 use mockall::mock;
 use reqwest::header::HeaderMap;
 use titan_client::{Error, TitanApi, TitanClient};
@@ -89,7 +89,7 @@ pub async fn init_mocked_test_server(
         ConfigVariant::Local,
     );
     let app_config = ServerConfig::init_config(config_variant)?;
-    let db_pool = LocalDbIndexer::from_config(postgres_creds).await?;
+    let db_pool = LocalDbStorage::from_config(postgres_creds).await?;
     let mocked_titan_indexer = generate_mocked_titan_indexer();
     let btc_indexer = BtcIndexer::new(IndexerParamsWithApi {
         indexer_params: IndexerParams {
@@ -215,18 +215,17 @@ pub fn generate_mock_titan_indexer_wallet_tracking() -> MockTitanIndexer {
 
 #[instrument(skip(db_pool, btc_indexer))]
 pub async fn create_app_mocked(
-    db_pool: LocalDbIndexer,
-    btc_indexer: BtcIndexer<MockTitanIndexer, LocalDbIndexer>,
+    db_pool: LocalDbStorage,
+    btc_indexer: BtcIndexer<MockTitanIndexer, LocalDbStorage>,
 ) -> Router {
     let state = AppState {
         http_client: reqwest::Client::new(),
         persistent_storage: db_pool,
         btc_indexer: Arc::new(btc_indexer),
-        cached_tasks: Arc::new(Default::default()),
+        task_executor: Arc::new(Default::default()),
     };
     let app = Router::new()
         .route("/track_tx", post(btc_indexer_server::routes::track_tx::handler))
-        .route("/track_wallet", post(btc_indexer_server::routes::track_wallet::handler))
         .with_state(state);
     app
 }

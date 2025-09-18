@@ -23,7 +23,8 @@ pub enum ServerError {
 mod response_conversion {
     use super::*;
     use axum::http::StatusCode;
-    use global_utils::api_result_request::ErrorIntoStatusMsgTuple;
+    use global_utils::common_resp::ErrorIntoStatusMsgTuple;
+
     impl axum::response::IntoResponse for ServerError {
         fn into_response(self) -> axum::response::Response {
             self.into_status_msg_tuple().into_response()
