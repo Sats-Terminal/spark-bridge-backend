@@ -8,8 +8,6 @@ async-trait = { workspace = true }
 bitcoin = { workspace = true }
 chrono = { workspace = true }
 frost = { workspace = true }
-gateway_runes_utxo_manager = { workspace = true }
-gateway_session_storage = { workspace = true }
 global_utils = { workspace = true }
 persistent_storage = { workspace = true }
 serde_json = { workspace = true }

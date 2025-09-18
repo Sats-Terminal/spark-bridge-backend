@@ -52,7 +52,6 @@ pub struct DepositAddrInfo {
     pub address: Option<String>,
     pub is_btc: bool,
     pub amount: u64,
-    pub txid: Option<Txid>,
     pub confirmation_status: VerifiersResponses,
 }
 

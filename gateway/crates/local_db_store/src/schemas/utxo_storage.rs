@@ -1,18 +1,35 @@
 use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
-use gateway_runes_utxo_manager::traits::{Utxo, UtxoManager, UtxoStatus, UtxoStorage};
 use persistent_storage::error::DbError;
 use sqlx::{Postgres, Transaction};
+use serde::{Deserialize, Serialize};
+use bitcoin::{Transaction as BitcoinTransaction};
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Utxo {
+    pub txid: String,
+    pub vout: i32,
+    pub btc_address: String,
+    pub transaction: Option<BitcoinTransaction>,
+    pub amount: i64,
+    pub rune_id: String,
+    pub status: UtxoStatus,
+}
+
+#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, Copy, Eq, PartialEq, Hash)]
+#[sqlx(rename_all = "snake_case", type_name = "UTXO_STATUS")]
+pub enum UtxoStatus {
+    Pending,
+    Confirmed,
+    Spent,
+}
 
 #[async_trait]
-impl UtxoManager for LocalDbStorage {
-    async fn unlock_utxos(&self, utxo_ids: &[i64]) -> Result<(), DbError> {
-        UtxoStorage::unlock_utxos_ids(self, utxo_ids).await
-    }
-
-    async fn mark_spent(&self, utxo_ids: &[i64]) -> Result<(), DbError> {
-        UtxoStorage::mark_spent_ids(self, utxo_ids).await
-    }
+pub trait UtxoStorage: Send + Sync {
+    async fn insert_utxo(&self, utxo: Utxo) -> Result<Utxo, DbError>;
+    async fn update_status(&self, txid: &str, vout: i32, new_status: UtxoStatus, transaction: Option<BitcoinTransaction>) -> Result<(), DbError>;
+    async fn list_unspent(&self, rune_id: &str) -> Result<Vec<Utxo>, DbError>;
+    async fn select_and_lock_utxos(&self, rune_id: &str, target_amount: i64) -> Result<Vec<Utxo>, DbError>;
 }
 
 #[async_trait]
@@ -49,7 +66,7 @@ impl UtxoStorage for LocalDbStorage {
         Ok(rec)
     }
 
-    async fn update_status(&self, txid: &str, vout: i32, new_status: UtxoStatus) -> Result<(), DbError> {
+    async fn update_status(&self, txid: &str, vout: i32, new_status: UtxoStatus, transaction: Option<BitcoinTransaction>) -> Result<(), DbError> {
         let rows = sqlx::query(
             r#"
             UPDATE gateway.utxo
@@ -72,44 +89,6 @@ impl UtxoStorage for LocalDbStorage {
         Ok(())
     }
 
-    async fn insert_pending_utxo(&self, utxos: Vec<Utxo>) -> Result<Utxo, DbError> {
-        let mut inserted = Vec::new();
-
-        for utxo in utxos {
-            let rec = sqlx::query_as::<_, Utxo>(
-                r#"
-            INSERT INTO gateway.utxo
-            (txid, vout, amount, sats_amount, rune_id, owner_pubkey, status, block_height)
-            VALUES ($1, $2, $3, $4, $5, $6, 'pending', NULL)
-            RETURNING *
-            "#,
-            )
-            .bind(&utxo.txid)
-            .bind(utxo.vout)
-            .bind(utxo.amount)
-            .bind(utxo.sats_amount)
-            .bind(&utxo.rune_id)
-            .bind(&utxo.owner_pubkey)
-            .fetch_one(&self.get_conn().await?)
-            .await
-            .map_err(|e| DbError::BadRequest(e.to_string()))?;
-
-            inserted.push(rec);
-        }
-        let total_amount: i64 = inserted.iter().map(|u| u.amount).sum();
-        let total_sats: i64 = inserted.iter().filter_map(|u| u.sats_amount).sum();
-
-        let mut base = inserted
-            .into_iter()
-            .next()
-            .ok_or_else(|| DbError::BadRequest("Empty utxo list".to_string()))?;
-
-        base.amount = total_amount;
-        base.sats_amount = Option::from(total_sats);
-
-        Ok(base)
-    }
-
     async fn list_unspent(&self, rune_id: &str) -> Result<Vec<Utxo>, DbError> {
         let rows = sqlx::query_as::<_, Utxo>(
             r#"
@@ -126,23 +105,6 @@ impl UtxoStorage for LocalDbStorage {
         .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
         Ok(rows)
-    }
-
-    async fn confirm_pending_utxo(&self, txid: bitcoin::Txid, block_height: i64) -> Result<(), DbError> {
-        sqlx::query(
-            r#"
-        UPDATE gateway.utxo
-        SET status = 'unspent', block_height = $1, updated_at = now()
-        WHERE txid = $2 AND status = 'pending'
-        "#,
-        )
-        .bind(block_height)
-        .bind(txid.to_string())
-        .execute(&self.get_conn().await?)
-        .await
-        .map_err(|e| DbError::BadRequest(e.to_string()))?;
-
-        Ok(())
     }
 
     async fn select_and_lock_utxos(&self, rune_id: &str, target_amount: i64) -> Result<Vec<Utxo>, DbError> {
@@ -179,60 +141,6 @@ impl UtxoStorage for LocalDbStorage {
             .map_err(|e| DbError::BadRequest(format!("Failed to commit transaction: {}", e)))?;
 
         Ok(locked_utxos)
-    }
-
-    async fn unlock_utxos_ids(&self, utxo_ids: &[i64]) -> Result<(), DbError> {
-        if utxo_ids.is_empty() {
-            return Ok(());
-        }
-
-        let query = format!("UPDATE gateway.utxo SET status = 'unspent', updated_at = now() WHERE id = ANY($1)");
-
-        sqlx::query(&query)
-            .bind(utxo_ids)
-            .execute(&self.get_conn().await?)
-            .await
-            .map_err(|e| DbError::BadRequest(e.to_string()))?;
-
-        Ok(())
-    }
-
-    async fn mark_spent_ids(&self, utxo_ids: &[i64]) -> Result<(), DbError> {
-        if utxo_ids.is_empty() {
-            return Ok(());
-        }
-
-        let query = "UPDATE gateway.utxo SET status = 'spent', updated_at = now() WHERE id = ANY($1)";
-
-        sqlx::query(query)
-            .bind(utxo_ids)
-            .execute(&self.get_conn().await?)
-            .await
-            .map_err(|e| DbError::BadRequest(e.to_string()))?;
-
-        Ok(())
-    }
-
-    async fn set_block_height(&self, txid: bitcoin::Txid, block_height: i64) -> Result<(), DbError> {
-        let rows = sqlx::query(
-            r#"
-        UPDATE gateway.utxo
-        SET block_height = $1, updated_at = now()
-        WHERE txid = $2
-        "#,
-        )
-        .bind(block_height)
-        .bind(txid.to_string())
-        .execute(&self.get_conn().await?)
-        .await
-        .map_err(|e| DbError::BadRequest(e.to_string()))?
-        .rows_affected();
-
-        if rows == 0 {
-            return Err(DbError::NotFound(format!("No UTXOs found for txid: {}", txid)));
-        }
-
-        Ok(())
     }
 }
 
