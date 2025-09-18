@@ -7,6 +7,8 @@ use frost::types::MusigId;
 use persistent_storage::error::DbError;
 use sqlx::types::Json;
 use tracing::instrument;
+use bitcoin::secp256k1::PublicKey;
+use std::str::FromStr;
 
 #[async_trait]
 impl AggregatorMusigIdStorage for LocalDbStorage {
@@ -52,6 +54,25 @@ impl AggregatorMusigIdStorage for LocalDbStorage {
         .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
         Ok(())
+    }
+
+    async fn get_issuer_musig_id(&self) -> Result<Option<MusigId>, DbError> {
+        let result: Option<(String, String)> = sqlx::query_as(
+            "SELECT public_key, rune_id 
+            FROM gateway.musig_identifier 
+            WHERE is_issuer = true",
+        )
+        .fetch_optional(&self.get_conn().await?)
+        .await
+        .map_err(|e| DbError::BadRequest(e.to_string()))?;
+
+        match result {
+            Some((public_key, rune_id)) => Ok(Some(MusigId::Issuer {
+                issuer_public_key: PublicKey::from_str(&public_key).map_err(|e| DbError::BadRequest(e.to_string()))?,
+                rune_id,
+            })),
+            None => Ok(None),
+        }
     }
 }
 

@@ -14,10 +14,22 @@ pub struct SparkOperatorConfig {
     pub is_coordinator: Option<bool>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CertificateConfig {
+    pub path: String,
+}
+
+impl CertificateConfig {
+    pub fn get_certificate(&self) -> Result<Certificate, SparkClientError> {
+        let file = std::fs::read(self.path.clone()).map_err(|e| SparkClientError::ConfigError(format!("Failed to read certificate: {}", e)))?;
+        Ok(Certificate::from_pem(file))
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SparkConfig {
     pub operators: Vec<SparkOperatorConfig>,
-    pub ca_pem: Certificate,
+    pub certificate: CertificateConfig,
 }
 
 impl SparkConfig {

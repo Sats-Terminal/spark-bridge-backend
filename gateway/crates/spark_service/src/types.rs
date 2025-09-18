@@ -9,12 +9,12 @@ use lrc20::token_transaction::TokenTransactionCreateInput;
 use lrc20::token_transaction::TokenTransactionInput;
 use lrc20::token_transaction::TokenTransactionMintInput;
 use lrc20::token_transaction::TokenTransactionVersion;
-use spark_client::utils::spark_address::Network;
+use spark_address::Network;
 use token_identifier::TokenIdentifier;
 use spark_protos::spark_token::TokenTransaction as TokenTransactionSparkProto;
 use lrc20::marshal::marshal_token_transaction;
 
-const DEFAULT_MAX_SUPPLY: u128 = 21_000_000_000;
+const DEFAULT_MAX_SUPPLY: u64 = 21_000_000_000;
 const DEFAULT_DECIMALS: u32 = 8;
 const DEFAULT_IS_FREEZABLE: bool = false;
 
@@ -22,7 +22,7 @@ const DEFAULT_IS_FREEZABLE: bool = false;
 pub enum SparkTransactionType {
     Mint {
         receiver_identity_public_key: PublicKey,
-        token_amount: u128,
+        token_amount: u64,
     },
     Create {
         token_name: String,
@@ -54,7 +54,7 @@ pub fn create_partial_token_transaction(
                     issuer_public_key,
                     receiver_identity_public_key,
                     token_identifier,
-                    token_amount,
+                    token_amount as u128,
                 )],
                 spark_operator_identity_public_keys,
                 expiry_time: 0,
@@ -75,7 +75,7 @@ pub fn create_partial_token_transaction(
                     token_name,
                     token_ticker,
                     decimals: DEFAULT_DECIMALS,
-                    max_supply: DEFAULT_MAX_SUPPLY,
+                    max_supply: DEFAULT_MAX_SUPPLY as u128,
                     is_freezable: DEFAULT_IS_FREEZABLE,
                     creation_entity_public_key: None,
                 }),

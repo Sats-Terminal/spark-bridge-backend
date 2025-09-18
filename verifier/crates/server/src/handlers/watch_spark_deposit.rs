@@ -14,7 +14,8 @@ use verifier_spark_balance_checker_client::client::GetBalanceRequest;
 pub struct WatchSparkDepositRequest {
     pub musig_id: MusigId,
     pub nonce: Nonce,
-    pub address: String,
+    pub spark_address: String,
+    pub exit_address: String,
     pub amount: u64,
 }
 
@@ -34,7 +35,8 @@ pub async fn handle(
                 musig_id: request.musig_id.clone(),
                 nonce: request.nonce,
                 out_point: None,
-                address: request.address.to_string(),
+                deposit_address: request.spark_address.clone(),
+                bridge_address: request.exit_address,
                 is_btc: true,
                 amount: request.amount,
                 confirmation_status: DepositStatus::WaitingForConfirmation,
@@ -46,7 +48,7 @@ pub async fn handle(
     let response = state
         .spark_balance_checker_client
         .get_balance(GetBalanceRequest {
-            spark_address: request.address.to_string(),
+            spark_address: request.spark_address.clone(),
             rune_id: request.musig_id.get_rune_id(),
         })
         .await
@@ -57,7 +59,7 @@ pub async fn handle(
         false => DepositStatus::Failed,
     };
 
-    state.storage.set_confirmation_status_by_address(request.address.to_string(), confirmation_status.clone()).await.map_err(|e| VerifierError::StorageError(format!("Failed to update confirmation status: {}", e)))?;
+    state.storage.set_confirmation_status_by_deposit_address(request.spark_address, confirmation_status.clone()).await.map_err(|e| VerifierError::StorageError(format!("Failed to update confirmation status: {}", e)))?;
 
     Ok(Json(WatchSparkDepositResponse {
         verifier_response: confirmation_status,

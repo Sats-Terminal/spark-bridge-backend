@@ -3,7 +3,7 @@ use bitcoin::Address;
 use bitcoin::Network;
 use bitcoin::TapNodeHash;
 use bitcoin::hashes::Hash;
-use bitcoin::secp256k1::PublicKey;
+use bitcoin::secp256k1::{PublicKey, Keypair};
 use bitcoin::secp256k1::Secp256k1;
 use eyre::Result;
 use frost_secp256k1_tr::keys::PublicKeyPackage;
@@ -31,4 +31,10 @@ pub fn get_address(public_key: PublicKey, tweak: Nonce, network: Network) -> Res
     let address = Address::p2tr(&ctx, x_only_public_key, Some(tap_node_hash), network);
 
     Ok(address)
+}
+
+pub fn generate_issuer_public_key() -> PublicKey {
+    let mut rng = OsRng;
+    let key_pair = Keypair::new(&Secp256k1::new(), &mut rng);
+    key_pair.public_key()
 }

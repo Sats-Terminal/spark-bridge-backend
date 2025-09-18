@@ -14,6 +14,8 @@ use tokio::time::Duration;
 use tokio_util::sync::CancellationToken;
 use tracing;
 use uuid::Uuid;
+use gateway_spark_service::service::SparkService;
+use spark_client::client::SparkRpcClient;
 
 // This is core struct that handles flows execution
 // For each request it creates a thread that runs the flow
@@ -27,6 +29,8 @@ pub struct FlowProcessor {
     pub cancellation_token: CancellationToken,
     pub cancellation_retries: u64,
     pub frost_aggregator: FrostAggregator,
+    pub spark_service: Arc<SparkService>,
+    pub spark_client: Arc<SparkRpcClient>,
     pub network: Network,
 }
 
@@ -39,6 +43,8 @@ impl FlowProcessor {
         frost_aggregator: FrostAggregator,
         network: Network,
         cancellation_token: CancellationToken,
+        spark_service: Arc<SparkService>,
+        spark_client: Arc<SparkRpcClient>,
     ) -> Self {
         let (flow_sender, flow_receiver) = mpsc::channel::<Uuid>(1000);
         Self {
@@ -51,6 +57,8 @@ impl FlowProcessor {
             cancellation_token,
             cancellation_retries,
             frost_aggregator,
+            spark_service,
+            spark_client,
             network,
         }
     }
@@ -90,6 +98,8 @@ impl FlowProcessor {
                                 response_sender,
                                 task_sender:  self.flow_sender.clone(),
                                 frost_aggregator: self.frost_aggregator.clone(),
+                                spark_service: self.spark_service.clone(),
+                                spark_client: self.spark_client.clone(),
                                 network: self.network,
                             };
 

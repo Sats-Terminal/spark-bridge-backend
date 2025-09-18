@@ -27,3 +27,6 @@ cancellation_retries = 10
 
 [database_config]
 url = "postgres://postgres:postgres@localhost:5470/gateway"
+
+[spark_config]
+ca_pem = "ca.pem"

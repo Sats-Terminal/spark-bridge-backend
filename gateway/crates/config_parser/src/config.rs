@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::str::FromStr;
 use tracing::{debug, instrument, trace};
+use spark_client::common::config::SparkConfig;
 
 const CONFIG_FOLDER_NAME: &str = "../../infrastructure/configuration";
 const PRODUCTION_CONFIG_FOLDER_NAME: &str = "configuration_gateway";
@@ -83,6 +84,8 @@ pub struct ServerConfig {
     pub network: NetworkConfig,
     #[serde(rename = "database_config")]
     pub database: DatabaseConfig,
+    #[serde(rename = "spark_config")]
+    pub spark: SparkConfig,
 }
 
 pub fn get_cargo_manifest_dir() -> String {

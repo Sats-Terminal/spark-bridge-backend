@@ -9,6 +9,8 @@ use tokio::sync::mpsc;
 use tracing;
 use tracing::info;
 use uuid::Uuid;
+use gateway_spark_service::service::SparkService;
+use spark_client::client::SparkRpcClient;
 
 const LOG_PATH: &str = "flow_processor";
 
@@ -21,6 +23,8 @@ pub struct FlowProcessorRouter {
     pub response_sender: OneshotFlowProcessorSender,
     pub task_sender: mpsc::Sender<Uuid>,
     pub frost_aggregator: FrostAggregator,
+    pub spark_service: Arc<SparkService>,
+    pub spark_client: Arc<SparkRpcClient>,
     pub network: Network,
 }
 

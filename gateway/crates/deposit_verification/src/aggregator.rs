@@ -36,10 +36,15 @@ impl DepositVerificationAggregator {
     pub async fn verify_runes_deposit(
         &self,
         btc_address: Address,
+        bridge_address: String,
         out_point: OutPoint,
     ) -> Result<(), DepositVerificationError> {
         tracing::info!("Verifying runes deposit for address: {}", btc_address);
-        let deposit_addr_info = self.storage.get_row_by_address(btc_address.to_string()).await
+
+        self.storage.update_bridge_address_by_deposit_address(btc_address.to_string(), bridge_address.clone()).await
+            .map_err(|e| DepositVerificationError::StorageError(format!("Error updating bridge address: {:?}", e)))?;
+
+        let deposit_addr_info = self.storage.get_row_by_deposit_address(btc_address.to_string()).await
             .map_err(|e| DepositVerificationError::StorageError(format!("Error getting deposit address info: {:?}", e)))?
             .ok_or(DepositVerificationError::StorageError("Deposit address info not found".to_string()))?;
 
@@ -48,6 +53,7 @@ impl DepositVerificationAggregator {
             nonce: deposit_addr_info.nonce,
             amount: deposit_addr_info.amount,
             btc_address: btc_address.to_string(),
+            bridge_address,
             out_point,
         };
 
@@ -71,7 +77,7 @@ impl DepositVerificationAggregator {
         let ids = self.verifiers.keys().cloned().collect();
         let verifiers_responses = VerifiersResponses::new(DepositStatus::WaitingForConfirmation, ids);
 
-        self.storage.set_confirmation_status_by_address(btc_address.to_string(), verifiers_responses).await
+        self.storage.set_confirmation_status_by_deposit_address(btc_address.to_string(), verifiers_responses).await
             .map_err(|e| DepositVerificationError::StorageError(format!("Error updating confirmation status: {:?}", e)))?;
 
         let utxo = Utxo {
@@ -107,10 +113,10 @@ impl DepositVerificationAggregator {
             .map_err(|e| DepositVerificationError::StorageError(format!("Error parsing address: {:?}", e)))?
             .assume_checked();
 
-        self.storage.update_confirmation_status_by_address(btc_address.to_string(), verifier_id, verifier_response).await
+        self.storage.update_confirmation_status_by_deposit_address(btc_address.to_string(), verifier_id, verifier_response).await
             .map_err(|e| DepositVerificationError::StorageError(format!("Error updating confirmation status: {:?}", e)))?;
 
-        let confirmation_status_info = self.storage.get_row_by_address(btc_address.to_string()).await
+        let confirmation_status_info = self.storage.get_row_by_deposit_address(btc_address.to_string()).await
             .map_err(|e| DepositVerificationError::StorageError(format!("Error getting confirmation status: {:?}", e)))?
             .ok_or(DepositVerificationError::StorageError("Confirmation status not found".to_string()))?
             .confirmation_status;
@@ -136,17 +142,21 @@ impl DepositVerificationAggregator {
     pub async fn verify_spark_deposit(
         &self,
         spark_address: String,
+        exit_address: String,
     ) -> Result<(), DepositVerificationError> {
-        let deposit_addr_info = self.storage.get_row_by_address(spark_address.to_string()).await
+        self.storage.update_bridge_address_by_deposit_address(spark_address.to_string(), exit_address.clone()).await
+            .map_err(|e| DepositVerificationError::StorageError(format!("Error updating bridge address: {:?}", e)))?;
+
+        let deposit_addr_info = self.storage.get_row_by_deposit_address(spark_address.to_string()).await
             .map_err(|e| DepositVerificationError::StorageError(format!("Error getting deposit address info: {:?}", e)))?
             .ok_or(DepositVerificationError::StorageError("Deposit address info not found".to_string()))?;
 
         let watch_spark_deposit_request = WatchSparkDepositRequest {
             musig_id: deposit_addr_info.musig_id.clone(),
             nonce: deposit_addr_info.nonce,
-            address: spark_address.clone(),
+            spark_address: spark_address.clone(),
             amount: deposit_addr_info.amount,
-            btc_address: deposit_addr_info.address,
+            exit_address,
         };
 
         let mut futures = vec![];
@@ -174,7 +184,7 @@ impl DepositVerificationAggregator {
 
         let all_verifiers_confirmed = verifiers_responses.check_all_verifiers_confirmed();
 
-        self.storage.set_confirmation_status_by_address(spark_address.to_string(), verifiers_responses).await
+        self.storage.set_confirmation_status_by_deposit_address(spark_address.to_string(), verifiers_responses).await
             .map_err(|e| DepositVerificationError::StorageError(format!("Error updating confirmation status: {:?}", e)))?;
 
         if all_verifiers_confirmed {

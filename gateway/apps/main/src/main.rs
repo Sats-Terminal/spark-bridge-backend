@@ -50,12 +50,12 @@ async fn main() {
 
     // Create Flow Processor
     let (mut flow_processor, flow_sender) = create_flow_processor(
-        Arc::new(server_config.clone().verifiers.0),
+        server_config.clone(),
         shared_db_pool.clone(),
         server_config.flow_processor.cancellation_retries,
         frost_aggregator,
         server_config.network.network,
-    );
+    ).await;
     let _ = tokio::spawn(async move {
         flow_processor.run().await;
     });

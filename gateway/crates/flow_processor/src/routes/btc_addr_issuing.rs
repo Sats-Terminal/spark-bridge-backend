@@ -65,7 +65,8 @@ pub async fn handle(
             DepositAddrInfo {
                 musig_id: request.musig_id.clone(),
                 nonce,
-                address: address.to_string(),
+                deposit_address: address.to_string(),
+                bridge_address: None,
                 is_btc: true,
                 amount: request.amount,
                 confirmation_status: verifiers_responses,

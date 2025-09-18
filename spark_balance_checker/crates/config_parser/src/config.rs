@@ -3,7 +3,7 @@ use bitcoin::Network;
 use config::{Config, Environment};
 use global_utils::config_variant::ConfigVariant;
 use serde::{Deserialize, Serialize};
-use spark_client::common::config::SparkOperatorConfig;
+use spark_client::common::config::SparkConfig;
 use std::{fmt::Debug, net::SocketAddr, str::FromStr};
 use tonic::transport::Certificate;
 use tracing::{debug, instrument, trace};
@@ -34,10 +34,10 @@ const DEFAULT_CA_FILENAME: &str = "ca.pem";
 pub struct ServerConfig {
     #[serde(rename(deserialize = "application"))]
     pub app_config: AppConfig,
-    #[serde(rename(deserialize = "spark_operators"))]
-    pub spark_operators: Vec<SparkOperatorConfig>,
     #[serde(rename(deserialize = "network"))]
     pub network: NetworkConfig,
+    #[serde(rename(deserialize = "spark_config"))]
+    pub spark: SparkConfig,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

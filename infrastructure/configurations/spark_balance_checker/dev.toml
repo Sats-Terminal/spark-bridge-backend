@@ -19,3 +19,6 @@ running_authority = "Lightspark"
 
 [network]
 network = "regtest"
+
+[certificate]
+path = "./ca.pem"

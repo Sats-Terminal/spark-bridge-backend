@@ -4,7 +4,7 @@ use axum::Json;
 use axum::extract::State;
 use bech32;
 use serde::{Deserialize, Serialize};
-use spark_client::utils::spark_address::decode_spark_address;
+use spark_address::decode_spark_address;
 use spark_protos::spark::QueryTokenOutputsRequest;
 use utoipa::ToSchema;
 
@@ -38,7 +38,7 @@ pub async fn handle(
     State(mut state): State<AppState>,
     Json(payload): Json<GetBalanceRequest>,
 ) -> Result<Json<GetBalanceResponse>, ServerError> {
-    let address_data = decode_spark_address(payload.spark_address)
+    let address_data = decode_spark_address(&payload.spark_address)
         .map_err(|e| ServerError::InvalidData(format!("Failed to decode spark address: {}", e)))?;
     let identity_public_key = hex::decode(address_data.identity_public_key)
         .map_err(|e| ServerError::InvalidData(format!("Failed to decode identity public key: {}", e)))?;

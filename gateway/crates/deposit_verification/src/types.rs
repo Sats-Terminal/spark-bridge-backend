@@ -8,9 +8,9 @@ use gateway_local_db_store::schemas::deposit_address::DepositStatus;
 pub struct WatchSparkDepositRequest {
     pub musig_id: MusigId,
     pub nonce: Nonce,
-    pub address: String,
+    pub exit_address: String,
     pub amount: u64,
-    pub btc_address: String,
+    pub spark_address: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -24,6 +24,7 @@ pub struct WatchRunesDepositRequest {
     pub nonce: Nonce,
     pub amount: u64,
     pub btc_address: String,
+    pub bridge_address: String,
     pub out_point: OutPoint,
 }
 

@@ -4,6 +4,7 @@ use futures::future::join_all;
 use std::{collections::BTreeMap, sync::Arc};
 use tracing::instrument;
 use uuid::Uuid;
+use crate::types::Nonce;
 
 #[derive(Clone, Debug)]
 pub struct FrostAggregator {
@@ -209,7 +210,7 @@ impl FrostAggregator {
         session_id: Uuid,
         message_hash: &[u8],
         metadata: SigningMetadata,
-        tweak: Option<&[u8]>,
+        tweak: Option<Nonce>,
     ) -> Result<(), AggregatorError> {
         let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id).await?;
 
@@ -342,7 +343,7 @@ impl FrostAggregator {
         musig_id: MusigId,
         message_hash: &[u8],
         metadata: SigningMetadata,
-        tweak: Option<&[u8]>,
+        tweak: Option<Nonce>,
     ) -> Result<Signature, AggregatorError> {
         let session_id = global_utils::common_types::get_uuid();
 
@@ -368,7 +369,7 @@ impl FrostAggregator {
     pub async fn get_public_key_package(
         &self,
         musig_id: MusigId,
-        tweak: Option<&[u8]>,
+        tweak: Option<Nonce>,
     ) -> Result<keys::PublicKeyPackage, AggregatorError> {
         let musig_id_data = self.musig_id_storage.get_musig_id_data(&musig_id).await?;
 

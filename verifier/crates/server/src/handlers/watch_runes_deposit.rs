@@ -16,6 +16,7 @@ pub struct WatchRunesDepositRequest {
     pub nonce: Nonce,
     pub amount: u64,
     pub btc_address: String,
+    pub bridge_address: String,
     pub out_point: OutPoint,
 }
 
@@ -33,7 +34,8 @@ pub async fn handle(
                 musig_id: request.musig_id.clone(),
                 nonce: request.nonce,
                 out_point: Some(request.out_point),
-                address: request.btc_address.clone(),
+                deposit_address: request.btc_address.clone(),
+                bridge_address: request.bridge_address.clone(),
                 is_btc: false,
                 amount: request.amount,
                 confirmation_status: DepositStatus::WaitingForConfirmation,
