@@ -2,7 +2,7 @@ use crate::errors::VerifierError;
 use crate::init::AppState;
 use axum::Json;
 use axum::extract::State;
-use bitcoin::Txid;
+use bitcoin::OutPoint;
 use frost::types::MusigId;
 use frost::types::Nonce;
 use serde::{Deserialize, Serialize};
@@ -16,7 +16,6 @@ pub struct WatchSparkDepositRequest {
     pub nonce: Nonce,
     pub address: String,
     pub amount: u64,
-    pub btc_address: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -31,13 +30,13 @@ pub async fn handle(
     state
         .storage
         .set_deposit_addr_info(
-            &request.musig_id,
-            request.nonce,
             DepositAddrInfo {
+                musig_id: request.musig_id.clone(),
+                nonce: request.nonce,
+                out_point: None,
                 address: request.address.to_string(),
                 is_btc: true,
                 amount: request.amount,
-                txid: None,
                 confirmation_status: DepositStatus::WaitingForConfirmation,
             },
         )

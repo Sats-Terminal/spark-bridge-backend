@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS verifier.deposit_address
     is_btc BOOLEAN NOT NULL,
     amount BIGINT NOT NULL,
     confirmation_status JSON NOT NULL,
-    txid TEXT,
+    out_point TEXT,
     PRIMARY KEY (public_key, rune_id, nonce_tweak),
     FOREIGN KEY (public_key, rune_id) REFERENCES verifier.musig_identifier(public_key, rune_id)
 );

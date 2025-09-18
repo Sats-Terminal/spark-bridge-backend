@@ -1,10 +1,10 @@
 use crate::error::GatewayClientError;
-use bitcoin::Txid;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use verifier_config_parser::config::GatewayConfig;
-use verifier_local_db_store::schemas::deposit_address::DepositStatus;
 use tracing;
+use bitcoin::OutPoint;
+use verifier_local_db_store::schemas::deposit_address::DepositStatus;
 
 const NOTIFY_RUNES_DEPOSIT_PATH: &str = "/api/verifier/notify-runes-deposit";
 
@@ -14,11 +14,11 @@ pub struct GatewayClient {
     client: Client,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct NotifyRunesDepositRequest {
     pub verifier_id: u16,
-    pub txid: Txid,
-    pub verifier_response: DepositStatus,
+    pub out_point: OutPoint,
+    pub status: DepositStatus,
 }
 
 impl GatewayClient {
