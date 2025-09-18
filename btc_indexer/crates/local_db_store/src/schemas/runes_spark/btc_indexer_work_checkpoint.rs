@@ -42,7 +42,6 @@ pub enum StatusBtcIndexer {
 #[serde(rename_all = "snake_case")]
 pub enum Task {
     TrackTx(TxIdWrapped),
-    TrackWallet(String),
 }
 
 #[derive(Debug, Clone, Default)]

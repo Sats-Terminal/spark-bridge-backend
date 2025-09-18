@@ -38,148 +38,61 @@ pub async fn handler<T: titan_client::TitanApi, Db: PersistentRepoTrait + Clone 
 ) -> Result<TrackTxResponse, ServerError> {
     info!("Received track tx: {:?}", payload);
 
-    //todo: check whether we have spawned task
-    // if not spawn
-    // add entry to db to check tx
-
-    // todo: thread will invoke indexer_inner to check tx and return some response, after retrieving some response -> send callback response
     let uuid = get_uuid();
-    initial_insert(&state, &payload, uuid).await?;
-
-    let cancellation_token = spawn_tx_tracking_task(state.clone(), payload, uuid).await?;
-    // {
-    //     let mut write_guard = state.task_executor.write().await;
-    //     write_guard.insert(uuid, cancellation_token);
-    // }
+    create_checkpoint(&state, &payload, uuid).await?;
+    state
+        .btc_indexer
+        .send_new_tx_to_tracking_thread(payload.btc_address, payload.out_point, payload.amount)
+        .await?;
     Ok(Json(Empty {}))
 }
 
-async fn initial_insert<T: titan_client::TitanApi, Db: PersistentRepoTrait + Clone + 'static>(
+async fn create_checkpoint<T: titan_client::TitanApi, Db: PersistentRepoTrait + Clone + 'static>(
     state: &AppState<T, Db>,
     payload: &TrackTxRequest,
     uuid: Uuid,
 ) -> Result<(), ServerError> {
     // Insert value in db to save info about processing some value
-    let mut conn = state.persistent_storage.get_conn().await?;
-    let time_now = Utc::now();
-    BtcIndexerWorkCheckpoint {
-        uuid,
-        status: StatusBtcIndexer::Created,
-        task: SqlxJson::from(Task::TrackTx(payload.out_point.tx_id.clone())),
-        created_at: time_now,
-        callback_url: payload.callback_url.clone(),
-        error: None,
-        updated_at: time_now,
-    }
-    .insert(&mut conn)
-    .await?;
-    Ok(())
-}
+    // Insert value in db to save info about processing some value
 
-/// Spawns tracking task for tracking whether we receive event from indexer_internals and send via reqwest msg about completion
-#[instrument(skip(app_state))]
-pub(crate) async fn spawn_tx_tracking_task<T: titan_client::TitanApi, Db: PersistentRepoTrait + Clone + 'static>(
-    app_state: AppState<T, Db>,
-    payload: TrackTxRequest,
-    uuid: Uuid,
-) -> Result<CancellationToken, DbError> {
-    let cancellation_token = CancellationToken::new();
-    tokio::task::spawn({
-        let local_cancellation_token = cancellation_token.child_token();
-        async move {
-            // let response = _retrieve_tx_info_result(
-            //     app_state.persistent_storage,
-            //     app_state.btc_indexer,
-            //     &payload,
-            //     uuid,
-            //     local_cancellation_token,
-            // )
-            // .await;
-            // let response = BtcIndexerCallbackResponse::Err {
-            //     code: 220,
-            //     msg: "helo".into(),
-            //     req_meta: payload.clone(),
-            // };
-            // trace!(
-            //     "[{PATH_TO_LOG}] Formed response to send to callback url[{}]: {response:?}",
-            //     payload.callback_url.0.to_string()
-            // );
-            // let _ = app_state
-            //     .http_client
-            //     .post(payload.callback_url.0.to_string())
-            //     .header("Content-Type", "application/json")
-            //     .json(&response)
-            //     .send()
-            //     .await
-            //     .inspect_err(|e| error!("[{PATH_TO_LOG}] Receive error on sending response: {:?}", e))
-            //     .inspect(|r| debug!("[{PATH_TO_LOG}] (Finishing task execution) Receive response: {r:?}"));
-            // app_state.task_executor.write().await.remove(&uuid);
-            todo!()
-        }
-    });
-    Ok(cancellation_token)
-}
-
-#[instrument(level = "trace", skip(db, indexer, payload), fields(tx_id = payload.out_point.tx_id.0.to_string()) ret)]
-async fn _retrieve_tx_info_result<T: titan_client::TitanApi, Db: PersistentRepoTrait + Clone + 'static>(
-    db: Db,
-    indexer: Arc<BtcIndexer<T, Db>>,
-    payload: &TrackTxRequest,
-    uuid: Uuid,
-    cancellation_token: CancellationToken,
-) -> crate::error::Result<Transaction> {
-    let confirmed_tx = _inner_retrieve_tx_info_result(indexer, payload, uuid, cancellation_token).await;
-    {
-        let mut conn = db.get_conn().await?;
-        let time_now = Utc::now();
-        match confirmed_tx.as_ref() {
-            Ok(_) => {
-                BtcIndexerWorkCheckpoint::update(
-                    &mut conn,
-                    &uuid,
-                    &Update {
-                        status: Some(StatusBtcIndexer::FinishedSuccess),
-                        error: None,
-                        updated_at: Some(time_now),
-                    },
-                )
-                .await?;
-            }
-            Err(e) => {
-                BtcIndexerWorkCheckpoint::update(
-                    &mut conn,
-                    &uuid,
-                    &Update {
-                        status: Some(StatusBtcIndexer::FinishedError),
-                        error: Some(e.to_string()),
-                        updated_at: Some(time_now),
-                    },
-                )
-                .await?;
-            }
-        }
-    }
-    confirmed_tx
-}
-
-async fn _inner_retrieve_tx_info_result<T: titan_client::TitanApi, Db: PersistentRepoTrait + Clone + 'static>(
-    indexer: Arc<BtcIndexer<T, Db>>,
-    payload: &TrackTxRequest,
-    uuid: Uuid,
-    cancellation_token: CancellationToken,
-) -> Result<Transaction, ServerError> {
-    // let oneshot_receiver = indexer
-    //     .check_tx_changes(payload.tx_id.0, uuid)
-    //     .await
-    //     .inspect_err(|e| error!("[{PATH_TO_LOG}] Occurred error on signing on tx updates via channel, err: {e}"))?;
-    // tokio::select! {
-    //     _ = cancellation_token.cancelled() => {
-    //         info!("[{PATH_TO_LOG}] Position manager signal listener cancelled");
-    //         Err(ServerError::TaskCancelled(PATH_TO_LOG.to_string()))
+    // 1. Insert or get tracked tx (unique by txid+vout)
+    // let tracked_tx_id = {
+    //     // Pseudocode: adapt to your ORM/SQL
+    //     // Try to find existing tracked tx
+    //     let txid = payload.out_point.txid.clone();
+    //     let vout = payload.out_point.vout;
+    //     let tracked = sqlx::query!(
+    //         "SELECT id FROM btc_tracked_tx WHERE txid = $1 AND vout = $2",
+    //         txid,
+    //         vout
+    //     )
+    //         .fetch_optional(&mut conn)
+    //         .await?;
+    //
+    //     if let Some(row) = tracked {
+    //         row.id
+    //     } else {
+    //         // Insert new tracked tx
+    //         let rec = sqlx::query!(
+    //             "INSERT INTO btc_tracked_tx (txid, vout, created_at, status) VALUES ($1, $2, $3, $4) RETURNING id",
+    //             txid,
+    //             vout,
+    //             time_now,
+    //             "Created"
+    //         )
+    //             .fetch_one(&mut conn)
+    //             .await?;
+    //         rec.id
     //     }
-    //     confirmed_tx = oneshot_receiver => {
-    //         Ok(confirmed_tx?)
-    //     }
-    // }
-    todo!()
+    // };
+
+    // 2. Insert new track request referencing tracked_tx_id
+    // sqlx::query!(
+    //     "INSERT INTO btc_track_tx_request (uuid, tracked_tx_id, callback_url, created_at) VALUES ($1, $2, $3, $4)",
+    //
+    //     tracked_tx_id,
+    //     payload.callback_url,
+    //     time_now
+    // )
+    // .execute(&mut conn)
 }

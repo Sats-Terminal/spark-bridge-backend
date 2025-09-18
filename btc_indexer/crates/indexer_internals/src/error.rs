@@ -1,4 +1,6 @@
+use crate::api::ChanMsg;
 use persistent_storage::error::DbError;
+use tokio::sync::mpsc::error::SendError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum BtcIndexerError {
@@ -8,6 +10,8 @@ pub enum BtcIndexerError {
     TitanTcpClientError(#[from] titan_client::TitanTcpClientError),
     #[error("Receive db client failure, error: {0}")]
     DatabaseError(#[from] DbError),
+    #[error("Failed to send ChanMSg to inner thread in indexer, error: {0}")]
+    ChanError(#[from] SendError<ChanMsg>),
 }
 
 pub type Result<T> = std::result::Result<T, BtcIndexerError>;

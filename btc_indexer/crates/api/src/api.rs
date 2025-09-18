@@ -1,47 +1,50 @@
 use axum::Json;
-use bitcoin::OutPoint;
+use bitcoin::{OutPoint, Txid};
 use global_utils::common_resp::Empty;
-use global_utils::common_types::{TxIdWrapped, UrlWrapped};
+use global_utils::common_types::{Url, UrlWrapped};
 use serde::{Deserialize, Serialize};
-use sqlx::Type;
-use titan_client::{Transaction, TxOut};
-use utoipa::ToSchema;
+use serde_json::json;
+use std::str::FromStr;
+use utoipa::{PartialSchema, openapi};
 
 pub struct BtcIndexerApi;
 
 impl BtcIndexerApi {
-    pub const TRACK_TX_ENDPOINT: &'static str = "https://api.trc";
-    pub const TRACK_WALLET_ENDPOINT: &'static str = "https://api.trc";
+    /// Represents hardcoded `/track_tx` endpoint
+    pub const TRACK_TX_ENDPOINT: &'static str = "/track_tx";
 }
 
 pub type Amount = u128;
 pub type VOut = u32;
 
-#[derive(Deserialize, Serialize, ToSchema, Debug, Clone)]
-pub struct OutPointSerialized {
-    pub tx_id: TxIdWrapped,
-    pub v_out: u32,
-}
-
-impl From<OutPointSerialized> for OutPoint {
-    fn from(value: OutPointSerialized) -> Self {
-        OutPoint {
-            txid: value.tx_id.0,
-            vout: value.v_out,
-        }
-    }
-}
-
-#[derive(Deserialize, Serialize, ToSchema, Debug, Clone)]
-#[schema(example = json!({
-    "tx_id": "fb0c9ab881331ec7acdd85d79e3197dcaf3f95055af1703aeee87e0d853e81ec",
-    "callback_url": "http://127.0.0.1:8080"
-}))]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct TrackTxRequest {
     pub callback_url: UrlWrapped,
     pub btc_address: String,
-    pub out_point: OutPointSerialized,
+    pub out_point: OutPoint,
     pub amount: Amount,
+}
+
+impl PartialSchema for TrackTxRequest {
+    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+        utoipa::openapi::ObjectBuilder::new()
+            .schema_type(utoipa::openapi::schema::SchemaType::Type(openapi::schema::Type::String))
+            .examples(Some(json!(&TrackTxRequest {
+                callback_url: UrlWrapped(Url::parse("https://api.trc.btcindex.net").unwrap()),
+                btc_address: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh".to_string(),
+                out_point: OutPoint {
+                    txid: Txid::from_str("fb0c9ab881331ec7acdd85d79e3197dcaf3f95055af1703aeee87e0d853e81ec",).unwrap(),
+                    vout: 32
+                },
+                amount: 100,
+            })))
+            .into()
+    }
+}
+impl utoipa::ToSchema for TrackTxRequest {
+    fn name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Borrowed("TrackTxRequest")
+    }
 }
 
 pub type TrackTxResponse = Json<Empty>;

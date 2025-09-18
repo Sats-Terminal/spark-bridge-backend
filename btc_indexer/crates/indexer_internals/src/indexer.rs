@@ -1,10 +1,12 @@
 use std::{sync::Arc, time::Duration};
 
-use crate::api::{AccountReplenishmentEvent, BtcIndexerApi};
+use crate::api::{AccountReplenishmentEvent, BtcIndexerApi, ChanMsg};
 use async_trait::async_trait;
+use bitcoin::OutPoint;
 use bitcoincore_rpc::{Client, RawTx, RpcApi, bitcoin, json};
-use btc_indexer_api::api::{Amount, ResponseMeta, VOut};
+use btc_indexer_api::api::{Amount, ResponseMeta, TrackTxResponse, VOut};
 use config_parser::config::{BtcIndexerParams, BtcRpcCredentials};
+use global_utils::common_resp::Empty;
 use local_db_store_indexer::{
     PersistentRepoTrait,
     init::LocalDbStorage,
@@ -13,9 +15,10 @@ use local_db_store_indexer::{
 use sqlx::types::chrono::Utc;
 use titan_client::{TitanApi, TitanClient};
 use titan_types::{AddressTxOut, Transaction};
+use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::oneshot;
 use tokio_util::sync::CancellationToken;
-use tracing::{error, instrument, log::debug, trace, warn};
+use tracing::{error, info, instrument, log::debug, trace, warn};
 use uuid::Uuid;
 
 const BTC_INDEXER_LOG_PATH: &str = "btc_indexer";
@@ -29,6 +32,7 @@ pub struct BtcIndexer<C, Db> {
     indexer_client: C,
     btc_core: Arc<Client>,
     cancellation_token: CancellationToken,
+    chan_to_send_to: UnboundedSender<ChanMsg>,
 }
 
 pub struct IndexerParamsWithApi<C, Db> {
@@ -61,14 +65,24 @@ impl<C: Clone, Db: Clone> Clone for BtcIndexer<C, Db> {
             indexer_client: self.indexer_client.clone(),
             btc_core: self.btc_core.clone(),
             cancellation_token: self.cancellation_token.clone(),
+            chan_to_send_to: self.chan_to_send_to.clone(),
         }
     }
 }
 
-impl<C: TitanApi, Db: PersistentRepoTrait> BtcIndexer<C, Db> {
+impl<C: TitanApi, Db: PersistentRepoTrait + Send + Sync + Clone + 'static> BtcIndexer<C, Db> {
     #[instrument(skip(params))]
     pub fn new(params: IndexerParamsWithApi<C, Db>) -> crate::error::Result<Self> {
         let cancellation_token = CancellationToken::new();
+        let (chan_sender, chan_receiver) = tokio::sync::mpsc::unbounded_channel::<ChanMsg>();
+        // spawn task to track given tx_ids
+        crate::tx_tracking_task::spawn(
+            cancellation_token.clone(),
+            params.indexer_params.db_pool.clone(),
+            params.indexer_params.btc_indexer_params,
+            params.titan_api_client.clone(),
+            chan_receiver,
+        );
         let btc_rpc_client = Arc::new(Client::new(
             &params.indexer_params.btc_rpc_creds.url.to_string(),
             params.indexer_params.btc_rpc_creds.get_btc_creds(),
@@ -82,6 +96,7 @@ impl<C: TitanApi, Db: PersistentRepoTrait> BtcIndexer<C, Db> {
             persistent_storage: params.indexer_params.db_pool,
             indexer_client: params.titan_api_client,
             btc_core: btc_rpc_client,
+            chan_to_send_to: chan_sender,
             cancellation_token,
         };
         Ok(indexer)
@@ -91,64 +106,18 @@ impl<C: TitanApi, Db: PersistentRepoTrait> BtcIndexer<C, Db> {
         TitanClient::new(&btc_rpc_creds.url.to_string())
     }
 
-    /// Spawns account replenishment tracking task
-    #[instrument(level = "trace", skip(cancellation_token, titan_client), ret)]
-    fn spawn_account_tracking_task(
-        titan_client: C,
-        uuid: Uuid,
-        event_tx: oneshot::Sender<AccountReplenishmentEvent>,
-        account_addr: String,
-        update_interval_millis: u64,
-        cancellation_token: CancellationToken,
-    ) {
-        let mut interval = tokio::time::interval(Duration::from_millis(update_interval_millis));
-        let is_confirmed_outs = |tx_outs: &[AddressTxOut]| -> bool { tx_outs.iter().all(|out| out.status.confirmed) };
-        tokio::spawn(async move {
-            // todo: save about user that begun transaction to renew connection in bad cases
-            //  change status on processing
-            trace!("[{ACCOUNT_TRACKING_LOG_PATH}] Loop spawned..");
-            'checking_loop: loop {
-                tokio::select! {
-                    _ = cancellation_token.cancelled() => {
-                        debug!("[{ACCOUNT_TRACKING_LOG_PATH}] Closing [Btc indexer] account updating task, because of cancellation token");
-                        break 'checking_loop;
-                    },
-                    _ = interval.tick() => {
-                        trace!("[{ACCOUNT_TRACKING_LOG_PATH}] tick triggered");
-                        match titan_client.get_address(&account_addr).await{
-                            Ok(data) => {
-                                trace!("[{ACCOUNT_TRACKING_LOG_PATH}] address data successfully received, {data:?}");
-                                if  !data.outputs.is_empty() && is_confirmed_outs(&data.outputs) {
-                                    let _ = event_tx.send(AccountReplenishmentEvent{address: account_addr,account_data:data});
-                                    // todo: save data in db about processed tx
-                                    break 'checking_loop;
-                                }
-                            }
-                            Err(e) => {
-                                error!("[{ACCOUNT_TRACKING_LOG_PATH}] Failed to retrieve account data by address: {e}")
-                            }
-                        };
-                    }
-                }
-            }
-        });
-        trace!("[{ACCOUNT_TRACKING_LOG_PATH}] Account tracking task spawned");
-    }
-
-    async fn mark_entry_as_processing(&self, uuid: &Uuid) -> crate::error::Result<()> {
-        {
-            let mut conn = self.persistent_storage.get_conn().await?;
-            BtcIndexerWorkCheckpoint::update(
-                &mut conn,
-                uuid,
-                &Update {
-                    status: Some(StatusBtcIndexer::Processing),
-                    error: None,
-                    updated_at: Some(Utc::now()),
-                },
-            )
-            .await?;
-        };
+    /// Sends appropriate msg to thread that updates statuses of transactions in BtcIndexer
+    pub async fn send_new_tx_to_tracking_thread(
+        &self,
+        btc_address: String,
+        out_point: OutPoint,
+        amount: Amount,
+    ) -> crate::error::Result<()> {
+        self.chan_to_send_to.send(ChanMsg {
+            btc_address,
+            out_point,
+            amount,
+        })?;
         Ok(())
     }
 }
@@ -159,9 +128,8 @@ impl<C: TitanApi, Db: PersistentRepoTrait> BtcIndexerApi for BtcIndexer<C, Db> {
     #[instrument(level = "debug", skip(self))]
     async fn check_tx_changes(
         &self,
-        tx_id: bitcoin::Txid,
+        out_point: OutPoint,
         amount: Amount,
-        v_out: VOut,
     ) -> crate::error::Result<Option<ResponseMeta>> {
         //todo: check whether tx is in db
 

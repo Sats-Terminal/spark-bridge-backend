@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use bitcoin::OutPoint;
 use bitcoincore_rpc::{RawTx, bitcoin, json};
 use btc_indexer_api::api::{Amount, ResponseMeta, VOut};
 use serde::{Deserialize, Serialize};
@@ -12,15 +13,20 @@ pub struct AccountReplenishmentEvent {
     pub account_data: AddressData,
 }
 
+pub(crate) struct ChanMsg {
+    pub btc_address: String,
+    pub out_point: OutPoint,
+    pub amount: Amount,
+}
+
 #[async_trait]
 pub trait BtcIndexerApi: Send + Sync {
     /// Tracks changes of transaction, whether it's confirmed
     async fn check_tx_changes(
         //todo: add Outpoint
         &self,
-        tx_id: bitcoin::Txid,
+        out_point: OutPoint,
         amount: Amount,
-        v_out: VOut,
     ) -> crate::error::Result<Option<ResponseMeta>>;
     fn get_tx_info(&self, tx_id: bitcoin::Txid) -> crate::error::Result<bitcoin::transaction::Transaction>;
     fn get_blockchain_info(&self) -> crate::error::Result<json::GetBlockchainInfoResult>;
