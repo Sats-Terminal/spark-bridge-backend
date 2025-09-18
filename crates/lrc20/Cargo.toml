@@ -17,6 +17,9 @@ tracing = { workspace = true }
 hex = { workspace = true }
 proto-hasher = { workspace = true }
 prost-reflect = { workspace = true }
+token-identifier = { workspace = true }
+uuid = { workspace = true }
+spark-address = { workspace = true }
 
 [dev-dependencies]
 once_cell = { workspace = true }

@@ -3,14 +3,12 @@ use async_trait::async_trait;
 use persistent_storage::error::DbError;
 use sqlx::{Postgres, Transaction};
 use serde::{Deserialize, Serialize};
-use bitcoin::{Transaction as BitcoinTransaction, Txid};
+use bitcoin::{Transaction as BitcoinTransaction, OutPoint};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Utxo {
-    pub txid: Txid,
-    pub vout: u32,
+    pub out_point: OutPoint,
     pub btc_address: String,
-    pub transaction: Option<BitcoinTransaction>,
     pub amount: u64,
     pub rune_id: String,
     pub status: UtxoStatus,
@@ -19,10 +17,9 @@ pub struct Utxo {
 
 #[derive(Debug, Clone, sqlx::FromRow)]
 struct UtxoRow {
-    pub txid: String,
+    pub out_point: String,
     pub vout: i32,
     pub btc_address: String,
-    pub transaction: Option<sqlx::types::Json<serde_json::Value>>,
     pub amount: i64,
     pub rune_id: String,
     pub status: UtxoStatus,
@@ -31,14 +28,9 @@ struct UtxoRow {
 
 impl From<UtxoRow> for Utxo {
     fn from(row: UtxoRow) -> Self {
-        let transaction = row.transaction
-            .and_then(|json| serde_json::from_value(json.0).ok());
-
         Self {
-            txid: row.txid.to_string().parse().unwrap(),
-            vout: row.vout as u32,
+            out_point: row.out_point.to_string().parse().unwrap(),
             btc_address: row.btc_address,
-            transaction,
             amount: row.amount as u64,
             rune_id: row.rune_id,
             status: row.status,
@@ -68,11 +60,11 @@ pub enum RequestStatus {
 #[async_trait]
 pub trait UtxoStorage: Send + Sync {
     async fn insert_utxo(&self, utxo: Utxo) -> Result<Utxo, DbError>;
-    async fn update_status(&self, txid: &str, vout: i32, new_status: UtxoStatus, transaction: Option<BitcoinTransaction>) -> Result<(), DbError>;
-    async fn list_unspent(&self, rune_id: &str) -> Result<Vec<Utxo>, DbError>;
-    async fn select_utxos_for_amount(&self, rune_id: &str, target_amount: i64) -> Result<Vec<Utxo>, DbError>;
-    async fn get_utxo(&self, txid: &str, vout: i32) -> Result<Option<Utxo>, DbError>;
-    async fn delete_utxo(&self, txid: &str, vout: i32) -> Result<(), DbError>;
+    async fn update_status(&self, out_point: OutPoint, new_status: UtxoStatus, transaction: Option<BitcoinTransaction>) -> Result<(), DbError>;
+    async fn list_unspent(&self, rune_id: String) -> Result<Vec<Utxo>, DbError>;
+    async fn select_utxos_for_amount(&self, rune_id: String, target_amount: u64) -> Result<Vec<Utxo>, DbError>;
+    async fn get_utxo(&self, out_point: OutPoint) -> Result<Option<Utxo>, DbError>;
+    async fn delete_utxo(&self, out_point: OutPoint) -> Result<(), DbError>;
 }
 
 #[async_trait]
@@ -140,7 +132,7 @@ impl UtxoStorage for LocalDbStorage {
         Ok(())
     }
 
-    async fn list_unspent(&self, rune_id: &str) -> Result<Vec<Utxo>, DbError> {
+    async fn list_unspent(&self, rune_id: String) -> Result<Vec<Utxo>, DbError> {
         let rows = sqlx::query_as::<_, UtxoRow>(
             r#"
             SELECT txid, vout, amount, rune_id, status, btc_address, transaction, sats_fee_amount
@@ -159,7 +151,7 @@ impl UtxoStorage for LocalDbStorage {
         Ok(rows.into_iter().map(|row| row.into()).collect())
     }
 
-    async fn select_utxos_for_amount(&self, rune_id: &str, target_amount: i64) -> Result<Vec<Utxo>, DbError> {
+    async fn select_utxos_for_amount(&self, rune_id: String, target_amount: u64) -> Result<Vec<Utxo>, DbError> {
         let mut tx = self
             .postgres_repo
             .pool

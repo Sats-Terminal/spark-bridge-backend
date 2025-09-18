@@ -8,7 +8,7 @@ use frost_secp256k1_tr::{
     round1::{SigningCommitments, SigningNonces},
     round2::SignatureShare,
 };
-use lrc20::token_transaction::TokenTransaction;
+use spark_protos::spark_token::TokenTransaction;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use uuid::Uuid;

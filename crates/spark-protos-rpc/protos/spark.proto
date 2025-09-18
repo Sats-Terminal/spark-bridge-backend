@@ -6,10 +6,14 @@ option go_package = "github.com/lightsparkdev/spark/proto/spark";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 import "validate/validate.proto";
-import "spark/common.proto";
+import "common.proto";
 
 service SparkService {
     rpc generate_deposit_address(GenerateDepositAddressRequest) returns (GenerateDepositAddressResponse) {}
+
+    // Generates a new static deposit address of the user or returns the existing one for the specified network.
+    rpc generate_static_deposit_address(GenerateStaticDepositAddressRequest) returns (GenerateStaticDepositAddressResponse) {}
+
     rpc start_deposit_tree_creation(StartDepositTreeCreationRequest) returns (StartDepositTreeCreationResponse) {}
     // This is deprecated, please use start_deposit_tree_creation instead.
     rpc start_tree_creation(StartTreeCreationRequest) returns (StartTreeCreationResponse) {
@@ -30,6 +34,8 @@ service SparkService {
     rpc claim_transfer_tweak_keys(ClaimTransferTweakKeysRequest) returns (google.protobuf.Empty) {}
     rpc claim_transfer_sign_refunds(ClaimTransferSignRefundsRequest) returns (ClaimTransferSignRefundsResponse) {}
     rpc store_preimage_share(StorePreimageShareRequest) returns (google.protobuf.Empty) {}
+    // Gets a specified number of signing commmitments for a set of nodes, which can be used as
+    // part of a transfer package.
     rpc get_signing_commitments(GetSigningCommitmentsRequest) returns (GetSigningCommitmentsResponse) {}
     rpc cooperative_exit(CooperativeExitRequest) returns (CooperativeExitResponse) {}
     rpc initiate_preimage_swap(InitiatePreimageSwapRequest) returns (InitiatePreimageSwapResponse) {}
@@ -47,8 +53,13 @@ service SparkService {
     rpc refresh_timelock(RefreshTimelockRequest) returns (RefreshTimelockResponse) {}
     rpc extend_leaf(ExtendLeafRequest) returns (ExtendLeafResponse) {}
 
-    rpc prepare_tree_address(PrepareTreeAddressRequest) returns (PrepareTreeAddressResponse) {}
-    rpc create_tree(CreateTreeRequest) returns (CreateTreeResponse) {}
+    // Resets the timelocks for a leaf's transactions. Can be used to reset the
+    // refund transaction timelock for a leaf (when the node transaction
+    // timelock is still > 300) or reset the node and refund transaction
+    // timelock. Returns an error if a leaf is not yet eligible to renew the
+    // timelocks, see RenewLeafRequest for more details.
+    rpc renew_leaf(RenewLeafRequest) returns (RenewLeafResponse) {}
+
     rpc get_signing_operator_list(google.protobuf.Empty) returns (GetSigningOperatorListResponse) {}
 
     rpc query_nodes(QueryNodesRequest) returns (QueryNodesResponse) {}
@@ -75,10 +86,37 @@ service SparkService {
 
     rpc subscribe_to_events(SubscribeToEventsRequest) returns (stream SubscribeToEventsResponse) {}
 
-    // Claim a deposit to a static address from SSP side
-    rpc initiate_utxo_swap(InitiateUtxoSwapRequest) returns (InitiateUtxoSwapResponse) {}
+    // Signs the provided refund transaction which spends the UTXO from a static
+    // deposit address. If successful, the UTXO will no longer be available to claim on
+    // the Spark network, and the refund transaction must be broadcasted on L1 to claim
+    // the funds. Returns an error if the UTXO has already been claimed.
+    rpc initiate_static_deposit_utxo_refund(InitiateStaticDepositUtxoRefundRequest) returns (InitiateStaticDepositUtxoRefundResponse) {}
+
+    // DEPRECATED: This unified method is being split for better clarity and type safety
+    //
+    // For swap operations: Use spark_ssp_internal.initiate_static_deposit_utxo_swap()
+    // For refund operations: Use initiate_static_deposit_utxo_refund()
+    rpc initiate_utxo_swap(InitiateUtxoSwapRequest) returns (InitiateUtxoSwapResponse) {
+        option deprecated = true;
+    }
 
     rpc exit_single_node_trees(ExitSingleNodeTreesRequest) returns (ExitSingleNodeTreesResponse) {}
+
+    // The following endpoints enforce inclusion of Direct Transactions used
+    // for unilateral exits
+    rpc cooperative_exit_v2(CooperativeExitRequest) returns (CooperativeExitResponse) {}
+    rpc extend_leaf_v2(ExtendLeafRequest) returns (ExtendLeafResponse) {}
+    rpc claim_transfer_sign_refunds_v2(ClaimTransferSignRefundsRequest) returns (ClaimTransferSignRefundsResponse) {}
+    rpc finalize_node_signatures_v2(FinalizeNodeSignaturesRequest) returns (FinalizeNodeSignaturesResponse) {}
+    rpc initiate_preimage_swap_v2(InitiatePreimageSwapRequest) returns (InitiatePreimageSwapResponse) {}
+    rpc start_leaf_swap_v2(StartTransferRequest) returns (StartTransferResponse) {}
+    rpc counter_leaf_swap_v2(CounterLeafSwapRequest) returns (CounterLeafSwapResponse) {}
+    rpc start_transfer_v2(StartTransferRequest) returns (StartTransferResponse) {}
+    rpc refresh_timelock_v2(RefreshTimelockRequest) returns (RefreshTimelockResponse) {}
+
+    rpc get_utxos_for_address(GetUtxosForAddressRequest) returns (GetUtxosForAddressResponse) {}
+
+    rpc query_spark_invoices(QuerySparkInvoicesRequest) returns (QuerySparkInvoicesResponse) {}
 }
 
 message SubscribeToEventsRequest {
@@ -112,6 +150,24 @@ enum Network {
     REGTEST = 2;
     TESTNET = 3;
     SIGNET = 4;
+}
+
+message PageRequest {
+    int32 page_size = 1;
+    string cursor = 2;
+    Direction direction = 3;
+}
+
+enum Direction {
+    NEXT = 0;
+    PREVIOUS = 1;
+}
+
+message PageResponse {
+    bool has_next_page = 1;
+    bool has_previous_page = 2;
+    string next_cursor = 3;
+    string previous_cursor = 4;
 }
 
 /**
@@ -168,6 +224,25 @@ message Address {
  * GenerateDepositAddressResponse is the response to the request to generate a deposit address.
  */
 message GenerateDepositAddressResponse {
+    Address deposit_address = 1;
+}
+
+/**
+ * GenerateStaticDepositAddressRequest is the request to generate a static deposit address.
+ */
+message GenerateStaticDepositAddressRequest {
+    // The signing public key of the user.
+    bytes signing_public_key = 1 [(validate.rules).bytes.len = 33];
+    // The identity public key of the user.
+    bytes identity_public_key = 2 [(validate.rules).bytes.len = 33];
+    // The network of the bitcoin network.
+    Network network = 3 [(validate.rules).enum = {not_in: [0]}];
+}
+
+/**
+ * GenerateStaticDepositAddressResponse is the response to the request to generate a static deposit address.
+ */
+message GenerateStaticDepositAddressResponse {
     Address deposit_address = 1;
 }
 
@@ -244,6 +319,74 @@ message SigningResult {
     SigningKeyshare signing_keyshare = 4;
 }
 
+message RenewLeafRequest {
+    string leaf_id = 1;
+
+    oneof signing_jobs {
+      // Resets the node transaction timelock and refund transaction timelock
+      // for a leaf to 2000. The old node transaction is invalidated by
+      // introducing a "split node" with zero timelock that spends to a new
+      // node transaction. Takes in the signing jobs for the updated
+      // node, refund, and split node transactions with the new timelocks.
+      // Requires that the existing node transaction timelock is <= 300
+      // at the time this function is called. Returns an error if these
+      // conditions are not met.
+      RenewNodeTimelockSigningJob renew_node_timelock_signing_job = 2;
+
+      // Resets the refund transaction timelock for a leaf to 2000. Takes in
+      // the signing jobs for the updated transactions with the new timelocks.
+      // Requires that the existing refund transaction timelock is <= 300 and
+      // the node transaction timelock > 300 at the time this function is
+      // called. Returns an error if these conditions are not met.
+      RenewRefundTimelockSigningJob renew_refund_timelock_signing_job = 3;
+    }
+}
+
+message RenewNodeTimelockSigningJob {
+    // Signing job with the new "split node" transaction. This spends the
+    // inputs of the old node transaction and its outputs are spent by the new
+    // node transaction. Timelock of split node transaction must be 0.
+    UserSignedTxSigningJob split_node_tx_signing_job = 1;
+    UserSignedTxSigningJob split_node_direct_tx_signing_job = 2;
+
+    // Signing job with the updated node transaction. The updated transaction is
+    // expected to have a timelock of 2000.
+    UserSignedTxSigningJob node_tx_signing_job = 3;
+    UserSignedTxSigningJob refund_tx_signing_job = 4;
+    UserSignedTxSigningJob direct_node_tx_signing_job = 5;
+    UserSignedTxSigningJob direct_refund_tx_signing_job = 6;
+    UserSignedTxSigningJob direct_from_cpfp_refund_tx_signing_job = 7;
+}
+
+message RenewRefundTimelockSigningJob {
+    // Signing job with the updated node transaction. The updated transaction is
+    // expected to have a timelock of 100 less than the existing node transaction.
+    UserSignedTxSigningJob node_tx_signing_job = 1;
+
+    // Signing job with the updated refund transaction. This updated transaction
+    // must have a timelock of 2000.
+    UserSignedTxSigningJob refund_tx_signing_job = 2;
+    UserSignedTxSigningJob direct_node_tx_signing_job = 3;
+    UserSignedTxSigningJob direct_refund_tx_signing_job = 4;
+    UserSignedTxSigningJob direct_from_cpfp_refund_tx_signing_job = 5;
+}
+
+message RenewLeafResponse {
+    oneof renew_result {
+      RenewNodeTimelockResult renew_node_timelock_result = 1;
+      RenewRefundTimelockResult renew_refund_timelock_result = 2;
+    }
+}
+
+message RenewNodeTimelockResult {
+    TreeNode split_node = 1;
+    TreeNode node = 2;
+}
+
+message RenewRefundTimelockResult {
+    TreeNode node = 1;
+}
+
 /**
  * NodeSignatureShares is the signature shares for a node on the tree.
  * For each tree node, the verifying key stays the same for both transactions.
@@ -257,6 +400,12 @@ message NodeSignatureShares {
     SigningResult refund_tx_signing_result = 3;
     // The verifying key of the node.
     bytes verifying_key = 4;
+    // The signing result of the node's transaction. This transaction is to pay to self.
+    SigningResult direct_node_tx_signing_result = 5;
+    // The signing result of the node's direct refund transaction. This transaction is to broadcast for the SO.
+    SigningResult direct_refund_tx_signing_result = 6;
+    // The signing result of the node's direct from cpfp refund transaction. This transaction is to broadcast for the SO.
+    SigningResult direct_from_cpfp_refund_tx_signing_result = 7;
 }
 
 /**
@@ -266,10 +415,16 @@ message NodeSignatureShares {
 message NodeSignatures {
     // The id of the node.
     string node_id = 1;
-    // The final signature of the node's transaction. This transaction is to pay to self.
+    // The final signature of the node's cpfp transaction. This transaction is to pay to self.
     bytes node_tx_signature = 2;
-    // The final signature of the node's refund transaction. This transaction is to pay to the user.
+    // The final signature of the node's cpfp refund transaction. This transaction is to pay to the user.
     bytes refund_tx_signature = 3;
+    // The final signature of the node's direct transaction. This transaction is to pay for the watchtower.
+    bytes direct_node_tx_signature = 4;
+    // The final signature of the node's direct refund transaction. This transaction is to pay for the watchtower.
+    bytes direct_refund_tx_signature = 5;
+    // The final signature of the node's direct from cpfp refund transaction. This transaction is to pay for the watchtower.
+    bytes direct_from_cpfp_refund_tx_signature = 6;
 }
 
 /**
@@ -280,10 +435,16 @@ message StartTreeCreationRequest {
     bytes identity_public_key = 1;
     // The on-chain utxo to be used to be spent by the root node.
     UTXO on_chain_utxo = 2;
-    // The signing job for the root node's transaction.
+    // The signing job for the root node's cpfp transaction.
     SigningJob root_tx_signing_job = 3;
-    // The signing job for the root node's refund transaction.
+    // The signing job for the root node's cpfp refund transaction.
     SigningJob refund_tx_signing_job = 4;
+    // The signing job for the root node's direct transaction.
+    SigningJob direct_root_tx_signing_job = 5;
+    // The signing job for the root node's direct refund transaction
+    SigningJob direct_refund_tx_signing_job = 6;
+    // The signing job for the root node's direct refund transaction
+    SigningJob direct_from_cpfp_refund_tx_signing_job = 7;
 }
 
 /**
@@ -308,6 +469,12 @@ message StartDepositTreeCreationRequest {
     SigningJob root_tx_signing_job = 3;
     // The signing job for the root node's refund transaction.
     SigningJob refund_tx_signing_job = 4;
+    // The direct signing job for the root node's transaction.
+    SigningJob direct_root_tx_signing_job = 5;
+    // The signing job for the root node's direct refund transaction.
+    SigningJob direct_refund_tx_signing_job = 6;
+    // The signing job for the root node's direct from cpfp refund transaction.
+    SigningJob direct_from_cpfp_refund_tx_signing_job = 7;
 }
 
 /**
@@ -346,12 +513,12 @@ message TokenMintInput {
 
 message TokenCreateInput {
     bytes issuer_public_key = 1 [(validate.rules).bytes.len = 33];
-    string token_name = 2 [(validate.rules).string = {min_len: 3, max_len: 20}];
-    string token_ticker = 3 [(validate.rules).string = {min_len: 3, max_len: 6}];
+    string token_name = 2 [(validate.rules).string = {max_len: 20}]; // No minimum length because a single utf-8 character can be 3 bytes.
+    string token_ticker = 3 [(validate.rules).string = {max_len: 6}]; // No minimum length because a single utf-8 character can be 3 bytes.
     uint32 decimals = 4 [(validate.rules).uint32.lte = 255];
     bytes max_supply = 5 [(validate.rules).bytes.len = 16]; // Decoded uint128
     bool is_freezable = 6;
-    optional bytes creation_entity_public_key = 7 [(validate.rules).bytes.len = 32];
+    optional bytes creation_entity_public_key = 7 [(validate.rules).bytes.len = 33];
 }
 
 // This proto is constructed by the wallet to specify outputs it wants to create
@@ -363,7 +530,7 @@ message TokenOutput {
     optional bytes revocation_commitment = 3 [(validate.rules).bytes.len = 33];
     optional uint64 withdraw_bond_sats = 4;
     optional uint64 withdraw_relative_block_locktime = 5;
-    optional bytes token_public_key = 6 [(validate.rules).bytes = {len: 33}]; 
+    optional bytes token_public_key = 6 [(validate.rules).bytes = {len: 33}];
     optional bytes token_identifier = 8 [(validate.rules).bytes.len = 32];
     bytes token_amount = 7 [(validate.rules).bytes.len = 16];  // Decoded uint128
 }
@@ -372,13 +539,11 @@ message TokenOutput {
 // This proto is deterministically hashed to generate the token_transaction_hash that
 // is cooperatively signed by the SO group to confirm a token transaction.
 message TokenTransaction {
-    // For mint transactions token_public_key will be specified without any outputs_to_spend.
-    // For transfer transactions the token amount in the input leaves must match the token amount in the output leaves.
     oneof token_inputs {
         TokenMintInput mint_input = 1;
         TokenTransferInput transfer_input = 2;
         TokenCreateInput create_input = 5;
-    }   
+    }
     repeated TokenOutput token_outputs = 3;
     repeated bytes spark_operator_identity_public_keys = 4 [(validate.rules).repeated.items.bytes.len = 33];
     Network network = 10 [(validate.rules).enum = {not_in: [0]}];
@@ -408,6 +573,7 @@ message TokenTransactionWithStatus {
     TokenTransaction token_transaction = 1;
     TokenTransactionStatus status = 2;
     TokenTransactionConfirmationMetadata confirmation_metadata = 3;
+    bytes token_transaction_hash = 4 [(validate.rules).bytes.len = 32];
 }
 
 message SignatureWithIndex {
@@ -557,7 +723,7 @@ message TreeNode {
     uint64 value = 3;
     // The id of the parent node.
     optional string parent_node_id = 4;
-    // The transaction of the node, this transaction is to pay to the same address as the node.
+    // The cpfp transaction of the node, this transaction is to pay to the same address as the node.
     bytes node_tx = 5;
     // The refund transaction of the node, this transaction is to pay to the user.
     bytes refund_tx = 6;
@@ -579,6 +745,12 @@ message TreeNode {
     google.protobuf.Timestamp updated_time = 14;
     // The signing public key of the owner of the node.
     bytes owner_signing_public_key = 15;
+    // The direct transaction of the node, this transaction is for the watchtower to broadcast.
+    bytes direct_tx = 16;
+    // The refund transaction of the node, this transaction is to pay to the user.
+    bytes direct_refund_tx = 17;
+    // The refund transaction of the node, this transaction is to pay to the user.
+    bytes direct_from_cpfp_refund_tx = 18;
 }
 
 /**
@@ -624,6 +796,8 @@ message SecretProof {
 message LeafRefundTxSigningJob {
     string leaf_id = 1;
     SigningJob refund_tx_signing_job = 2;
+    SigningJob direct_refund_tx_signing_job = 3;
+    SigningJob direct_from_cpfp_refund_tx_signing_job = 4;
 }
 
 message UserSignedTxSigningJob {
@@ -639,6 +813,8 @@ message LeafRefundTxSigningResult {
     string leaf_id = 1;
     SigningResult refund_tx_signing_result = 2;
     bytes verifying_key = 3;
+    SigningResult direct_refund_tx_signing_result = 4;
+    SigningResult direct_from_cpfp_refund_tx_signing_result = 5;
 }
 
 message StartUserSignedTransferRequest {
@@ -647,20 +823,27 @@ message StartUserSignedTransferRequest {
     repeated UserSignedTxSigningJob leaves_to_send = 3;
     bytes receiver_identity_public_key = 4;
     google.protobuf.Timestamp expiry_time = 5;
+    repeated UserSignedTxSigningJob direct_leaves_to_send = 6;
+    repeated UserSignedTxSigningJob direct_from_cpfp_leaves_to_send = 7;
 }
 
 
 message StartTransferRequest {
     reserved 6;
+    reserved 9;
 
     string transfer_id = 1;
     bytes owner_identity_public_key = 2;
-    repeated LeafRefundTxSigningJob leaves_to_send = 3 [deprecated = true];
+    // This field is used for swap and coop exits. Regular transfers must use
+    // the transfer_package field.
+    repeated LeafRefundTxSigningJob leaves_to_send = 3;
     bytes receiver_identity_public_key = 4;
     google.protobuf.Timestamp expiry_time = 5;
-    // If this field is set, the leaves_to_send and key_tweak_proofs will be ignored.
+    // This field is required for transfers of type "transfer". If this field
+    // is set, the leaves_to_send and key_tweak_proofs will be ignored.
     TransferPackage transfer_package = 7;
-    string spark_payment_intent = 9;
+    // The invoice this transfer pays.
+    string spark_invoice = 10;
 }
 
 message StartTransferResponse {
@@ -674,12 +857,16 @@ message StartTransferResponse {
  * the coordinator SO.
  */
 message TransferPackage {
-    // The leaves to send, with user signed refunds and signing package.
+    // The leaves to send, with user signed cpfp refunds and signing package.
     repeated UserSignedTxSigningJob leaves_to_send = 1;
     // The map of SO identifier to ciphertext of SendLeafTweaks.
     map<string, bytes> key_tweak_package = 2;
     // The signature of user to prove that the key_tweak_package is not tampered.
     bytes user_signature = 3;
+    // The leaves to send, with user signed direct refunds and signing package.
+    repeated UserSignedTxSigningJob direct_leaves_to_send = 4;
+    // The leaves to send, with user signed direct from cpfp refunds and signing package.
+    repeated UserSignedTxSigningJob direct_from_cpfp_leaves_to_send = 5;
 }
 
 message SendLeafKeyTweaks {
@@ -694,6 +881,8 @@ message SendLeafKeyTweak {
     // Signature over Sha256(leaf_id||transfer_id||secret_cipher)
     bytes signature = 5;
     bytes refund_signature = 6;
+    bytes direct_refund_signature = 7;
+    bytes direct_from_cpfp_refund_signature = 8;
 }
 
 message FinalizeTransferRequest {
@@ -736,6 +925,11 @@ enum TransferType {
     COUNTER_SWAP = 40;
 }
 
+enum Order {
+    DESCENDING = 0;
+    ASCENDING = 1;
+}
+
 message Transfer {
     string id = 1;
     bytes sender_identity_public_key = 2;
@@ -747,6 +941,7 @@ message Transfer {
     google.protobuf.Timestamp created_time = 8;
     google.protobuf.Timestamp updated_time = 9;
     TransferType type = 10;
+    string spark_invoice = 11;
 }
 
 message TransferLeaf {
@@ -754,6 +949,9 @@ message TransferLeaf {
     bytes secret_cipher = 2;
     bytes signature = 3;
     bytes intermediate_refund_tx = 4;
+    bytes intermediate_direct_refund_tx = 5;
+    bytes intermediate_direct_from_cpfp_refund_tx = 6;
+    bytes pending_key_tweak_public_key = 7;
 }
 
 
@@ -770,6 +968,7 @@ message TransferFilter {
     repeated TransferType types = 70;
     Network network = 4; // defaults to mainnet when no network is provided.
     repeated TransferStatus statuses = 80;
+    Order order = 5;
 }
 
 message QueryTransfersResponse {
@@ -813,14 +1012,24 @@ message RequestedSigningCommitments {
 }
 
 message GetSigningCommitmentsRequest {
+    // The node IDs for which to get signing commitments.
     repeated string node_ids = 1;
+    // The number of signing commitments to get per node ID.
+    uint32 count = 2;
 }
 
 message GetSigningCommitmentsResponse {
+    // A list of signing commitments for each requested node ID. The signing commitments will be
+    // ordered in the same order as the requested node IDs, repeated for the number of commitments
+    // requested. For example, if node_ids = [A, B] and count = 2, the response will contain:
+    //
+    // [commitment_A1, commitment_B1, commitment_A2, commitment_B2]
     repeated RequestedSigningCommitments signing_commitments = 1;
 }
 
 message SigningCommitments {
+    // A map of signing operator ID (i.e. 000...01) to the signing commitment provided by that
+    // operator.
     map<string, common.SigningCommitment> signing_commitments = 1;
 }
 
@@ -855,6 +1064,7 @@ message InitiatePreimageSwapRequest {
     StartUserSignedTransferRequest transfer = 4;
     bytes receiver_identity_public_key = 5;
     uint64 fee_sats = 6;
+    StartTransferRequest transfer_request = 7;
 }
 
 message InitiatePreimageSwapResponse {
@@ -882,6 +1092,8 @@ message CounterLeafSwapRequest {
     StartTransferRequest transfer = 1;
     string swap_id = 2;
     bytes adaptor_public_key = 3;
+    bytes direct_adaptor_public_key = 4;
+    bytes direct_from_cpfp_adaptor_public_key = 5;
 }
 
 message CounterLeafSwapResponse {
@@ -909,6 +1121,9 @@ message ExtendLeafRequest {
     bytes owner_identity_public_key = 2;
     SigningJob node_tx_signing_job = 3;
     SigningJob refund_tx_signing_job = 4;
+    SigningJob direct_node_tx_signing_job = 5;
+    SigningJob direct_refund_tx_signing_job = 6;
+    SigningJob direct_from_cpfp_refund_tx_signing_job = 7;
 }
 
 message ExtendLeafSigningResult {
@@ -920,6 +1135,9 @@ message ExtendLeafResponse {
     string leaf_id = 1;
     ExtendLeafSigningResult node_tx_signing_result = 2;
     ExtendLeafSigningResult refund_tx_signing_result = 3;
+    ExtendLeafSigningResult direct_node_tx_signing_result = 4;
+    ExtendLeafSigningResult direct_refund_tx_signing_result = 5;
+    ExtendLeafSigningResult direct_from_cpfp_refund_tx_signing_result = 6;
 }
 
 message AddressRequestNode {
@@ -948,13 +1166,19 @@ message PrepareTreeAddressResponse {
 }
 
 message CreationNode {
-    // This is the tx that spends the parent node's output.
+    // This is the cpfp tx that spends the parent node's output.
     SigningJob node_tx_signing_job = 1;
     // The refund tx can only exist if there's no children.
     SigningJob refund_tx_signing_job = 2;
 
     // The children will spend the output of the node's tx. Vout is the index of the child.
     repeated CreationNode children = 3;
+    // This is the direct tx that spends the parent node's output.
+    SigningJob direct_node_tx_signing_job = 4;
+    // The direct refund tx can only exist if there's no children.
+    SigningJob direct_refund_tx_signing_job = 5;
+    // The direct from cpfp refund tx can only exist if there's no children.
+    SigningJob direct_from_cpfp_refund_tx_signing_job = 6;
 }
 
 message CreateTreeRequest {
@@ -974,6 +1198,9 @@ message CreationResponseNode {
     SigningResult node_tx_signing_result = 2;
     SigningResult refund_tx_signing_result = 3;
     repeated CreationResponseNode children = 4;
+    SigningResult direct_node_tx_signing_result = 5;
+    SigningResult direct_refund_tx_signing_result = 6;
+    SigningResult direct_from_cpfp_refund_tx_signing_result = 7;
 }
 
 message CreateTreeResponse {
@@ -998,6 +1225,8 @@ message QueryUserSignedRefundsRequest {
 
 message QueryUserSignedRefundsResponse {
     repeated UserSignedRefund user_signed_refunds = 1;
+    reserved 2;
+    Transfer transfer = 3;
 }
 
 message ProvidePreimageRequest {
@@ -1052,6 +1281,8 @@ message CancelTransferResponse {
 message QueryUnusedDepositAddressesRequest {
     bytes identity_public_key = 1;
     Network network = 2; // defaults to mainnet when no network is provided.
+    int64 limit = 3; // defaults to 100 if not set.
+    int64 offset = 4; // defaults to 0 if not set.
 }
 
 message QueryStaticDepositAddressesRequest {
@@ -1059,6 +1290,8 @@ message QueryStaticDepositAddressesRequest {
     Network network = 2; // defaults to mainnet when no network is provided.
     int64 limit = 4;
     int64 offset = 5;
+    // Optional filter. When specified, only the DepositAddress with this address is returned.
+    optional string deposit_address = 6;
 }
 
 message DepositAddressQueryResult {
@@ -1066,11 +1299,14 @@ message DepositAddressQueryResult {
     bytes user_signing_public_key = 2;
     bytes verifying_public_key = 3;
     optional string leaf_id = 4 [(validate.rules).string.uuid = true];
+    optional DepositAddressProof proof_of_possession = 5;
 }
 
 message QueryUnusedDepositAddressesResponse {
     repeated DepositAddressQueryResult deposit_addresses = 1;
+    int64 offset = 2; // defaults to -1 if there are no more results
 }
+
 message QueryStaticDepositAddressesResponse {
     repeated DepositAddressQueryResult deposit_addresses = 1;
 }
@@ -1087,14 +1323,29 @@ message QueryBalanceResponse {
 
 message SparkAddress {
     bytes identity_public_key = 1;
-    PaymentIntentFields payment_intent_fields = 2;
+    SparkInvoiceFields spark_invoice_fields = 2;
+    optional bytes signature = 3 [(validate.rules).bytes.len = 64];
 }
 
-message PaymentIntentFields {
-    bytes id = 1 [(validate.rules).bytes.len = 16]; 
-    optional bytes asset_identifier = 2;
-    bytes asset_amount = 3 [(validate.rules).bytes.max_len = 16]; // variable length uint128
-    optional string memo = 4 [(validate.rules).string.max_bytes = 120];
+message SparkInvoiceFields {
+    uint32 version = 1;
+    bytes id = 2 [(validate.rules).bytes.len = 16];
+    oneof payment_type {
+        TokensPayment tokens_payment = 3;
+        SatsPayment sats_payment = 4;
+    }
+    optional string memo = 5 [(validate.rules).string.max_bytes = 120];
+    optional bytes sender_public_key = 6 [(validate.rules).bytes.len = 33];
+    optional google.protobuf.Timestamp expiry_time = 7;
+}
+
+message SatsPayment {
+    optional uint64 amount = 1;
+}
+
+message TokensPayment {
+    optional bytes token_identifier = 1 [(validate.rules).bytes.len = 32];
+    optional bytes amount = 2 [(validate.rules).bytes.max_len = 16]; // variable length uint128
 }
 
 /**
@@ -1106,6 +1357,36 @@ enum UtxoSwapRequestType {
   MaxFee = 1;
   Refund = 2;
 }
+
+message InitiateStaticDepositUtxoRefundRequest {
+    UTXO on_chain_utxo = 1;
+    // A package that is used for signing L1 Bitcoin transactions using FROST.
+    // SE consumes it to return SigningResult structure, that is used by the user to
+    // construct the final signature for the refund Bitcoin transaction.
+    SigningJob refund_tx_signing_job = 3;
+    // Signature of a user statement that authorises the SE to initiate a static
+    // deposit utxo refund to the user.
+    //
+    // The user statement is constructed by concatenating the following fields in order:
+    // 1. Action name: "claim_static_deposit" (UTF-8 string)
+    // 2. Network: lowercase network name (e.g., "bitcoin", "testnet") (UTF-8 string)
+    // 3. Transaction ID: hex-encoded UTXO transaction ID (UTF-8 string)
+    // 4. Output index: UTXO output index (vout) as 4-byte unsigned integer (little-endian)
+    // 5. Request type: 2 for refund (1-byte unsigned integer, little-endian)
+    // 6. Credit amount: amount of satoshis to credit as 8-byte unsigned integer (little-endian)
+    // 7. Signing payload: sighash of spend transaction (UTF-8 string)
+    //
+    // The concatenated payload is then hashed with SHA-256, and the resulting hash
+    // is signed using ECDSA with the user's identity private key to produce this signature.
+    bytes user_signature = 4;
+}
+
+message InitiateStaticDepositUtxoRefundResponse {
+    // The FROST signing results which must be aggregated by the user to complete signing
+    SigningResult refund_tx_signing_result = 1;
+    DepositAddressQueryResult deposit_address = 2;
+}
+
 
 message InitiateUtxoSwapRequest {
     UTXO on_chain_utxo = 1;
@@ -1125,7 +1406,6 @@ message InitiateUtxoSwapResponse {
     Transfer transfer = 2;
     DepositAddressQueryResult deposit_address = 3;
 }
-
 
 message ExitingTree {
     string tree_id = 1;
@@ -1180,3 +1460,55 @@ message QueryNodesByValueResponse {
     map<string, TreeNode> nodes = 1;
     int64 offset = 2;
 }
+
+message GetUtxosForAddressRequest {
+    string address = 1;
+    uint64 offset = 2;
+    uint64 limit = 3;
+    Network network = 4;
+    bool exclude_claimed = 5;
+}
+
+message GetUtxosForAddressResponse {
+    repeated UTXO utxos = 1;
+    uint64 offset = 2;
+}
+
+message QuerySparkInvoicesRequest {
+    int64 limit = 1;
+    int64 offset = 2;
+    // returns the status for the provided list of spark invoices.
+    repeated string invoice = 3;
+}
+
+message QuerySparkInvoicesResponse {
+    int64 offset = 1;
+    repeated InvoiceResponse invoice_statuses = 2;
+}
+
+message InvoiceResponse {
+    string invoice = 1;
+    InvoiceStatus status = 2;
+    oneof transfer_type {
+        SatsTransfer sats_transfer = 3; 
+        TokenTransfer token_transfer = 4;
+    }
+}
+
+message SatsTransfer {
+    bytes transfer_id = 1 [(validate.rules).bytes.len = 16];
+}
+
+message TokenTransfer {
+    bytes final_token_transaction_hash = 1 [(validate.rules).bytes.len = 32];
+}
+
+enum InvoiceStatus {
+    reserved 3;
+
+    NOT_FOUND = 0;
+    PENDING = 1;
+    FINALIZED = 2;
+    RETURNED = 4;
+}
+

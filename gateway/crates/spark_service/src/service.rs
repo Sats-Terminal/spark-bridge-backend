@@ -11,10 +11,9 @@ use frost::types::TokenTransactionMetadata;
 use futures::future::join_all;
 use lrc20::marshal::marshal_token_transaction;
 use lrc20::marshal::unmarshal_token_transaction;
-use lrc20::proto_hasher::get_descriptor_pool;
-use lrc20::proto_hasher::hash_token_transaction;
-use lrc20::token_identifier::TokenIdentifier;
-use prost_reflect::DescriptorPool;
+use spark_protos::reflect::ToDynamicMessage;
+use proto_hasher::ProtoHasher;
+use token_identifier::TokenIdentifier;
 use spark_client::client::SparkRpcClient;
 use spark_client::utils::spark_address::Network;
 use spark_protos::spark_authn::GetChallengeRequest;
@@ -29,7 +28,7 @@ const DEFAULT_VALIDITY_DURATION_SECONDS: u64 = 300;
 pub struct SparkService {
     spark_client: SparkRpcClient,
     frost_aggregator: FrostAggregator,
-    descriptor_pool: DescriptorPool,
+    proto_hasher: ProtoHasher,
 }
 
 impl SparkService {
@@ -37,7 +36,7 @@ impl SparkService {
         Self {
             spark_client,
             frost_aggregator,
-            descriptor_pool: get_descriptor_pool(),
+            proto_hasher: ProtoHasher::new(),
         }
     }
 
@@ -139,22 +138,21 @@ impl SparkService {
             network,
         )?;
 
-        let partial_token_transaction_proto = marshal_token_transaction(partial_token_transaction.clone(), false)
+        let partial_token_transaction_proto = marshal_token_transaction(&partial_token_transaction, false)
             .map_err(|e| {
                 SparkServiceError::InvalidData(format!("Failed to marshal partial token transaction: {:?}", e))
             })?;
 
         let partial_token_transaction_hash =
-            hash_token_transaction(self.descriptor_pool.clone(), partial_token_transaction_proto.clone()).map_err(
-                |err| SparkServiceError::HashError(format!("Failed to hash partial token transaction: {:?}", err)),
-            )?;
+            self.proto_hasher.hash_proto(partial_token_transaction_proto.to_dynamic().map_err(|e| SparkServiceError::HashError(format!("Failed to hash partial token transaction: {:?}", e)))?)
+                .map_err(|e| SparkServiceError::HashError(format!("Failed to hash partial token transaction: {:?}", e)))?;
 
         let signature = self
             .frost_aggregator
             .run_signing_flow(
                 musig_id.clone(),
                 partial_token_transaction_hash.as_ref(),
-                create_signing_metadata(partial_token_transaction.clone(), transaction_type.clone(), true),
+                create_signing_metadata(partial_token_transaction.clone(), transaction_type.clone(), true)?,
                 nonce_tweak,
             )
             .await
@@ -189,9 +187,8 @@ impl SparkService {
             })?;
 
         let final_token_transaction_hash =
-            hash_token_transaction(self.descriptor_pool.clone(), final_token_transaction_proto.clone()).map_err(
-                |err| SparkServiceError::HashError(format!("Failed to hash final token transaction: {:?}", err)),
-            )?;
+            self.proto_hasher.hash_proto(final_token_transaction_proto.to_dynamic().map_err(|e| SparkServiceError::HashError(format!("Failed to hash final token transaction: {:?}", e)))?)
+                .map_err(|e| SparkServiceError::HashError(format!("Failed to hash final token transaction: {:?}", e)))?;
 
         let mut join_handles = vec![];
 
@@ -214,7 +211,7 @@ impl SparkService {
                     .run_signing_flow(
                         musig_id,
                         operator_specific_signable_payload.as_ref(),
-                        create_signing_metadata(final_token_transaction, transaction_type, false),
+                        create_signing_metadata(final_token_transaction, transaction_type, false)?,
                         nonce_tweak,
                     )
                     .await

@@ -26,14 +26,12 @@ fn main() {
         .file_descriptor_set_path(&spark_descriptor_file)
         .compile_protos(
             &[
-                "spark-protos/spark/common.proto",
-                "spark-protos/spark/spark.proto",
-                "spark-protos/spark/spark_token.proto",
-                "spark-protos/spark/spark_tree.proto",
-                "spark-protos/spark/frost.proto",
-                "spark-protos/spark/authn.proto",
+                "protos/common.proto",
+                "protos/spark.proto",
+                "protos/spark_token.proto",
+                "protos/authn.proto",
             ],
-            &["spark-protos"], // specify the root location to search proto dependencies
+            &["protos"], // specify the root location to search proto dependencies
         )
         .expect("Failed to compile Spark Operator RPC protocol buffers");
 

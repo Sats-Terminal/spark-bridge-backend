@@ -3,7 +3,7 @@ syntax = "proto3";
 package spark_token;
 
 import "google/protobuf/timestamp.proto";
-import "spark/spark.proto";
+import "spark.proto";
 import "validate/validate.proto";
 
 option go_package = "github.com/lightsparkdev/spark/proto/spark_token";
@@ -26,6 +26,8 @@ service SparkTokenService {
 
     rpc query_token_outputs(QueryTokenOutputsRequest)
         returns (QueryTokenOutputsResponse) {}
+
+    rpc freeze_tokens(FreezeTokensRequest) returns (FreezeTokensResponse) {}
 }
 
 // This proto is constructed by the wallet to specify leaves it wants to spend
@@ -46,8 +48,8 @@ message TokenMintInput {
 
 message TokenCreateInput {
     bytes issuer_public_key = 1 [(validate.rules).bytes.len = 33];
-    string token_name = 2 [(validate.rules).string = {min_len: 3, max_len: 20}];
-    string token_ticker = 3 [(validate.rules).string = {min_len: 3, max_len: 6}];
+    string token_name = 2 [(validate.rules).string = {max_len: 20}]; // No minimum length because a single utf-8 character can be 3 bytes.
+    string token_ticker = 3 [(validate.rules).string = {max_len: 6}]; // No minimum length because a single utf-8 character can be 3 bytes.
     uint32 decimals = 4 [(validate.rules).uint32.lte = 255];
     bytes max_supply = 5 [(validate.rules).bytes.len = 16]; // Decoded uint128
     bool is_freezable = 6;
@@ -104,6 +106,12 @@ message TokenTransaction {
     // determine which transaction should win in a race condition. Earlier
     // timestamps win over later ones.
     google.protobuf.Timestamp client_created_timestamp = 9;
+    // The spark invoices this transaction fulfills.
+    repeated InvoiceAttachment invoice_attachments = 10;
+}
+
+message InvoiceAttachment {
+    string spark_invoice = 1;
 }
 
 message SignatureWithIndex {
@@ -153,7 +161,21 @@ message CommitTransactionRequest {
     bytes owner_identity_public_key = 4 [(validate.rules).bytes.len = 33];
 }
 
-message CommitTransactionResponse {}
+enum CommitStatus {
+    COMMIT_UNSPECIFIED = 0;
+    COMMIT_PROCESSING = 1;
+    COMMIT_FINALIZED = 2;
+}
+
+message CommitProgress {
+    repeated bytes committed_operator_public_keys = 1 [(validate.rules).repeated .items.bytes.len = 33];
+    repeated bytes uncommitted_operator_public_keys = 2 [(validate.rules).repeated .items.bytes.len = 33];
+}
+
+message CommitTransactionResponse {
+    CommitStatus commit_status = 1;
+    CommitProgress commit_progress = 2;
+}
 
 message QueryTokenMetadataRequest {
     repeated bytes token_identifiers = 1 [(validate.rules).repeated .items.bytes.len = 32];
@@ -162,8 +184,8 @@ message QueryTokenMetadataRequest {
 
 message TokenMetadata {
     bytes issuer_public_key = 1 [(validate.rules).bytes.len = 33];
-    string token_name = 2 [(validate.rules).string = {min_len: 3, max_len: 20}];
-    string token_ticker = 3 [(validate.rules).string = {min_len: 3, max_len: 6}];
+    string token_name = 2 [(validate.rules).string = {max_len: 20}];
+    string token_ticker = 3 [(validate.rules).string = {max_len: 6}];
     uint32 decimals = 4 [(validate.rules).uint32.lte = 255];
     bytes max_supply = 5 [(validate.rules).bytes.len = 16]; // Decoded uint128
     bool is_freezable = 6;
@@ -181,6 +203,8 @@ message QueryTokenOutputsRequest {
     repeated bytes issuer_public_keys = 2 [(validate.rules).repeated.items.bytes.len = 33];
     repeated bytes token_identifiers = 4 [(validate.rules).repeated.items.bytes.len = 32];
     spark.Network network = 3; // defaults to mainnet when no network is provided.
+    // For pagination
+    spark.PageRequest page_request = 5;
 }
 
 // Request constraints are combined using an AND relation.
@@ -212,6 +236,7 @@ message OutputWithPreviousTransactionData {
 
 message QueryTokenOutputsResponse {
     repeated OutputWithPreviousTransactionData outputs_with_previous_transaction_data = 1;
+    spark.PageResponse page_response = 2;
 }
 
 enum TokenTransactionStatus {
@@ -237,4 +262,32 @@ message TokenTransactionWithStatus {
     TokenTransaction token_transaction = 1;
     TokenTransactionStatus status = 2;
     TokenTransactionConfirmationMetadata confirmation_metadata = 3;
+    // In rare cases the above reconstructed token transaction may not match the original token transaction due to:
+    // a) a pre-empted transfer transaction having its input TTXOs remapped to the newer transaction
+    // b) proto migrations or field deprecations resulting in missing/swapped fields (eg. token public key -> token identifier) 
+    // Include the original hash to ensure clients can reconcile this transaction with the original if needed.
+    bytes token_transaction_hash = 4 [(validate.rules).bytes.len = 32];
+}
+
+
+message FreezeTokensPayload {
+    uint32 version = 1;
+    bytes owner_public_key = 2 [(validate.rules).bytes.len = 33];
+    optional bytes token_public_key = 3 [(validate.rules).bytes.len = 33];
+    optional bytes token_identifier = 4 [(validate.rules).bytes.len = 32];
+    uint64 issuer_provided_timestamp = 5;
+    bytes operator_identity_public_key = 6 [(validate.rules).bytes.len = 33];
+    // Set to false when requesting a freeze.
+    bool should_unfreeze = 7;
+}
+
+message FreezeTokensRequest {
+    FreezeTokensPayload freeze_tokens_payload = 1;
+    // This is a Schnorr or ECDSA DER signature which can be between 64 and 73 bytes.
+    bytes issuer_signature = 2 [(validate.rules).bytes.min_len = 64, (validate.rules).bytes.max_len = 73];
+}
+
+message FreezeTokensResponse {
+    repeated string impacted_output_ids = 1 [(validate.rules).repeated.items.string.uuid = true];
+    bytes impacted_token_amount = 2;  // Decoded uint128
 }
