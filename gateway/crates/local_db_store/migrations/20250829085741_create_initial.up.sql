@@ -2,7 +2,7 @@ BEGIN TRANSACTION;
 
 CREATE SCHEMA gateway;
 
-+---------- MUSIG_IDENTIFIER -----------
+----------- MUSIG_IDENTIFIER -----------
 
 CREATE TABLE IF NOT EXISTS gateway.musig_identifier
 (
@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS gateway.musig_identifier
     PRIMARY KEY (public_key, rune_id)
 );
 
-+---------- SIGN_SESSION -----------
+----------- SIGN_SESSION -----------
 
 CREATE TABLE IF NOT EXISTS gateway.sign_session
 (
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS gateway.sign_session
     FOREIGN KEY (public_key, rune_id) REFERENCES gateway.musig_identifier(public_key, rune_id)
 );
 
-+----------- DEPOSIT_ADDRESS -----------
+------------ DEPOSIT_ADDRESS -----------
 
 CREATE TABLE IF NOT EXISTS gateway.deposit_address
 (
@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS gateway.deposit_address
     FOREIGN KEY (public_key, rune_id) REFERENCES gateway.musig_identifier(public_key, rune_id)
 );
 
-+----------- UTXO -----------
+------------ UTXO -----------
 
 CREATE TYPE UTXO_STATUS AS ENUM (
     'pending',
@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS gateway.utxo
 
 CREATE INDEX IF NOT EXISTS idx_utxo_status ON gateway.utxo (status);
 
-+----------- SESSION_REQUESTS -----------
+------------ SESSION_REQUESTS -----------
 
 CREATE TYPE REQ_TYPE AS ENUM (
     'get_runes_deposit_address',
@@ -88,7 +88,7 @@ CREATE TABLE IF NOT EXISTS gateway.session_requests
     request_status REQUEST_STATUS NOT NULL
 );
 
-+----------- PAYING_UTXO -----------
+------------ PAYING_UTXO -----------
 
 CREATE TABLE IF NOT EXISTS gateway.paying_utxo
 (
