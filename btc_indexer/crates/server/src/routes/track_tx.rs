@@ -3,6 +3,7 @@ use std::sync::Arc;
 use crate::{AppState, error::ServerError};
 use axum::extract::{Json, State};
 use btc_indexer_api::api::{BtcIndexerCallbackResponse, TrackTxRequest, TrackTxResponse};
+use btc_indexer_internals::tx_arbiter::TxArbiterTrait;
 use btc_indexer_internals::{api::BtcIndexerApi, indexer::BtcIndexer};
 use global_utils::common_resp::Empty;
 use global_utils::common_types::{TxIdWrapped, UrlWrapped, get_uuid};
@@ -32,8 +33,8 @@ const PATH_TO_LOG: &str = "btc_indexer_server:track_tx";
     ),
 )]
 #[instrument(skip(state))]
-pub async fn handler<T: titan_client::TitanApi, Db: IndexerDbBounds>(
-    State(state): State<AppState<T, Db>>,
+pub async fn handler<T: titan_client::TitanApi, Db: IndexerDbBounds, TxValidator: TxArbiterTrait>(
+    State(state): State<AppState<T, Db, TxValidator>>,
     Json(payload): Json<TrackTxRequest>,
 ) -> Result<TrackTxResponse, ServerError> {
     info!("Received track tx: {:?}", payload);

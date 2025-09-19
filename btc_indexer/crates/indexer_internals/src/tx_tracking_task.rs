@@ -30,14 +30,15 @@ const FINALIZATION_TRACKING_LOG_PATH: &str = "btc_indexer:finalization_tracking"
 
 /// Spawns tasks  [1] to track already saved txs in db, [2] to send responses to users when we have finalized tx
 #[instrument(
-    skip(btc_indexer_params, local_db, cancellation_token, titan_client),
+    skip(btc_indexer_params, local_db, cancellation_token, titan_client, tx_validator),
     level = "debug"
 )]
-pub fn spawn<C: TitanApi, Db: IndexerDbBounds>(
+pub fn spawn<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArbiterTrait>(
     cancellation_token: CancellationToken,
     local_db: Db,
     btc_indexer_params: BtcIndexerParams,
     titan_client: C,
+    tx_validator: TxValidator,
 ) {
     // Update txs info tracking task
     tokio::spawn({
@@ -54,7 +55,7 @@ pub fn spawn<C: TitanApi, Db: IndexerDbBounds>(
                         break 'checking_loop;
                     },
                     _ = interval.tick() => {
-                        let _ = perform_status_update(local_db.clone(), titan_client.clone())
+                        let _ = perform_status_update(local_db.clone(), titan_client.clone(), tx_validator.clone())
                             .await
                             .inspect_err(|e|
                                 error!("[{UPDATE_TXS_INFO_LOG_PATH}] Error: {}", e)
@@ -159,10 +160,14 @@ fn spawn_tasks_to_send_response<Db: IndexerDbBounds>(
     Ok(tasks)
 }
 
-#[instrument(skip(titan_client, local_db), level = "debug")]
-async fn perform_status_update<C: TitanApi, Db: IndexerDbBounds>(local_db: Db, titan_client: C) -> anyhow::Result<()> {
+#[instrument(skip(titan_client, local_db, tx_validator), level = "debug")]
+async fn perform_status_update<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArbiterTrait>(
+    local_db: Db,
+    titan_client: C,
+    tx_validator: TxValidator,
+) -> anyhow::Result<()> {
     let txs = local_db.get_txs_to_update_status().await?;
-    let tasks = spawn_tasks_to_check_txs(txs, local_db, titan_client).await?;
+    let tasks = spawn_tasks_to_check_txs(txs, local_db, titan_client, tx_validator).await?;
     let _ = futures::future::join_all(tasks)
         .await
         .into_iter()
@@ -176,21 +181,23 @@ async fn perform_status_update<C: TitanApi, Db: IndexerDbBounds>(local_db: Db, t
     Ok(())
 }
 
-#[instrument(skip(titan_client, local_db), level = "debug")]
-async fn spawn_tasks_to_check_txs<C: TitanApi, Db: IndexerDbBounds>(
+#[instrument(skip(titan_client, local_db, tx_validator), level = "debug")]
+async fn spawn_tasks_to_check_txs<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArbiterTrait>(
     checked_txs: Vec<TxToUpdateStatus>,
     local_db: Db,
     titan_client: C,
+    tx_validator: TxValidator,
 ) -> anyhow::Result<Vec<JoinHandle<()>>> {
     let mut check_txs_tasks: Vec<JoinHandle<()>> = Vec::with_capacity(checked_txs.len());
     for tx_id in checked_txs {
         let local_db = local_db.clone();
         check_txs_tasks.push({
             let titan_client = titan_client.clone();
+            let tx_validator = tx_validator.clone();
             tokio::spawn(async move {
                 match titan_client.get_transaction(&tx_id.tx_id.0).await {
                     Ok(tx_to_check) => {
-                        let r = check_obtained_transaction(titan_client, &tx_to_check, &tx_id)
+                        let r = check_obtained_transaction(titan_client, tx_validator, &tx_to_check, &tx_id)
                             .await
                             .inspect_err(|e| {
                                 error!(
@@ -216,12 +223,13 @@ async fn spawn_tasks_to_check_txs<C: TitanApi, Db: IndexerDbBounds>(
     Ok(check_txs_tasks)
 }
 
-#[instrument(skip(titan_client), level = "debug")]
-async fn check_obtained_transaction<C: TitanApi>(
+#[instrument(skip(titan_client, tx_validator), level = "debug")]
+async fn check_obtained_transaction<C: TitanApi, TxValidator: TxArbiterTrait>(
     titan_client: C,
+    tx_validator: TxValidator,
     tx_to_check: &Transaction,
     tx_info: &TxToUpdateStatus,
 ) -> anyhow::Result<TxArbiterResponse> {
     trace!("[{UPDATE_TXS_INFO_LOG_PATH}] address data successfully received, ");
-    Ok(TxArbiter::check_tx(titan_client, tx_to_check, tx_info).await?)
+    Ok(tx_validator.check_tx(titan_client, tx_to_check, tx_info).await?)
 }

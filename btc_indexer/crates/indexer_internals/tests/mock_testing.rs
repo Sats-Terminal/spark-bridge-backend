@@ -26,6 +26,7 @@ use crate::utils::{
 };
 
 mod mock_testing {
+    use btc_indexer_api::api::TrackTxRequest;
     use global_utils::config_variant::ConfigVariant;
     use local_db_store_indexer::init::LocalDbStorage;
 
@@ -111,7 +112,17 @@ mod mock_testing {
             titan_api_client: mocked_indexer,
         })?;
         debug!("Tracking tx changes..");
-        let oneshot = indexer.check_tx_changes(tx_id, uuid).await?;
+        let oneshot = indexer
+            .check_tx_changes(
+                uuid,
+                TrackTxRequest {
+                    callback_url: UrlWrapped(),
+                    btc_address: "".to_string(),
+                    out_point: Default::default(),
+                    amount: 0,
+                },
+            )
+            .await?;
         debug!("Receiving oneshot event..");
         let result = oneshot.await?;
         debug!("Event: {result:?}");

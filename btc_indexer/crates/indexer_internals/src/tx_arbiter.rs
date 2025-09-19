@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use bitcoin::{OutPoint, Txid};
 use btc_indexer_api::api::{Amount, BtcTxReview, TxRejectReason};
 use local_db_store_indexer::schemas::tx_tracking_storage::TxToUpdateStatus;
@@ -12,10 +13,13 @@ const INPUT_V_BYTES_WEIGHT: u64 = 58;
 const OUTPUT_V_BYTES_WEIGHT: u64 = 43;
 const SATOSHI_PER_V_BYTE: u64 = 4;
 
+#[derive(Debug, Clone, Copy)]
 pub struct TxArbiter {}
 
-pub trait TxArbiterTrait {
+#[async_trait]
+pub trait TxArbiterTrait: Clone + Send + Sync + 'static {
     async fn check_tx<C: TitanApi>(
+        &self,
         titan_client: C,
         tx_to_check: &Transaction,
         tx_info: &TxToUpdateStatus,
@@ -47,9 +51,11 @@ pub enum RejectReason {
     },
 }
 
+#[async_trait]
 impl TxArbiterTrait for TxArbiter {
     #[instrument(skip(titan_client), level = "debug")]
     async fn check_tx<C: TitanApi>(
+        &self,
         titan_client: C,
         tx_to_check: &Transaction,
         tx_info: &TxToUpdateStatus,

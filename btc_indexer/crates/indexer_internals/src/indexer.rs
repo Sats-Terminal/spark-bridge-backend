@@ -1,6 +1,7 @@
 use std::{sync::Arc, time::Duration};
 
 use crate::api::{AccountReplenishmentEvent, BtcIndexerApi};
+use crate::tx_arbiter::{TxArbiter, TxArbiterTrait};
 use async_trait::async_trait;
 use bitcoin::OutPoint;
 use bitcoincore_rpc::{Client, RawTx, RpcApi, bitcoin, json};
@@ -22,18 +23,20 @@ const BTC_INDEXER_LOG_PATH: &str = "btc_indexer";
 const TX_TRACKING_LOG_PATH: &str = "btc_indexer:tx_tracking";
 const ACCOUNT_TRACKING_LOG_PATH: &str = "btc_indexer:account_tracking";
 
-pub struct BtcIndexer<C, Db> {
+pub struct BtcIndexer<C, Db, TxValidator> {
     pub btc_indexer_params: BtcIndexerParams,
     //todo: maybe move into traits?
     persistent_storage: Db,
     indexer_client: C,
+    tx_validator: TxValidator,
     btc_core: Arc<Client>,
     cancellation_token: CancellationToken,
 }
 
-pub struct IndexerParamsWithApi<C, Db> {
+pub struct IndexerParamsWithApi<C, Db, TxValidator> {
     pub indexer_params: IndexerParams<Db>,
     pub titan_api_client: C,
+    pub tx_validator: TxValidator,
 }
 
 pub struct IndexerParams<Db> {
@@ -42,38 +45,41 @@ pub struct IndexerParams<Db> {
     pub btc_indexer_params: BtcIndexerParams,
 }
 
-impl BtcIndexer<TitanClient, LocalDbStorage> {
+impl BtcIndexer<TitanClient, LocalDbStorage, TxArbiter> {
     #[instrument(skip(params))]
     pub fn with_api(params: IndexerParams<LocalDbStorage>) -> crate::error::Result<Self> {
         let titan_api_client = TitanClient::new(&params.btc_rpc_creds.url.to_string());
         Self::new(IndexerParamsWithApi {
             indexer_params: params,
             titan_api_client,
+            tx_validator: TxArbiter {},
         })
     }
 }
 
-impl<C: Clone, Db: Clone> Clone for BtcIndexer<C, Db> {
+impl<C: Clone, Db: Clone, TxValidator: Clone> Clone for BtcIndexer<C, Db, TxValidator> {
     fn clone(&self) -> Self {
         BtcIndexer {
             btc_indexer_params: self.btc_indexer_params.clone(),
             persistent_storage: self.persistent_storage.clone(),
             indexer_client: self.indexer_client.clone(),
+            tx_validator: self.tx_validator.clone(),
             btc_core: self.btc_core.clone(),
             cancellation_token: self.cancellation_token.clone(),
         }
     }
 }
 
-impl<C: TitanApi, Db: IndexerDbBounds> BtcIndexer<C, Db> {
+impl<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArbiterTrait> BtcIndexer<C, Db, TxValidator> {
     #[instrument(skip(params))]
-    pub fn new(params: IndexerParamsWithApi<C, Db>) -> crate::error::Result<Self> {
+    pub fn new(params: IndexerParamsWithApi<C, Db, TxValidator>) -> crate::error::Result<Self> {
         let cancellation_token = CancellationToken::new();
         crate::tx_tracking_task::spawn(
             cancellation_token.clone(),
             params.indexer_params.db_pool.clone(),
             params.indexer_params.btc_indexer_params,
             params.titan_api_client.clone(),
+            params.tx_validator.clone(),
         );
         let btc_rpc_client = Arc::new(Client::new(
             &params.indexer_params.btc_rpc_creds.url.to_string(),
@@ -87,6 +93,7 @@ impl<C: TitanApi, Db: IndexerDbBounds> BtcIndexer<C, Db> {
             btc_indexer_params: params.indexer_params.btc_indexer_params,
             persistent_storage: params.indexer_params.db_pool,
             indexer_client: params.titan_api_client,
+            tx_validator: params.tx_validator,
             btc_core: btc_rpc_client,
             cancellation_token,
         };
@@ -99,7 +106,7 @@ impl<C: TitanApi, Db: IndexerDbBounds> BtcIndexer<C, Db> {
 }
 
 #[async_trait]
-impl<C: TitanApi, Db: IndexerDbBounds> BtcIndexerApi for BtcIndexer<C, Db> {
+impl<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArbiterTrait> BtcIndexerApi for BtcIndexer<C, Db, TxValidator> {
     #[inline]
     #[instrument(level = "debug", skip(self))]
     async fn check_tx_changes(&self, uuid: Uuid, payload: TrackTxRequest) -> crate::error::Result<()> {
@@ -125,7 +132,7 @@ impl<C: TitanApi, Db: IndexerDbBounds> BtcIndexerApi for BtcIndexer<C, Db> {
     }
 }
 
-impl<C, Db> Drop for BtcIndexer<C, Db> {
+impl<C, Db, TxValidator> Drop for BtcIndexer<C, Db, TxValidator> {
     #[instrument(skip(self))]
     fn drop(&mut self) {
         debug!("[{BTC_INDEXER_LOG_PATH}] Closing indexer");
