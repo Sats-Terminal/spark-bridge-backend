@@ -5,6 +5,7 @@ use global_utils::common_types::{Url, UrlWrapped};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::str::FromStr;
+use titan_client::TxOut;
 use utoipa::{PartialSchema, openapi};
 
 pub struct BtcIndexerApi;
@@ -80,4 +81,7 @@ pub enum TxRejectReason {
     NoRunesInOuts,
     NoFeesPayed,
     TooFewSatoshiPaidAsFee { got: u64, at_least_expected: u64 },
+    NoExpectedVOutInOutputs { got: u64, expected: u64 },
+    NoExpectedTOutWithRunes(TxOut),
+    NoExpectedTOutWithRunesAmount { out: TxOut, amount: u64 },
 }
