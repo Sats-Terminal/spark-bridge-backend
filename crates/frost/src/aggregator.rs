@@ -1,16 +1,17 @@
 use crate::{errors::AggregatorError, traits::*, types::*};
 use frost_secp256k1_tr::{Identifier, Signature, SigningPackage, keys, keys::Tweak};
 use futures::future::join_all;
-use std::{collections::BTreeMap, sync::Arc};
-use tracing::instrument;
+use std::{collections::{BTreeMap, BTreeSet}, sync::Arc};
 use uuid::Uuid;
+use tokio::sync::Mutex;
 use crate::types::Nonce;
 
 #[derive(Clone, Debug)]
 pub struct FrostAggregator {
-    verifiers: BTreeMap<Identifier, Arc<dyn SignerClient>>, // TODO: implement signer client
-    musig_id_storage: Arc<dyn AggregatorMusigIdStorage>,    // TODO: implement aggregator storage storage
-    sign_session_storage: Arc<dyn AggregatorSignSessionStorage>, // TODO: implement aggregator storage storage
+    verifiers: BTreeMap<Identifier, Arc<dyn SignerClient>>,
+    musig_id_storage: Arc<dyn AggregatorMusigIdStorage>,
+    sign_session_storage: Arc<dyn AggregatorSignSessionStorage>,
+    locked_musig_ids: Arc<Mutex<BTreeSet<MusigId>>>,
 }
 
 impl FrostAggregator {
@@ -23,6 +24,7 @@ impl FrostAggregator {
             verifiers,
             musig_id_storage,
             sign_session_storage,
+            locked_musig_ids: Arc::new(Mutex::new(BTreeSet::new())),
         }
     }
 
@@ -187,17 +189,45 @@ impl FrostAggregator {
         }
     }
 
-    #[instrument(skip(self), level = "trace", ret)]
-    pub async fn run_dkg_flow(&self, musig_id: &MusigId) -> Result<keys::PublicKeyPackage, AggregatorError> {
-        self.dkg_round_1(musig_id).await?;
-        self.dkg_round_2(musig_id).await?;
-        self.dkg_finalize(musig_id).await?;
+    pub async fn lock_musig_id(&self, musig_id: &MusigId) -> Result<(), AggregatorError> {
+        let mut locked_musig_ids = self.locked_musig_ids.lock().await;
+        if locked_musig_ids.contains(&musig_id) {
+            return Err(AggregatorError::MusigAlreadyExists(format!("Musig id already exists: {:?}", musig_id)));
+        }
+        locked_musig_ids.insert(musig_id.clone());
+        Ok(())
+    }
 
-        let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id).await?;
+    pub async fn unlock_musig_id(&self, musig_id: &MusigId) -> Result<(), AggregatorError> {
+        let mut locked_musig_ids = self.locked_musig_ids.lock().await;
+        let removed = locked_musig_ids.remove(&musig_id);
+        if !removed {
+            return Err(AggregatorError::MusigNotFound(format!("Something bad went wrong: {:?}", musig_id)));
+        }
+        Ok(())
+    }
+
+    pub async fn run_dkg_flow(&self, musig_id: &MusigId) -> Result<keys::PublicKeyPackage, AggregatorError> {
+        self.lock_musig_id(&musig_id).await?;
+
+        let musig_id_data = self.musig_id_storage.get_musig_id_data(&musig_id).await?;
+        if let Some(_) = musig_id_data {
+            self.unlock_musig_id(&musig_id).await?;
+            return Err(AggregatorError::MusigAlreadyExists(format!("Musig id already exists: {:?}", musig_id)));
+        }
+
+        self.dkg_round_1(&musig_id).await?;
+        self.dkg_round_2(&musig_id).await?;
+        self.dkg_finalize(&musig_id).await?;
+
+        let musig_id_data = self.musig_id_storage.get_musig_id_data(&musig_id).await?;
         match musig_id_data {
             Some(AggregatorMusigIdData {
                 dkg_state: AggregatorDkgState::DkgFinalized { public_key_package },
-            }) => Ok(public_key_package),
+            }) => {
+                self.unlock_musig_id(&musig_id).await?;
+                Ok(public_key_package)
+            },
             _ => Err(AggregatorError::InvalidUserState(
                 "User state is not DkgFinalized".to_string(),
             )),
