@@ -86,7 +86,7 @@ pub async fn handle(
     let mut transaction = create_rune_partial_transaction(
         outputs_to_spend,
         paying_utxo,
-        rune_transfer_outputs,
+        rune_transfer_outputs.clone(),
         deposit_addr_info.musig_id.get_rune_id(),
         flow_router.network,
     )
