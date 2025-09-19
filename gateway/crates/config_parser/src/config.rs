@@ -65,6 +65,16 @@ pub struct ServerConfig {
     pub database: DatabaseConfig,
     #[serde(rename = "spark_config")]
     pub spark: SparkConfig,
+    #[serde(rename = "bitcoin_client_config")]
+    pub bitcoin_client: BitcoinClientConfig,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub struct BitcoinClientConfig {
+    pub url: String,
+    pub username: String,
+    pub password: String,
 }
 
 impl ServerConfig {

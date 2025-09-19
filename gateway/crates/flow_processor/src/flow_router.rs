@@ -11,6 +11,7 @@ use tracing::info;
 use uuid::Uuid;
 use gateway_spark_service::service::SparkService;
 use spark_client::client::SparkRpcClient;
+use gateway_rune_transfer::bitcoin_client::BitcoinClient;
 
 const LOG_PATH: &str = "flow_processor";
 
@@ -26,6 +27,7 @@ pub struct FlowProcessorRouter {
     pub spark_service: Arc<SparkService>,
     pub spark_client: Arc<SparkRpcClient>,
     pub network: Network,
+    pub bitcoin_client: Arc<BitcoinClient>,
 }
 
 impl FlowProcessorRouter {

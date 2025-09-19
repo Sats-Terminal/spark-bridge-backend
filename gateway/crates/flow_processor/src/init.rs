@@ -11,6 +11,7 @@ use gateway_spark_service::service::SparkService;
 use spark_client::client::SparkRpcClient;
 use bitcoin::secp256k1::PublicKey;
 use std::str::FromStr;
+use gateway_rune_transfer::bitcoin_client::BitcoinClient;
 
 pub async fn create_flow_processor(
     server_config: ServerConfig,
@@ -20,15 +21,22 @@ pub async fn create_flow_processor(
     network: Network,
 ) -> (FlowProcessor, FlowSender) {
     let (tx_sender, tx_receiver) = mpsc::channel(1000);
+
     let cancellation_token = CancellationToken::new();
+
     let spark_client = SparkRpcClient::new(server_config.spark.clone()).await.unwrap();
+
     let spark_operator_identity_public_keys = server_config.spark.operators.iter()
         .map(|o| PublicKey::from_str(&o.identity_public_key).unwrap()).collect();
+
     let spark_service = SparkService::new(
         spark_client.clone(),
         frost_aggregator.clone(),
         spark_operator_identity_public_keys,
     );
+
+    let bitcoin_client = BitcoinClient::new(server_config.bitcoin_client.clone()).unwrap();
+
     let flow_processor = FlowProcessor::new(
         Arc::new(server_config.verifiers.0),
         tx_receiver,
@@ -39,7 +47,9 @@ pub async fn create_flow_processor(
         cancellation_token.clone(),
         Arc::new(spark_service),
         Arc::new(spark_client),
+        Arc::new(bitcoin_client),
     );
+
     let flow_sender = FlowSender::new(tx_sender, cancellation_token);
     (flow_processor, flow_sender)
 }

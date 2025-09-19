@@ -16,6 +16,7 @@ use tracing;
 use uuid::Uuid;
 use gateway_spark_service::service::SparkService;
 use spark_client::client::SparkRpcClient;
+use gateway_rune_transfer::bitcoin_client::BitcoinClient;
 
 // This is core struct that handles flows execution
 // For each request it creates a thread that runs the flow
@@ -31,6 +32,7 @@ pub struct FlowProcessor {
     pub frost_aggregator: FrostAggregator,
     pub spark_service: Arc<SparkService>,
     pub spark_client: Arc<SparkRpcClient>,
+    pub bitcoin_client: Arc<BitcoinClient>,
     pub network: Network,
 }
 
@@ -45,6 +47,7 @@ impl FlowProcessor {
         cancellation_token: CancellationToken,
         spark_service: Arc<SparkService>,
         spark_client: Arc<SparkRpcClient>,
+        bitcoin_client: Arc<BitcoinClient>,
     ) -> Self {
         let (flow_sender, flow_receiver) = mpsc::channel::<Uuid>(1000);
         Self {
@@ -59,6 +62,7 @@ impl FlowProcessor {
             frost_aggregator,
             spark_service,
             spark_client,
+            bitcoin_client,
             network,
         }
     }
@@ -101,6 +105,7 @@ impl FlowProcessor {
                                 spark_service: self.spark_service.clone(),
                                 spark_client: self.spark_client.clone(),
                                 network: self.network,
+                                bitcoin_client: self.bitcoin_client.clone(),
                             };
 
                             let handle = tokio::task::spawn(async move {

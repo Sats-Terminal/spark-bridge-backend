@@ -117,7 +117,8 @@ pub async fn handle(
         add_signature_to_transaction(&mut transaction, i, signature);
     }
 
-    // TODO: broadcast transaction
+    flow_router.bitcoin_client.broadcast_transaction(transaction.clone()).await
+        .map_err(|e| FlowProcessorError::RuneTransferError(format!("Failed to broadcast transaction: {e}")))?;
     
     if total_amount > exit_amount {
         let utxo = Utxo {

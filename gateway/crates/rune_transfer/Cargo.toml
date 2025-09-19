@@ -10,3 +10,6 @@ thiserror = { workspace = true }
 ordinals = { workspace = true }
 serde = { workspace = true }
 global_utils = { workspace = true }
+bitcoincore-rpc = { workspace = true }
+eyre = { workspace = true }
+gateway_config_parser = { workspace = true }
