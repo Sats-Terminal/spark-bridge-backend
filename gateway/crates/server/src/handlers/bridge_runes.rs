@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use bitcoin::{Txid, OutPoint, Address};
 use std::str::FromStr;
 use tracing::instrument;
+use gateway_deposit_verification::types::VerifyRunesDepositRequest;
 
 #[derive(Deserialize, Debug)]
 pub struct BridgeRunesSparkRequest {
@@ -25,7 +26,13 @@ pub async fn handle(
         .require_network(state.network)
         .map_err(|e| GatewayError::InvalidData(format!("Failed to parse btc address: {e}")))?;
 
-    let _ = state.deposit_verification_aggregator.verify_runes_deposit(btc_address, request.bridge_address, OutPoint::new(request.txid, request.vout))
+    let verify_runes_deposit_request = VerifyRunesDepositRequest {
+        btc_address: request.btc_address,
+        bridge_address: request.bridge_address,
+        out_point: OutPoint::new(request.txid, request.vout),
+    };
+
+    let _ = state.deposit_verification_aggregator.verify_runes_deposit(verify_runes_deposit_request)
         .await
         .map_err(|e| GatewayError::DepositVerificationError(format!("Failed to verify runes deposit: {}", e)))?;
 

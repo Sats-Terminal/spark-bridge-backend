@@ -38,7 +38,8 @@ pub async fn handle(
                 deposit_address: request.spark_address.clone(),
                 bridge_address: request.exit_address,
                 is_btc: true,
-                amount: request.amount,
+                deposit_amount: request.amount,
+                sats_fee_amount: None,
                 confirmation_status: DepositStatus::WaitingForConfirmation,
             },
         )

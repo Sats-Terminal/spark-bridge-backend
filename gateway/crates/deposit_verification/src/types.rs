@@ -30,3 +30,24 @@ pub struct WatchRunesDepositRequest {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WatchRunesDepositResponse {}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct NotifyRunesDepositRequest {
+    pub verifier_id: u16,
+    pub out_point: OutPoint,
+    pub sats_fee_amount: u64,
+    pub status: DepositStatus,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct VerifyRunesDepositRequest {
+    pub btc_address: String,
+    pub bridge_address: String,
+    pub out_point: OutPoint,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct VerifySparkDepositRequest {
+    pub spark_address: String,
+    pub exit_address: String,
+}

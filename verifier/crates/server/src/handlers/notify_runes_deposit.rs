@@ -16,6 +16,10 @@ pub async fn handle(
         .await
         .map_err(|e| VerifierError::StorageError(format!("Failed to update confirmation status: {}", e)))?;
 
+    state.storage.set_sats_fee_amount_by_out_point(request.out_point, request.sats_fee_amount)
+        .await
+        .map_err(|e| VerifierError::StorageError(format!("Failed to update sats fee amount: {}", e)))?;
+
     state.gateway_client.notify_runes_deposit(request).await.map_err(|e| VerifierError::GatewayClientError(format!("Failed to notify runes deposit: {}", e)))?;
 
     Ok(Json(()))

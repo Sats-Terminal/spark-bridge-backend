@@ -7,7 +7,7 @@ CREATE TYPE UTXO_STATUS AS ENUM (
 CREATE TABLE IF NOT EXISTS gateway.utxo
 (
     out_point    TEXT        PRIMARY KEY,
-    amount       BIGINT      NOT NULL,
+    rune_amount       BIGINT      NOT NULL,
     rune_id      TEXT        NOT NULL,
     sats_fee_amount BIGINT   ,
     status       UTXO_STATUS NOT NULL DEFAULT 'pending',

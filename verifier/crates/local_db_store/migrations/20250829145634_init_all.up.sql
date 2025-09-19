@@ -32,8 +32,9 @@ CREATE TABLE IF NOT EXISTS verifier.deposit_address
     deposit_address TEXT NOT NULL,
     bridge_address TEXT NOT NULL,
     is_btc BOOLEAN NOT NULL,
-    amount BIGINT NOT NULL,
+    deposit_amount BIGINT NOT NULL,
     confirmation_status JSON NOT NULL,
+    sats_fee_amount BIGINT,
     out_point TEXT,
     PRIMARY KEY (public_key, rune_id, nonce_tweak),
     FOREIGN KEY (public_key, rune_id) REFERENCES verifier.musig_identifier(public_key, rune_id)

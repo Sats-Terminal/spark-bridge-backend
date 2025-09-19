@@ -37,7 +37,8 @@ pub async fn handle(
                 deposit_address: request.btc_address.clone(),
                 bridge_address: request.bridge_address.clone(),
                 is_btc: false,
-                amount: request.amount,
+                deposit_amount: request.amount,
+                sats_fee_amount: None,
                 confirmation_status: DepositStatus::WaitingForConfirmation,
             },
         )

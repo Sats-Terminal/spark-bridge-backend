@@ -18,6 +18,7 @@ pub struct GatewayClient {
 pub struct NotifyRunesDepositRequest {
     pub verifier_id: u16,
     pub out_point: OutPoint,
+    pub sats_fee_amount: u64,
     pub status: DepositStatus,
 }
 
