@@ -218,11 +218,11 @@ pub async fn create_app_mocked(
     db_pool: LocalDbStorage,
     btc_indexer: BtcIndexer<MockTitanIndexer, LocalDbStorage>,
 ) -> Router {
+    let (db_pool, btc_indexer) = (Arc::new(db_pool), Arc::new(btc_indexer));
     let state = AppState {
         http_client: reqwest::Client::new(),
         persistent_storage: db_pool,
-        btc_indexer: Arc::new(btc_indexer),
-        task_executor: Arc::new(Default::default()),
+        btc_indexer,
     };
     let app = Router::new()
         .route("/track_tx", post(btc_indexer_server::routes::track_tx::handler))

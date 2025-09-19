@@ -27,6 +27,7 @@ tracing = { workspace = true }
 uuid = { workspace = true }
 persistent_storage = { workspace = true }
 futures = { workspace = true }
+reqwest = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }

@@ -9,6 +9,7 @@ readme.workspace = true
 [dependencies]
 anyhow = { workspace = true }
 async-trait = { workspace = true }
+bitcoin = { workspace = true }
 global_utils = { workspace = true }
 persistent_storage = { workspace = true }
 serde = { workspace = true }

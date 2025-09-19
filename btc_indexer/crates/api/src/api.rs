@@ -14,7 +14,7 @@ impl BtcIndexerApi {
     pub const TRACK_TX_ENDPOINT: &'static str = "/track_tx";
 }
 
-pub type Amount = u128;
+pub type Amount = u64;
 pub type VOut = u32;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -65,8 +65,8 @@ pub enum IndexerCallbackResponse {
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct ResponseMeta {
-    outpoint: OutPoint,
-    status: BtcTxReview,
+    pub outpoint: OutPoint,
+    pub status: BtcTxReview,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -77,5 +77,7 @@ pub enum BtcTxReview {
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum TxRejectReason {
-    Hello,
+    NoRunesInOuts,
+    NoFeesPayed,
+    TooFewSatoshiPaidAsFee { got: u64, at_least_expected: u64 },
 }
