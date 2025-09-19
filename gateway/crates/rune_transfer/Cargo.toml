@@ -1,0 +1,10 @@
+[package]
+name = "gateway_rune_transfer"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ord-rs = { workspace = true }
+bitcoin = { workspace = true }
+thiserror = { workspace = true }
+ordinals = { workspace = true }
