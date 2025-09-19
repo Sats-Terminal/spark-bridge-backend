@@ -90,7 +90,6 @@ impl FlowProcessorRouter {
     async fn run_spark_addr_issuing(
         &mut self,
         request: IssueSparkDepositAddressRequest,
-        network: Network,
     ) -> Result<IssueSparkDepositAddressResponse, FlowProcessorError> {
         info!("[{LOG_PATH}] issuing spark addr to user with request: {request:?}");
         let address = crate::routes::spark_addr_issuing::handle(
@@ -108,7 +107,10 @@ impl FlowProcessorRouter {
         request: ExitSparkRequest,
     ) -> Result<ExitSparkResponse, FlowProcessorError> {
         info!("[{LOG_PATH}] exiting spark flow with request: {request:?}");
-        crate::routes::exit_spark_flow::handle(self).await?;
+        crate::routes::exit_spark_flow::handle(
+            self,
+            request,
+        ).await?;
         Ok(ExitSparkResponse {
             message: format!("message for {}", request.spark_address),
         })

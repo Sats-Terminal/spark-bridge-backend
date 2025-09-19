@@ -11,18 +11,20 @@ use bitcoin::secp256k1::Keypair;
 use bitcoin::key::TapTweak;
 use crate::errors::RuneTransferError;
 use ordinals::{Edict, RuneId, Runestone};
-
+use std::str::FromStr;
 
 pub fn create_rune_transfer(
     outputs_to_spend: Vec<OutPoint>,
     output_addresses: Vec<Address>,
     output_sats_amounts: Vec<u64>,
-    output_runes_amounts: Vec<u128>,
-    rune_id: RuneId,
+    output_runes_amounts: Vec<u64>,
+    rune_id: String,
 ) -> Result<Transaction, RuneTransferError> {
     if output_sats_amounts.len() != output_runes_amounts.len() {
         return Err(RuneTransferError::InvalidData("outputs_to_spend and output_addresses must have the same length".to_string()));
     }
+
+    let rune_id = RuneId::from_str(&rune_id).map_err(|e| RuneTransferError::InvalidData(format!("Failed to parse rune id: {}", e)))?;
 
     let mut inputs = Vec::new();
     for output in outputs_to_spend {
@@ -40,7 +42,7 @@ pub fn create_rune_transfer(
         if *runes_amount > 0 {
             edicts.push(Edict {
                 id: rune_id,
-                amount: *runes_amount,
+                amount: *runes_amount as u128,
                 output: 1 + i as u32,
             });
         }

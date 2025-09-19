@@ -65,6 +65,7 @@ pub trait UtxoStorage: Send + Sync {
     async fn get_utxo(&self, out_point: OutPoint) -> Result<Option<Utxo>, DbError>;
     async fn delete_utxo(&self, out_point: OutPoint) -> Result<(), DbError>;
     async fn update_sats_fee_amount(&self, out_point: OutPoint, sats_fee_amount: u64) -> Result<(), DbError>;
+    async fn get_utxo_by_btc_address(&self, btc_address: String) -> Result<Option<Utxo>, DbError>;
 }
 
 #[async_trait]
@@ -234,6 +235,22 @@ impl UtxoStorage for LocalDbStorage {
         }
 
         Ok(())
+    }
+
+    async fn get_utxo_by_btc_address(&self, btc_address: String) -> Result<Option<Utxo>, DbError> {
+        let utxo = sqlx::query_as::<_, UtxoRow>(
+            r#"
+            SELECT out_point, rune_amount, rune_id, status, btc_address, sats_fee_amount
+            FROM gateway.utxo
+            WHERE btc_address = $1
+        "#,
+        )
+            .bind(btc_address)
+            .fetch_optional(&self.postgres_repo.pool)
+            .await
+            .map_err(|e| DbError::BadRequest(e.to_string()))?;
+
+        Ok(utxo.map(|row| row.into()))
     }
 }
 
