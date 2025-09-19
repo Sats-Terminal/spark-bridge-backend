@@ -2,7 +2,7 @@ use crate::error::FlowProcessorError;
 use crate::flow_router::FlowProcessorRouter;
 use tracing::{info, instrument};
 use crate::types::ExitSparkRequest;
-use gateway_local_db_store::schemas::utxo_storage::UtxoStorage;
+use gateway_local_db_store::schemas::utxo_storage::{UtxoStorage, Utxo, UtxoStatus};
 use gateway_local_db_store::schemas::deposit_address::{DepositAddressStorage, DepositAddrInfo, DepositStatus, VerifiersResponses};
 use gateway_local_db_store::schemas::paying_utxo::PayingUtxoStorage;
 use persistent_storage::error::DbError;
@@ -116,7 +116,21 @@ pub async fn handle(
 
         add_signature_to_transaction(&mut transaction, i, signature);
     }
+
+    // TODO: broadcast transaction
     
+    if total_amount > exit_amount {
+        let utxo = Utxo {
+            out_point: OutPoint::new(transaction.compute_txid(), 1), // Change utxo
+            btc_address: rune_transfer_outputs[1].address.clone(), // Change utxo address
+            rune_amount: total_amount - exit_amount,
+            rune_id: deposit_addr_info.musig_id.get_rune_id(),
+            status: UtxoStatus::Confirmed,
+            sats_fee_amount: transaction.output[1].value.to_sat(),
+        };
+
+        flow_router.storage.insert_utxo(utxo).await?;
+    }
 
     Ok(())
 }
