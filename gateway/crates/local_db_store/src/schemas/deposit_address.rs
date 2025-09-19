@@ -45,6 +45,10 @@ impl VerifiersResponses {
         }
         true
     }
+
+    pub fn empty() -> Self {
+        VerifiersResponses { responses: HashMap::new() }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]

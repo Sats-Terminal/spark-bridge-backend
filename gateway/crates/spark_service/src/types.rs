@@ -2,7 +2,6 @@ use crate::errors::SparkServiceError;
 use bitcoin::secp256k1::PublicKey;
 use chrono;
 use frost::types::SigningMetadata;
-use frost::types::TokenTransactionMetadata;
 use lrc20::token_leaf::TokenLeafOutput;
 use lrc20::token_transaction::TokenTransaction;
 use lrc20::token_transaction::TokenTransactionCreateInput;
@@ -120,17 +119,15 @@ pub fn create_signing_metadata(
 ) -> Result<SigningMetadata, SparkServiceError> {
     let token_transaction_proto = marshal_token_transaction(&token_transaction, is_partial)
         .map_err(|e| SparkServiceError::InvalidData(format!("Failed to marshal token transaction: {:?}", e)))?;
-    let token_transaction_metadata: TokenTransactionMetadata = match (spark_transaction_type, is_partial) {
-        (SparkTransactionType::Mint { .. }, true) => TokenTransactionMetadata::PartialMintToken { token_transaction: token_transaction_proto },
-        (SparkTransactionType::Mint { .. }, false) => TokenTransactionMetadata::FinalMintToken { token_transaction: token_transaction_proto },
+    let signing_metadata: SigningMetadata = match (spark_transaction_type, is_partial) {
+        (SparkTransactionType::Mint { .. }, true) => SigningMetadata::PartialMintToken { token_transaction: token_transaction_proto },
+        (SparkTransactionType::Mint { .. }, false) => SigningMetadata::FinalMintToken { token_transaction: token_transaction_proto },
         (SparkTransactionType::Create { .. }, true) => {
-            TokenTransactionMetadata::PartialCreateToken { token_transaction: token_transaction_proto }
+            SigningMetadata::PartialCreateToken { token_transaction: token_transaction_proto }
         }
         (SparkTransactionType::Create { .. }, false) => {
-            TokenTransactionMetadata::FinalCreateToken { token_transaction: token_transaction_proto }
+            SigningMetadata::FinalCreateToken { token_transaction: token_transaction_proto }
         }
     };
-    Ok(SigningMetadata {
-        token_transaction_metadata,
-    })
+    Ok(signing_metadata)
 }

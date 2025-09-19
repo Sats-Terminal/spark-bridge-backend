@@ -1,4 +1,4 @@
-use bitcoin::{Transaction, TxIn, OutPoint, ScriptBuf, Sequence, Witness, Address, TxOut, Amount};
+use bitcoin::{Transaction, TxIn, OutPoint, ScriptBuf, Sequence, Witness, Address, TxOut, Amount, Txid, Network};
 use bitcoin::sighash::{SighashCache, TapSighashType, Prevouts};
 use bitcoin::hashes::Hash;
 use bitcoin::transaction::Version;
@@ -12,18 +12,33 @@ use bitcoin::key::TapTweak;
 use crate::errors::RuneTransferError;
 use ordinals::{Edict, RuneId, Runestone};
 use std::str::FromStr;
+use serde::{Deserialize, Serialize};
+use global_utils::conversion::decode_address;
 
-pub fn create_rune_transfer(
+
+#[derive(Deserialize, Serialize, Clone, Debug)]
+pub struct PayingTransferInput {
+    pub txid: Txid,
+    pub vout: u32,
+    pub address: String,
+    pub sats_amount: u64,
+    pub none_anyone_can_pay_signature: Signature,
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug)]
+pub struct RuneTransferOutput {
+    pub address: String,
+    pub sats_amount: u64,
+    pub runes_amount: u64,
+}
+
+pub fn create_rune_partial_transaction(
     outputs_to_spend: Vec<OutPoint>,
-    output_addresses: Vec<Address>,
-    output_sats_amounts: Vec<u64>,
-    output_runes_amounts: Vec<u64>,
+    paying_input: PayingTransferInput,
+    rune_transfer_outputs: Vec<RuneTransferOutput>,
     rune_id: String,
+    network: Network,
 ) -> Result<Transaction, RuneTransferError> {
-    if output_sats_amounts.len() != output_runes_amounts.len() {
-        return Err(RuneTransferError::InvalidData("outputs_to_spend and output_addresses must have the same length".to_string()));
-    }
-
     let rune_id = RuneId::from_str(&rune_id).map_err(|e| RuneTransferError::InvalidData(format!("Failed to parse rune id: {}", e)))?;
 
     let mut inputs = Vec::new();
@@ -36,13 +51,24 @@ pub fn create_rune_transfer(
         });
     }
 
+    let paying_input = TxIn {
+        previous_output: OutPoint::new(paying_input.txid, paying_input.vout),
+        script_sig: ScriptBuf::new(),
+        sequence: Sequence::ENABLE_RBF_NO_LOCKTIME, 
+        witness: Witness::p2tr_key_spend(&TaprootSignature {
+            signature: paying_input.none_anyone_can_pay_signature,
+            sighash_type: TapSighashType::NonePlusAnyoneCanPay,
+        }),
+    };
+    inputs.push(paying_input);
+
     let mut edicts = Vec::new();
 
-    for (i, runes_amount) in output_runes_amounts.iter().enumerate() {
-        if *runes_amount > 0 {
+    for (i, transfer_output) in rune_transfer_outputs.iter().enumerate() {
+        if transfer_output.runes_amount > 0 {
             edicts.push(Edict {
                 id: rune_id,
-                amount: *runes_amount as u128,
+                amount: transfer_output.runes_amount as u128,
                 output: 1 + i as u32,
             });
         }
@@ -62,43 +88,39 @@ pub fn create_rune_transfer(
         value: Amount::from_sat(0),
         script_pubkey: op_return_script,
     });
-    for (output_sats_amount, output_address) in output_sats_amounts.iter().zip(output_addresses.iter()) {
+    for transfer_output in rune_transfer_outputs.iter() {
         outputs.push(TxOut {
-            value: Amount::from_sat(*output_sats_amount),
-            script_pubkey: output_address.script_pubkey(),
+            value: Amount::from_sat(transfer_output.sats_amount),
+            script_pubkey: decode_address(&transfer_output.address, network).map_err(|e| RuneTransferError::InvalidData(format!("Failed to decode address: {}", e)))?.script_pubkey(),
         });
     }
 
-    let transation = Transaction {
+    let transaction = Transaction {
         version: Version::TWO,
         lock_time: bitcoin::absolute::LockTime::ZERO,
         input: inputs,
         output: outputs,
     };
 
-    Ok(transation)
+    Ok(transaction)
 }
 
 pub fn create_message_hash(
     transaction: &Transaction, 
-    previous_output_addresses: &Vec<Address>, 
-    previous_output_sats_amounts: &Vec<u64>, 
+    previous_output_address: Address, 
+    previous_output_sats_amount: u64, 
     input_index: usize
 ) -> Result<[u8; 32], RuneTransferError> {
-    if previous_output_addresses.len() != previous_output_sats_amounts.len() {
-        return Err(RuneTransferError::InvalidData("previous_output_addresses and previous_output_sats_amounts must have the same length".to_string()));
-    }
-
-    let previous_outputs = previous_output_addresses.iter().zip(previous_output_sats_amounts.iter()).map(|(address, amount)| TxOut {
-        value: Amount::from_sat(*amount),
-        script_pubkey: address.script_pubkey(),
-    }).collect::<Vec<TxOut>>();
+    let previous_output = TxOut {
+        value: Amount::from_sat(previous_output_sats_amount),
+        script_pubkey: previous_output_address.script_pubkey(),
+    };
 
     let mut sighash_cache = SighashCache::new(transaction);
     let message_hash = sighash_cache.taproot_key_spend_signature_hash(
         input_index,
-        &Prevouts::All(&previous_outputs),
-        TapSighashType::All,
+        &Prevouts::One(input_index, previous_output),
+        TapSighashType::AllPlusAnyoneCanPay,
     ).map_err(|e| RuneTransferError::HashError(format!("Failed to create message hash: {}", e)))?;
 
     let byte_array = message_hash.to_raw_hash().to_byte_array();
@@ -127,4 +149,31 @@ pub fn add_signature_to_transaction(
         sighash_type: TapSighashType::All,
     };
     transaction.input[input_index].witness = Witness::p2tr_key_spend(&taproot_signature);
+}
+
+pub fn create_none_anyone_can_pay_message_hash(
+    address: Address,
+    sats_amount: u64,
+) -> Result<[u8; 32], RuneTransferError> {
+    let output = TxOut {
+        value: Amount::from_sat(sats_amount),
+        script_pubkey: address.script_pubkey(),
+    };
+
+    let transaction = Transaction {
+        version: Version::TWO,
+        lock_time: bitcoin::absolute::LockTime::ZERO,
+        input: vec![],
+        output: vec![output.clone()],
+    };
+    
+    let mut sighash_cache = SighashCache::new(&transaction);
+    let message_hash = sighash_cache.taproot_key_spend_signature_hash(
+        0,
+        &Prevouts::One(0, output),
+        TapSighashType::NonePlusAnyoneCanPay,
+    ).map_err(|e| RuneTransferError::HashError(format!("Failed to create message hash: {}", e)))?;
+
+    let byte_array = message_hash.to_raw_hash().to_byte_array();
+    Ok(byte_array)
 }

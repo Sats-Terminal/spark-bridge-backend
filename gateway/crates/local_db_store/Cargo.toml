@@ -18,6 +18,8 @@ tracing = { workspace = true }
 uuid = { workspace = true }
 serde = { workspace = true }
 anyhow = { workspace = true }
+gateway_rune_transfer = { workspace = true }
+
 
 [dev-dependencies]
 lrc20 = { workspace = true }

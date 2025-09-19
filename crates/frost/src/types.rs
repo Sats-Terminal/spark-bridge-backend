@@ -170,15 +170,11 @@ pub struct SignerSignData {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SigningMetadata {
-    pub token_transaction_metadata: TokenTransactionMetadata,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum TokenTransactionMetadata {
+pub enum SigningMetadata {
     PartialCreateToken { token_transaction: TokenTransaction },
     FinalCreateToken { token_transaction: TokenTransaction },
     PartialMintToken { token_transaction: TokenTransaction },
     FinalMintToken { token_transaction: TokenTransaction },
     Authorization,
+    BtcTransactionMetadata {},
 }

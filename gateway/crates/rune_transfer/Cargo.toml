@@ -8,3 +8,5 @@ ord-rs = { workspace = true }
 bitcoin = { workspace = true }
 thiserror = { workspace = true }
 ordinals = { workspace = true }
+serde = { workspace = true }
+global_utils = { workspace = true }

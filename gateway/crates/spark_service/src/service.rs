@@ -7,7 +7,6 @@ use bitcoin::secp256k1::PublicKey;
 use frost::aggregator::FrostAggregator;
 use frost::types::MusigId;
 use frost::types::SigningMetadata;
-use frost::types::TokenTransactionMetadata;
 use frost::types::Nonce;
 use futures::future::join_all;
 use lrc20::marshal::marshal_token_transaction;
@@ -93,9 +92,7 @@ impl SparkService {
             .run_signing_flow(
                 musig_id.clone(),
                 challenge.nonce.as_ref(),
-                SigningMetadata {
-                    token_transaction_metadata: TokenTransactionMetadata::Authorization,
-                },
+                SigningMetadata::Authorization,
                 nonce_tweak,
             )
             .await

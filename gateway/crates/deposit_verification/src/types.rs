@@ -3,6 +3,7 @@ use frost::types::Nonce;
 use bitcoin::OutPoint;
 use serde::{Deserialize, Serialize};
 use gateway_local_db_store::schemas::deposit_address::DepositStatus;
+use gateway_rune_transfer::transfer::PayingTransferInput;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WatchSparkDepositRequest {
@@ -50,4 +51,5 @@ pub struct VerifyRunesDepositRequest {
 pub struct VerifySparkDepositRequest {
     pub spark_address: String,
     pub exit_address: String,
+    pub paying_input: PayingTransferInput,
 }

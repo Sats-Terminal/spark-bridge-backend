@@ -37,7 +37,7 @@ impl FlowProcessorRouter {
                 answer
             }
             FlowProcessorMessage::IssueSparkDepositAddress(request) => {
-                let response = self.run_spark_addr_issuing(request, self.network).await;
+                let response = self.run_spark_addr_issuing(request).await;
                 let answer = response.map(|response| FlowProcessorResponse::IssueSparkDepositAddress(response));
                 answer
             }
@@ -112,7 +112,7 @@ impl FlowProcessorRouter {
             request,
         ).await?;
         Ok(ExitSparkResponse {
-            message: format!("message for {}", request.spark_address),
+            message: "message for spark exit".to_string(),
         })
     }
 }

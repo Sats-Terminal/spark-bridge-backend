@@ -4,11 +4,13 @@ use axum::extract::State;
 use crate::init::AppState;
 use serde::{Deserialize, Serialize};
 use gateway_deposit_verification::types::VerifySparkDepositRequest;
+use gateway_rune_transfer::transfer::PayingTransferInput;
 
 #[derive(Deserialize, Serialize)]
 pub struct ExitSparkRequest {
     pub spark_address: String,
     pub exit_address: String,
+    pub paying_input: PayingTransferInput,
 }
 
 pub async fn handle(
@@ -18,6 +20,7 @@ pub async fn handle(
     let verify_spark_deposit_request = VerifySparkDepositRequest {
         spark_address: request.spark_address,
         exit_address: request.exit_address,
+        paying_input: request.paying_input,
     };
 
     let _ = state.deposit_verification_aggregator.verify_spark_deposit(verify_spark_deposit_request)
