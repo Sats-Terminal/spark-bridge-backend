@@ -109,8 +109,8 @@ impl<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArbiterTrait> BtcIndexer<C
 impl<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArbiterTrait> BtcIndexerApi for BtcIndexer<C, Db, TxValidator> {
     #[inline]
     #[instrument(level = "debug", skip(self))]
-    async fn check_tx_changes(&self, uuid: Uuid, payload: TrackTxRequest) -> crate::error::Result<()> {
-        self.persistent_storage.track_tx_request(uuid, payload).await?;
+    async fn check_tx_changes(&self, uuid: Uuid, payload: &TrackTxRequest) -> crate::error::Result<()> {
+        self.persistent_storage.track_tx_request(uuid, &payload).await?;
         Ok(())
     }
 

@@ -5,9 +5,7 @@ use bitcoin::Txid;
 use btc_indexer_api::api::{BtcIndexerCallbackResponse, BtcTxReview, ResponseMeta};
 use config_parser::config::BtcIndexerParams;
 use local_db_store_indexer::init::{IndexerDbBounds, LocalDbStorage};
-use local_db_store_indexer::schemas::track_tx_requests_storage::{
-    TrackingRequestStatus, TxTrackingRequestsToSendResponse,
-};
+use local_db_store_indexer::schemas::track_tx_requests_storage::{TrackedReqStatus, TxTrackingRequestsToSendResponse};
 use local_db_store_indexer::schemas::tx_tracking_storage::TxToUpdateStatus;
 use persistent_storage::error::DbError;
 use persistent_storage::init::PersistentRepoTrait;
@@ -134,7 +132,7 @@ fn spawn_tasks_to_send_response<Db: IndexerDbBounds>(
                 let client_resp = client.post(x.callback_url.0).json(&resp).send().await;
                 match client_resp {
                     Ok(client_resp) => {
-                        let status = TrackingRequestStatus::Finalized;
+                        let status = TrackedReqStatus::Finished;
                         let _ = local_db.finalize_tx_request(x.uuid, status).await.inspect_err(|e| {
                             error!(
                                 "[{FINALIZATION_TRACKING_LOG_PATH}] Db finalization error: {}, status: {:?}",
@@ -144,7 +142,7 @@ fn spawn_tasks_to_send_response<Db: IndexerDbBounds>(
                         info!("[{FINALIZATION_TRACKING_LOG_PATH}] Got response: {:?}", client_resp);
                     }
                     Err(e) => {
-                        let status = TrackingRequestStatus::FailedToSend;
+                        let status = TrackedReqStatus::FailedToSend;
                         let _ = local_db.finalize_tx_request(x.uuid, status).await.inspect_err(|e| {
                             error!(
                                 "[{FINALIZATION_TRACKING_LOG_PATH}] Db finalization error: {}, status: {:?}",

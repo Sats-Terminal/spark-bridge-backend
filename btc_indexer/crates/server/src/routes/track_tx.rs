@@ -39,6 +39,6 @@ pub async fn handler<T: titan_client::TitanApi, Db: IndexerDbBounds, TxValidator
 ) -> Result<TrackTxResponse, ServerError> {
     info!("Received track tx: {:?}", payload);
     let uuid = get_uuid();
-    state.btc_indexer.check_tx_changes(uuid, payload).await?;
+    state.btc_indexer.check_tx_changes(uuid, &payload).await?;
     Ok(Json(Empty {}))
 }

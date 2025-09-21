@@ -12,7 +12,7 @@ use tracing::instrument;
 
 #[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, Copy, Eq, PartialEq, Hash)]
 #[sqlx(rename_all = "snake_case", type_name = "BTC_TRACKED_TX_STATUS")]
-pub enum TxTrackingStorageStatus {
+pub enum TrackedRawTxStatus {
     Pending,
     Finalized,
 }
@@ -24,13 +24,13 @@ pub struct TxTrackingStorage {
     pub id: Id,
     pub tx_id: TxIdWrapped,
     pub v_out: VOut,
-    pub status: TxTrackingStorageStatus,
+    pub status: TrackedRawTxStatus,
     pub btc_tx_review: BtcTxReview,
     pub transaction: Transaction,
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct TxToUpdateStatus {
     pub tx_id: TxIdWrapped,
     pub v_out: VOut,
@@ -50,14 +50,14 @@ pub trait TxTrackingStorageTrait {
 
 #[async_trait::async_trait]
 impl TxTrackingStorageTrait for LocalDbStorage {
-    #[instrument(level = "debug", skip(self))]
+    #[instrument(level = "trace", skip(self))]
     async fn get_txs_to_update_status(&self) -> Result<Vec<TxToUpdateStatus>, DbError> {
         let mut conn = self.postgres_repo.get_conn().await?;
         let mut transaction = conn.begin().await?;
 
         let stored_values: Vec<(TxIdWrapped, i32, i64)> =
             sqlx::query_as("SELECT tx_id, v_out, amount FROM btc_indexer.tx_tracking WHERE status = $1;")
-                .bind(TxTrackingStorageStatus::Pending)
+                .bind(TrackedRawTxStatus::Pending)
                 .fetch_all(&mut *transaction)
                 .await
                 .map_err(|e| DbError::BadRequest(e.to_string()))?;
@@ -74,7 +74,7 @@ impl TxTrackingStorageTrait for LocalDbStorage {
         Ok(stored_values)
     }
 
-    #[instrument(level = "debug", skip(self))]
+    #[instrument(level = "trace", skip(self))]
     async fn insert_tx_tracking_report(
         &self,
         outpoint: OutPoint,
@@ -90,10 +90,10 @@ impl TxTrackingStorageTrait for LocalDbStorage {
         )
         .bind(Json(btc_tx_review))
         .bind(Json(titan_tx))
-        .bind(TxTrackingStorageStatus::Finalized)
+        .bind(TrackedRawTxStatus::Finalized)
         .bind(TxIdWrapped(outpoint.txid))
         .bind(outpoint.vout as i32)
-        .fetch_one(&mut *transaction)
+        .execute(&mut *transaction)
         .await
         .map_err(|e| DbError::BadRequest(e.to_string()))?;
         transaction.commit().await?;
