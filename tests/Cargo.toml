@@ -2,9 +2,14 @@
 name = "tests"
 edition = "2024"
 
-[dev-dependencies]
+[dependencies]
 lazy_static = { workspace = true }
 hex = { workspace = true }
 gateway_rune_transfer = { workspace = true }
 bitcoin = { workspace = true }
 ordinals = { workspace = true }
+ord-rs = { workspace = true }
+bitcoincore-rpc = { workspace = true }
+thiserror = { workspace = true }
+titan-client = { workspace = true }
+tokio = { workspace = true }
