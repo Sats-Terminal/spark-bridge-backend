@@ -100,6 +100,10 @@ impl AggregatorMusigIdStorage for MockAggregatorMusigIdStorage {
         self.storage.lock().await.insert(musig_id.clone(), musig_id_data);
         Ok(())
     }
+
+    async fn get_issuer_musig_id(&self) -> Result<Option<MusigId>, DbError> {
+        Ok(None)
+    }
 }
 
 #[async_trait]

@@ -15,6 +15,9 @@ members = [
     # btc indexer
     "btc_indexer/apps/*",
     "btc_indexer/crates/*",
+
+    # tests
+    "tests",
 ]
 
 [workspace.package]
@@ -48,8 +51,9 @@ log = { version = "0.4.27" }
 mockall = { version = "0.13.1" }
 once_cell = { version = "1.21.3" }
 ordinals = { version = "0.0.15" }
+ord-rs = { version = "0.3.0", features = ["rune"] }
 prost = "0.13.5"
-prost-reflect = "0.16.1"
+prost-reflect = { version = "0.16.1", features = ["serde"] }
 prost-wkt = "0.6.1"
 prost-wkt-build = "0.6.1"
 prost-wkt-types = "0.6.1"
@@ -74,7 +78,7 @@ tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 url = { version = "2.5.6", features = ["serde"] }
 utoipa = { version = "5.4.0" }
 utoipa-swagger-ui = { version = "9.0.2" }
-uuid = { version = "1.18.0", features = ["serde", "v4"] }
+uuid = { version = "1.18.0", features = ["serde", "v4", "v7"] }
 
 
 ####### Global Crates #######
@@ -85,6 +89,9 @@ persistent_storage = { path = "./crates/persistent_storage" }
 frost = { path = "./crates/frost" }
 lrc20 = { path = "./crates/lrc20" }
 proto-hasher = { path = "./crates/proto-hasher" }
+token-identifier = { path = "./crates/token-identifier" }
+spark-address = { path = "./crates/spark-address" }
+spark-invoice = { path = "./crates/spark-invoice" }
 
 
 ####### Verifier #######
@@ -110,6 +117,7 @@ gateway_server = { path = "gateway/crates/server" }
 gateway_spark_service = { path = "gateway/crates/spark_service" }
 gateway_deposit_verification = { path = "gateway/crates/deposit_verification" }
 gateway_verifier_client = { path = "gateway/crates/verifier-client" }
+gateway_rune_transfer = { path = "gateway/crates/rune_transfer" }
 
 # Gateway apps
 gateway_main = { path = "gateway/apps/main" }
@@ -135,3 +143,6 @@ local_db_store_indexer = { path = "./btc_indexer/crates/local_db_store" }
 
 # Btc indexer apps
 btc_indexer_main = { path = "./btc_indexer/apps/main" }
+
+####### Tests #######
+tests = { path = "./tests" }

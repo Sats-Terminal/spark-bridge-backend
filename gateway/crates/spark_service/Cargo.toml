@@ -15,3 +15,5 @@ proto-hasher = { workspace = true }
 prost-reflect = { workspace = true }
 spark-protos = { workspace = true }
 futures = { workspace = true }
+token-identifier = { workspace = true }
+spark-address = { workspace = true }

@@ -35,19 +35,11 @@ pub mod spark_token {
 }
 
 /// This module contains the generated code for the Spark Operator RPC.
-pub mod spark_tree {
-    include!(concat!(env!("OUT_DIR"), "/spark_tree.rs"));
-}
-
-/// This module contains the generated code for the Spark Operator RPC.
-pub mod frost {
-    include!(concat!(env!("OUT_DIR"), "/frost.rs"));
-}
-
-/// This module contains the generated code for the Spark Operator RPC.
 pub mod spark_authn {
     include!(concat!(env!("OUT_DIR"), "/spark_authn.rs"));
 }
 
 // This is the file descriptor set for the Spark Operator RPC.
 pub const SPARK_FILE_DESCRIPTOR_SET: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/spark_descriptor.bin"));
+
+pub mod reflect;

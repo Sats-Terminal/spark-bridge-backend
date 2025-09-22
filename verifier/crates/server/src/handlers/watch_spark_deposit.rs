@@ -13,9 +13,9 @@ use verifier_spark_balance_checker_client::client::GetBalanceRequest;
 pub struct WatchSparkDepositRequest {
     pub musig_id: MusigId,
     pub nonce: Nonce,
-    pub address: String,
+    pub spark_address: String,
+    pub exit_address: String,
     pub amount: u64,
-    pub btc_address: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -29,24 +29,24 @@ pub async fn handle(
 ) -> Result<Json<WatchSparkDepositResponse>, VerifierError> {
     state
         .storage
-        .set_deposit_addr_info(
-            &request.musig_id,
-            request.nonce,
-            DepositAddrInfo {
-                address: request.address.to_string(),
-                is_btc: true,
-                amount: request.amount,
-                txid: None,
-                confirmation_status: DepositStatus::WaitingForConfirmation,
-            },
-        )
+        .set_deposit_addr_info(DepositAddrInfo {
+            musig_id: request.musig_id.clone(),
+            nonce: request.nonce,
+            out_point: None,
+            deposit_address: request.spark_address.clone(),
+            bridge_address: request.exit_address,
+            is_btc: true,
+            deposit_amount: request.amount,
+            sats_fee_amount: None,
+            confirmation_status: DepositStatus::WaitingForConfirmation,
+        })
         .await
         .map_err(|e| VerifierError::StorageError(format!("Failed to set deposit address info: {}", e)))?;
 
     let response = state
         .spark_balance_checker_client
         .get_balance(GetBalanceRequest {
-            spark_address: request.address.to_string(),
+            spark_address: request.spark_address.clone(),
             rune_id: request.musig_id.get_rune_id(),
         })
         .await
@@ -59,7 +59,7 @@ pub async fn handle(
 
     state
         .storage
-        .update_confirmation_status_by_address(request.address.to_string(), confirmation_status.clone())
+        .set_confirmation_status_by_deposit_address(request.spark_address, confirmation_status.clone())
         .await
         .map_err(|e| VerifierError::StorageError(format!("Failed to update confirmation status: {}", e)))?;
 

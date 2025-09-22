@@ -21,6 +21,10 @@ titan-client = { workspace = true }
 serde = { version = "1.0.219", features = ["derive"] }
 spark_client = { workspace = true }
 gateway_config_parser = { workspace = true }
+gateway_spark_service = { workspace = true }
+token-identifier = { workspace = true }
+spark-address = { workspace = true }
+gateway_rune_transfer = { workspace = true }
 
 [dev-dependencies]
 lrc20 = { workspace = true }

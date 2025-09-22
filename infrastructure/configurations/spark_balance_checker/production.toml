@@ -2,6 +2,12 @@
 http_server_ip = "0.0.0.0"
 http_server_port = 8070
 
+[network]
+network = "regtest"
+
+[spark_config]
+certificate = { path = "./ca.pem" }
+
 [[spark_operators]]
 id = 1
 base_url = "https://0.spark.lightspark.com"
@@ -16,6 +22,3 @@ base_url = "https://1.spark.lightspark.com"
 identity_public_key = "03e625e9768651c9be268e287245cc33f96a68ce9141b0b4769205db027ee8ed77"
 frost_identifier = "0000000000000000000000000000000000000000000000000000000000000002"
 running_authority = "Lightspark"
-
-[network]
-network = "regtest"

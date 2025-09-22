@@ -11,6 +11,10 @@ pub enum SignerError {
     Internal(String),
     #[error("Database error: {0}")]
     DatabaseError(#[from] DbError),
+    #[error("Musig already exists")]
+    MusigAlreadyExists(String),
+    #[error("Musig not found")]
+    MusigNotFound(String),
 }
 
 #[derive(Error, Debug)]
@@ -27,4 +31,8 @@ pub enum AggregatorError {
     HttpError(String),
     #[error("Database error: {0}")]
     DatabaseError(#[from] DbError),
+    #[error("Musig already exists")]
+    MusigAlreadyExists(String),
+    #[error("Musig not found")]
+    MusigNotFound(String),
 }

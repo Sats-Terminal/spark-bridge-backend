@@ -1,5 +1,5 @@
 pub use persistent_storage::error::DbError;
-use persistent_storage::{
+pub(crate) use persistent_storage::{
     config::*,
     init::{PostgresPool, PostgresRepo},
 };

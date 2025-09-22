@@ -27,7 +27,7 @@ async fn main() {
 
     // Create Config
     let config_path = ConfigPath::from_env().unwrap();
-    let server_config = ServerConfig::init_config(ConfigVariant::OnlyOneFilepath(config_path.path)).unwrap();
+    let server_config = ServerConfig::init_config(config_path.path);
     tracing::debug!("App config: {:?}", server_config);
 
     // Create DB Pool
@@ -50,12 +50,13 @@ async fn main() {
 
     // Create Flow Processor
     let (mut flow_processor, flow_sender) = create_flow_processor(
-        Arc::new(server_config.clone().verifiers.0),
+        server_config.clone(),
         shared_db_pool.clone(),
         server_config.flow_processor.cancellation_retries,
         frost_aggregator,
         server_config.network.network,
-    );
+    )
+    .await;
     tokio::spawn(async move {
         flow_processor.run().await;
     });

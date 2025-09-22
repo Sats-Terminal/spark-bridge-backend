@@ -15,5 +15,5 @@ uuid = { workspace = true }
 bitcoin = { workspace = true }
 eyre = { workspace = true }
 persistent_storage = { workspace = true }
-lrc20 = { workspace = true }
+spark-protos = { workspace = true }
 global_utils = { workspace = true }

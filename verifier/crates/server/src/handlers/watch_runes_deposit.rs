@@ -2,7 +2,7 @@ use crate::errors::VerifierError;
 use crate::init::AppState;
 use axum::Json;
 use axum::extract::State;
-use bitcoin::Txid;
+use bitcoin::OutPoint;
 use frost::types::MusigId;
 use frost::types::Nonce;
 use serde::{Deserialize, Serialize};
@@ -14,10 +14,10 @@ use verifier_local_db_store::schemas::deposit_address::{DepositAddrInfo, Deposit
 pub struct WatchRunesDepositRequest {
     pub musig_id: MusigId,
     pub nonce: Nonce,
-    pub address: String,
     pub amount: u64,
     pub btc_address: String,
-    pub txid: Txid,
+    pub bridge_address: String,
+    pub out_point: OutPoint,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -29,17 +29,17 @@ pub async fn handle(
 ) -> Result<Json<WatchRunesDepositResponse>, VerifierError> {
     state
         .storage
-        .set_deposit_addr_info(
-            &request.musig_id,
-            request.nonce,
-            DepositAddrInfo {
-                address: request.address,
-                is_btc: false,
-                amount: request.amount,
-                txid: None,
-                confirmation_status: DepositStatus::WaitingForConfirmation,
-            },
-        )
+        .set_deposit_addr_info(DepositAddrInfo {
+            musig_id: request.musig_id.clone(),
+            nonce: request.nonce,
+            out_point: Some(request.out_point),
+            deposit_address: request.btc_address.clone(),
+            bridge_address: request.bridge_address.clone(),
+            is_btc: false,
+            deposit_amount: request.amount,
+            sats_fee_amount: None,
+            confirmation_status: DepositStatus::WaitingForConfirmation,
+        })
         .await
         .map_err(|e| VerifierError::StorageError(format!("Failed to set deposit address info: {}", e)))?;
 
@@ -48,7 +48,10 @@ pub async fn handle(
     state
         .btc_indexer_client
         .watch_runes_deposit(IndexerWatchRunesDepositRequest {
-            tx_id: request.txid,
+            btc_address: request.btc_address,
+            out_point: request.out_point,
+            rune_id: request.musig_id.get_rune_id(),
+            rune_amount: request.amount,
             callback_url,
         })
         .await

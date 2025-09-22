@@ -20,4 +20,8 @@ pub enum FlowProcessorError {
     TweakingConversionError(String),
     #[error("Unfinished dkg state: {0}")]
     UnfinishedDkgState(String),
+    #[error("Spark service error: {0}")]
+    SparkServiceError(String),
+    #[error("Rune transfer error: {0}")]
+    RuneTransferError(String),
 }

@@ -1,4 +1,5 @@
 use crate::error::BtcIndexerClientError;
+use bitcoin::OutPoint;
 use bitcoin::Txid;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -9,7 +10,10 @@ const WATCH_RUNES_DEPOSIT_PATH: &str = "/track_tx";
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct WatchRunesDepositRequest {
-    pub tx_id: Txid,
+    pub btc_address: String,
+    pub out_point: OutPoint,
+    pub rune_id: String,
+    pub rune_amount: u64,
     pub callback_url: Url,
 }
 

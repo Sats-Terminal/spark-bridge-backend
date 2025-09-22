@@ -1,7 +1,8 @@
 use crate::error::GatewayClientError;
-use bitcoin::Txid;
+use bitcoin::OutPoint;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use tracing;
 use verifier_config_parser::config::GatewayConfig;
 use verifier_local_db_store::schemas::deposit_address::DepositStatus;
 
@@ -13,11 +14,12 @@ pub struct GatewayClient {
     client: Client,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct NotifyRunesDepositRequest {
     pub verifier_id: u16,
-    pub txid: Txid,
-    pub verifier_response: DepositStatus,
+    pub out_point: OutPoint,
+    pub sats_fee_amount: u64,
+    pub status: DepositStatus,
 }
 
 impl GatewayClient {
@@ -29,6 +31,10 @@ impl GatewayClient {
     }
 
     pub async fn notify_runes_deposit(&self, request: NotifyRunesDepositRequest) -> Result<(), GatewayClientError> {
+        tracing::info!(
+            "Sending request to notify runes deposit for verifier: {}",
+            request.verifier_id
+        );
         let url = self
             .config
             .address
@@ -44,8 +50,13 @@ impl GatewayClient {
             .map_err(|e| GatewayClientError::HttpError(format!("Failed to send request: {:?}", e)))?;
 
         if response.status().is_success() {
+            tracing::info!(
+                "Request to notify runes deposit for verifier: {} successful",
+                request.verifier_id
+            );
             Ok(())
         } else {
+            tracing::error!("Failed to send HTTP request with status {}", response.status());
             Err(GatewayClientError::HttpError(format!(
                 "Failed to send HTTP request with status {}, error: {}",
                 response.status(),

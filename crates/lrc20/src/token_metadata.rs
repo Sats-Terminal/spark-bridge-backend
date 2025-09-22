@@ -11,9 +11,8 @@ use bitcoin::{
     p2p::Magic,
     secp256k1::PublicKey,
 };
-use serde::{Deserialize, Serialize};
 
-use crate::token_identifier::TokenIdentifier;
+use token_identifier::TokenIdentifier;
 
 /// L1 Creation Entity Public Key - used for L1 tokens
 /// This corresponds to a 33-byte public key with all zeros
@@ -60,7 +59,8 @@ pub const MAX_TOKEN_METADATA_SIZE: usize = PUBLIC_KEY_SIZE
     + size_of::<Network>();
 
 /// LRC20 token metadata.
-#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TokenMetadata {
     /// The public key of the issuer.
     pub issuer_public_key: PublicKey,

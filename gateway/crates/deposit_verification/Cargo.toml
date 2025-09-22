@@ -24,3 +24,4 @@ gateway_flow_processor = { workspace = true }
 gateway_local_db_store = { workspace = true }
 frost = { workspace = true }
 gateway_config_parser = { workspace = true }
+gateway_rune_transfer = { workspace = true }

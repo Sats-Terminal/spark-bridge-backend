@@ -6,45 +6,50 @@ use bitcoin::hashes::{Hash, HashEngine};
 use bitcoin::secp256k1::PublicKey;
 use frost::aggregator::FrostAggregator;
 use frost::types::MusigId;
+use frost::types::Nonce;
 use frost::types::SigningMetadata;
-use frost::types::TokenTransactionMetadata;
 use futures::future::join_all;
 use lrc20::marshal::marshal_token_transaction;
 use lrc20::marshal::unmarshal_token_transaction;
-use lrc20::proto_hasher::get_descriptor_pool;
-use lrc20::proto_hasher::hash_token_transaction;
-use lrc20::token_identifier::TokenIdentifier;
-use prost_reflect::DescriptorPool;
+use proto_hasher::ProtoHasher;
+use spark_address::Network;
 use spark_client::client::SparkRpcClient;
-use spark_client::utils::spark_address::Network;
+use spark_protos::reflect::ToDynamicMessage;
 use spark_protos::spark_authn::GetChallengeRequest;
 use spark_protos::spark_authn::VerifyChallengeRequest;
 use spark_protos::spark_token::CommitTransactionRequest;
 use spark_protos::spark_token::InputTtxoSignaturesPerOperator;
 use spark_protos::spark_token::SignatureWithIndex;
 use spark_protos::spark_token::StartTransactionRequest;
+use token_identifier::TokenIdentifier;
 
 const DEFAULT_VALIDITY_DURATION_SECONDS: u64 = 300;
 
 pub struct SparkService {
     spark_client: SparkRpcClient,
     frost_aggregator: FrostAggregator,
-    descriptor_pool: DescriptorPool,
+    proto_hasher: ProtoHasher,
+    spark_operator_identity_public_keys: Vec<PublicKey>,
 }
 
 impl SparkService {
-    pub fn new(spark_client: SparkRpcClient, frost_aggregator: FrostAggregator) -> Self {
+    pub fn new(
+        spark_client: SparkRpcClient,
+        frost_aggregator: FrostAggregator,
+        spark_operator_identity_public_keys: Vec<PublicKey>,
+    ) -> Self {
         Self {
             spark_client,
             frost_aggregator,
-            descriptor_pool: get_descriptor_pool(),
+            proto_hasher: ProtoHasher::new(),
+            spark_operator_identity_public_keys,
         }
     }
 
     async fn get_musig_public_key(
         &self,
         issuer_id: MusigId,
-        nonce_tweak: Option<&[u8]>,
+        nonce_tweak: Option<Nonce>,
     ) -> Result<PublicKey, SparkServiceError> {
         let public_key_package = self
             .frost_aggregator
@@ -63,7 +68,7 @@ impl SparkService {
         Ok(issuer_public_key)
     }
 
-    async fn authenticate(&self, musig_id: MusigId, nonce_tweak: Option<&[u8]>) -> Result<(), SparkServiceError> {
+    async fn authenticate(&self, musig_id: MusigId, nonce_tweak: Option<Nonce>) -> Result<(), SparkServiceError> {
         let identity_public_key = self.get_musig_public_key(musig_id.clone(), nonce_tweak).await?;
 
         let session_token = self.spark_client.get_auth_session(identity_public_key).await;
@@ -91,9 +96,7 @@ impl SparkService {
             .run_signing_flow(
                 musig_id.clone(),
                 challenge.nonce.as_ref(),
-                SigningMetadata {
-                    token_transaction_metadata: TokenTransactionMetadata::Authorization,
-                },
+                SigningMetadata::Authorization,
                 nonce_tweak,
             )
             .await
@@ -119,11 +122,10 @@ impl SparkService {
     pub async fn send_spark_transaction(
         &self,
         musig_id: MusigId,
-        nonce_tweak: Option<&[u8]>,
+        nonce_tweak: Option<Nonce>,
         token_identifier: TokenIdentifier,
         transaction_type: SparkTransactionType,
         network: Network,
-        spark_operator_identity_public_keys: Vec<PublicKey>,
     ) -> Result<(), SparkServiceError> {
         self.authenticate(musig_id.clone(), nonce_tweak).await?;
 
@@ -135,26 +137,28 @@ impl SparkService {
             identity_public_key,
             transaction_type.clone(),
             token_identifier,
-            spark_operator_identity_public_keys.clone(),
+            self.spark_operator_identity_public_keys.clone(),
             network,
         )?;
 
-        let partial_token_transaction_proto = marshal_token_transaction(partial_token_transaction.clone(), false)
-            .map_err(|e| {
+        let partial_token_transaction_proto =
+            marshal_token_transaction(&partial_token_transaction, false).map_err(|e| {
                 SparkServiceError::InvalidData(format!("Failed to marshal partial token transaction: {:?}", e))
             })?;
 
-        let partial_token_transaction_hash =
-            hash_token_transaction(self.descriptor_pool.clone(), partial_token_transaction_proto.clone()).map_err(
-                |err| SparkServiceError::HashError(format!("Failed to hash partial token transaction: {:?}", err)),
-            )?;
+        let partial_token_transaction_hash = self
+            .proto_hasher
+            .hash_proto(partial_token_transaction_proto.to_dynamic().map_err(|e| {
+                SparkServiceError::HashError(format!("Failed to hash partial token transaction: {:?}", e))
+            })?)
+            .map_err(|e| SparkServiceError::HashError(format!("Failed to hash partial token transaction: {:?}", e)))?;
 
         let signature = self
             .frost_aggregator
             .run_signing_flow(
                 musig_id.clone(),
                 partial_token_transaction_hash.as_ref(),
-                create_signing_metadata(partial_token_transaction.clone(), transaction_type.clone(), true),
+                create_signing_metadata(partial_token_transaction.clone(), transaction_type.clone(), true)?,
                 nonce_tweak,
             )
             .await
@@ -188,14 +192,16 @@ impl SparkService {
                 SparkServiceError::DecodeError(format!("Failed to unmarshal final token transaction: {:?}", e))
             })?;
 
-        let final_token_transaction_hash =
-            hash_token_transaction(self.descriptor_pool.clone(), final_token_transaction_proto.clone()).map_err(
-                |err| SparkServiceError::HashError(format!("Failed to hash final token transaction: {:?}", err)),
-            )?;
+        let final_token_transaction_hash = self
+            .proto_hasher
+            .hash_proto(final_token_transaction_proto.to_dynamic().map_err(|e| {
+                SparkServiceError::HashError(format!("Failed to hash final token transaction: {:?}", e))
+            })?)
+            .map_err(|e| SparkServiceError::HashError(format!("Failed to hash final token transaction: {:?}", e)))?;
 
         let mut join_handles = vec![];
 
-        for operator_public_key in spark_operator_identity_public_keys {
+        for operator_public_key in self.spark_operator_identity_public_keys.clone() {
             let operator_specific_signable_payload = hash_operator_specific_signable_payload(
                 final_token_transaction_hash,
                 operator_public_key,
@@ -214,7 +220,7 @@ impl SparkService {
                     .run_signing_flow(
                         musig_id,
                         operator_specific_signable_payload.as_ref(),
-                        create_signing_metadata(final_token_transaction, transaction_type, false),
+                        create_signing_metadata(final_token_transaction, transaction_type, false)?,
                         nonce_tweak,
                     )
                     .await

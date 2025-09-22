@@ -35,12 +35,8 @@ pub async fn create_app(
         )
         .route("/api/user/exit-spark", post(handlers::exit_spark::handle))
         .route(
-            "/api/verifier/notify-runes-address",
-            post(handlers::notify_runes_address::handle),
-        )
-        .route(
-            "/api/verifier/notify-spark-address",
-            post(handlers::notify_spark_address::handle),
+            "/api/verifier/notify-runes-deposit",
+            post(handlers::notify_runes_deposit::handle),
         )
         .route("/api/user/bridge-runes", post(handlers::bridge_runes::handle))
         .with_state(state)

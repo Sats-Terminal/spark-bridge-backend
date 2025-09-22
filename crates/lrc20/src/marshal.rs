@@ -1,20 +1,22 @@
-use bitcoin::{
-    absolute::LockTime,
-    hashes::{Hash, sha256::Hash as Sha256Hash},
-    secp256k1::PublicKey,
-};
-use prost_wkt_types::Timestamp;
-use spark_protos::spark_token::{self, TokenTransaction as TokenTransactionV2SparkProto};
-use tracing::{error, info};
-
 use crate::{
-    token_identifier::TokenIdentifier,
     token_leaf::{TokenLeafOutput, TokenLeafToSpend},
     token_transaction::{
         TokenTransaction, TokenTransactionCreateInput, TokenTransactionError, TokenTransactionInput,
         TokenTransactionMintInput, TokenTransactionTransferInput, TokenTransactionVersion,
     },
 };
+use bitcoin::{
+    absolute::LockTime,
+    hashes::{Hash, sha256::Hash as Sha256Hash},
+    secp256k1::PublicKey,
+};
+use prost_wkt_types::Timestamp;
+use spark_address::decode_spark_address;
+use spark_protos::spark_token::{self, InvoiceAttachment, TokenTransaction as TokenTransactionV2SparkProto};
+use std::collections::HashMap;
+use token_identifier::TokenIdentifier;
+use tracing::{debug, error};
+use uuid::Uuid;
 
 /// Converts a `TokenTransaction` struct into a `spark_protos::spark_token::TokenTransaction` message.
 ///
@@ -28,7 +30,7 @@ use crate::{
 ///
 /// A `spark_protos::spark::TokenTransaction` message.
 pub fn marshal_token_transaction(
-    tx: TokenTransaction,
+    tx: &TokenTransaction,
     with_revocation_commitments: bool,
 ) -> Result<TokenTransactionV2SparkProto, TokenTransactionError> {
     let spark_operator_identity_public_keys = tx
@@ -66,6 +68,46 @@ pub fn marshal_token_transaction(
                 network: network as i32,
                 client_created_timestamp: Some(client_created_ts),
                 token_inputs,
+                invoice_attachments: Default::default(),
+            };
+
+            Ok(tx_proto)
+        }
+        TokenTransactionVersion::V3 | TokenTransactionVersion::V4 => {
+            let token_outputs =
+                into_token_leaves_to_create_v2(tx.leaves_to_create.clone(), with_revocation_commitments)?;
+            let token_inputs = Some(into_token_input_v2(tx.clone())?);
+
+            let client_created_ts = Timestamp {
+                seconds: tx.client_created_timestamp as i64 / 1_000,
+                nanos: ((tx.client_created_timestamp % 1_000) * 1_000_000) as i32,
+            };
+
+            let expiry_time = (tx.expiry_time > 0).then(|| Timestamp {
+                seconds: tx.expiry_time as i64,
+                nanos: 0,
+            });
+
+            let mut invoice_attachments: Vec<_> = tx
+                .invoice_attachments
+                .values()
+                .into_iter()
+                .map(|v| InvoiceAttachment {
+                    spark_invoice: v.to_string(),
+                })
+                .collect();
+
+            invoice_attachments.sort_by(|a, b| a.spark_invoice.cmp(&b.spark_invoice));
+
+            let tx_proto = TokenTransactionV2SparkProto {
+                version: tx.version.as_u32(),
+                token_outputs,
+                spark_operator_identity_public_keys,
+                expiry_time,
+                network: network as i32,
+                client_created_timestamp: Some(client_created_ts),
+                token_inputs,
+                invoice_attachments,
             };
 
             Ok(tx_proto)
@@ -75,8 +117,10 @@ pub fn marshal_token_transaction(
             let version_num = match tx.version {
                 TokenTransactionVersion::V1 => 0u32,
                 TokenTransactionVersion::V2 => 1u32,
+                TokenTransactionVersion::V3 => 2u32,
+                TokenTransactionVersion::V4 => 3u32,
             };
-            Err(TokenTransactionError::InvalidTokenTransactionVersion(version_num))
+            return Err(TokenTransactionError::InvalidTokenTransactionVersion(version_num));
         }
     }
 }
@@ -130,7 +174,7 @@ fn into_token_leaves_to_create_v2(
 pub fn unmarshal_token_transaction(
     token_tx: TokenTransactionV2SparkProto,
 ) -> Result<TokenTransaction, TokenTransactionError> {
-    info!("Unmarshalling token transaction: {:?}", token_tx);
+    debug!("Unmarshalling token transaction: {:?}", token_tx);
     let token_input = token_tx.token_inputs.ok_or(TokenTransactionError::TokenInputMissing)?;
 
     let parsed_token_input = parse_token_input_v2(token_input)?;
@@ -155,10 +199,24 @@ pub fn unmarshal_token_transaction(
     let version = match token_tx.version {
         0 => TokenTransactionVersion::V1,
         1 => TokenTransactionVersion::V2,
+        2 => TokenTransactionVersion::V3,
         _ => {
             return Err(TokenTransactionError::InvalidTokenTransactionVersion(token_tx.version));
         }
     };
+
+    let invoice_attachments: HashMap<Uuid, String> = token_tx
+        .invoice_attachments
+        .into_iter()
+        .map(|attachment| {
+            let encoded_spark_invoice = attachment.spark_invoice;
+            let decoded_data = decode_spark_address(&encoded_spark_invoice)?;
+
+            let invoice_fields = decoded_data.invoice.ok_or(TokenTransactionError::InvoiceDataMissing)?;
+
+            Ok((invoice_fields.id, encoded_spark_invoice))
+        })
+        .collect::<Result<_, TokenTransactionError>>()?;
 
     Ok(TokenTransaction {
         version,
@@ -168,6 +226,7 @@ pub fn unmarshal_token_transaction(
         network: Some(network as u32),
         expiry_time,
         client_created_timestamp,
+        invoice_attachments,
     })
 }
 
@@ -292,7 +351,7 @@ fn parse_token_leaves_to_create_v2(
     let mut result_leaves = Vec::new();
 
     for leaf in leaves {
-        info!("Parsing token leaf: {:?}", leaf);
+        debug!("Parsing token leaf: {:?}", leaf);
         let id = leaf.id;
         let owner_public_key = PublicKey::from_slice(&leaf.owner_public_key)?;
         let revocation_public_key = PublicKey::from_slice(

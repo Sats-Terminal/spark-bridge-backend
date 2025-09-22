@@ -1,5 +1,6 @@
 use crate::error::FlowProcessorError;
 use bitcoin::Address;
+use bitcoin::OutPoint;
 use frost::types::MusigId;
 use tokio::sync::oneshot;
 

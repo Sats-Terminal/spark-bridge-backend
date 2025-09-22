@@ -1,9 +1,12 @@
 use crate::error::FlowProcessorError;
 use crate::types::*;
-use bitcoin::Network;
+use bitcoin::{KnownHrp, Network};
 use frost::aggregator::FrostAggregator;
 use gateway_config_parser::config::VerifierConfig;
 use gateway_local_db_store::storage::LocalDbStorage;
+use gateway_rune_transfer::bitcoin_client::BitcoinClient;
+use gateway_spark_service::service::SparkService;
+use spark_client::client::SparkRpcClient;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tracing;
@@ -21,7 +24,10 @@ pub struct FlowProcessorRouter {
     pub response_sender: OneshotFlowProcessorSender,
     pub task_sender: mpsc::Sender<Uuid>,
     pub frost_aggregator: FrostAggregator,
+    pub spark_service: Arc<SparkService>,
+    pub spark_client: Arc<SparkRpcClient>,
     pub network: Network,
+    pub bitcoin_client: Arc<BitcoinClient>,
 }
 
 impl FlowProcessorRouter {
@@ -34,7 +40,7 @@ impl FlowProcessorRouter {
                 answer
             }
             FlowProcessorMessage::IssueSparkDepositAddress(request) => {
-                let response = self.run_spark_addr_issuing(request, self.network).await;
+                let response = self.run_spark_addr_issuing(request).await;
                 let answer = response.map(FlowProcessorResponse::IssueSparkDepositAddress);
                 answer
             }
@@ -78,27 +84,18 @@ impl FlowProcessorRouter {
         request: BridgeRunesRequest,
     ) -> Result<BridgeRunesResponse, FlowProcessorError> {
         info!("[{LOG_PATH}] bridging runes flow with request: {request:?}");
-        crate::routes::bridge_runes_flow::handle(self).await?;
+        crate::routes::bridge_runes_flow::handle(self, request).await?;
         Ok(BridgeRunesResponse {
-            message: format!("message for {}", request.btc_address),
+            message: "message for btc address".to_string(),
         })
     }
 
     async fn run_spark_addr_issuing(
         &mut self,
         request: IssueSparkDepositAddressRequest,
-        network: Network,
     ) -> Result<IssueSparkDepositAddressResponse, FlowProcessorError> {
         info!("[{LOG_PATH}] issuing spark addr to user with request: {request:?}");
-        let address = crate::routes::spark_addr_issuing::handle(
-            self.verifier_configs.clone(),
-            request.musig_id,
-            request.amount,
-            network,
-            self.frost_aggregator.clone(),
-            self.storage.clone(),
-        )
-        .await?;
+        let address = crate::routes::spark_addr_issuing::handle(self, request).await?;
         Ok(IssueSparkDepositAddressResponse {
             addr_to_replenish: address,
         })
@@ -110,9 +107,9 @@ impl FlowProcessorRouter {
         request: ExitSparkRequest,
     ) -> Result<ExitSparkResponse, FlowProcessorError> {
         info!("[{LOG_PATH}] exiting spark flow with request: {request:?}");
-        crate::routes::exit_spark_flow::handle(self).await?;
+        crate::routes::exit_spark_flow::handle(self, request).await?;
         Ok(ExitSparkResponse {
-            message: format!("message for {}", request.spark_address),
+            message: "message for spark exit".to_string(),
         })
     }
 }
