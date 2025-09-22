@@ -25,6 +25,7 @@ pub struct BitcoinClientConfig {
 pub struct BitcoinClient {
     bitcoin_client: Client,
     titan_client: TitanClient,
+    faucet_wallet_address: Option<Address>,
 }
 
 impl BitcoinClient {
@@ -33,18 +34,34 @@ impl BitcoinClient {
             config.bitcoin_url.as_str(),
             UserPass(config.bitcoin_username, config.bitcoin_password),
         )?;
-
         let titan_client = TitanClient::new(config.titan_url.as_str());
 
-        Ok(Self {
+        let mut client = Self {
             bitcoin_client,
             titan_client,
-        })
+            faucet_wallet_address: None,
+        };
+        client.init_bitcoin_faucet_wallet()?;
+
+        Ok(client)
     }
 
-    pub fn init_bitcoin_faucet_wallet(&self) -> Result<(), BitcoinClientError> {
-        // self.bitcoin_client.create_wallet("faucet_wallet", None, None, None, None)?;
-        self.bitcoin_client.generate(151, None)?;
+    fn get_faucet_wallet_address(&mut self) -> Result<Address, BitcoinClientError> {
+        match self.faucet_wallet_address.clone() {
+            Some(address) => Ok(address),
+            None => {
+                let address = self.bitcoin_client.get_new_address(None, None)?.assume_checked();
+                self.faucet_wallet_address = Some(address.clone());
+                Ok(address)
+            }
+        }
+    }
+
+    fn init_bitcoin_faucet_wallet(&mut self) -> Result<(), BitcoinClientError> {
+        let wallets = self.bitcoin_client.list_wallets()?;
+        if !wallets.contains(&"faucet_wallet".to_string()) {
+            self.generate_blocks(121)?;
+        }
         Ok(())
     }
 
@@ -57,16 +74,18 @@ impl BitcoinClient {
         Ok(())
     }
 
-    pub fn generate_blocks(&self, blocks: u64) -> Result<(), BitcoinClientError> {
-        self.bitcoin_client.generate(blocks, None)?;
+    pub fn generate_blocks(&mut self, blocks: u64) -> Result<(), BitcoinClientError> {
+        let faucet_wallet_address = self.get_faucet_wallet_address()?;
+        self.bitcoin_client
+            .generate_to_address(blocks, &faucet_wallet_address)?;
         Ok(())
     }
 
-    pub fn faucet(&self, address: Address, sats_amount: u64) -> Result<(), BitcoinClientError> {
+    pub fn faucet(&mut self, address: Address, sats_amount: u64) -> Result<(), BitcoinClientError> {
         let amount = RpcAmount::from_sat(sats_amount);
         self.bitcoin_client
             .send_to_address(&address, amount, None, None, None, None, None, None)?;
-        self.bitcoin_client.generate(6, None)?;
+        self.generate_blocks(6)?;
         Ok(())
     }
 
