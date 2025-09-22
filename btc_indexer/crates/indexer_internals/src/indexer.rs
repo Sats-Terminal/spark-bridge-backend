@@ -72,7 +72,7 @@ impl<C: Clone, Db: Clone, TxValidator: Clone> Clone for BtcIndexer<C, Db, TxVali
 
 impl<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArbiterTrait> BtcIndexer<C, Db, TxValidator> {
     #[instrument(skip(params))]
-    pub fn new(params: IndexerParamsWithApi<C, Db, TxValidator>) -> crate::error::Result<Self> {
+    pub  fn new(params: IndexerParamsWithApi<C, Db, TxValidator>) -> crate::error::Result<Self> {
         let cancellation_token = CancellationToken::new();
         crate::tx_tracking_task::spawn(
             cancellation_token.clone(),
@@ -108,7 +108,7 @@ impl<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArbiterTrait> BtcIndexer<C
 #[async_trait]
 impl<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArbiterTrait> BtcIndexerApi for BtcIndexer<C, Db, TxValidator> {
     #[inline]
-    #[instrument(level = "debug", skip(self))]
+    #[instrument(level = "debug", skip(self), ret)]
     async fn check_tx_changes(&self, uuid: Uuid, payload: &TrackTxRequest) -> crate::error::Result<()> {
         self.persistent_storage.track_tx_request(uuid, &payload).await?;
         Ok(())

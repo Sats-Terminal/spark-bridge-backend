@@ -1,14 +1,17 @@
 use std::{collections::HashMap, str::FromStr};
 
 use async_trait::async_trait;
-use bitcoin::{OutPoint, hashes::Hash};
-use bitcoincore_rpc::{RawTx, bitcoin::Txid};
+use bitcoin::{hashes::Hash, OutPoint};
+use bitcoincore_rpc::{bitcoin::Txid, RawTx};
+use btc_indexer_internals::tx_arbiter::TxArbiterTrait;
+use btc_indexer_internals::tx_arbiter::{TxArbiterError, TxArbiterResponse};
+use local_db_store_indexer::schemas::tx_tracking_storage::TxToUpdateStatus;
 use mockall::mock;
 use reqwest::header::HeaderMap;
 use titan_client::{Error, TitanApi};
 use titan_types::{
-    AddressData, Block, BlockTip, InscriptionId, MempoolEntry, Pagination, PaginationResponse, RuneResponse, Status,
-    Subscription, Transaction, TransactionStatus, TxOut, query,
+    query, AddressData, Block, BlockTip, InscriptionId, MempoolEntry, Pagination, PaginationResponse, RuneResponse,
+    Status, Subscription, Transaction, TransactionStatus, TxOut,
 };
 
 mock! {
@@ -60,5 +63,22 @@ mock! {
         async fn list_subscriptions(&self) -> Result<Vec<Subscription>, Error>;
         async fn add_subscription(&self, subscription: &Subscription) -> Result<Subscription, Error>;
         async fn delete_subscription(&self, id: &str) -> Result<(), Error>;
+    }
+}
+
+mock! {
+    pub TxArbiter {}
+    impl Clone for TxArbiter {
+        fn clone(&self) -> Self;
+    }
+
+     #[async_trait]
+    impl TxArbiterTrait for TxArbiter {
+        async fn check_tx<C: TitanApi>(
+            &self,
+            titan_client: C,
+            tx_to_check: &Transaction,
+            tx_info: &TxToUpdateStatus,
+        ) -> Result<TxArbiterResponse, TxArbiterError>;
     }
 }

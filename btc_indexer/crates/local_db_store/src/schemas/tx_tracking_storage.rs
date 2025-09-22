@@ -50,7 +50,7 @@ pub trait TxTrackingStorageTrait {
 
 #[async_trait::async_trait]
 impl TxTrackingStorageTrait for LocalDbStorage {
-    #[instrument(level = "trace", skip(self))]
+    #[instrument(level = "trace", skip(self), ret)]
     async fn get_txs_to_update_status(&self) -> Result<Vec<TxToUpdateStatus>, DbError> {
         let mut conn = self.postgres_repo.get_conn().await?;
         let mut transaction = conn.begin().await?;
@@ -74,7 +74,7 @@ impl TxTrackingStorageTrait for LocalDbStorage {
         Ok(stored_values)
     }
 
-    #[instrument(level = "trace", skip(self))]
+    #[instrument(level = "trace", skip(self), ret)]
     async fn insert_tx_tracking_report(
         &self,
         outpoint: OutPoint,

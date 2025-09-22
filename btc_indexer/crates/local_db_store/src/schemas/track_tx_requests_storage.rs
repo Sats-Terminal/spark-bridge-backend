@@ -47,7 +47,7 @@ pub trait TxRequestsTrackingStorageTrait {
 
 #[async_trait::async_trait]
 impl TxRequestsTrackingStorageTrait for LocalDbStorage {
-    #[instrument(level = "trace", skip(self))]
+    #[instrument(level = "trace", skip(self), ret)]
     async fn track_tx_request(&self, uuid: Uuid, req: &TrackTxRequest) -> Result<(), DbError> {
         let mut conn = self.postgres_repo.get_conn().await?;
         let mut transaction = conn.begin().await?;
@@ -84,7 +84,7 @@ impl TxRequestsTrackingStorageTrait for LocalDbStorage {
         Ok(())
     }
 
-    #[instrument(level = "trace", skip(self))]
+    #[instrument(level = "trace", skip(self), ret)]
     async fn get_values_to_send_response(&self) -> Result<Vec<TxTrackingRequestsToSendResponse>, DbError> {
         let mut conn = self.postgres_repo.get_conn().await?;
         let mut transaction = conn.begin().await?;
@@ -117,7 +117,7 @@ impl TxRequestsTrackingStorageTrait for LocalDbStorage {
         Ok(req_to_answer)
     }
 
-    #[instrument(level = "trace", skip(self))]
+    #[instrument(level = "trace", skip(self), ret)]
     async fn finalize_tx_request(&self, uuid: Uuid, status: TrackedReqStatus) -> Result<(), DbError> {
         let mut conn = self.postgres_repo.get_conn().await?;
         let mut transaction = conn.begin().await?;
