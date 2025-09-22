@@ -3,6 +3,7 @@ use bitcoin::{OutPoint, Txid};
 use btc_indexer_api::api::{Amount, BtcTxReview, TxRejectReason};
 use local_db_store_indexer::schemas::tx_tracking_storage::TxToUpdateStatus;
 use std::collections::BTreeMap;
+use std::sync::Arc;
 use thiserror::Error;
 use titan_client::{RuneId, TitanApi};
 use titan_types::{RuneAmount, Transaction};
@@ -20,7 +21,7 @@ pub struct TxArbiter {}
 pub trait TxArbiterTrait: Clone + Send + Sync + 'static {
     async fn check_tx<C: TitanApi>(
         &self,
-        titan_client: C,
+        titan_client: Arc<C>,
         tx_to_check: &Transaction,
         tx_info: &TxToUpdateStatus,
     ) -> Result<TxArbiterResponse, TxArbiterError>;
@@ -56,7 +57,7 @@ impl TxArbiterTrait for TxArbiter {
     #[instrument(skip(titan_client), level = "debug")]
     async fn check_tx<C: TitanApi>(
         &self,
-        titan_client: C,
+        titan_client: Arc<C>,
         tx_to_check: &Transaction,
         tx_info: &TxToUpdateStatus,
     ) -> Result<TxArbiterResponse, TxArbiterError> {

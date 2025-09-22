@@ -16,6 +16,7 @@ use titan_types::{AddressTxOut, Transaction};
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::oneshot;
 use tokio_util::sync::CancellationToken;
+use tokio_util::task::TaskTracker;
 use tracing::{error, info, instrument, log::debug, trace, warn};
 use uuid::Uuid;
 
@@ -25,18 +26,18 @@ const ACCOUNT_TRACKING_LOG_PATH: &str = "btc_indexer:account_tracking";
 
 pub struct BtcIndexer<C, Db, TxValidator> {
     pub btc_indexer_params: BtcIndexerParams,
-    //todo: maybe move into traits?
     persistent_storage: Db,
-    indexer_client: C,
-    tx_validator: TxValidator,
+    indexer_client: Arc<C>,
+    tx_validator: Arc<TxValidator>,
     btc_core: Arc<Client>,
     cancellation_token: CancellationToken,
+    task_tracker: TaskTracker,
 }
 
 pub struct IndexerParamsWithApi<C, Db, TxValidator> {
     pub indexer_params: IndexerParams<Db>,
-    pub titan_api_client: C,
-    pub tx_validator: TxValidator,
+    pub titan_api_client: Arc<C>,
+    pub tx_validator: Arc<TxValidator>,
 }
 
 pub struct IndexerParams<Db> {
@@ -51,8 +52,8 @@ impl BtcIndexer<TitanClient, LocalDbStorage, TxArbiter> {
         let titan_api_client = TitanClient::new(&params.btc_rpc_creds.url.to_string());
         Self::new(IndexerParamsWithApi {
             indexer_params: params,
-            titan_api_client,
-            tx_validator: TxArbiter {},
+            titan_api_client: Arc::new(titan_api_client),
+            tx_validator: Arc::new(TxArbiter {}),
         })
     }
 }
@@ -66,20 +67,23 @@ impl<C: Clone, Db: Clone, TxValidator: Clone> Clone for BtcIndexer<C, Db, TxVali
             tx_validator: self.tx_validator.clone(),
             btc_core: self.btc_core.clone(),
             cancellation_token: self.cancellation_token.clone(),
+            task_tracker: self.task_tracker.clone(),
         }
     }
 }
 
 impl<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArbiterTrait> BtcIndexer<C, Db, TxValidator> {
     #[instrument(skip(params))]
-    pub  fn new(params: IndexerParamsWithApi<C, Db, TxValidator>) -> crate::error::Result<Self> {
+    pub fn new(params: IndexerParamsWithApi<C, Db, TxValidator>) -> crate::error::Result<Self> {
         let cancellation_token = CancellationToken::new();
+        let mut task_tracker = TaskTracker::default();
         crate::tx_tracking_task::spawn(
             cancellation_token.clone(),
             params.indexer_params.db_pool.clone(),
             params.indexer_params.btc_indexer_params,
             params.titan_api_client.clone(),
             params.tx_validator.clone(),
+            &mut task_tracker,
         );
         let btc_rpc_client = Arc::new(Client::new(
             &params.indexer_params.btc_rpc_creds.url.to_string(),
@@ -96,6 +100,7 @@ impl<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArbiterTrait> BtcIndexer<C
             tx_validator: params.tx_validator,
             btc_core: btc_rpc_client,
             cancellation_token,
+            task_tracker,
         };
         Ok(indexer)
     }
@@ -136,6 +141,7 @@ impl<C, Db, TxValidator> Drop for BtcIndexer<C, Db, TxValidator> {
     #[instrument(skip(self))]
     fn drop(&mut self) {
         debug!("[{BTC_INDEXER_LOG_PATH}] Closing indexer");
-        self.cancellation_token.cancel()
+        self.cancellation_token.cancel();
+        self.task_tracker.close();
     }
 }

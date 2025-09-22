@@ -1,8 +1,8 @@
 use std::{collections::HashMap, str::FromStr};
 
 use async_trait::async_trait;
-use bitcoin::{hashes::Hash, OutPoint};
-use bitcoincore_rpc::{bitcoin::Txid, RawTx};
+use bitcoin::{OutPoint, hashes::Hash};
+use bitcoincore_rpc::{RawTx, bitcoin::Txid};
 use btc_indexer_internals::tx_arbiter::TxArbiterTrait;
 use btc_indexer_internals::tx_arbiter::{TxArbiterError, TxArbiterResponse};
 use local_db_store_indexer::schemas::tx_tracking_storage::TxToUpdateStatus;
@@ -10,8 +10,8 @@ use mockall::mock;
 use reqwest::header::HeaderMap;
 use titan_client::{Error, TitanApi};
 use titan_types::{
-    query, AddressData, Block, BlockTip, InscriptionId, MempoolEntry, Pagination, PaginationResponse, RuneResponse,
-    Status, Subscription, Transaction, TransactionStatus, TxOut,
+    AddressData, Block, BlockTip, InscriptionId, MempoolEntry, Pagination, PaginationResponse, RuneResponse, Status,
+    Subscription, Transaction, TransactionStatus, TxOut, query,
 };
 
 mock! {
@@ -76,7 +76,7 @@ mock! {
     impl TxArbiterTrait for TxArbiter {
         async fn check_tx<C: TitanApi>(
             &self,
-            titan_client: C,
+            titan_client: std::sync::Arc<C>,
             tx_to_check: &Transaction,
             tx_info: &TxToUpdateStatus,
         ) -> Result<TxArbiterResponse, TxArbiterError>;

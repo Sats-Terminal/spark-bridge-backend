@@ -1,13 +1,13 @@
-use std::{fmt::Debug, net::SocketAddr, str::FromStr, sync::Arc};
-use std::net::TcpListener;
-use axum::{Json, Router, extract::State, routing::post};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
+use axum::{Json, Router, extract::State, routing::post};
 use axum_test::TestServer;
-use thiserror::Error;
 use btc_indexer_api::api::BtcIndexerCallbackResponse;
 use btc_indexer_internals::api::AccountReplenishmentEvent;
 use global_utils::common_resp::Empty;
+use std::net::TcpListener;
+use std::{fmt::Debug, net::SocketAddr, str::FromStr, sync::Arc};
+use thiserror::Error;
 use titan_client::Transaction;
 use tokio::sync::Mutex;
 use tracing::{error, info, instrument, warn};
@@ -63,28 +63,12 @@ async fn notify_handler<T: Clone + Send + Sync + Debug>(
     Ok(Json(Empty {}))
 }
 
-
 #[derive(Error, Debug)]
-pub enum MockErr{
-
-}
+pub enum MockErr {}
 
 impl IntoResponse for MockErr {
     fn into_response(self) -> Response {
-        match self {
-            // MockErr::BadRequest(message) => (StatusCode::BAD_REQUEST, message).into_response(),
-            // MockErr::FlowProcessorError(message) => (StatusCode::INTERNAL_SERVER_ERROR, message).into_response(),
-            // MockErr::InvalidData(message) => (StatusCode::BAD_REQUEST, message).into_response(),
-            // MockErr::Secp256k1Error(message) => {
-            //     (StatusCode::INTERNAL_SERVER_ERROR, message.to_string()).into_response()
-            // }
-            // MockErr::UrlParseError(message) => {
-            //     (StatusCode::INTERNAL_SERVER_ERROR, message.to_string()).into_response()
-            // }
-            // MockErr::DepositVerificationError(message) => {
-            //     (StatusCode::INTERNAL_SERVER_ERROR, message).into_response()
-            // }
-        }
+        match self {}
     }
 }
 

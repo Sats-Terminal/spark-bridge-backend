@@ -1,20 +1,15 @@
 mod utils;
 
-static TEST_LOGGER: LazyLock<LoggerGuard> = LazyLock::new(|| init_logger());
+use std::str::FromStr;
 
-use std::{str::FromStr, sync::LazyLock};
-
-use bitcoin::{hashes::Hash, BlockHash};
-use bitcoincore_rpc::{bitcoin::Txid, RawTx};
+use bitcoin::{BlockHash, hashes::Hash};
+use bitcoincore_rpc::{RawTx, bitcoin::Txid};
 use btc_indexer_internals::{
     api::BtcIndexerApi,
     indexer::{BtcIndexer, IndexerParams, IndexerParamsWithApi},
 };
 use config_parser::config::{BtcRpcCredentials, ServerConfig};
-use global_utils::{
-    common_types::get_uuid,
-    logger::{init_logger, LoggerGuard},
-};
+use global_utils::common_types::get_uuid;
 use local_db_store_indexer::PostgresDbCredentials;
 use titan_client::TitanApi;
 use titan_types::{Transaction, TransactionStatus};
@@ -24,10 +19,12 @@ use crate::utils::mock::MockTitanIndexer;
 
 mod mock_testing {
     use super::*;
+    use crate::utils::common::TEST_LOGGER;
+    use crate::utils::comparing_utils::btc_indexer_callback_response_eq;
     use crate::utils::mock::MockTxArbiter;
     use crate::utils::test_notifier::{obtain_random_localhost_socket_addr, spawn_notify_server_track_tx};
     use bitcoin::OutPoint;
-    use btc_indexer_api::api::{BtcTxReview, TrackTxRequest};
+    use btc_indexer_api::api::{BtcIndexerCallbackResponse, BtcTxReview, ResponseMeta, TrackTxRequest};
     use btc_indexer_internals::tx_arbiter::TxArbiterResponse;
     use global_utils::common_types::UrlWrapped;
     use global_utils::config_variant::ConfigVariant;
@@ -35,6 +32,7 @@ mod mock_testing {
     use local_db_store_indexer::schemas::tx_tracking_storage::TxToUpdateStatus;
     use persistent_storage::init::PostgresPool;
     use std::env;
+    use std::sync::Arc;
     use tracing::info;
 
     const CONFIG_FILEPATH: &str = "../../../infrastructure/configurations/btc_indexer/dev.toml";
@@ -65,20 +63,56 @@ mod mock_testing {
 
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_retrieving_of_finalized_tx(mut pool: PostgresPool) -> anyhow::Result<()> {
-        const MAX_I_INDEX: u64 = 5;
-
         let tx_id = Txid::from_str("f74516e3b24af90fc2da8251d2c1e3763252b15c7aec3c1a42dde7116138caee")?;
         let uuid = get_uuid();
 
         dotenv::dotenv()?;
         let _logger_guard = &*TEST_LOGGER;
         let btc_rpc_creds = BtcRpcCredentials::new()?;
-        let db_pool = LocalDbStorage::from_config(PostgresDbCredentials::from_envs()?).await?;
-        // let db_pool = LocalDbStorage {
-        //     postgres_repo: persistent_storage::init::PostgresRepo { pool }.into_shared(),
-        // };
+        let db_pool = LocalDbStorage {
+            postgres_repo: persistent_storage::init::PostgresRepo { pool }.into_shared(),
+        };
         let app_config = ServerConfig::init_config(ConfigVariant::OnlyOneFilepath(CONFIG_FILEPATH.to_string()))?;
 
+        let indexer = generate_mocking_expectations(btc_rpc_creds, db_pool, app_config)?;
+        debug!("Tracking tx changes..");
+        let (url_to_listen, oneshot_chan, _notify_server) =
+            spawn_notify_server_track_tx(obtain_random_localhost_socket_addr()?).await?;
+        debug!("Receiving oneshot event..");
+        let out_point = OutPoint {
+            txid: tx_id,
+            vout: 1234,
+        };
+        indexer
+            .check_tx_changes(
+                uuid,
+                &TrackTxRequest {
+                    callback_url: UrlWrapped(url_to_listen),
+                    btc_address: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh".to_string(),
+                    out_point: out_point,
+                    amount: 45678,
+                },
+            )
+            .await?;
+        let result = oneshot_chan.await?;
+        assert!(btc_indexer_callback_response_eq(
+            &result,
+            &BtcIndexerCallbackResponse::Ok {
+                meta: ResponseMeta {
+                    outpoint: out_point,
+                    status: BtcTxReview::Success
+                }
+            }
+        ));
+        Ok(())
+    }
+
+    fn generate_mocking_expectations(
+        btc_rpc_creds: BtcRpcCredentials,
+        db_pool: LocalDbStorage,
+        app_config: ServerConfig,
+    ) -> anyhow::Result<BtcIndexer<MockTitanIndexer, LocalDbStorage, MockTxArbiter>> {
+        const MAX_I_INDEX: u64 = 5;
         let generate_transaction = |tx_id: &Txid, index: u64| Transaction {
             txid: tx_id.clone(),
             version: 0,
@@ -120,7 +154,7 @@ mod mock_testing {
         };
         let generate_tx_arbiter_mocking_invocations = |tx_arbiter: &mut MockTxArbiter| {
             tx_arbiter.expect_check_tx().returning(
-                |titan_client: MockTitanIndexer, tx_to_check: &Transaction, tx_info: &TxToUpdateStatus| {
+                |titan_client: Arc<MockTitanIndexer>, tx_to_check: &Transaction, tx_info: &TxToUpdateStatus| {
                     let review = TxArbiterResponse::ReviewFormed(
                         BtcTxReview::Success,
                         OutPoint {
@@ -135,7 +169,7 @@ mod mock_testing {
             tx_arbiter.expect_clone().returning(move || {
                 let mut cloned_tx_arbiter = MockTxArbiter::new();
                 cloned_tx_arbiter.expect_check_tx().returning(
-                    |titan_client: MockTitanIndexer, tx_to_check: &Transaction, tx_info: &TxToUpdateStatus| {
+                    |titan_client: Arc<MockTitanIndexer>, tx_to_check: &Transaction, tx_info: &TxToUpdateStatus| {
                         let review = TxArbiterResponse::ReviewFormed(
                             BtcTxReview::Success,
                             OutPoint {
@@ -150,7 +184,7 @@ mod mock_testing {
                 cloned_tx_arbiter.expect_clone().returning(move || {
                     let mut cloned2_tx_arbiter = MockTxArbiter::new();
                     cloned2_tx_arbiter.expect_check_tx().returning(
-                        |titan_client: MockTitanIndexer, tx_to_check: &Transaction, tx_info: &TxToUpdateStatus| {
+                        |titan_client: Arc<MockTitanIndexer>, tx_to_check: &Transaction, tx_info: &TxToUpdateStatus| {
                             let review = TxArbiterResponse::ReviewFormed(
                                 BtcTxReview::Success,
                                 OutPoint {
@@ -180,30 +214,9 @@ mod mock_testing {
                 db_pool,
                 btc_indexer_params: app_config.btc_indexer_config,
             },
-            titan_api_client: mocked_indexer,
-            tx_validator: mocked_tx_arbiter,
+            titan_api_client: Arc::new(mocked_indexer),
+            tx_validator: Arc::new(mocked_tx_arbiter),
         })?;
-        debug!("Tracking tx changes..");
-        let (url_to_listen, oneshot_chan, _notify_server) =
-            spawn_notify_server_track_tx(obtain_random_localhost_socket_addr()?).await?;
-        debug!("Receiving oneshot event..");
-        indexer
-            .check_tx_changes(
-                uuid,
-                &TrackTxRequest {
-                    callback_url: UrlWrapped(url_to_listen),
-                    btc_address: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh".to_string(),
-                    out_point: OutPoint {
-                        txid: tx_id,
-                        vout: 1234,
-                    },
-                    amount: 45678,
-                },
-            )
-            .await?;
-        let result = oneshot_chan.await?;
-        debug!("Event: {result:?}");
-        // assert!(compare_address_tx(&result, &generate_transaction(&tx_id, MAX_I_INDEX)));
-        Ok(())
+        Ok(indexer)
     }
 }
