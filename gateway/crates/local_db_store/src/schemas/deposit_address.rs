@@ -1,7 +1,6 @@
 use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
-use bitcoin::Address;
-use bitcoin::Txid;
+
 use frost::types::MusigId;
 use frost::types::Nonce;
 use persistent_storage::error::DbError;

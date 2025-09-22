@@ -4,7 +4,7 @@ use axum::Json;
 use axum::extract::State;
 use bitcoin::{Address, OutPoint, Txid};
 use gateway_deposit_verification::types::VerifyRunesDepositRequest;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::str::FromStr;
 use tracing::instrument;
 
@@ -32,7 +32,7 @@ pub async fn handle(
         out_point: OutPoint::new(request.txid, request.vout),
     };
 
-    let _ = state
+    state
         .deposit_verification_aggregator
         .verify_runes_deposit(verify_runes_deposit_request)
         .await

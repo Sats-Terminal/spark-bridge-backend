@@ -86,10 +86,10 @@ impl UtxoStorage for LocalDbStorage {
             RETURNING out_point, rune_amount, rune_id, status, btc_address, transaction, sats_fee_amount
             "#,
         )
-        .bind(&utxo.out_point.to_string())
+        .bind(utxo.out_point.to_string())
         .bind(utxo.rune_amount as i64)
         .bind(&utxo.rune_id)
-        .bind(&utxo.status)
+        .bind(utxo.status)
         .bind(&utxo.btc_address)
         .bind(utxo.sats_fee_amount as i64)
         .fetch_one(&self.postgres_repo.pool)
@@ -115,7 +115,7 @@ impl UtxoStorage for LocalDbStorage {
         .rows_affected();
 
         if rows == 0 {
-            return Err(DbError::NotFound(format!("UTXO {} not found", out_point.to_string())));
+            return Err(DbError::NotFound(format!("UTXO {out_point} not found")));
         }
 
         Ok(())
@@ -207,7 +207,7 @@ impl UtxoStorage for LocalDbStorage {
         .rows_affected();
 
         if rows == 0 {
-            return Err(DbError::NotFound(format!("UTXO {} not found", out_point.to_string())));
+            return Err(DbError::NotFound(format!("UTXO {out_point} not found")));
         }
 
         Ok(())

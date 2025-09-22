@@ -9,7 +9,6 @@ use gateway_local_db_store::storage::LocalDbStorage;
 use gateway_server::init::create_app;
 use gateway_verifier_client::client::VerifierClient;
 use global_utils::config_path::ConfigPath;
-use global_utils::config_variant::ConfigVariant;
 use global_utils::logger::init_logger;
 
 use persistent_storage::config::PostgresDbCredentials;

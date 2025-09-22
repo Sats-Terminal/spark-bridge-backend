@@ -13,7 +13,7 @@ pub struct WRunesMetadata {
 }
 
 pub fn create_wrunes_metadata(rune_id: String) -> WRunesMetadata {
-    let rune_id_hash = Sha256Hash::hash(&rune_id.as_bytes());
+    let rune_id_hash = Sha256Hash::hash(rune_id.as_bytes());
     let token_identifier = TokenIdentifier::new(rune_id_hash);
     let token_name = rune_id.clone();
     let token_ticker = "ticker".to_string();

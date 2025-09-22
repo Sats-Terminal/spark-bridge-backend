@@ -132,10 +132,10 @@ fn hash_google_proto_struct(message: &DynamicMessage) -> Result<Sha256Hash, Prot
     for (key, value) in map {
         let k_hash: Sha256Hash = hash_string(key.as_str().ok_or(ProtoHasherError::ValueTypeMismatch {
             expected: "string",
-            found: key_type_label(&key),
+            found: key_type_label(key),
         })?);
 
-        if is_google_proto_value_null(&value) {
+        if is_google_proto_value_null(value) {
             continue;
         }
 
@@ -144,7 +144,7 @@ fn hash_google_proto_struct(message: &DynamicMessage) -> Result<Sha256Hash, Prot
                 .as_message()
                 .ok_or(ProtoHasherError::ValueTypeMismatch {
                     expected: "message",
-                    found: value_type_label(&value),
+                    found: value_type_label(value),
                 })?
                 .to_owned(),
         )?;

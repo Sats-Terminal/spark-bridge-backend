@@ -123,7 +123,7 @@ pub(crate) fn hash_value(kind: &Kind, value: &Value) -> Result<Option<Sha256Hash
 pub(crate) fn hash_bool(b: bool) -> Sha256Hash {
     let mut hash_engine = Sha256Hash::engine();
 
-    hash_engine.input(&BOOL_IDENTIFIER.as_bytes());
+    hash_engine.input(BOOL_IDENTIFIER.as_bytes());
 
     let bytes = if b { "1".as_bytes() } else { "0".as_bytes() };
     hash_engine.input(bytes);
@@ -146,7 +146,7 @@ pub(crate) fn hash_u32(value: u32) -> Sha256Hash {
 pub(crate) fn hash_u64(value: u64) -> Sha256Hash {
     let mut hash_engine = Sha256Hash::engine();
 
-    hash_engine.input(&INT_IDENTIFIER.as_bytes());
+    hash_engine.input(INT_IDENTIFIER.as_bytes());
     hash_engine.input(&value.to_be_bytes());
 
     Sha256Hash::from_engine(hash_engine)
@@ -167,7 +167,7 @@ pub(crate) fn hash_f64(value: f64) -> Sha256Hash {
 
     let mut hash_engine = Sha256Hash::engine();
 
-    hash_engine.input(&FLOAT_IDENTIFIER.as_bytes());
+    hash_engine.input(FLOAT_IDENTIFIER.as_bytes());
     hash_engine.input(&bits.to_be_bytes());
 
     Sha256Hash::from_engine(hash_engine)
@@ -176,8 +176,8 @@ pub(crate) fn hash_f64(value: f64) -> Sha256Hash {
 pub(crate) fn hash_string(value: &str) -> Sha256Hash {
     let mut hash_engine = Sha256Hash::engine();
 
-    hash_engine.input(&UNICODE_IDENTIFIER.as_bytes());
-    hash_engine.input(&value.as_bytes());
+    hash_engine.input(UNICODE_IDENTIFIER.as_bytes());
+    hash_engine.input(value.as_bytes());
 
     Sha256Hash::from_engine(hash_engine)
 }
@@ -185,8 +185,8 @@ pub(crate) fn hash_string(value: &str) -> Sha256Hash {
 pub(crate) fn hash_bytes(bytes: &[u8]) -> Sha256Hash {
     let mut hash_engine = Sha256Hash::engine();
 
-    hash_engine.input(&BYTE_IDENTIFIER.as_bytes());
-    hash_engine.input(&bytes);
+    hash_engine.input(BYTE_IDENTIFIER.as_bytes());
+    hash_engine.input(bytes);
 
     Sha256Hash::from_engine(hash_engine)
 }
@@ -197,7 +197,7 @@ pub fn hash_message<M: Into<DynamicMessage>>(message: M) -> Result<Option<Sha256
 
     let descriptor = message.descriptor();
 
-    if let Some(google_value) = GoogleValue::maybe_from_str(&descriptor.full_name()) {
+    if let Some(google_value) = GoogleValue::maybe_from_str(descriptor.full_name()) {
         return google_value.hash(&message);
     };
 
@@ -278,7 +278,7 @@ pub(crate) fn hash_field_value(fd: &FieldDescriptor, value: &Value) -> Result<Op
         return hash_map(&key_fd, &value_fd, map_value);
     }
 
-    hash_value(&fd.kind(), &value)
+    hash_value(&fd.kind(), value)
 }
 
 pub(crate) fn hash_list(kind: &Kind, list: &[Value]) -> Result<Option<Sha256Hash>, ProtoHasherError> {
@@ -330,7 +330,7 @@ pub(crate) fn hash_map(
 
     let mut hash_engine = Sha256Hash::engine();
 
-    hash_engine.input(&MAP_IDENTIFIER.as_bytes());
+    hash_engine.input(MAP_IDENTIFIER.as_bytes());
 
     for (k_hash, v_hash) in hash_entries {
         hash_engine.input(k_hash.as_byte_array());

@@ -126,7 +126,7 @@ impl TokensPayment {
                 let bytes = read_bytes(input, &mut pos, l)?;
 
                 let token_identifier =
-                    TokenIdentifier::from_bytes(&bytes).map_err(|err| DecodeError::InvalidTokenIdentifier(err))?;
+                    TokenIdentifier::from_bytes(bytes).map_err(DecodeError::InvalidTokenIdentifier)?;
 
                 token_identifier_opt = Some(token_identifier);
             } else if tag == (TOKEN_AMOUNT_TAG as u32) {
@@ -203,7 +203,7 @@ impl SparkInvoiceFields {
 
         if let Some(memo) = &self.memo {
             out.push(INVOICE_MEMO_TAG);
-            write_len_prefixed_str(&mut out, &memo);
+            write_len_prefixed_str(&mut out, memo);
         }
 
         if let Some(sender_public_key) = &self.sender_public_key {
@@ -486,7 +486,7 @@ impl SparkInvoice {
         }
 
         if let Some(memo) = memo {
-            hash_engine.input(&Sha256Hash::hash(&memo.as_bytes()).to_byte_array());
+            hash_engine.input(&Sha256Hash::hash(memo.as_bytes()).to_byte_array());
         }
 
         if let Some(sender_public_key) = sender_public_key {

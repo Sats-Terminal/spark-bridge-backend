@@ -120,7 +120,7 @@ pub fn marshal_token_transaction(
                 TokenTransactionVersion::V3 => 2u32,
                 TokenTransactionVersion::V4 => 3u32,
             };
-            return Err(TokenTransactionError::InvalidTokenTransactionVersion(version_num));
+            Err(TokenTransactionError::InvalidTokenTransactionVersion(version_num))
         }
     }
 }

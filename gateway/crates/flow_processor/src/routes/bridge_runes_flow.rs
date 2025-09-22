@@ -23,7 +23,7 @@ pub async fn handle(
         .storage
         .get_issuer_musig_id()
         .await
-        .map_err(|e| FlowProcessorError::DbError(e))?;
+        .map_err(FlowProcessorError::DbError)?;
 
     let issuer_musig_id = match response {
         Some(issuer_musig_id) => issuer_musig_id,
@@ -33,7 +33,7 @@ pub async fn handle(
                 .storage
                 .get_row_by_deposit_address(request.btc_address.to_string())
                 .await
-                .map_err(|e| FlowProcessorError::DbError(e))?
+                .map_err(FlowProcessorError::DbError)?
                 .map(|row| row.musig_id.get_rune_id())
                 .ok_or(FlowProcessorError::InvalidDataError("Rune id not found".to_string()))?;
             let musig_id = MusigId::Issuer {
@@ -78,7 +78,7 @@ pub async fn handle(
         .storage
         .get_row_by_deposit_address(request.btc_address.to_string())
         .await
-        .map_err(|e| FlowProcessorError::DbError(e))?
+        .map_err(FlowProcessorError::DbError)?
         .ok_or(FlowProcessorError::InvalidDataError(
             "Deposit address info not found".to_string(),
         ))?;

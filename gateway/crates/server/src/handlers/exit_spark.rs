@@ -23,7 +23,7 @@ pub async fn handle(
         paying_input: request.paying_input,
     };
 
-    let _ = state
+    state
         .deposit_verification_aggregator
         .verify_spark_deposit(verify_spark_deposit_request)
         .await

@@ -109,7 +109,7 @@ impl TokenTransaction {
     /// # Returns
     /// A `SparkHash` representing the hash of the token transaction.
     pub fn hash(&self) -> Result<SparkHash, TokenTransactionError> {
-        self.try_into().map_err(|err| TokenTransactionError::HashError(err))
+        self.try_into().map_err(TokenTransactionError::HashError)
     }
 }
 

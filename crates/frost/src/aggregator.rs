@@ -78,7 +78,7 @@ impl FrostAggregator {
     }
 
     async fn dkg_round_2(&self, musig_id: &MusigId) -> Result<(), AggregatorError> {
-        let musig_id_data = self.musig_id_storage.get_musig_id_data(&musig_id).await?;
+        let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id).await?;
 
         match musig_id_data {
             Some(AggregatorMusigIdData {
@@ -194,7 +194,7 @@ impl FrostAggregator {
 
     pub async fn lock_musig_id(&self, musig_id: &MusigId) -> Result<(), AggregatorError> {
         let mut locked_musig_ids = self.locked_musig_ids.lock().await;
-        if locked_musig_ids.contains(&musig_id) {
+        if locked_musig_ids.contains(musig_id) {
             return Err(AggregatorError::MusigAlreadyExists(format!(
                 "Musig id already exists: {:?}",
                 musig_id
@@ -206,7 +206,7 @@ impl FrostAggregator {
 
     pub async fn unlock_musig_id(&self, musig_id: &MusigId) -> Result<(), AggregatorError> {
         let mut locked_musig_ids = self.locked_musig_ids.lock().await;
-        let removed = locked_musig_ids.remove(&musig_id);
+        let removed = locked_musig_ids.remove(musig_id);
         if !removed {
             return Err(AggregatorError::MusigNotFound(format!(
                 "Something bad went wrong: {:?}",
@@ -228,16 +228,16 @@ impl FrostAggregator {
             )));
         }
 
-        self.dkg_round_1(&musig_id).await?;
-        self.dkg_round_2(&musig_id).await?;
-        self.dkg_finalize(&musig_id).await?;
+        self.dkg_round_1(musig_id).await?;
+        self.dkg_round_2(musig_id).await?;
+        self.dkg_finalize(musig_id).await?;
 
-        let musig_id_data = self.musig_id_storage.get_musig_id_data(&musig_id).await?;
+        let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id).await?;
         match musig_id_data {
             Some(AggregatorMusigIdData {
                 dkg_state: AggregatorDkgState::DkgFinalized { public_key_package },
             }) => {
-                self.unlock_musig_id(&musig_id).await?;
+                self.unlock_musig_id(musig_id).await?;
                 Ok(public_key_package)
             }
             _ => Err(AggregatorError::InvalidUserState(

@@ -1,11 +1,7 @@
-use config::{Config, Environment};
-use global_utils::config_variant::ConfigVariant;
+use config::Config;
 use global_utils::network::NetworkConfig;
 use serde::{Deserialize, Serialize};
 use spark_client::common::config::SparkConfig;
-use std::net::SocketAddr;
-use std::str::FromStr;
-use tracing::{debug, instrument, trace};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]

@@ -1,6 +1,5 @@
 use frost::signer::FrostSigner;
 use global_utils::config_path::ConfigPath;
-use global_utils::config_variant::ConfigVariant;
 use global_utils::logger::init_logger;
 use persistent_storage::{config::PostgresDbCredentials, init::PostgresRepo};
 use std::sync::Arc;
