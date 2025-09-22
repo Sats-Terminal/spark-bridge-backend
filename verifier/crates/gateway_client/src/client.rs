@@ -15,7 +15,7 @@ pub struct GatewayClient {
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
-pub struct NotifyRunesDepositRequest {
+pub struct GatewayNotifyRunesDepositRequest {
     pub verifier_id: u16,
     pub out_point: OutPoint,
     pub sats_fee_amount: u64,
@@ -30,7 +30,7 @@ impl GatewayClient {
         }
     }
 
-    pub async fn notify_runes_deposit(&self, request: NotifyRunesDepositRequest) -> Result<(), GatewayClientError> {
+    pub async fn notify_runes_deposit(&self, request: GatewayNotifyRunesDepositRequest) -> Result<(), GatewayClientError> {
         tracing::info!("Sending request to notify runes deposit for verifier: {}", request.verifier_id);
         let url = self.config.address.join(NOTIFY_RUNES_DEPOSIT_PATH)
             .map_err(|e| GatewayClientError::DeserializeError(format!("Failed to join URL: {:?}", e)))?;

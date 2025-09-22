@@ -7,7 +7,7 @@ use frost::types::MusigId;
 use frost::types::Nonce;
 use serde::{Deserialize, Serialize};
 use verifier_local_db_store::schemas::deposit_address::DepositAddressStorage;
-use verifier_local_db_store::schemas::deposit_address::{DepositStatus, DepositAddrInfo};
+use verifier_local_db_store::schemas::deposit_address::{DepositStatus, DepositAddrInfo, TxRejectReason};
 use verifier_spark_balance_checker_client::client::GetBalanceRequest;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -57,7 +57,7 @@ pub async fn handle(
 
     let confirmation_status = match response.balance == request.amount as u128 {
         true => DepositStatus::Confirmed,
-        false => DepositStatus::Failed,
+        false => DepositStatus::Failed(TxRejectReason::TooFewSatoshiPaidAsFee { got: response.balance as u64, at_least_expected: request.amount }),
     };
 
     state.storage.set_confirmation_status_by_deposit_address(request.spark_address, confirmation_status.clone()).await.map_err(|e| VerifierError::StorageError(format!("Failed to update confirmation status: {}", e)))?;

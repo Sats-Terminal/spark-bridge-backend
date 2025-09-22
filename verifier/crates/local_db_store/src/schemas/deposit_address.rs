@@ -14,7 +14,17 @@ pub enum DepositStatus {
     Created,
     WaitingForConfirmation,
     Confirmed,
-    Failed,
+    Failed(TxRejectReason),
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, Eq, PartialEq)]
+pub enum TxRejectReason {
+    NoRunesInOuts,
+    NoFeesPayed,
+    TooFewSatoshiPaidAsFee { got: u64, at_least_expected: u64 },
+    NoExpectedVOutInOutputs { got: u64, expected: u64 },
+    NoExpectedTOutWithRunes,
+    NoExpectedTOutWithRunesAmount { amount: u64 },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
