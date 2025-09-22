@@ -1,5 +1,4 @@
 use persistent_storage::error::DbError;
-use tokio::sync::mpsc::error::SendError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum BtcIndexerError {

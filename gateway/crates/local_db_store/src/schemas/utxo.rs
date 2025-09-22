@@ -154,9 +154,7 @@ impl UtxoStorage for PostgresRepo {
             return Ok(());
         }
 
-        let query = format!("UPDATE gateway.utxo SET status = 'unspent', updated_at = now() WHERE id = ANY($1)");
-
-        sqlx::query(&query)
+        sqlx::query("UPDATE gateway.utxo SET status = 'unspent', updated_at = now() WHERE id = ANY($1)")
             .bind(utxo_ids)
             .execute(&self.pool)
             .await

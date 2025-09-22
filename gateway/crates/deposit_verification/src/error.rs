@@ -1,5 +1,3 @@
-use persistent_storage::error::DbError;
-use reqwest::StatusCode;
 use thiserror::Error;
 
 #[derive(Debug, Error)]

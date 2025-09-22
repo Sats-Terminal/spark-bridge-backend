@@ -1,24 +1,13 @@
-use std::sync::Arc;
-
 use crate::{AppState, error::ServerError};
 use axum::extract::{Json, State};
-use btc_indexer_api::api::{BtcIndexerCallbackResponse, TrackTxRequest, TrackTxResponse};
+use btc_indexer_api::api::{TrackTxRequest, TrackTxResponse};
+use btc_indexer_internals::api::BtcIndexerApi;
 use btc_indexer_internals::tx_arbiter::TxArbiterTrait;
-use btc_indexer_internals::{api::BtcIndexerApi, indexer::BtcIndexer};
 use global_utils::common_resp::Empty;
-use global_utils::common_types::{TxIdWrapped, UrlWrapped, get_uuid};
-use local_db_store_indexer::PersistentRepoTrait;
+use global_utils::common_types::get_uuid;
 use local_db_store_indexer::init::IndexerDbBounds;
-use local_db_store_indexer::schemas::track_tx_requests_storage::TxRequestsTrackingStorageTrait;
-use local_db_store_indexer::schemas::tx_tracking_storage::TxTrackingStorageTrait;
-use persistent_storage::error::DbError;
-use serde::{Deserialize, Serialize};
-use sqlx::types::{Json as SqlxJson, chrono::Utc};
-use titan_client::Transaction;
-use tokio_util::sync::CancellationToken;
+
 use tracing::{debug, error, info, instrument, trace};
-use utoipa::ToSchema;
-use uuid::Uuid;
 
 const PATH_TO_LOG: &str = "btc_indexer_server:track_tx";
 

@@ -2,7 +2,6 @@ use crate::error::FlowProcessorError;
 use bitcoin::Address;
 use frost::types::MusigId;
 use tokio::sync::oneshot;
-use uuid::Uuid;
 
 pub type OneshotFlowProcessorSender = oneshot::Sender<Result<FlowProcessorResponse, FlowProcessorError>>;
 pub type OneshotFlowProcessorReceiver = oneshot::Receiver<Result<FlowProcessorResponse, FlowProcessorError>>;

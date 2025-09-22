@@ -5,12 +5,11 @@ use frost::types::SigningMetadata;
 use frost::types::TokenTransactionMetadata;
 use lrc20::token_identifier::TokenIdentifier;
 use lrc20::token_leaf::TokenLeafOutput;
-use lrc20::token_leaf::TokenLeafToSpend;
+
 use lrc20::token_transaction::TokenTransaction;
 use lrc20::token_transaction::TokenTransactionCreateInput;
 use lrc20::token_transaction::TokenTransactionInput;
 use lrc20::token_transaction::TokenTransactionMintInput;
-use lrc20::token_transaction::TokenTransactionTransferInput;
 use lrc20::token_transaction::TokenTransactionVersion;
 use spark_client::utils::spark_address::Network;
 
@@ -45,7 +44,7 @@ pub fn create_partial_token_transaction(
             let token_transaction = TokenTransaction {
                 version: TokenTransactionVersion::V2,
                 input: TokenTransactionInput::Mint(TokenTransactionMintInput {
-                    issuer_public_key: issuer_public_key,
+                    issuer_public_key,
                     token_identifier: Some(token_identifier),
                     issuer_signature: None,
                     issuer_provided_timestamp: None,

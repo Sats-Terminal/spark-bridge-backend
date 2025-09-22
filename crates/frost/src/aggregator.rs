@@ -238,7 +238,7 @@ impl FrostAggregator {
                     commitments.insert(verifier_id, response?.commitments);
                 }
 
-                let signing_package = SigningPackage::new(commitments.clone(), message_hash.clone());
+                let signing_package = SigningPackage::new(commitments.clone(), message_hash);
 
                 self.sign_session_storage
                     .set_sign_data(

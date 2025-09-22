@@ -10,13 +10,19 @@ use axum::{Router, routing::post};
 use axum_test::TestServer;
 use bitcoin::{BlockHash, OutPoint, hashes::Hash};
 use bitcoincore_rpc::{RawTx, bitcoin::Txid};
+use btc_indexer_api::api::BtcTxReview;
 use btc_indexer_internals::indexer::{BtcIndexer, IndexerParams, IndexerParamsWithApi};
+use btc_indexer_internals::tx_arbiter::TxArbiter;
+use btc_indexer_internals::tx_arbiter::TxArbiterTrait;
+use btc_indexer_internals::tx_arbiter::{TxArbiterError, TxArbiterResponse};
 use btc_indexer_server::AppState;
 use config_parser::config::{BtcRpcCredentials, ServerConfig};
 use global_utils::config_variant::ConfigVariant;
 use global_utils::logger::{LoggerGuard, init_logger};
+use local_db_store_indexer::schemas::tx_tracking_storage::TxToUpdateStatus;
 use local_db_store_indexer::{PostgresDbCredentials, init::LocalDbStorage};
 use mockall::mock;
+use persistent_storage::init::{PostgresPool, PostgresRepo};
 use reqwest::header::HeaderMap;
 use titan_client::{Error, TitanApi, TitanClient};
 use titan_types::{
@@ -78,27 +84,57 @@ mock! {
     }
 }
 
-#[instrument(level = "debug", skip(generate_mocked_titan_indexer), ret)]
+mock! {
+    pub TxArbiter {}
+    impl Clone for TxArbiter {
+        fn clone(&self) -> Self;
+    }
+
+     #[async_trait]
+    impl TxArbiterTrait for TxArbiter {
+        async fn check_tx<C: TitanApi>(
+            &self,
+            titan_client: std::sync::Arc<C>,
+            tx_to_check: &Transaction,
+            tx_info: &TxToUpdateStatus,
+        ) -> Result<TxArbiterResponse, TxArbiterError>;
+    }
+}
+
+const CONFIG_FILEPATH: &str = "../../../infrastructure/configurations/btc_indexer/dev.toml";
+
+#[instrument(
+    level = "debug",
+    skip(generate_mocked_titan_indexer, generate_mocked_tx_arbiter),
+    ret
+)]
 pub async fn init_mocked_test_server(
     generate_mocked_titan_indexer: impl Fn() -> MockTitanIndexer,
+    generate_mocked_tx_arbiter: impl Fn() -> MockTxArbiter,
+    pool: PostgresPool,
 ) -> anyhow::Result<TestServer> {
     let _logger_guard = &*TEST_LOGGER;
     let (btc_creds, postgres_creds, config_variant) = (
         BtcRpcCredentials::new()?,
         PostgresDbCredentials::from_envs()?,
-        ConfigVariant::Local,
+        ConfigVariant::OnlyOneFilepath(CONFIG_FILEPATH.to_string()),
     );
     let app_config = ServerConfig::init_config(config_variant)?;
-    let db_pool = LocalDbStorage::from_config(postgres_creds).await?;
+    let db_pool = LocalDbStorage {
+        postgres_repo: PostgresRepo { pool }.into_shared(),
+    };
     let mocked_titan_indexer = generate_mocked_titan_indexer();
+    let mocked_tx_arbiter = generate_mocked_tx_arbiter();
     let btc_indexer = BtcIndexer::new(IndexerParamsWithApi {
         indexer_params: IndexerParams {
             btc_rpc_creds: btc_creds,
             db_pool: db_pool.clone(),
             btc_indexer_params: app_config.btc_indexer_config,
         },
-        titan_api_client: mocked_titan_indexer,
+        titan_api_client: Arc::new(mocked_titan_indexer),
+        tx_validator: Arc::new(mocked_tx_arbiter),
     })?;
+
     let app = create_app_mocked(db_pool, btc_indexer).await;
     let test_server = TestServer::builder().http_transport().build(app.into_make_service())?;
     tracing::info!("Serving local axum test server on {:?}", test_server.server_address());
@@ -143,6 +179,62 @@ pub fn generate_mock_titan_indexer_tx_tracking() -> MockTitanIndexer {
     let mut mocked_indexer = MockTitanIndexer::new();
     generate_mocking_invocations(&mut mocked_indexer);
     mocked_indexer
+}
+
+pub fn generate_mock_tx_arbiter() -> MockTxArbiter {
+    let generate_tx_arbiter_mocking_invocations = |tx_arbiter: &mut MockTxArbiter| {
+        tx_arbiter.expect_check_tx().returning(
+            |titan_client: Arc<MockTitanIndexer>, tx_to_check: &Transaction, tx_info: &TxToUpdateStatus| {
+                let review = TxArbiterResponse::ReviewFormed(
+                    BtcTxReview::Success,
+                    OutPoint {
+                        txid: tx_info.tx_id.0,
+                        vout: tx_info.v_out,
+                    },
+                );
+                debug!("[(tx verifier) mock expectations1], review: {:?}", &review);
+                Ok(review)
+            },
+        );
+        tx_arbiter.expect_clone().returning(move || {
+            let mut cloned_tx_arbiter = MockTxArbiter::new();
+            cloned_tx_arbiter.expect_check_tx().returning(
+                |titan_client: Arc<MockTitanIndexer>, tx_to_check: &Transaction, tx_info: &TxToUpdateStatus| {
+                    let review = TxArbiterResponse::ReviewFormed(
+                        BtcTxReview::Success,
+                        OutPoint {
+                            txid: tx_info.tx_id.0,
+                            vout: tx_info.v_out,
+                        },
+                    );
+                    debug!("[(tx verifier) mock expectations2], review: {:?}", &review);
+                    Ok(review)
+                },
+            );
+            cloned_tx_arbiter.expect_clone().returning(move || {
+                let mut cloned2_tx_arbiter = MockTxArbiter::new();
+                cloned2_tx_arbiter.expect_check_tx().returning(
+                    |titan_client: Arc<MockTitanIndexer>, tx_to_check: &Transaction, tx_info: &TxToUpdateStatus| {
+                        let review = TxArbiterResponse::ReviewFormed(
+                            BtcTxReview::Success,
+                            OutPoint {
+                                txid: tx_info.tx_id.0,
+                                vout: tx_info.v_out,
+                            },
+                        );
+                        debug!("[(tx verifier) mock expectations2], review: {:?}", &review);
+                        Ok(review)
+                    },
+                );
+                cloned2_tx_arbiter
+            });
+            cloned_tx_arbiter
+        });
+    };
+
+    let mut arbiter = MockTxArbiter::new();
+    generate_tx_arbiter_mocking_invocations(&mut arbiter);
+    arbiter
 }
 
 pub fn generate_mock_titan_indexer_wallet_tracking() -> MockTitanIndexer {
@@ -216,7 +308,7 @@ pub fn generate_mock_titan_indexer_wallet_tracking() -> MockTitanIndexer {
 #[instrument(skip(db_pool, btc_indexer))]
 pub async fn create_app_mocked(
     db_pool: LocalDbStorage,
-    btc_indexer: BtcIndexer<MockTitanIndexer, LocalDbStorage>,
+    btc_indexer: BtcIndexer<MockTitanIndexer, LocalDbStorage, MockTxArbiter>,
 ) -> Router {
     let (db_pool, btc_indexer) = (Arc::new(db_pool), Arc::new(btc_indexer));
     let state = AppState {

@@ -118,7 +118,7 @@ impl FlowProcessor {
                     }
 
                     for (flow_id, handle) in self.flows.iter() {
-                        let _ = handle.abort();
+                        handle.abort();
                         tracing::info!("[main] Aborted flow for id {}", flow_id);
                     }
 

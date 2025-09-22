@@ -1,4 +1,3 @@
-use anyhow::anyhow;
 use frost::signer::FrostSigner;
 use global_utils::config_path::ConfigPath;
 use global_utils::config_variant::ConfigVariant;

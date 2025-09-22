@@ -1,25 +1,22 @@
-use crate::indexer::BtcIndexer;
-use crate::tx_arbiter::{TxArbiter, TxArbiterResponse, TxArbiterTrait};
-use anyhow::{anyhow, bail};
-use bitcoin::Txid;
-use btc_indexer_api::api::{BtcIndexerCallbackResponse, BtcTxReview, ResponseMeta};
+use crate::tx_arbiter::{TxArbiterResponse, TxArbiterTrait};
+
+use btc_indexer_api::api::{BtcIndexerCallbackResponse, ResponseMeta};
 use config_parser::config::BtcIndexerParams;
-use local_db_store_indexer::init::{IndexerDbBounds, LocalDbStorage};
+use local_db_store_indexer::init::IndexerDbBounds;
 use local_db_store_indexer::schemas::track_tx_requests_storage::{TrackedReqStatus, TxTrackingRequestsToSendResponse};
 use local_db_store_indexer::schemas::tx_tracking_storage::TxToUpdateStatus;
-use persistent_storage::error::DbError;
-use persistent_storage::init::PersistentRepoTrait;
-use reqwest::{Client, Error, Response};
-use std::str::FromStr;
+
+use reqwest::Client;
+
 use std::sync::Arc;
 use std::time::Duration;
-use titan_client::{TitanApi, TitanClient};
+use titan_client::TitanApi;
 use titan_types::Transaction;
-use tokio::sync::mpsc::UnboundedReceiver;
-use tokio::task::{JoinHandle, JoinSet};
-use tokio::time::interval;
+
+use tokio::task::JoinSet;
+
 use tokio_util::sync::CancellationToken;
-use tokio_util::task::{TaskTracker, task_tracker};
+use tokio_util::task::TaskTracker;
 use tracing::{debug, error, info, instrument, trace};
 
 /// Msg used in thread which is responsible for updating information for existing txs
@@ -57,7 +54,7 @@ pub fn spawn<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArbiterTrait>(
                         break 'checking_loop;
                     },
                     _ = interval.tick() => {
-                        let _ = perform_status_update(local_db.clone(), titan_client.clone(),tx_validator.clone())
+                         perform_status_update(local_db.clone(), titan_client.clone(),tx_validator.clone())
                             .await
                             .unwrap();
                     }
@@ -218,7 +215,7 @@ fn _inner_update_task_spawn<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArb
                     && let TxArbiterResponse::ReviewFormed(review, out_point) = res
                 {
                     let _ = local_db
-                        .insert_tx_tracking_report(out_point.clone(), &review, &tx_to_check)
+                        .insert_tx_tracking_report(out_point, &review, &tx_to_check)
                         .await;
                 }
             }

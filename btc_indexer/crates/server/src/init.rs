@@ -6,7 +6,6 @@ use btc_indexer_internals::indexer::BtcIndexer;
 use btc_indexer_internals::tx_arbiter::TxArbiter;
 use local_db_store_indexer::init::LocalDbStorage;
 use titan_client::TitanClient;
-use tokio_util::sync::CancellationToken;
 use tracing::instrument;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;

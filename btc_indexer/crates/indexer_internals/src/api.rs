@@ -1,7 +1,6 @@
 use async_trait::async_trait;
-use bitcoin::OutPoint;
 use bitcoincore_rpc::{RawTx, bitcoin, json};
-use btc_indexer_api::api::{Amount, ResponseMeta, TrackTxRequest};
+use btc_indexer_api::api::TrackTxRequest;
 use serde::{Deserialize, Serialize};
 use titan_client::AddressData;
 use uuid::Uuid;

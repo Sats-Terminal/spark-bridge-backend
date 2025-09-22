@@ -73,7 +73,7 @@ impl TxArbiterTrait for TxArbiter {
             });
         }
 
-        if tx_to_check.has_runes() {
+        if !tx_to_check.has_runes() {
             return Ok(TxArbiterResponse::ReviewFormed(
                 BtcTxReview::Failure {
                     reason: TxRejectReason::NoRunesInOuts,
@@ -83,7 +83,7 @@ impl TxArbiterTrait for TxArbiter {
         }
 
         let current_tip = titan_client.get_tip().await?;
-        if tx_to_check.status.block_height == None || !tx_to_check.status.confirmed {
+        if tx_to_check.status.block_height.is_none() || !tx_to_check.status.confirmed {
             return Ok(TxArbiterResponse::Rejected(RejectReason::NotIncludedInBlock));
         }
 
@@ -166,10 +166,10 @@ impl TxArbiter {
     }
 
     /// One rune entry consist from one RuneId of runes and has equal value to amount
-    fn check_runes_validity(tx_to_check: &Vec<RuneAmount>, amount: Amount) -> bool {
+    fn check_runes_validity(tx_to_check: &[RuneAmount], amount: Amount) -> bool {
         let counted_runes = Self::count_runes_btree(tx_to_check.iter());
         if counted_runes.len() == 1
-            && let Some((k, v)) = counted_runes.first_key_value()
+            && let Some((_k, v)) = counted_runes.first_key_value()
             && *v == amount as u128
         {
             true

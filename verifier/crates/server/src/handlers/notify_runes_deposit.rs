@@ -4,9 +4,6 @@ use axum::Json;
 use axum::extract::State;
 use btc_indexer_api::api::BtcIndexerCallbackResponse;
 use tracing::instrument;
-use verifier_gateway_client::client::NotifyRunesDepositRequest;
-use verifier_local_db_store::schemas::deposit_address::DepositAddressStorage;
-use verifier_local_db_store::schemas::deposit_address::DepositStatus;
 
 #[instrument(level = "debug", skip_all, ret)]
 pub async fn handle(

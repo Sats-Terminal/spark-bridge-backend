@@ -1,4 +1,4 @@
-FROM rust:1.89.0-bullseye AS builder
+FROM rust:1.90.0-bullseye AS builder
 
 # Create a workspace directory
 WORKDIR /usr/src/runes-spark-bridge

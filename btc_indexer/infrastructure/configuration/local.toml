@@ -1,4 +1,0 @@
-[application]
-
-[btc_indexer]
-update_interval_millis = 500

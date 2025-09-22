@@ -58,7 +58,7 @@ impl TxRequestsTrackingStorageTrait for LocalDbStorage {
                  ON CONFLICT (tx_id, v_out) DO UPDATE SET tx_id = EXCLUDED.tx_id
                  RETURNING id;",
         )
-        .bind(TxIdWrapped(req.out_point.txid.clone()))
+        .bind(TxIdWrapped(req.out_point.txid))
         .bind(req.out_point.vout as i32)
         .bind(TrackedRawTxStatus::Pending)
         .bind(Utc::now())

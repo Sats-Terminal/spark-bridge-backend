@@ -1,20 +1,16 @@
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 
-use crate::api::{AccountReplenishmentEvent, BtcIndexerApi};
+use crate::api::BtcIndexerApi;
 use crate::tx_arbiter::{TxArbiter, TxArbiterTrait};
 use async_trait::async_trait;
-use bitcoin::OutPoint;
 use bitcoincore_rpc::{Client, RawTx, RpcApi, bitcoin, json};
-use btc_indexer_api::api::{Amount, ResponseMeta, TrackTxRequest, TrackTxResponse, VOut};
+use btc_indexer_api::api::TrackTxRequest;
 use config_parser::config::{BtcIndexerParams, BtcRpcCredentials};
-use global_utils::common_resp::Empty;
+
 use local_db_store_indexer::init::IndexerDbBounds;
-use local_db_store_indexer::{PersistentRepoTrait, init::LocalDbStorage};
-use sqlx::types::chrono::Utc;
+use local_db_store_indexer::init::LocalDbStorage;
+
 use titan_client::{TitanApi, TitanClient};
-use titan_types::{AddressTxOut, Transaction};
-use tokio::sync::mpsc::UnboundedSender;
-use tokio::sync::oneshot;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 use tracing::{error, info, instrument, log::debug, trace, warn};
@@ -61,7 +57,7 @@ impl BtcIndexer<TitanClient, LocalDbStorage, TxArbiter> {
 impl<C: Clone, Db: Clone, TxValidator: Clone> Clone for BtcIndexer<C, Db, TxValidator> {
     fn clone(&self) -> Self {
         BtcIndexer {
-            btc_indexer_params: self.btc_indexer_params.clone(),
+            btc_indexer_params: self.btc_indexer_params,
             persistent_storage: self.persistent_storage.clone(),
             indexer_client: self.indexer_client.clone(),
             tx_validator: self.tx_validator.clone(),
@@ -115,7 +111,7 @@ impl<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArbiterTrait> BtcIndexerAp
     #[inline]
     #[instrument(level = "debug", skip(self), ret)]
     async fn check_tx_changes(&self, uuid: Uuid, payload: &TrackTxRequest) -> crate::error::Result<()> {
-        self.persistent_storage.track_tx_request(uuid, &payload).await?;
+        self.persistent_storage.track_tx_request(uuid, payload).await?;
         Ok(())
     }
 

@@ -78,7 +78,7 @@ impl SparkHash {
                 hash_engine.input(Sha256Hash::hash(&inputs_len.to_be_bytes()).as_byte_array());
 
                 for leaf in &transfer_input.leaves_to_spend {
-                    hash_engine.input(SparkHash::hash_token_leaf_to_spend(&leaf).0.as_byte_array());
+                    hash_engine.input(SparkHash::hash_token_leaf_to_spend(leaf).0.as_byte_array());
                 }
             }
             TokenTransactionInput::Mint(mint_input) => {

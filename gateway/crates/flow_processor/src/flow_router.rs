@@ -1,6 +1,6 @@
 use crate::error::FlowProcessorError;
 use crate::types::*;
-use bitcoin::{KnownHrp, Network};
+use bitcoin::Network;
 use frost::aggregator::FrostAggregator;
 use gateway_config_parser::config::VerifierConfig;
 use gateway_local_db_store::storage::LocalDbStorage;
@@ -26,25 +26,26 @@ pub struct FlowProcessorRouter {
 
 impl FlowProcessorRouter {
     pub async fn run(mut self, message: FlowProcessorMessage) {
+        #[allow(clippy::let_and_return)]
         let response = match message {
             FlowProcessorMessage::IssueBtcDepositAddress(request) => {
                 let response = self.run_btc_addr_issuing(request, self.network).await;
-                let answer = response.map(|response| FlowProcessorResponse::IssueDepositAddress(response));
+                let answer = response.map(FlowProcessorResponse::IssueDepositAddress);
                 answer
             }
             FlowProcessorMessage::IssueSparkDepositAddress(request) => {
                 let response = self.run_spark_addr_issuing(request, self.network).await;
-                let answer = response.map(|response| FlowProcessorResponse::IssueSparkDepositAddress(response));
+                let answer = response.map(FlowProcessorResponse::IssueSparkDepositAddress);
                 answer
             }
             FlowProcessorMessage::BridgeRunes(request) => {
                 let response = self.run_bridge_runes_flow(request).await;
-                let answer = response.map(|response| FlowProcessorResponse::BridgeRunes(response));
+                let answer = response.map(FlowProcessorResponse::BridgeRunes);
                 answer
             }
             FlowProcessorMessage::ExitSpark(request) => {
                 let response = self.run_exit_spark_flow(request).await;
-                let answer = response.map(|response| FlowProcessorResponse::ExitSpark(response));
+                let answer = response.map(FlowProcessorResponse::ExitSpark);
                 answer
             }
         };

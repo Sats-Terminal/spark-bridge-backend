@@ -35,7 +35,7 @@ impl SparkRpcClient {
         let tls_connection = SparkTlsConnection::new(config)?;
         let clients = tls_connection.create_clients().await?;
         Ok(Self {
-            clients: clients,
+            clients,
             authn_sessions: Arc::new(Mutex::new(HashMap::new())),
         })
     }

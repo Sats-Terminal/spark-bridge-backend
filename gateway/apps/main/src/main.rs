@@ -11,7 +11,7 @@ use gateway_verifier_client::client::VerifierClient;
 use global_utils::config_path::ConfigPath;
 use global_utils::config_variant::ConfigVariant;
 use global_utils::logger::init_logger;
-use global_utils::network::NetworkConfig;
+
 use persistent_storage::config::PostgresDbCredentials;
 use persistent_storage::init::PostgresRepo;
 use std::collections::{BTreeMap, HashMap};
@@ -56,7 +56,7 @@ async fn main() {
         frost_aggregator,
         server_config.network.network,
     );
-    let _ = tokio::spawn(async move {
+    tokio::spawn(async move {
         flow_processor.run().await;
     });
 

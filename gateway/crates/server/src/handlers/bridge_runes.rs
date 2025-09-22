@@ -3,7 +3,7 @@ use crate::init::AppState;
 use axum::Json;
 use axum::extract::State;
 use bitcoin::{Address, Txid};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::str::FromStr;
 use tracing::instrument;
 
@@ -23,7 +23,7 @@ pub async fn handle(
         .require_network(state.network)
         .map_err(|e| GatewayError::InvalidData(format!("Failed to parse btc address: {e}")))?;
 
-    let _ = state
+    state
         .deposit_verification_aggregator
         .verify_runes_deposit(btc_address, request.txid)
         .await
