@@ -87,7 +87,8 @@ mod mock_testing {
                     callback_url: UrlWrapped(url_to_listen),
                     btc_address: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh".to_string(),
                     out_point: out_point,
-                    amount: 45678,
+                    rune_id: ordinals::RuneId::from_str("840000:142")?,
+                    rune_amount: 45678,
                 },
             )
             .await?;
@@ -97,7 +98,8 @@ mod mock_testing {
             &BtcIndexerCallbackResponse::Ok {
                 meta: ResponseMeta {
                     outpoint: out_point,
-                    status: BtcTxReview::Success
+                    status: BtcTxReview::Success,
+                    sats_fee_amount: 0,
                 }
             }
         ));

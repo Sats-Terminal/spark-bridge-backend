@@ -2,10 +2,11 @@ use async_trait::async_trait;
 use bitcoin::{OutPoint, Txid};
 use btc_indexer_api::api::{Amount, BtcTxReview, TxRejectReason};
 use local_db_store_indexer::schemas::tx_tracking_storage::TxToUpdateStatus;
+use ordinals::RuneId;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use thiserror::Error;
-use titan_client::{RuneId, TitanApi};
+use titan_client::TitanApi;
 use titan_types::{RuneAmount, Transaction};
 use tracing::instrument;
 
@@ -137,18 +138,15 @@ impl TxArbiterTrait for TxArbiter {
             if !x.has_runes() {
                 return Ok(TxArbiterResponse::ReviewFormed(
                     BtcTxReview::Failure {
-                        reason: TxRejectReason::NoExpectedTOutWithRunes(x.clone()),
+                        reason: TxRejectReason::NoExpectedTOutWithRunes,
                     },
                     out_point,
                 ));
             }
-            if !Self::check_runes_validity(&x.runes, tx_info.amount) {
+            if !Self::check_runes_validity(&x.runes, tx_info.amount, tx_info.rune_id) {
                 return Ok(TxArbiterResponse::ReviewFormed(
                     BtcTxReview::Failure {
-                        reason: TxRejectReason::NoExpectedTOutWithRunesAmount {
-                            out: x.clone(),
-                            amount: tx_info.amount,
-                        },
+                        reason: TxRejectReason::NoExpectedTOutWithRunesAmount { amount: tx_info.amount },
                     },
                     out_point,
                 ));
@@ -166,11 +164,12 @@ impl TxArbiter {
     }
 
     /// One rune entry consist from one RuneId of runes and has equal value to amount
-    fn check_runes_validity(tx_to_check: &[RuneAmount], amount: Amount) -> bool {
+    fn check_runes_validity(tx_to_check: &[RuneAmount], amount: Amount, id: RuneId) -> bool {
         let counted_runes = Self::count_runes_btree(tx_to_check.iter());
         if counted_runes.len() == 1
-            && let Some((_k, v)) = counted_runes.first_key_value()
+            && let Some((k, v)) = counted_runes.first_key_value()
             && *v == amount as u128
+            && *k == id
         {
             true
         } else {
@@ -181,8 +180,15 @@ impl TxArbiter {
     fn count_runes_btree<'a>(runes: impl Iterator<Item = &'a RuneAmount>) -> BTreeMap<RuneId, u128> {
         let mut rune_counts = BTreeMap::new();
         for rune in runes {
-            *rune_counts.entry(rune.rune_id).or_insert(0) += rune.amount;
+            *rune_counts
+                .entry(RuneId {
+                    block: rune.rune_id.block,
+                    tx: rune.rune_id.tx,
+                })
+                .or_insert(0) += rune.amount;
         }
         rune_counts
     }
 }
+
+// TODO: write unit tests for transaction checking (has to be added transaction constructor for testing)

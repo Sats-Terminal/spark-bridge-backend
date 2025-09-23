@@ -27,11 +27,11 @@ fn btc_tx_review_eq(a: &btc_indexer_api::api::BtcTxReview, b: &btc_indexer_api::
                 TxRejectReason::NoExpectedVOutInOutputs { got: g1, expected: e1 },
                 TxRejectReason::NoExpectedVOutInOutputs { got: g2, expected: e2 },
             ) => g1 == g2 && e1 == e2,
-            (TxRejectReason::NoExpectedTOutWithRunes(o1), TxRejectReason::NoExpectedTOutWithRunes(o2)) => o1 == o2,
+            (TxRejectReason::NoExpectedTOutWithRunes, TxRejectReason::NoExpectedTOutWithRunes) => true,
             (
-                TxRejectReason::NoExpectedTOutWithRunesAmount { out: o1, amount: a1 },
-                TxRejectReason::NoExpectedTOutWithRunesAmount { out: o2, amount: a2 },
-            ) => o1 == o2 && a1 == a2,
+                TxRejectReason::NoExpectedTOutWithRunesAmount { amount: a1 },
+                TxRejectReason::NoExpectedTOutWithRunesAmount { amount: a2 },
+            ) => a1 == a2,
             _ => false,
         },
         _ => false,
@@ -63,7 +63,7 @@ fn track_tx_request_eq(a: &btc_indexer_api::api::TrackTxRequest, b: &btc_indexer
     a.callback_url == b.callback_url
         && a.btc_address == b.btc_address
         && a.out_point == b.out_point
-        && a.amount == b.amount
+        && a.rune_amount == b.rune_amount
 }
 
 pub fn btc_indexer_callback_response_eq(

@@ -18,6 +18,7 @@ mod mocked_tx_tracking {
     use btc_indexer_internals::indexer::{BtcIndexer, IndexerParams, IndexerParamsWithApi};
     use config_parser::config::ServerConfig;
     use global_utils::common_types::{TxIdWrapped, UrlWrapped};
+    use ordinals::RuneId;
     use persistent_storage::init::PostgresPool;
     use tracing::{info, instrument};
 
@@ -49,8 +50,9 @@ mod mocked_tx_tracking {
             .json(&TrackTxRequest {
                 callback_url: UrlWrapped(url_to_listen),
                 btc_address: "".to_string(),
-                amount: 5678,
+                rune_amount: 5678,
                 out_point,
+                rune_id: RuneId::from_str("1:0")?,
             })
             .await;
         info!("First subscription [track_tx] response: {:?}", response);
@@ -62,7 +64,8 @@ mod mocked_tx_tracking {
             &BtcIndexerCallbackResponse::Ok {
                 meta: ResponseMeta {
                     outpoint: out_point,
-                    status: BtcTxReview::Success
+                    status: BtcTxReview::Success,
+                    sats_fee_amount: 0,
                 }
             }
         ));

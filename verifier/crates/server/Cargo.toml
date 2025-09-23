@@ -15,7 +15,6 @@ verifier_local_db_store = { workspace = true }
 frost = { workspace = true }
 titan-client = { workspace = true }
 global_utils = { workspace = true }
-btc_indexer_api = { workspace = true }
 verifier_btc_indexer_client = { workspace = true }
 verifier_spark_balance_checker_client = { workspace = true }
 verifier_gateway_client = { workspace = true }

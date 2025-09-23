@@ -12,6 +12,7 @@ CREATE TABLE btc_indexer.tx_tracking
     tx_id         TEXT                  NOT NULL,
     v_out         INTEGER               NOT NULL,
     amount        BIGINT                NOT NULL,
+    rune_id       TEXT                  NOT NULL,
     status        BTC_TRACKED_TX_STATUS NOT NULL,
     btc_tx_review JSONB,
     transaction   JSONB,

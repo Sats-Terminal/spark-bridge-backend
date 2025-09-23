@@ -2,6 +2,7 @@ use axum::Json;
 use bitcoin::{OutPoint, Txid};
 use global_utils::common_resp::Empty;
 use global_utils::common_types::{Url, UrlWrapped};
+use ordinals::RuneId;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::str::FromStr;
@@ -20,10 +21,11 @@ pub type VOut = u32;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct TrackTxRequest {
-    pub callback_url: UrlWrapped,
     pub btc_address: String,
     pub out_point: OutPoint,
-    pub amount: Amount,
+    pub rune_id: RuneId,
+    pub rune_amount: Amount,
+    pub callback_url: UrlWrapped,
 }
 
 impl PartialSchema for TrackTxRequest {
@@ -37,7 +39,8 @@ impl PartialSchema for TrackTxRequest {
                     txid: Txid::from_str("fb0c9ab881331ec7acdd85d79e3197dcaf3f95055af1703aeee87e0d853e81ec",).unwrap(),
                     vout: 32
                 },
-                amount: 100,
+                rune_id: RuneId::from_str("840000:3").unwrap(),
+                rune_amount: 100,
             })))
             .into()
     }
@@ -68,6 +71,7 @@ pub enum IndexerCallbackResponse {
 pub struct ResponseMeta {
     pub outpoint: OutPoint,
     pub status: BtcTxReview,
+    pub sats_fee_amount: Amount,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -82,6 +86,6 @@ pub enum TxRejectReason {
     NoFeesPayed,
     TooFewSatoshiPaidAsFee { got: u64, at_least_expected: u64 },
     NoExpectedVOutInOutputs { got: u64, expected: u64 },
-    NoExpectedTOutWithRunes(TxOut),
-    NoExpectedTOutWithRunesAmount { out: TxOut, amount: u64 },
+    NoExpectedTOutWithRunes,
+    NoExpectedTOutWithRunesAmount { amount: u64 },
 }

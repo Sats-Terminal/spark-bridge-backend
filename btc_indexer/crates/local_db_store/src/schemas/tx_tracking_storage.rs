@@ -2,11 +2,13 @@ use crate::init::LocalDbStorage;
 use bitcoin::OutPoint;
 use btc_indexer_api::api::{Amount, BtcTxReview, VOut};
 use global_utils::common_types::TxIdWrapped;
+use ordinals::RuneId;
 use persistent_storage::error::DbError;
 use serde::{Deserialize, Serialize};
 use sqlx::Acquire;
 use sqlx::types::Json;
 use sqlx::types::chrono::{DateTime, Utc};
+use std::str::FromStr;
 use titan_client::Transaction;
 use tracing::instrument;
 
@@ -35,6 +37,7 @@ pub struct TxToUpdateStatus {
     pub tx_id: TxIdWrapped,
     pub v_out: VOut,
     pub amount: Amount,
+    pub rune_id: RuneId,
 }
 
 #[async_trait::async_trait]
@@ -55,21 +58,28 @@ impl TxTrackingStorageTrait for LocalDbStorage {
         let mut conn = self.postgres_repo.get_conn().await?;
         let mut transaction = conn.begin().await?;
 
-        let stored_values: Vec<(TxIdWrapped, i32, i64)> =
-            sqlx::query_as("SELECT tx_id, v_out, amount FROM btc_indexer.tx_tracking WHERE status = $1;")
+        let stored_values: Vec<(TxIdWrapped, i32, i64, String)> =
+            sqlx::query_as("SELECT tx_id, v_out, amount, rune_id FROM btc_indexer.tx_tracking WHERE status = $1;")
                 .bind(TrackedRawTxStatus::Pending)
                 .fetch_all(&mut *transaction)
                 .await
                 .map_err(|e| DbError::BadRequest(e.to_string()))?;
-        let stored_values = stored_values
+        let stored_values: Vec<Result<TxToUpdateStatus, DbError>> = stored_values
             .into_iter()
-            .map(|(tx_id, v_out, amount)| TxToUpdateStatus {
-                tx_id,
-                v_out: v_out as u32,
-                amount: amount as u64,
+            .map(|(tx_id, v_out, amount, rune_id)| {
+                Ok(TxToUpdateStatus {
+                    tx_id,
+                    v_out: v_out as u32,
+                    amount: amount as u64,
+                    rune_id: RuneId::from_str(&rune_id).map_err(|e| {
+                        DbError::DecodeError(format!("Failed to decode RuneId from string: {rune_id}, err: {e}"))
+                    })?,
+                })
             })
             .collect();
-
+        let stored_values = stored_values
+            .into_iter()
+            .collect::<Result<Vec<TxToUpdateStatus>, DbError>>()?;
         transaction.commit().await?;
         Ok(stored_values)
     }

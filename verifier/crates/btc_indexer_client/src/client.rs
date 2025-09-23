@@ -1,6 +1,5 @@
 use crate::error::BtcIndexerClientError;
 use bitcoin::OutPoint;
-use bitcoin::Txid;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use url::Url;

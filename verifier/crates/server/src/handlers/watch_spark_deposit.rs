@@ -2,7 +2,6 @@ use crate::errors::VerifierError;
 use crate::init::AppState;
 use axum::Json;
 use axum::extract::State;
-use bitcoin::OutPoint;
 use frost::types::MusigId;
 use frost::types::Nonce;
 use serde::{Deserialize, Serialize};

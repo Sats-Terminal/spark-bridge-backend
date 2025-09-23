@@ -43,3 +43,4 @@ dotenv = { workspace = true }
 global_utils = { workspace = true }
 mockall = { workspace = true }
 titan-types = { workspace = true }
+ordinals = { workspace = true }

@@ -229,7 +229,7 @@ impl UtxoStorage for LocalDbStorage {
         .rows_affected();
 
         if rows == 0 {
-            return Err(DbError::NotFound(format!("UTXO {} not found", out_point.to_string())));
+            return Err(DbError::NotFound(format!("UTXO {} not found", out_point)));
         }
 
         Ok(())

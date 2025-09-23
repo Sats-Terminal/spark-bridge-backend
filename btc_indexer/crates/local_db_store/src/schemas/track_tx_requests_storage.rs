@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::Acquire;
 use sqlx::types::Json;
 use sqlx::types::chrono::{DateTime, Utc};
+use titan_client::Transaction;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -34,6 +35,7 @@ pub struct TxTrackingRequestsToSendResponse {
     pub out_point: OutPoint,
     pub callback_url: UrlWrapped,
     pub review: BtcTxReview,
+    pub transaction: Transaction,
 }
 
 #[async_trait::async_trait]
@@ -53,8 +55,8 @@ impl TxRequestsTrackingStorageTrait for LocalDbStorage {
         let mut transaction = conn.begin().await?;
 
         let id: (i32,) = sqlx::query_as(
-            "INSERT INTO btc_indexer.tx_tracking (tx_id, v_out, status, created_at, amount)
-                 VALUES ($1, $2, $3, $4, $5)
+            "INSERT INTO btc_indexer.tx_tracking (tx_id, v_out, status, created_at, amount, rune_id)
+                 VALUES ($1, $2, $3, $4, $5, $6)
                  ON CONFLICT (tx_id, v_out) DO UPDATE SET tx_id = EXCLUDED.tx_id
                  RETURNING id;",
         )
@@ -62,7 +64,8 @@ impl TxRequestsTrackingStorageTrait for LocalDbStorage {
         .bind(req.out_point.vout as i32)
         .bind(TrackedRawTxStatus::Pending)
         .bind(Utc::now())
-        .bind(req.amount as i64)
+        .bind(req.rune_amount as i64)
+        .bind(req.rune_id.to_string())
         .fetch_one(&mut *transaction)
         .await
         .map_err(|e| DbError::BadRequest(e.to_string()))?;
@@ -89,8 +92,8 @@ impl TxRequestsTrackingStorageTrait for LocalDbStorage {
         let mut conn = self.postgres_repo.get_conn().await?;
         let mut transaction = conn.begin().await?;
 
-        let req_to_answer: Vec<(TxIdWrapped, i32, Json<BtcTxReview>,UrlWrapped, Uuid)> = sqlx::query_as(
-            " SELECT inner_table.tx_id, inner_table.v_out, inner_table.btc_tx_review, req_table.callback_url, req_table.uuid
+        let req_to_answer: Vec<(TxIdWrapped, i32, Json<BtcTxReview>,UrlWrapped, Uuid, Json<Transaction>)> = sqlx::query_as(
+            " SELECT inner_table.tx_id, inner_table.v_out, inner_table.btc_tx_review, req_table.callback_url, req_table.uuid, inner_table.transaction
                     FROM btc_indexer.tx_tracking_requests req_table
                     JOIN btc_indexer.tx_tracking inner_table ON req_table.tracked_tx_id = inner_table.id
                     WHERE inner_table.status = $1 AND req_table.status = $2;",
@@ -102,15 +105,18 @@ impl TxRequestsTrackingStorageTrait for LocalDbStorage {
         .map_err(|e| DbError::BadRequest(e.to_string()))?;
         let req_to_answer = req_to_answer
             .into_iter()
-            .map(|(tx_id, v_out, review, url, uuid)| TxTrackingRequestsToSendResponse {
-                uuid,
-                out_point: OutPoint {
-                    txid: tx_id.0,
-                    vout: v_out as u32,
+            .map(
+                |(tx_id, v_out, review, url, uuid, transaction)| TxTrackingRequestsToSendResponse {
+                    uuid,
+                    out_point: OutPoint {
+                        txid: tx_id.0,
+                        vout: v_out as u32,
+                    },
+                    callback_url: url,
+                    review: review.0,
+                    transaction: transaction.0,
                 },
-                callback_url: url,
-                review: review.0,
-            })
+            )
             .collect();
 
         transaction.commit().await?;

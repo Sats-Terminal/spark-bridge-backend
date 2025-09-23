@@ -131,6 +131,7 @@ fn _inner_response_task_spawn<Db: IndexerDbBounds>(
             meta: ResponseMeta {
                 outpoint: data.out_point,
                 status: data.review,
+                sats_fee_amount: data.transaction.fee_paid_sat().unwrap_or_default(),
             },
         };
         let client_resp = client.post(data.callback_url.0).json(&resp).send().await;

@@ -10,10 +10,11 @@ mod test_btc_indexer_requests {
         TrackedReqStatus, TxRequestsTrackingStorageTrait, TxTrackingRequestsToSendResponse,
     };
     use local_db_store_indexer::schemas::tx_tracking_storage::{TxToUpdateStatus, TxTrackingStorageTrait};
+    use ordinals::RuneId;
     use persistent_storage::init::PostgresPool;
     use sqlx::Row;
     use std::str::FromStr;
-    use titan_client::{Transaction, TransactionStatus};
+    use titan_client::{Rune, Transaction, TransactionStatus};
     use url::Url;
 
     pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
@@ -36,7 +37,8 @@ mod test_btc_indexer_requests {
             callback_url: UrlWrapped(Url::from_str("https://example.com/callback")?),
             btc_address: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh".to_string(),
             out_point: outpoint,
-            amount: 45667,
+            rune_id: RuneId::from_str("840000:3")?,
+            rune_amount: 45667,
         };
         storage.track_tx_request(uuid, &request).await?;
 
@@ -46,7 +48,8 @@ mod test_btc_indexer_requests {
             vec![TxToUpdateStatus {
                 tx_id: TxIdWrapped(tx_id.clone()),
                 v_out: outpoint.vout,
-                amount: request.amount,
+                amount: request.rune_amount,
+                rune_id: RuneId::from_str("840000:3")?,
             }]
         );
 
@@ -78,6 +81,7 @@ mod test_btc_indexer_requests {
                     out_point: outpoint,
                     callback_url: request.callback_url,
                     review,
+                    transaction: titan_tx,
                 }]
             ),
             "TxTrackingRequestsToSendResponse vectors are not equal"
