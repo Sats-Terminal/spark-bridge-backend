@@ -1,61 +1,64 @@
 use std::str::FromStr;
 use anyhow::Result;
 use bitcoin::transaction::Version;
-use ord_rs::bitcoin::{Address, Network, PrivateKey, secp256k1::Secp256k1, Amount};
+use ord_rs::bitcoin::{Address, Network, PrivateKey, secp256k1::Secp256k1, Amount, Txid as OrdTxid};
 use ord_rs::{
-    OrdTransactionBuilder, Nft, Brc20,
+    OrdTransactionBuilder, Nft,
     wallet::{
         CreateCommitTransactionArgsV2,
         SignCommitTransactionArgs,
         RevealTransactionArgs,
         EtchingTransactionArgs,
-        Utxo
+        Utxo,
+        Runestone
     }
 };
-use ordinals::{Etching, Rune, Terms, RuneId};
-use ord_rs::wallet::Runestone;
+use ordinals::{Rune, Terms, RuneId};
+
 pub struct BitcoinClient {
     network: Network,
 }
 
 impl BitcoinClient {
     pub fn new(network: Network) -> Self {
-
         Self { network }
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct EtchRuneParams {
-    pub rune_name: String, // delete - > const default
-    pub divisibility: Option<u8>, // delete -> const default
-    pub premine: Option<u128>, // const -> default
-    pub symbol: Option<char>, // delete -> const default
-    pub terms: Option<RuneTerms>, // const -> default
-    pub inputs: Vec<TxInput>, // delete
+    pub rune_name: String,
+    pub divisibility: Option<u8>,
+    pub premine: Option<u128>,
+    pub symbol: Option<char>,
+    pub terms: Option<RuneTerms>,
+    pub inputs: Vec<TxInput>,
     pub commit_fee: Amount,
     pub reveal_fee: Amount,
-    pub recipient_address: Address, // delete -> сдача, возв
-    pub dry_run: bool, // delete
+    pub recipient_address: Address,
+    pub dry_run: bool,
 }
 
 #[derive(Debug, Clone)]
 pub struct MintRuneParams {
     pub rune_id: RuneId,
-    pub inputs: Vec<TxInput>, // delete -> create in test
+    pub amount: u128,
+    pub inputs: Vec<TxInput>,
     pub recipient_address: Address,
     pub commit_fee: Amount,
     pub reveal_fee: Amount,
-    pub dry_run: bool, // delete
+    pub dry_run: bool,
 }
 
 #[derive(Debug, Clone)]
 pub struct TransferRuneParams {
+    pub rune_id: RuneId,
+    pub amount: u128,
     pub utxo_to_spend: TxInput,
     pub funding_inputs: Vec<TxInput>,
     pub recipient: Address,
     pub fee: Amount,
-    pub dry_run: bool, // delete
+    pub dry_run: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -111,7 +114,7 @@ impl RuneManager {
         let inputs = self.convert_inputs_to_utxos(params.inputs).await?;
         let sender_address = self.get_sender_address()?;
 
-        let etching = Etching {
+        let etching = ordinals::Etching {
             rune: Some(Rune::from_str(&params.rune_name)?),
             divisibility: params.divisibility,
             premine: params.premine,
@@ -215,14 +218,12 @@ impl RuneManager {
         let inputs = self.convert_inputs_to_utxos(params.inputs).await?;
         let sender_address = self.get_sender_address()?;
 
-        let inscription = Brc20::mint("RUNE".to_string(), 1000);
-
         let commit_tx = self.builder
             .build_commit_transaction_with_fixed_fees(
                 self.network,
                 CreateCommitTransactionArgsV2 {
                     inputs: inputs.clone(),
-                    inscription,
+                    inscription: Nft::new(None, None),
                     txin_script_pubkey: sender_address.script_pubkey(),
                     leftovers_recipient: params.recipient_address.clone(),
                     commit_fee: params.commit_fee,
@@ -282,8 +283,6 @@ impl RuneManager {
     pub async fn transfer_rune(&self, params: TransferRuneParams) -> Result<TransactionResult> {
         log::info!("Starting rune transfer to: {}", params.recipient);
 
-        //let smth = Brc20::transfer();
-
         let mut all_inputs = vec![params.utxo_to_spend];
         all_inputs.extend(params.funding_inputs);
         let inputs = self.convert_inputs_to_utxos(all_inputs).await?;
@@ -301,7 +300,6 @@ impl RuneManager {
             spend_transaction.txid().to_string()
         } else {
             log::info!("Broadcasting transfer transaction: {}", spend_transaction.txid());
-
             spend_transaction.txid().to_string()
         };
 
@@ -314,7 +312,6 @@ impl RuneManager {
         })
     }
 
-
     fn get_sender_address(&self) -> Result<Address> {
         let public_key = self.private_key.public_key(&Secp256k1::new());
         Ok(Address::p2wpkh(&public_key, self.network)?)
@@ -324,11 +321,11 @@ impl RuneManager {
         let mut utxos = Vec::new();
 
         for input in inputs {
-            let txid = bitcoin::Txid::from_str(&input.txid)?;
+            let txid = OrdTxid::from_str(&input.txid)?;
             utxos.push(Utxo {
                 id: txid,
                 index: input.vout,
-                amount: input.amount,
+                amount: Amount::from_sat(input.amount),
             });
         }
 
@@ -342,17 +339,18 @@ impl RuneManager {
         inputs: Vec<Utxo>,
         fee: Amount,
     ) -> Result<bitcoin::Transaction> {
-
-
-        use bitcoin::{Transaction, TxIn, TxOut, OutPoint, ScriptBuf, Witness};
+        use bitcoin::{Transaction, TxIn, TxOut, OutPoint, Witness};
 
         let mut tx_inputs = Vec::new();
-        let mut total_input: Amount = Amount(0u64);
+        let mut total_input = Amount::ZERO;
 
         for utxo in inputs {
             tx_inputs.push(TxIn {
-                previous_output: OutPoint::new(utxo.id, utxo.index),
-                script_sig: ScriptBuf::new(),
+                previous_output: OutPoint::new(
+                    bitcoin::Txid::from_str(&utxo.id.to_string())?,
+                    utxo.index
+                ),
+                script_sig: bitcoin::ScriptBuf::new(),
                 sequence: bitcoin::Sequence::ENABLE_RBF_NO_LOCKTIME,
                 witness: Witness::new(),
             });
@@ -362,16 +360,16 @@ impl RuneManager {
         let mut tx_outputs = Vec::new();
 
         tx_outputs.push(TxOut {
-            value: amount,
-            script_pubkey: recipient.script_pubkey(),
+            value: bitcoin_units::amount::Amount::from_sat(amount.to_sat()),
+            script_pubkey: bitcoin::ScriptBuf::from_bytes(recipient.script_pubkey().to_bytes()),
         });
 
         if total_input > amount + fee {
             let change_amount = total_input - amount - fee;
             let sender_address = self.get_sender_address()?;
             tx_outputs.push(TxOut {
-                value: change_amount,
-                script_pubkey: sender_address.script_pubkey(),
+                value: bitcoin_units::amount::Amount::from_sat(change_amount.to_sat()),
+                script_pubkey: bitcoin::ScriptBuf::from_bytes(sender_address.script_pubkey().to_bytes()),
             });
         }
 
@@ -412,9 +410,10 @@ impl EtchRuneParams {
 }
 
 impl MintRuneParams {
-    pub fn new(rune_id: RuneId, recipient_address: Address) -> Self {
+    pub fn new(rune_id: RuneId, amount: u128, recipient_address: Address) -> Self {
         Self {
             rune_id,
+            amount,
             inputs: Vec::new(),
             recipient_address,
             commit_fee: Default::default(),
@@ -425,8 +424,10 @@ impl MintRuneParams {
 }
 
 impl TransferRuneParams {
-    pub fn new(utxo_to_spend: TxInput, recipient: Address) -> Self {
+    pub fn new(rune_id: RuneId, amount: u128, utxo_to_spend: TxInput, recipient: Address) -> Self {
         Self {
+            rune_id,
+            amount,
             utxo_to_spend,
             funding_inputs: Vec::new(),
             recipient,
