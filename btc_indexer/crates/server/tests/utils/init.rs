@@ -14,6 +14,7 @@ use tracing::{info, instrument};
 use url::Url;
 
 pub static TEST_LOGGER: LazyLock<LoggerGuard> = LazyLock::new(|| init_logger());
+pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("../local_db_store/migrations");
 
 /// Init test server with real docker
 #[instrument(level = "debug", ret)]

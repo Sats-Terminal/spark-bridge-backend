@@ -4,6 +4,7 @@ mod mocked_tx_tracking {
     use std::str::FromStr;
 
     use crate::utils::comparing_utils::btc_indexer_callback_response_eq;
+    use crate::utils::init::MIGRATOR;
     use crate::utils::mock::generate_mock_tx_arbiter;
     use crate::utils::{
         init::{TEST_LOGGER, obtain_random_localhost_socket_addr},
@@ -30,8 +31,6 @@ mod mocked_tx_tracking {
         )
         .await?)
     }
-
-    pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("../local_db_store/migrations");
 
     #[instrument]
     #[sqlx::test(migrator = "MIGRATOR")]

@@ -14,6 +14,7 @@ pub struct BtcIndexerApi;
 impl BtcIndexerApi {
     /// Represents hardcoded `/track_tx` endpoint
     pub const TRACK_TX_ENDPOINT: &'static str = "/track_tx";
+    pub const HEALTHCHECK_ENDPOINT: &'static str = "/healthcheck";
 }
 
 pub type Amount = u64;

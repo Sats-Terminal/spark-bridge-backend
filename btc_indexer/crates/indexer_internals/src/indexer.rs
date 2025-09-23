@@ -10,6 +10,7 @@ use config_parser::config::{BtcIndexerParams, BtcRpcCredentials};
 use local_db_store_indexer::init::IndexerDbBounds;
 use local_db_store_indexer::init::LocalDbStorage;
 
+use crate::error::BtcIndexerError;
 use titan_client::{TitanApi, TitanClient};
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
@@ -112,6 +113,14 @@ impl<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArbiterTrait> BtcIndexerAp
     #[instrument(level = "debug", skip(self), ret)]
     async fn check_tx_changes(&self, uuid: Uuid, payload: &TrackTxRequest) -> crate::error::Result<()> {
         self.persistent_storage.track_tx_request(uuid, payload).await?;
+        Ok(())
+    }
+
+    #[instrument(level = "debug", skip(self), ret)]
+    async fn healthcheck(&self) -> crate::error::Result<()> {
+        if self.task_tracker.is_closed() {
+            return Err(BtcIndexerError::ThreadsClosedError);
+        }
         Ok(())
     }
 

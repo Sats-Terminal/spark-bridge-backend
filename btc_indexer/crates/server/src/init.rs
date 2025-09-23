@@ -36,6 +36,7 @@ pub async fn create_app(
     };
     let app = Router::new()
         .route(BtcIndexerApi::TRACK_TX_ENDPOINT, post(crate::routes::track_tx::handler))
+        .route(BtcIndexerApi::TRACK_TX_ENDPOINT, post(crate::routes::track_tx::handler))
         .with_state(state);
 
     #[cfg(feature = "swagger")]

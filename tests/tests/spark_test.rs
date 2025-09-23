@@ -13,8 +13,13 @@ async fn test_spark() {
     };
 
     let get_runes_deposit_address_response = gateway_client
-        .get_runes_deposit_address(get_runes_deposit_address_request).await.unwrap();
-    println!("get_runes_deposit_address_response: {:?}", get_runes_deposit_address_response);
+        .get_runes_deposit_address(get_runes_deposit_address_request)
+        .await
+        .unwrap();
+    println!(
+        "get_runes_deposit_address_response: {:?}",
+        get_runes_deposit_address_response
+    );
 
     let test_spark_request = TestSparkRequest {
         btc_address: get_runes_deposit_address_response.address,

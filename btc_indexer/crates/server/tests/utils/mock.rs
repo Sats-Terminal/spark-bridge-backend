@@ -10,7 +10,7 @@ use axum::{Router, routing::post};
 use axum_test::TestServer;
 use bitcoin::{BlockHash, OutPoint, hashes::Hash};
 use bitcoincore_rpc::{RawTx, bitcoin::Txid};
-use btc_indexer_api::api::BtcTxReview;
+use btc_indexer_api::api::{BtcIndexerApi, BtcTxReview};
 use btc_indexer_internals::indexer::{BtcIndexer, IndexerParams, IndexerParamsWithApi};
 use btc_indexer_internals::tx_arbiter::TxArbiter;
 use btc_indexer_internals::tx_arbiter::TxArbiterTrait;
@@ -317,7 +317,14 @@ pub async fn create_app_mocked(
         btc_indexer,
     };
     let app = Router::new()
-        .route("/track_tx", post(btc_indexer_server::routes::track_tx::handler))
+        .route(
+            BtcIndexerApi::TRACK_TX_ENDPOINT,
+            post(btc_indexer_server::routes::track_tx::handler),
+        )
+        .route(
+            BtcIndexerApi::HEALTHCHECK_ENDPOINT,
+            post(btc_indexer_server::routes::healthcheck::handler),
+        )
         .with_state(state);
     app
 }

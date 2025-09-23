@@ -1,8 +1,8 @@
-use reqwest::Client;
-use url::Url;
-use thiserror::Error;
 use bitcoin::Address;
+use reqwest::Client;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use thiserror::Error;
+use url::Url;
 
 #[derive(Clone, Debug)]
 pub struct GatewayClient {
@@ -57,7 +57,11 @@ impl GatewayClient {
         }
     }
 
-    pub async fn send_request<T: Serialize, U: DeserializeOwned>(&self, address_path: &str, request: T) -> Result<U, GatewayClientError> {
+    pub async fn send_request<T: Serialize, U: DeserializeOwned>(
+        &self,
+        address_path: &str,
+        request: T,
+    ) -> Result<U, GatewayClientError> {
         let url = self.config.address.join(address_path)?;
 
         let response = self.client.post(url).json(&request).send().await?;
@@ -66,11 +70,17 @@ impl GatewayClient {
             let response: U = response.json().await?;
             Ok(response)
         } else {
-            Err(GatewayClientError::ErrorResponse(format!("Error response with status: {}", response.status())))
+            Err(GatewayClientError::ErrorResponse(format!(
+                "Error response with status: {}",
+                response.status()
+            )))
         }
     }
 
-    pub async fn get_runes_deposit_address(&self, request: GetRunesDepositAddressRequest) -> Result<GetRunesDepositAddressResponse, GatewayClientError> {
+    pub async fn get_runes_deposit_address(
+        &self,
+        request: GetRunesDepositAddressRequest,
+    ) -> Result<GetRunesDepositAddressResponse, GatewayClientError> {
         self.send_request(GET_RUNES_DEPOSIT_ADDRESS_PATH, request).await
     }
 

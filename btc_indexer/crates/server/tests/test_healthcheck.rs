@@ -1,0 +1,38 @@
+mod utils;
+mod mocked_healthcheck {
+    use crate::utils::mock::generate_mock_tx_arbiter;
+    use crate::utils::{
+        init::{obtain_random_localhost_socket_addr, TEST_LOGGER},
+        mock::generate_mock_titan_indexer_tx_tracking,
+        test_notifier::spawn_notify_server_track_tx,
+    };
+    use axum_test::http::StatusCode;
+    use axum_test::TestServer;
+    use btc_indexer_api::api::BtcIndexerApi;
+    use persistent_storage::init::PostgresPool;
+    use tracing::instrument;
+    use crate::utils::init::MIGRATOR;
+
+    pub async fn init_mocked_tx_tracking_test_server(pool: PostgresPool) -> anyhow::Result<TestServer> {
+        Ok(crate::utils::mock::init_mocked_test_server(
+            || generate_mock_titan_indexer_tx_tracking(),
+            || generate_mock_tx_arbiter(),
+            pool,
+        )
+        .await?)
+    }
+
+    #[instrument]
+    #[sqlx::test(migrator = "MIGRATOR")]
+    async fn test_invocation_tx_tracking(pool: PostgresPool) -> anyhow::Result<()> {
+        dotenv::dotenv()?;
+        let _logger_guard = &*TEST_LOGGER;
+        let test_server = init_mocked_tx_tracking_test_server(pool).await?;
+        let (url_to_listen, oneshot_chan, _notify_server) =
+            spawn_notify_server_track_tx(obtain_random_localhost_socket_addr()?).await?;
+
+        let response = test_server.post(BtcIndexerApi::HEALTHCHECK_ENDPOINT).await;
+        assert_eq!(response.status_code(), StatusCode::OK);
+        Ok(())
+    }
+}
