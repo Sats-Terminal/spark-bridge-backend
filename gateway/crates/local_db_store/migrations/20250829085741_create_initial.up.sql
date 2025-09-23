@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS gateway.sign_session
     session_id TEXT NOT NULL,
     public_key TEXT NOT NULL,
     rune_id TEXT NOT NULL,
-    tweak BYTEA NOT NULL,
+    tweak BYTEA,
     message_hash BYTEA NOT NULL,
     metadata JSON NOT NULL,
     sign_state JSON NOT NULL,
