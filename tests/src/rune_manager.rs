@@ -727,7 +727,6 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_integration_with_gateway_client() -> Result<()> {
-        // Arrange
         let gateway_client = create_test_gateway_client();
         let test_address = create_test_recipient_address()?;
 
