@@ -2,8 +2,8 @@ use crate::error::GatewayError;
 use crate::init::AppState;
 use axum::Json;
 use axum::extract::State;
-use tracing::instrument;
 use gateway_deposit_verification::types::NotifyRunesDepositRequest;
+use tracing::instrument;
 
 #[instrument(level = "info", skip(request, state), fields(request = ?request), ret)]
 pub async fn handle(
@@ -11,7 +11,10 @@ pub async fn handle(
     Json(request): Json<NotifyRunesDepositRequest>,
 ) -> Result<Json<()>, GatewayError> {
     // TODO: This request should spawn task and immediately return Json(())
-    let _ = state.deposit_verification_aggregator.notify_runes_deposit(request).await;
+    let _ = state
+        .deposit_verification_aggregator
+        .notify_runes_deposit(request)
+        .await;
 
     Ok(Json(()))
 }

@@ -5,8 +5,10 @@ use bitcoin::Address;
 use frost::traits::AggregatorMusigIdStorage;
 use frost::types::AggregatorDkgState;
 use frost::utils::convert_public_key_package;
-use gateway_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositAddressStorage, DepositStatus, VerifiersResponses};
-use frost::utils::{get_address, generate_nonce};
+use frost::utils::{generate_nonce, get_address};
+use gateway_local_db_store::schemas::deposit_address::{
+    DepositAddrInfo, DepositAddressStorage, DepositStatus, VerifiersResponses,
+};
 use tracing;
 
 const LOG_PATH: &str = "flow_processor:routes:btc_addr_issuing";
@@ -61,17 +63,15 @@ pub async fn handle(
     );
 
     local_db_storage
-        .set_deposit_addr_info(
-            DepositAddrInfo {
-                musig_id: request.musig_id.clone(),
-                nonce,
-                deposit_address: address.to_string(),
-                bridge_address: None,
-                is_btc: true,
-                amount: request.amount,
-                confirmation_status: verifiers_responses,
-            },
-        )
+        .set_deposit_addr_info(DepositAddrInfo {
+            musig_id: request.musig_id.clone(),
+            nonce,
+            deposit_address: address.to_string(),
+            bridge_address: None,
+            is_btc: true,
+            amount: request.amount,
+            confirmation_status: verifiers_responses,
+        })
         .await?;
 
     Ok(address)

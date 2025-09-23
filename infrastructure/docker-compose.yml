@@ -29,6 +29,7 @@ services:
       - ${BITCOIN_NETWORK:-regtest}
       - RUST_LOG=trace
       - CONFIG_PATH=/config.toml
+      - CA_PEM_PATH=/configuration_gateway/ca.pem
       - DATABASE_URL=postgres://${POSTGRES_USER:-admin_manager}:${POSTGRES_PASSWORD:-password}@persistent-db-storage_gateway:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-production_db_name}
     ports:
       - "8070:8060"
@@ -42,6 +43,7 @@ services:
       - verifier3-service
     volumes:
       - ./configurations/gateway/production.toml:/config.toml
+      - ./configurations/common/ca.pem:/configuration_gateway/ca.pem
 
   # ====== Verifier 1 ======
   persistent-db-storage_verifier_1:
@@ -278,7 +280,7 @@ services:
     #    entrypoint: tail -f /dev/null
     volumes:
       - ./configurations/spark_balance_checker/production.toml:/configuration_spark_balance_checker/production.toml
-      - ./configurations/spark_balance_checker/ca.pem:/configuration_spark_balance_checker/ca.pem
+      - ./configurations/common/ca.pem:/configuration_spark_balance_checker/ca.pem
 
 
 networks:

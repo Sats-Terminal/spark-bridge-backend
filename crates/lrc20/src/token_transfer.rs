@@ -1,10 +1,10 @@
 use bitcoin::secp256k1::PublicKey;
 
-use token_identifier::TokenIdentifier;
 use crate::{
     spark_hash::SparkHash,
     token_leaf::{TokenLeafOutput, TokenLeafToSpend},
 };
+use token_identifier::TokenIdentifier;
 
 /// The request for a token transfer.
 #[derive(Debug, Clone)]

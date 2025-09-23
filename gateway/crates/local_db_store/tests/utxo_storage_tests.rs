@@ -3,12 +3,12 @@ mod tests {
     use gateway_local_db_store::storage::LocalDbStorage;
     // use gateway_runes_utxo_manager::traits::{CoinSelector, Utxo, UtxoManager, UtxoStatus, UtxoStorage};
     // use gateway_runes_utxo_manager::utxo_manager::GreedySelector;
+    use gateway_local_db_store::schemas::utxo_storage::Utxo;
     use persistent_storage::error::DbError as DatabaseError;
     use persistent_storage::init::{PostgresPool, PostgresRepo};
     use sqlx::Executor;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicU64, Ordering};
-    use gateway_local_db_store::schemas::utxo_storage::Utxo;
 
     async fn make_repo(db: PostgresPool) -> Arc<LocalDbStorage> {
         Arc::new(LocalDbStorage {

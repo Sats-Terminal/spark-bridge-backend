@@ -4,8 +4,8 @@ use global_utils::common_types::get_uuid;
 use persistent_storage::error::DbError;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
-use uuid::Uuid;
 use sqlx::types::Json;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionInfo {
@@ -106,8 +106,8 @@ impl SessionStorage for LocalDbStorage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Arc;
     use persistent_storage::error::DbError as DatabaseError;
+    use std::sync::Arc;
 
     async fn make_repo(db: sqlx::PgPool) -> Arc<LocalDbStorage> {
         Arc::new(LocalDbStorage {
@@ -146,10 +146,11 @@ mod tests {
         let session = create_test_session();
         let session_id = repo.create_session(session.clone()).await?;
 
-        let row: (SessionStatus,) = sqlx::query_as("SELECT request_status FROM gateway.session_requests WHERE session_id = $1")
-            .bind(session_id)
-            .fetch_one(&repo.postgres_repo.pool)
-            .await?;
+        let row: (SessionStatus,) =
+            sqlx::query_as("SELECT request_status FROM gateway.session_requests WHERE session_id = $1")
+                .bind(session_id)
+                .fetch_one(&repo.postgres_repo.pool)
+                .await?;
 
         assert_eq!(row.0, *session.request_status);
         Ok(())
@@ -165,10 +166,11 @@ mod tests {
 
         repo.update_session_status(session_id, SessionStatus::Completed).await?;
 
-        let row: (SessionStatus,) = sqlx::query_as("SELECT request_status FROM gateway.session_requests WHERE session_id = $1")
-            .bind(session_id)
-            .fetch_one(&repo.postgres_repo.pool)
-            .await?;
+        let row: (SessionStatus,) =
+            sqlx::query_as("SELECT request_status FROM gateway.session_requests WHERE session_id = $1")
+                .bind(session_id)
+                .fetch_one(&repo.postgres_repo.pool)
+                .await?;
 
         assert_eq!(row.0, SessionStatus::Completed);
         Ok(())
@@ -179,10 +181,7 @@ mod tests {
         let repo = make_repo(db).await;
         cleanup_and_setup(&repo).await;
 
-        let original_session = create_test_session_with_type(
-            RequestType::BridgeRunes,
-            SessionStatus::Processing
-        );
+        let original_session = create_test_session_with_type(RequestType::BridgeRunes, SessionStatus::Processing);
         let session_id = repo.create_session(original_session.clone()).await?;
 
         let retrieved_session = repo.get_session(session_id).await?;
@@ -232,10 +231,11 @@ mod tests {
             let session = create_test_session_with_type(session_type.clone(), SessionStatus::Pending);
             let session_id = repo.create_session(session).await?;
 
-            let row: (RequestType,) = sqlx::query_as("SELECT request_type FROM gateway.session_requests WHERE session_id = $1")
-                .bind(session_id)
-                .fetch_one(&repo.postgres_repo.pool)
-                .await?;
+            let row: (RequestType,) =
+                sqlx::query_as("SELECT request_type FROM gateway.session_requests WHERE session_id = $1")
+                    .bind(session_id)
+                    .fetch_one(&repo.postgres_repo.pool)
+                    .await?;
 
             assert_eq!(row.0, session_type);
         }
@@ -273,10 +273,7 @@ mod tests {
         let session = create_test_session();
         let session_id = repo.create_session(session).await?;
 
-        let status_progression = vec![
-            SessionStatus::Processing,
-            SessionStatus::Completed,
-        ];
+        let status_progression = vec![SessionStatus::Processing, SessionStatus::Completed];
 
         for status in status_progression {
             repo.update_session_status(session_id, status).await?;
@@ -293,10 +290,7 @@ mod tests {
 
         let mut session_ids = Vec::new();
         for _i in 0..5 {
-            let session = create_test_session_with_type(
-                RequestType::GetRunesDepositAddress,
-                SessionStatus::Pending
-            );
+            let session = create_test_session_with_type(RequestType::GetRunesDepositAddress, SessionStatus::Pending);
             let session_id = repo.create_session(session).await?;
             session_ids.push(session_id);
         }
@@ -314,10 +308,7 @@ mod tests {
         let repo = make_repo(db).await;
         cleanup_and_setup(&repo).await;
 
-        let session = create_test_session_with_type(
-            RequestType::BridgeRunes,
-            SessionStatus::Processing
-        );
+        let session = create_test_session_with_type(RequestType::BridgeRunes, SessionStatus::Processing);
 
         let json_str = serde_json::to_string(&session).unwrap();
         let deserialized: SessionInfo = serde_json::from_str(&json_str).unwrap();

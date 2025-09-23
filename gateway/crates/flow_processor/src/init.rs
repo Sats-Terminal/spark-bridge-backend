@@ -1,17 +1,17 @@
 use crate::flow_processor::FlowProcessor;
 use crate::flow_sender::FlowSender;
 use bitcoin::Network;
+use bitcoin::secp256k1::PublicKey;
 use frost::aggregator::FrostAggregator;
-use gateway_local_db_store::storage::LocalDbStorage;
 use gateway_config_parser::config::ServerConfig;
+use gateway_local_db_store::storage::LocalDbStorage;
+use gateway_rune_transfer::bitcoin_client::BitcoinClient;
+use gateway_spark_service::service::SparkService;
+use spark_client::client::SparkRpcClient;
+use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
-use gateway_spark_service::service::SparkService;
-use spark_client::client::SparkRpcClient;
-use bitcoin::secp256k1::PublicKey;
-use std::str::FromStr;
-use gateway_rune_transfer::bitcoin_client::BitcoinClient;
 
 pub async fn create_flow_processor(
     server_config: ServerConfig,
@@ -26,8 +26,12 @@ pub async fn create_flow_processor(
 
     let spark_client = SparkRpcClient::new(server_config.spark.clone()).await.unwrap();
 
-    let spark_operator_identity_public_keys = server_config.spark.operators.iter()
-        .map(|o| PublicKey::from_str(&o.identity_public_key).unwrap()).collect();
+    let spark_operator_identity_public_keys = server_config
+        .spark
+        .operators
+        .iter()
+        .map(|o| PublicKey::from_str(&o.identity_public_key).unwrap())
+        .collect();
 
     let spark_service = SparkService::new(
         spark_client.clone(),

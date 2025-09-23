@@ -2,12 +2,11 @@ use crate::errors::VerifierError;
 use crate::init::AppState;
 use axum::Json;
 use axum::extract::State;
-use bitcoin::OutPoint;
 use frost::types::MusigId;
 use frost::types::Nonce;
 use serde::{Deserialize, Serialize};
 use verifier_local_db_store::schemas::deposit_address::DepositAddressStorage;
-use verifier_local_db_store::schemas::deposit_address::{DepositStatus, DepositAddrInfo, TxRejectReason};
+use verifier_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositStatus, TxRejectReason};
 use verifier_spark_balance_checker_client::client::GetBalanceRequest;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -30,19 +29,17 @@ pub async fn handle(
 ) -> Result<Json<WatchSparkDepositResponse>, VerifierError> {
     state
         .storage
-        .set_deposit_addr_info(
-            DepositAddrInfo {
-                musig_id: request.musig_id.clone(),
-                nonce: request.nonce,
-                out_point: None,
-                deposit_address: request.spark_address.clone(),
-                bridge_address: request.exit_address,
-                is_btc: true,
-                deposit_amount: request.amount,
-                sats_fee_amount: None,
-                confirmation_status: DepositStatus::WaitingForConfirmation,
-            },
-        )
+        .set_deposit_addr_info(DepositAddrInfo {
+            musig_id: request.musig_id.clone(),
+            nonce: request.nonce,
+            out_point: None,
+            deposit_address: request.spark_address.clone(),
+            bridge_address: request.exit_address,
+            is_btc: true,
+            deposit_amount: request.amount,
+            sats_fee_amount: None,
+            confirmation_status: DepositStatus::WaitingForConfirmation,
+        })
         .await
         .map_err(|e| VerifierError::StorageError(format!("Failed to set deposit address info: {}", e)))?;
 
@@ -57,10 +54,17 @@ pub async fn handle(
 
     let confirmation_status = match response.balance == request.amount as u128 {
         true => DepositStatus::Confirmed,
-        false => DepositStatus::Failed(TxRejectReason::TooFewSatoshiPaidAsFee { got: response.balance as u64, at_least_expected: request.amount }),
+        false => DepositStatus::Failed(TxRejectReason::TooFewSatoshiPaidAsFee {
+            got: response.balance as u64,
+            at_least_expected: request.amount,
+        }),
     };
 
-    state.storage.set_confirmation_status_by_deposit_address(request.spark_address, confirmation_status.clone()).await.map_err(|e| VerifierError::StorageError(format!("Failed to update confirmation status: {}", e)))?;
+    state
+        .storage
+        .set_confirmation_status_by_deposit_address(request.spark_address, confirmation_status.clone())
+        .await
+        .map_err(|e| VerifierError::StorageError(format!("Failed to update confirmation status: {}", e)))?;
 
     Ok(Json(WatchSparkDepositResponse {
         verifier_response: confirmation_status,

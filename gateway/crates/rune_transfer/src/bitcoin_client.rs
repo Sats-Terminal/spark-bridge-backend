@@ -1,8 +1,8 @@
-use bitcoincore_rpc::RpcApi;
-use bitcoincore_rpc::{Client, Auth::UserPass};
 use crate::errors::RuneTransferError;
 use bitcoin::Transaction;
 use bitcoin::consensus::Encodable;
+use bitcoincore_rpc::RpcApi;
+use bitcoincore_rpc::{Auth::UserPass, Client};
 use gateway_config_parser::config::BitcoinClientConfig;
 
 pub struct BitcoinClient {
@@ -22,7 +22,9 @@ impl BitcoinClient {
             .consensus_encode(&mut tx_bytes)
             .map_err(|e| RuneTransferError::InvalidData(format!("Failed to encode transaction: {}", e)))?;
 
-        let _ = self.client.send_raw_transaction(&tx_bytes)
+        let _ = self
+            .client
+            .send_raw_transaction(&tx_bytes)
             .map_err(|e| RuneTransferError::InvalidData(format!("Failed to broadcast transaction: {}", e)))?;
 
         Ok(())

@@ -215,31 +215,30 @@ impl TokenMetadata {
         engine.input(network_hash.as_byte_array());
 
         // Token create layer logic - matches Go implementation exactly:
-        let creation_entity_hash =
-            if let Some(creation_entity_public_key) = &self.creation_entity_public_key {
-                // Spark token: layer byte (1) + creation entity public key (33 bytes, compressed)
-                let mut bytes = vec![2u8]; // TokenCreateLayerSpark (layer byte 2)
-                bytes.extend_from_slice(&creation_entity_public_key.serialize());
-                let hash = sha256::Hash::hash(&bytes);
-                #[cfg(test)]
-                println!(
-                    "Step 9 - Creation entity (Spark): input={}, hash={}",
-                    hex::encode(&bytes),
-                    hex::encode(hash.as_byte_array())
-                );
-                hash
-            } else {
-                // L1 token: just layer byte (0)
-                let bytes = [1u8];
-                let hash = sha256::Hash::hash(&bytes);
-                #[cfg(test)]
-                println!(
-                    "Step 9 - Creation entity (L1): input={}, hash={}",
-                    hex::encode(&bytes),
-                    hex::encode(hash.as_byte_array())
-                );
-                hash
-            };
+        let creation_entity_hash = if let Some(creation_entity_public_key) = &self.creation_entity_public_key {
+            // Spark token: layer byte (1) + creation entity public key (33 bytes, compressed)
+            let mut bytes = vec![2u8]; // TokenCreateLayerSpark (layer byte 2)
+            bytes.extend_from_slice(&creation_entity_public_key.serialize());
+            let hash = sha256::Hash::hash(&bytes);
+            #[cfg(test)]
+            println!(
+                "Step 9 - Creation entity (Spark): input={}, hash={}",
+                hex::encode(&bytes),
+                hex::encode(hash.as_byte_array())
+            );
+            hash
+        } else {
+            // L1 token: just layer byte (0)
+            let bytes = [1u8];
+            let hash = sha256::Hash::hash(&bytes);
+            #[cfg(test)]
+            println!(
+                "Step 9 - Creation entity (L1): input={}, hash={}",
+                hex::encode(&bytes),
+                hex::encode(hash.as_byte_array())
+            );
+            hash
+        };
         all_hashes.extend_from_slice(creation_entity_hash.as_byte_array());
         engine.input(creation_entity_hash.as_byte_array());
 
@@ -262,9 +261,7 @@ impl TokenMetadata {
         }
 
         if self.symbol.len() < MIN_SYMBOL_SIZE || self.symbol.len() > MAX_SYMBOL_SIZE {
-            return Err(TokenMetadataParseError::InvalidSymbolLength(
-                self.symbol.len(),
-            ));
+            return Err(TokenMetadataParseError::InvalidSymbolLength(self.symbol.len()));
         }
 
         Ok(())
@@ -291,8 +288,7 @@ impl TokenMetadata {
         // Read the name
         let name_len = cursor
             .read_u8()
-            .map_err(|err| wrap_io_error(err, "failed to read the name length"))?
-            as usize;
+            .map_err(|err| wrap_io_error(err, "failed to read the name length"))? as usize;
 
         if !(MIN_NAME_SIZE..=MAX_NAME_SIZE).contains(&name_len) {
             return Err(TokenMetadataParseError::InvalidNameLength(name_len));
@@ -303,14 +299,12 @@ impl TokenMetadata {
             .read_exact(&mut name_bytes)
             .map_err(|err| wrap_io_error(err, "failed to read the name"))?;
 
-        let name = String::from_utf8(name_bytes)
-            .map_err(|err| wrap_io_error(err, "failed to read the name"))?;
+        let name = String::from_utf8(name_bytes).map_err(|err| wrap_io_error(err, "failed to read the name"))?;
 
         // Read the symbol
         let symbol_len = cursor
             .read_u8()
-            .map_err(|err| wrap_io_error(err, "failed to read the symbol length"))?
-            as usize;
+            .map_err(|err| wrap_io_error(err, "failed to read the symbol length"))? as usize;
 
         if !(MIN_SYMBOL_SIZE..=MAX_SYMBOL_SIZE).contains(&symbol_len) {
             return Err(TokenMetadataParseError::InvalidSymbolLength(symbol_len));
@@ -321,8 +315,7 @@ impl TokenMetadata {
             .read_exact(&mut symbol_bytes)
             .map_err(|err| wrap_io_error(err, "failed to read the symbol"))?;
 
-        let symbol = String::from_utf8(symbol_bytes)
-            .map_err(|err| wrap_io_error(err, "failed to read the symbol"))?;
+        let symbol = String::from_utf8(symbol_bytes).map_err(|err| wrap_io_error(err, "failed to read the symbol"))?;
 
         // Read the decimal
         let decimal = cursor
@@ -342,21 +335,18 @@ impl TokenMetadata {
             .map_err(|err| wrap_io_error(err, "failed to read is freezable"))?;
 
         // Read the creation entity public key
-        let creation_entity_public_key_flag = cursor.read_u8().map_err(|err| {
-            wrap_io_error(err, "failed to read the creation entity public key flag")
-        })?;
+        let creation_entity_public_key_flag = cursor
+            .read_u8()
+            .map_err(|err| wrap_io_error(err, "failed to read the creation entity public key flag"))?;
 
         let creation_entity_public_key = if creation_entity_public_key_flag != 0 {
             let mut creation_entity_public_key_bytes = [0u8; PUBLIC_KEY_SIZE]; // 33 bytes
             cursor
                 .read_exact(&mut creation_entity_public_key_bytes)
-                .map_err(|err| {
-                    wrap_io_error(err, "failed to read the creation entity public key bytes")
-                })?;
+                .map_err(|err| wrap_io_error(err, "failed to read the creation entity public key bytes"))?;
             Some(
-                PublicKey::from_slice(&creation_entity_public_key_bytes).map_err(|err| {
-                    wrap_io_error(err, "failed to parse the creation entity public key")
-                })?,
+                PublicKey::from_slice(&creation_entity_public_key_bytes)
+                    .map_err(|err| wrap_io_error(err, "failed to parse the creation entity public key"))?,
             )
         } else {
             None
@@ -369,10 +359,7 @@ impl TokenMetadata {
             .map_err(|err| wrap_io_error(err, "failed to read the network"))?;
 
         let network = Network::from_magic(Magic::from_bytes(network_bytes)).ok_or_else(|| {
-            TokenMetadataParseError::IoError(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Invalid network magic",
-            ))
+            TokenMetadataParseError::IoError(io::Error::new(io::ErrorKind::InvalidData, "Invalid network magic"))
         })?;
 
         Ok(Self {
@@ -426,10 +413,7 @@ impl From<&TokenMetadata> for TokenIdentifier {
 }
 
 fn wrap_io_error(err: impl fmt::Display, message: &str) -> TokenMetadataParseError {
-    TokenMetadataParseError::IoError(io::Error::new(
-        io::ErrorKind::Other,
-        format!("{}: {}", message, err),
-    ))
+    TokenMetadataParseError::IoError(io::Error::new(io::ErrorKind::Other, format!("{}: {}", message, err)))
 }
 
 /// Error type for parsing LRC20 token metadata.
@@ -450,13 +434,13 @@ impl fmt::Display for TokenMetadataParseError {
         match self {
             TokenMetadataParseError::InvalidNameLength(length) => {
                 write!(f, "Invalid name length: {}", length)
-            },
+            }
             TokenMetadataParseError::InvalidSymbolLength(length) => {
                 write!(f, "Invalid symbol length: {}", length)
-            },
+            }
             TokenMetadataParseError::InvalidSize(size) => {
                 write!(f, "Invalid size: {}", size)
-            },
+            }
             TokenMetadataParseError::IoError(e) => write!(f, "Parse error: {}", e),
         }
     }
@@ -486,8 +470,7 @@ mod tests {
     use crate::token_metadata::{MIN_TOKEN_METADATA_SIZE, TokenMetadata, TokenMetadataParseError};
 
     static TEST_ISSUER_PUBLIC_KEY: Lazy<PublicKey> = Lazy::new(|| {
-        PublicKey::from_str("0305bd561c55adf4a2369f936ab82f7688438f1b199af2455c5ef33935e64ee7e7")
-            .unwrap()
+        PublicKey::from_str("0305bd561c55adf4a2369f936ab82f7688438f1b199af2455c5ef33935e64ee7e7").unwrap()
     });
 
     static TEST_METADATA: Lazy<TokenMetadata> = Lazy::new(|| {
@@ -519,10 +502,8 @@ mod tests {
     fn test_actual_production_l1_token_identifier() {
         use hex;
 
-        let issuer_public_key = PublicKey::from_str(
-            "036898ed2b633947f0994b8952fa06da2cfc7d1ee003fcf2cc076752b9ad3b3691",
-        )
-        .unwrap();
+        let issuer_public_key =
+            PublicKey::from_str("036898ed2b633947f0994b8952fa06da2cfc7d1ee003fcf2cc076752b9ad3b3691").unwrap();
 
         let max_supply_bytes = hex::decode("00000000000000000000000000009c3f").unwrap();
         let max_supply = u128::from_be_bytes({
@@ -546,9 +527,7 @@ mod tests {
         let token_identifier = metadata.compute_token_identifier();
 
         // IMPORTANT: This expected value should match Go implementation!
-        let expected_bytes =
-            hex::decode("f1ca1e65691d0f65132ce24608594aaccd741e323056c97407a9f625b0ee4251")
-                .unwrap();
+        let expected_bytes = hex::decode("f1ca1e65691d0f65132ce24608594aaccd741e323056c97407a9f625b0ee4251").unwrap();
 
         assert_eq!(token_identifier.to_bytes().to_vec(), expected_bytes);
     }
@@ -558,17 +537,13 @@ mod tests {
     fn test_actual_production_spark_token_identifier() {
         use hex;
 
-        let issuer_public_key = PublicKey::from_str(
-            "036898ed2b633947f0994b8952fa06da2cfc7d1ee003fcf2cc076752b9ad3b3691",
-        )
-        .unwrap();
+        let issuer_public_key =
+            PublicKey::from_str("036898ed2b633947f0994b8952fa06da2cfc7d1ee003fcf2cc076752b9ad3b3691").unwrap();
 
         // Use the same compressed key as in Go test
         let creation_entity_compressed_bytes =
-            hex::decode("0345b806679a5e63159584db91fec038cffd2ef59cee031abe92e2f30bf0642175")
-                .unwrap();
-        let creation_entity_compressed_key =
-            PublicKey::from_slice(&creation_entity_compressed_bytes).unwrap();
+            hex::decode("0345b806679a5e63159584db91fec038cffd2ef59cee031abe92e2f30bf0642175").unwrap();
+        let creation_entity_compressed_key = PublicKey::from_slice(&creation_entity_compressed_bytes).unwrap();
         let creation_entity_public_key = creation_entity_compressed_key;
 
         let max_supply_bytes = hex::decode("00000000000000000000000000009c3f").unwrap();
@@ -593,9 +568,7 @@ mod tests {
         let token_identifier = metadata.compute_token_identifier();
 
         // IMPORTANT: This expected value should match Go implementation!
-        let expected_bytes =
-            hex::decode("8b5fde73c803f6ef5c819ae94ddd035f02bee63555a08fc94f6851e289b46a1b")
-                .unwrap();
+        let expected_bytes = hex::decode("8b5fde73c803f6ef5c819ae94ddd035f02bee63555a08fc94f6851e289b46a1b").unwrap();
 
         assert_eq!(token_identifier.to_bytes().to_vec(), expected_bytes);
     }
@@ -707,10 +680,10 @@ mod tests {
             match TokenMetadata::from_bytes(&data) {
                 Ok(metadata) => {
                     assert_eq!(metadata, test.metadata);
-                },
+                }
                 Err(err) => {
                     assert!(test.expect_error, "Unexpected error: {}", err);
-                },
+                }
             }
         }
     }
@@ -749,17 +722,15 @@ mod tests {
     fn test_backward_compatibility() {
         let valid_metadata = vec![
             vec![
-                3, 5, 189, 86, 28, 85, 173, 244, 162, 54, 159, 147, 106, 184, 47, 118, 136, 67,
-                143, 27, 25, 154, 242, 69, 92, 94, 243, 57, 53, 230, 78, 231, 231, 17, 84, 111,
-                107, 101, 110, 78, 97, 109, 101, 49, 55, 67, 104, 97, 114, 115, 115, 6, 84, 69, 83,
-                84, 83, 89, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 1,
-                0, 250, 191, 181, 218,
+                3, 5, 189, 86, 28, 85, 173, 244, 162, 54, 159, 147, 106, 184, 47, 118, 136, 67, 143, 27, 25, 154, 242,
+                69, 92, 94, 243, 57, 53, 230, 78, 231, 231, 17, 84, 111, 107, 101, 110, 78, 97, 109, 101, 49, 55, 67,
+                104, 97, 114, 115, 115, 6, 84, 69, 83, 84, 83, 89, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0,
+                0, 0, 0, 0, 0, 0, 1, 0, 250, 191, 181, 218,
             ],
             vec![
-                3, 5, 189, 86, 28, 85, 173, 244, 162, 54, 159, 147, 106, 184, 47, 118, 136, 67,
-                143, 27, 25, 154, 242, 69, 92, 94, 243, 57, 53, 230, 78, 231, 231, 9, 84, 111, 107,
-                101, 110, 78, 97, 109, 101, 3, 84, 78, 75, 2, 64, 66, 15, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 250, 191, 181, 218,
+                3, 5, 189, 86, 28, 85, 173, 244, 162, 54, 159, 147, 106, 184, 47, 118, 136, 67, 143, 27, 25, 154, 242,
+                69, 92, 94, 243, 57, 53, 230, 78, 231, 231, 9, 84, 111, 107, 101, 110, 78, 97, 109, 101, 3, 84, 78, 75,
+                2, 64, 66, 15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 250, 191, 181, 218,
             ],
         ];
 

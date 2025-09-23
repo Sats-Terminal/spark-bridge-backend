@@ -1,10 +1,10 @@
 use crate::error::GatewayError;
+use crate::init::AppState;
 use axum::Json;
 use axum::extract::State;
-use crate::init::AppState;
-use serde::{Deserialize, Serialize};
 use gateway_deposit_verification::types::VerifySparkDepositRequest;
 use gateway_rune_transfer::transfer::PayingTransferInput;
+use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize)]
 pub struct ExitSparkRequest {
@@ -23,7 +23,9 @@ pub async fn handle(
         paying_input: request.paying_input,
     };
 
-    let _ = state.deposit_verification_aggregator.verify_spark_deposit(verify_spark_deposit_request)
+    state
+        .deposit_verification_aggregator
+        .verify_spark_deposit(verify_spark_deposit_request)
         .await
         .map_err(|e| GatewayError::DepositVerificationError(format!("Failed to verify spark deposit: {}", e)))?;
 

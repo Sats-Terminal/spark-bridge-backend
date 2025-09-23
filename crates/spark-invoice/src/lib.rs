@@ -1,13 +1,17 @@
 //! Spark Invoice
 
-use bitcoin::hashes::{Hash, HashEngine};
-use bitcoin::hashes::sha256::Hash as Sha256Hash;
+use crate::proto::{
+    DecodeError, decode_timestamp, read_bytes, read_len, read_string, read_varint_u32, read_varint_u64, skip_field,
+    timestamp_to_datetime, write_len_prefixed_bytes, write_len_prefixed_str, write_timestamp, write_u128_be_bytes,
+    write_varint_u32, write_varint_u64,
+};
 use bitcoin::Network;
+use bitcoin::hashes::sha256::Hash as Sha256Hash;
+use bitcoin::hashes::{Hash, HashEngine};
 use bitcoin::secp256k1::PublicKey;
 use chrono::{DateTime, Utc};
-use uuid::Uuid;
 use token_identifier::TokenIdentifier;
-use crate::proto::{decode_timestamp, read_bytes, read_len, read_string, read_varint_u32, read_varint_u64, skip_field, timestamp_to_datetime, write_len_prefixed_bytes, write_len_prefixed_str, write_timestamp, write_u128_be_bytes, write_varint_u32, write_varint_u64, DecodeError};
+use uuid::Uuid;
 
 pub mod proto;
 
@@ -52,12 +56,16 @@ impl SatsPayment {
 
         while pos < len {
             let tag = read_varint_u32(input, &mut pos)?;
-            if tag == 0 { break; }
+            if tag == 0 {
+                break;
+            }
             let wt = tag & 7;
 
             if tag == (SATS_AMOUNT_TAG as u32) {
                 // amount: varint (wire type 0)
-                if wt != 0 { return Err(DecodeError::InvalidWireType); }
+                if wt != 0 {
+                    return Err(DecodeError::InvalidWireType);
+                }
                 let amount = read_varint_u64(input, &mut pos)?;
                 amount_opt = Some(amount);
             } else {
@@ -105,20 +113,26 @@ impl TokensPayment {
 
         while pos < len {
             let tag = read_varint_u32(input, &mut pos)?;
-            if tag == 0 { break; }
+            if tag == 0 {
+                break;
+            }
             let wt = tag & 7;
 
             if tag == (TOKEN_IDENTIFIER_TAG as u32) {
-                if wt != 2 { return Err(DecodeError::InvalidWireType); }
+                if wt != 2 {
+                    return Err(DecodeError::InvalidWireType);
+                }
                 let l = read_len(input, &mut pos)?;
                 let bytes = read_bytes(input, &mut pos, l)?;
 
-                let token_identifier = TokenIdentifier::from_bytes(&bytes)
-                    .map_err(|err| DecodeError::InvalidTokenIdentifier(err))?;
+                let token_identifier =
+                    TokenIdentifier::from_bytes(bytes).map_err(DecodeError::InvalidTokenIdentifier)?;
 
                 token_identifier_opt = Some(token_identifier);
             } else if tag == (TOKEN_AMOUNT_TAG as u32) {
-                if wt != 2 { return Err(DecodeError::InvalidWireType); }
+                if wt != 2 {
+                    return Err(DecodeError::InvalidWireType);
+                }
                 let l = read_len(input, &mut pos)?;
                 let bytes = read_bytes(input, &mut pos, l)?;
 
@@ -136,13 +150,17 @@ impl TokensPayment {
             }
         }
 
-        let token_identifier = token_identifier_opt.ok_or(DecodeError::MissingField("Missing token identifier".to_string()))?;
+        let token_identifier =
+            token_identifier_opt.ok_or(DecodeError::MissingField("Missing token identifier".to_string()))?;
         let amount = amount_opt.ok_or(DecodeError::MissingField("Missing token amount".to_string()))?;
 
-        Ok((TokensPayment {
-            token_identifier,
-            amount,
-        }, pos))
+        Ok((
+            TokensPayment {
+                token_identifier,
+                amount,
+            },
+            pos,
+        ))
     }
 }
 
@@ -172,7 +190,6 @@ pub struct SparkInvoiceFields {
     pub expiry_time: Option<DateTime<Utc>>,
 }
 
-
 impl SparkInvoiceFields {
     /// Encode invoice fields into proto bytes.
     pub fn encode_proto(&self) -> Vec<u8> {
@@ -186,7 +203,7 @@ impl SparkInvoiceFields {
 
         if let Some(memo) = &self.memo {
             out.push(INVOICE_MEMO_TAG);
-            write_len_prefixed_str(&mut out, &memo);
+            write_len_prefixed_str(&mut out, memo);
         }
 
         if let Some(sender_public_key) = &self.sender_public_key {
@@ -242,18 +259,24 @@ impl SparkInvoiceFields {
 
         while pos < len {
             let tag = read_varint_u32(input, &mut pos)?;
-            if tag == 0 { break; }
+            if tag == 0 {
+                break;
+            }
             let field = tag >> 3;
             let wt = tag & 7;
 
             match field {
                 1 => {
-                    if wt != 0 { return Err(DecodeError::InvalidWireType); }
+                    if wt != 0 {
+                        return Err(DecodeError::InvalidWireType);
+                    }
                     let version = read_varint_u32(input, &mut pos)?;
                     version_opt = Some(version);
                 }
                 2 => {
-                    if wt != 2 { return Err(DecodeError::InvalidWireType); }
+                    if wt != 2 {
+                        return Err(DecodeError::InvalidWireType);
+                    }
                     let l = read_len(input, &mut pos)?;
                     let id_bytes = read_bytes(input, &mut pos, l)?.to_vec();
                     let id_bytes: [u8; 16] = id_bytes.try_into().map_err(|_| DecodeError::InvalidUuidBytesLength)?;
@@ -262,31 +285,41 @@ impl SparkInvoiceFields {
                     id_opt = Some(id);
                 }
                 3 => {
-                    if wt != 2 { return Err(DecodeError::InvalidWireType); }
+                    if wt != 2 {
+                        return Err(DecodeError::InvalidWireType);
+                    }
                     let l = read_len(input, &mut pos)?;
                     let bytes = read_bytes(input, &mut pos, l)?;
                     let (tokens, _) = TokensPayment::decode_proto(bytes)?;
                     payment_type_opt = Some(PaymentType::Tokens(tokens));
                 }
                 4 => {
-                    if wt != 2 { return Err(DecodeError::InvalidWireType); }
+                    if wt != 2 {
+                        return Err(DecodeError::InvalidWireType);
+                    }
                     let l = read_len(input, &mut pos)?;
                     let bytes = read_bytes(input, &mut pos, l)?;
                     let (sats, _) = SatsPayment::decode_proto(bytes)?;
                     payment_type_opt = Some(PaymentType::Sats(sats));
                 }
                 5 => {
-                    if wt != 2 { return Err(DecodeError::InvalidWireType); }
+                    if wt != 2 {
+                        return Err(DecodeError::InvalidWireType);
+                    }
                     let l = read_len(input, &mut pos)?;
                     memo_opt = Some(read_string(input, &mut pos, l)?);
                 }
                 6 => {
-                    if wt != 2 { return Err(DecodeError::InvalidWireType); }
+                    if wt != 2 {
+                        return Err(DecodeError::InvalidWireType);
+                    }
                     let l = read_len(input, &mut pos)?;
                     sender_public_key_opt = Some(read_bytes(input, &mut pos, l)?.to_vec());
                 }
                 7 => {
-                    if wt != 2 { return Err(DecodeError::InvalidWireType); }
+                    if wt != 2 {
+                        return Err(DecodeError::InvalidWireType);
+                    }
                     let l = read_len(input, &mut pos)?;
                     let bytes = read_bytes(input, &mut pos, l)?;
                     let ts = decode_timestamp(bytes)?;
@@ -307,14 +340,17 @@ impl SparkInvoiceFields {
             .transpose()
             .map_err(DecodeError::InvalidPublicKey)?;
 
-        Ok((Self {
-            version,
-            id,
-            payment_type,
-            memo: memo_opt,
-            sender_public_key: sender_public_key_opt,
-            expiry_time: expiry_time_opt,
-        }, pos))
+        Ok((
+            Self {
+                version,
+                id,
+                payment_type,
+                memo: memo_opt,
+                sender_public_key: sender_public_key_opt,
+                expiry_time: expiry_time_opt,
+            },
+            pos,
+        ))
     }
 }
 
@@ -354,7 +390,11 @@ impl SparkInvoice {
             expiry_time,
         };
 
-        Self { receiver: receiver_public_key, invoice_fields, network }
+        Self {
+            receiver: receiver_public_key,
+            invoice_fields,
+            network,
+        }
     }
 
     /// Create a new sats-based Spark invoice.
@@ -366,9 +406,7 @@ impl SparkInvoice {
         expiry_time: Option<DateTime<Utc>>,
         network: Network,
     ) -> Self {
-        let payment_type = PaymentType::Sats(SatsPayment {
-            amount,
-        });
+        let payment_type = PaymentType::Sats(SatsPayment { amount });
 
         let invoice_fields = SparkInvoiceFields {
             version: 1,
@@ -379,7 +417,11 @@ impl SparkInvoice {
             expiry_time,
         };
 
-        Self { receiver: receiver_public_key, invoice_fields, network }
+        Self {
+            receiver: receiver_public_key,
+            invoice_fields,
+            network,
+        }
     }
 
     /// Create a new Spark invoice from invoice fields
@@ -388,14 +430,25 @@ impl SparkInvoice {
         fields: SparkInvoiceFields,
         network: Network,
     ) -> Self {
-        Self { receiver: receiver_public_key, invoice_fields: fields, network }
+        Self {
+            receiver: receiver_public_key,
+            invoice_fields: fields,
+            network,
+        }
     }
 
     /// Compute a unique SHA256 hash for the invoice.
     pub fn hash(&self) -> Sha256Hash {
         let mut hash_engine = Sha256Hash::engine();
 
-        let SparkInvoiceFields { version, id, payment_type, memo, sender_public_key, expiry_time } = &self.invoice_fields;
+        let SparkInvoiceFields {
+            version,
+            id,
+            payment_type,
+            memo,
+            sender_public_key,
+            expiry_time,
+        } = &self.invoice_fields;
 
         hash_engine.input(&Sha256Hash::hash(&version.to_be_bytes()).to_byte_array());
 
@@ -406,7 +459,7 @@ impl SparkInvoice {
             Network::Testnet => 0x0709110b,
             Network::Testnet4 => 0x0709110b,
             Network::Signet => 0x40cf030a,
-            Network::Regtest => 0xdab5bffa
+            Network::Regtest => 0xdab5bffa,
         };
 
         hash_engine.input(&Sha256Hash::hash(&network_magic.to_be_bytes()).to_byte_array());
@@ -414,7 +467,10 @@ impl SparkInvoice {
         hash_engine.input(&Sha256Hash::hash(&self.receiver.serialize()).to_byte_array());
 
         match payment_type {
-            PaymentType::Tokens(TokensPayment { token_identifier, amount }) => {
+            PaymentType::Tokens(TokensPayment {
+                token_identifier,
+                amount,
+            }) => {
                 let discriminator = 1;
                 hash_engine.input(&Sha256Hash::hash(&[discriminator]).to_byte_array());
 
@@ -430,7 +486,7 @@ impl SparkInvoice {
         }
 
         if let Some(memo) = memo {
-            hash_engine.input(&Sha256Hash::hash(&memo.as_bytes()).to_byte_array());
+            hash_engine.input(&Sha256Hash::hash(memo.as_bytes()).to_byte_array());
         }
 
         if let Some(sender_public_key) = sender_public_key {
@@ -446,7 +502,3 @@ impl SparkInvoice {
         Sha256Hash::from_engine(hash_engine)
     }
 }
-
-
-
-

@@ -1,14 +1,14 @@
 use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
+use bitcoin::secp256k1::PublicKey;
 use frost::traits::AggregatorMusigIdStorage;
 use frost::types::AggregatorDkgState;
 use frost::types::AggregatorMusigIdData;
 use frost::types::MusigId;
 use persistent_storage::error::DbError;
 use sqlx::types::Json;
-use tracing::instrument;
-use bitcoin::secp256k1::PublicKey;
 use std::str::FromStr;
+use tracing::instrument;
 
 #[async_trait]
 impl AggregatorMusigIdStorage for LocalDbStorage {

@@ -2,11 +2,11 @@ use crate::errors::VerifierError;
 use crate::init::AppState;
 use axum::Json;
 use axum::extract::State;
-use tracing::instrument;
-use verifier_local_db_store::schemas::deposit_address::{DepositAddressStorage, TxRejectReason, DepositStatus};
-use verifier_gateway_client::client::GatewayNotifyRunesDepositRequest;
 use bitcoin::OutPoint;
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
+use verifier_gateway_client::client::GatewayNotifyRunesDepositRequest;
+use verifier_local_db_store::schemas::deposit_address::{DepositAddressStorage, DepositStatus, TxRejectReason};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum BtcTxReview {
@@ -44,15 +44,23 @@ pub async fn handle(
         status: deposit_status.clone(),
     };
 
-    state.storage.set_confirmation_status_by_out_point(request.out_point, deposit_status)
+    state
+        .storage
+        .set_confirmation_status_by_out_point(request.out_point, deposit_status)
         .await
         .map_err(|e| VerifierError::StorageError(format!("Failed to update confirmation status: {}", e)))?;
 
-    state.storage.set_sats_fee_amount_by_out_point(request.out_point, request.sats_fee_amount)
+    state
+        .storage
+        .set_sats_fee_amount_by_out_point(request.out_point, request.sats_fee_amount)
         .await
         .map_err(|e| VerifierError::StorageError(format!("Failed to update sats fee amount: {}", e)))?;
 
-    state.gateway_client.notify_runes_deposit(gateway_request).await.map_err(|e| VerifierError::GatewayClientError(format!("Failed to notify runes deposit: {}", e)))?;
+    state
+        .gateway_client
+        .notify_runes_deposit(gateway_request)
+        .await
+        .map_err(|e| VerifierError::GatewayClientError(format!("Failed to notify runes deposit: {}", e)))?;
 
     Ok(Json(()))
 }

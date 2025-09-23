@@ -29,19 +29,17 @@ pub async fn handle(
 ) -> Result<Json<WatchRunesDepositResponse>, VerifierError> {
     state
         .storage
-        .set_deposit_addr_info(
-            DepositAddrInfo {
-                musig_id: request.musig_id.clone(),
-                nonce: request.nonce,
-                out_point: Some(request.out_point),
-                deposit_address: request.btc_address.clone(),
-                bridge_address: request.bridge_address.clone(),
-                is_btc: false,
-                deposit_amount: request.amount,
-                sats_fee_amount: None,
-                confirmation_status: DepositStatus::WaitingForConfirmation,
-            },
-        )
+        .set_deposit_addr_info(DepositAddrInfo {
+            musig_id: request.musig_id.clone(),
+            nonce: request.nonce,
+            out_point: Some(request.out_point),
+            deposit_address: request.btc_address.clone(),
+            bridge_address: request.bridge_address.clone(),
+            is_btc: false,
+            deposit_amount: request.amount,
+            sats_fee_amount: None,
+            confirmation_status: DepositStatus::WaitingForConfirmation,
+        })
         .await
         .map_err(|e| VerifierError::StorageError(format!("Failed to set deposit address info: {}", e)))?;
 

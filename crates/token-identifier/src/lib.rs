@@ -67,9 +67,7 @@ impl TokenNetwork {
 }
 
 /// Represensts the asset type of the LRC20 token and is defined by a hash of the token metadata.
-#[derive(
-    Clone, PartialEq, Eq, Hash, Debug, PartialOrd, Ord, Copy, serde::Serialize, serde::Deserialize,
-)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug, PartialOrd, Ord, Copy, serde::Serialize, serde::Deserialize)]
 pub struct TokenIdentifier(sha256::Hash);
 
 impl Deref for TokenIdentifier {
@@ -135,24 +133,20 @@ impl TokenIdentifier {
         let hrp_str = token_network.prefix();
         let hrp = Hrp::parse(hrp_str).map_err(|_| TokenIdentifierParseError::InvalidAddressType)?;
 
-        let encoded = bech32::encode::<Bech32m>(hrp, &data_bytes)
-            .map_err(|_| TokenIdentifierParseError::InvalidAddressType)?;
+        let encoded =
+            bech32::encode::<Bech32m>(hrp, &data_bytes).map_err(|_| TokenIdentifierParseError::InvalidAddressType)?;
 
         Ok(encoded)
     }
 
     /// Decodes a bech32m string into a token identifier.
-    pub fn decode_bech32m(
-        address: &str,
-        network: Network,
-    ) -> Result<Self, TokenIdentifierParseError> {
-        let (hrp, data_bytes) =
-            bech32::decode(address).map_err(|_| TokenIdentifierParseError::InvalidAddressType)?;
+    pub fn decode_bech32m(address: &str, network: Network) -> Result<Self, TokenIdentifierParseError> {
+        let (hrp, data_bytes) = bech32::decode(address).map_err(|_| TokenIdentifierParseError::InvalidAddressType)?;
 
         // Validate that it's a known token network prefix
         let expected_token_network = TokenNetwork::from_bitcoin_network(network);
-        let decoded_network = TokenNetwork::from_prefix(hrp.as_str())
-            .ok_or(TokenIdentifierParseError::InvalidAddressType)?;
+        let decoded_network =
+            TokenNetwork::from_prefix(hrp.as_str()).ok_or(TokenIdentifierParseError::InvalidAddressType)?;
 
         if decoded_network != expected_token_network {
             return Err(TokenIdentifierParseError::InvalidAddressType);
@@ -164,8 +158,8 @@ impl TokenIdentifier {
         }
 
         // Decode protobuf message
-        let spark_token_id = TokenIdentifier::from_bytes(&data_bytes[..])
-            .map_err(|_| TokenIdentifierParseError::InvalidAddressType)?;
+        let spark_token_id =
+            TokenIdentifier::from_bytes(&data_bytes[..]).map_err(|_| TokenIdentifierParseError::InvalidAddressType)?;
 
         Ok(spark_token_id)
     }
@@ -263,10 +257,8 @@ mod tests {
 
     #[test]
     fn test_token_identifier_to_string() {
-        let token_identifier_str =
-            "btknrt19g4z52329g4z52329g4z52329g4z52329g4z52329g4z52329g4qvstsg6";
-        let token_identifier =
-            TokenIdentifier::decode_bech32m(token_identifier_str, Network::Regtest).unwrap();
+        let token_identifier_str = "btknrt19g4z52329g4z52329g4z52329g4z52329g4z52329g4z52329g4qvstsg6";
+        let token_identifier = TokenIdentifier::decode_bech32m(token_identifier_str, Network::Regtest).unwrap();
 
         let encoded_identifier_str = token_identifier.encode_bech32m(Network::Regtest).unwrap();
 

@@ -1,9 +1,9 @@
 use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
-use persistent_storage::error::DbError;
-use sqlx::{Postgres, Transaction};
-use serde::{Deserialize, Serialize};
 use bitcoin::OutPoint;
+use persistent_storage::error::DbError;
+use serde::{Deserialize, Serialize};
+use sqlx::{Postgres, Transaction};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Utxo {
@@ -86,15 +86,15 @@ impl UtxoStorage for LocalDbStorage {
             RETURNING out_point, rune_amount, rune_id, status, btc_address, transaction, sats_fee_amount
             "#,
         )
-            .bind(&utxo.out_point.to_string())
-            .bind(utxo.rune_amount as i64)
-            .bind(&utxo.rune_id)
-            .bind(&utxo.status)
-            .bind(&utxo.btc_address)
-            .bind(utxo.sats_fee_amount as i64)
-            .fetch_one(&self.postgres_repo.pool)
-            .await
-            .map_err(|e| DbError::BadRequest(e.to_string()))?;
+        .bind(utxo.out_point.to_string())
+        .bind(utxo.rune_amount as i64)
+        .bind(&utxo.rune_id)
+        .bind(utxo.status)
+        .bind(&utxo.btc_address)
+        .bind(utxo.sats_fee_amount as i64)
+        .fetch_one(&self.postgres_repo.pool)
+        .await
+        .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
         Ok(rec.into())
     }
@@ -107,15 +107,15 @@ impl UtxoStorage for LocalDbStorage {
             WHERE out_point = $2
             "#,
         )
-            .bind(new_status)
-            .bind(out_point.to_string())
-            .execute(&self.postgres_repo.pool)
-            .await
-            .map_err(|e| DbError::BadRequest(e.to_string()))?
-            .rows_affected();
+        .bind(new_status)
+        .bind(out_point.to_string())
+        .execute(&self.postgres_repo.pool)
+        .await
+        .map_err(|e| DbError::BadRequest(e.to_string()))?
+        .rows_affected();
 
         if rows == 0 {
-            return Err(DbError::NotFound(format!("UTXO {} not found", out_point.to_string())));
+            return Err(DbError::NotFound(format!("UTXO {out_point} not found")));
         }
 
         Ok(())
@@ -132,10 +132,10 @@ impl UtxoStorage for LocalDbStorage {
                 rune_amount ASC
             "#,
         )
-            .bind(rune_id)
-            .fetch_all(&self.postgres_repo.pool)
-            .await
-            .map_err(|e| DbError::BadRequest(e.to_string()))?;
+        .bind(rune_id)
+        .fetch_all(&self.postgres_repo.pool)
+        .await
+        .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
         Ok(rows.into_iter().map(|row| row.into()).collect())
     }
@@ -166,9 +166,7 @@ impl UtxoStorage for LocalDbStorage {
             return Err(DbError::BadRequest("Not enough funds".into()));
         }
 
-        let utxo_refs: Vec<String> = selected.iter()
-            .map(|u| u.out_point.to_string())
-            .collect();
+        let utxo_refs: Vec<String> = selected.iter().map(|u| u.out_point.to_string()).collect();
 
         let updated_utxos = mark_utxos_as_spent(&utxo_refs, &mut tx).await?;
 
@@ -187,10 +185,10 @@ impl UtxoStorage for LocalDbStorage {
             WHERE out_point = $1
             "#,
         )
-            .bind(out_point.to_string())
-            .fetch_optional(&self.postgres_repo.pool)
-            .await
-            .map_err(|e| DbError::BadRequest(e.to_string()))?;
+        .bind(out_point.to_string())
+        .fetch_optional(&self.postgres_repo.pool)
+        .await
+        .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
         Ok(utxo.map(|row| row.into()))
     }
@@ -202,14 +200,14 @@ impl UtxoStorage for LocalDbStorage {
             WHERE out_point = $1
             "#,
         )
-            .bind(out_point.to_string())
-            .execute(&self.postgres_repo.pool)
-            .await
-            .map_err(|e| DbError::BadRequest(e.to_string()))?
-            .rows_affected();
+        .bind(out_point.to_string())
+        .execute(&self.postgres_repo.pool)
+        .await
+        .map_err(|e| DbError::BadRequest(e.to_string()))?
+        .rows_affected();
 
         if rows == 0 {
-            return Err(DbError::NotFound(format!("UTXO {} not found", out_point.to_string())));
+            return Err(DbError::NotFound(format!("UTXO {out_point} not found")));
         }
 
         Ok(())
@@ -223,15 +221,15 @@ impl UtxoStorage for LocalDbStorage {
             WHERE out_point = $2
         "#,
         )
-            .bind(sats_fee_amount as i64)
-            .bind(out_point.to_string())
-            .execute(&self.postgres_repo.pool)
-            .await
-            .map_err(|e| DbError::BadRequest(e.to_string()))?
-            .rows_affected();
+        .bind(sats_fee_amount as i64)
+        .bind(out_point.to_string())
+        .execute(&self.postgres_repo.pool)
+        .await
+        .map_err(|e| DbError::BadRequest(e.to_string()))?
+        .rows_affected();
 
         if rows == 0 {
-            return Err(DbError::NotFound(format!("UTXO {} not found", out_point.to_string())));
+            return Err(DbError::NotFound(format!("UTXO {} not found", out_point)));
         }
 
         Ok(())
@@ -245,10 +243,10 @@ impl UtxoStorage for LocalDbStorage {
             WHERE btc_address = $1
         "#,
         )
-            .bind(btc_address)
-            .fetch_optional(&self.postgres_repo.pool)
-            .await
-            .map_err(|e| DbError::BadRequest(e.to_string()))?;
+        .bind(btc_address)
+        .fetch_optional(&self.postgres_repo.pool)
+        .await
+        .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
         Ok(utxo.map(|row| row.into()))
     }
@@ -267,18 +265,15 @@ async fn get_candidate_utxos_for_update(
         FOR UPDATE SKIP LOCKED
         "#,
     )
-        .bind(rune_id)
-        .fetch_all(&mut **tx)
-        .await
-        .map_err(|e| DbError::BadRequest(e.to_string()))?;
+    .bind(rune_id)
+    .fetch_all(&mut **tx)
+    .await
+    .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
     Ok(candidates.into_iter().map(|row| row.into()).collect())
 }
 
-async fn mark_utxos_as_spent(
-    utxo_refs: &[String],
-    tx: &mut Transaction<'_, Postgres>
-) -> Result<Vec<Utxo>, DbError> {
+async fn mark_utxos_as_spent(utxo_refs: &[String], tx: &mut Transaction<'_, Postgres>) -> Result<Vec<Utxo>, DbError> {
     if utxo_refs.is_empty() {
         return Ok(Vec::new());
     }

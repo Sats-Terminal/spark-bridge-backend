@@ -1,41 +1,87 @@
-use crate::indexer::BtcIndexer;
+use crate::tx_arbiter::{TxArbiterResponse, TxArbiterTrait};
+
+use btc_indexer_api::api::{BtcIndexerCallbackResponse, ResponseMeta};
 use config_parser::config::BtcIndexerParams;
-use local_db_store_indexer::init::LocalDbStorage;
-use local_db_store_indexer::schemas::runes_spark::tx_ids_indexed::TxIdIndexed;
-use persistent_storage::error::DbError;
-use persistent_storage::init::PersistentRepoTrait;
+use local_db_store_indexer::init::IndexerDbBounds;
+use local_db_store_indexer::schemas::track_tx_requests_storage::{TrackedReqStatus, TxTrackingRequestsToSendResponse};
+use local_db_store_indexer::schemas::tx_tracking_storage::TxToUpdateStatus;
+
+use reqwest::Client;
+
 use std::sync::Arc;
 use std::time::Duration;
-use titan_client::{TitanApi, TitanClient};
-use tokio::time::interval;
+use titan_client::TitanApi;
+use titan_types::Transaction;
+
+use tokio::task::JoinSet;
+
 use tokio_util::sync::CancellationToken;
-use tracing::{debug, error, trace};
+use tokio_util::task::TaskTracker;
+use tracing::{debug, error, info, instrument, trace};
 
-const ACCOUNT_TRACKING_LOG_PATH: &str = "btc_indexer:account_tracking";
+/// Msg used in thread which is responsible for updating information for existing txs
+const UPDATE_TXS_INFO_LOG_PATH: &str = "btc_indexer:update_txs_info";
+/// Msg used in thread which is responsible for sending msg to recipients
+const SEND_RESPONSE_TRACKING_LOG_PATH: &str = "btc_indexer:finalization_tracking";
 
-// TODO: maybe move to usage of traits for db interaction but not trait which returns ref to postgres
-pub fn spawn<C: TitanApi, Db: PersistentRepoTrait + Clone + Send + Sync + 'static>(
+/// Spawns tasks  [1] to track already saved txs in db, [2] to send responses to users when we have finalized tx
+#[instrument(
+    skip(btc_indexer_params, local_db, cancellation_token, titan_client, tx_validator),
+    level = "debug"
+)]
+pub fn spawn<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArbiterTrait>(
     cancellation_token: CancellationToken,
-    local_db: Arc<Db>,
+    local_db: Db,
     btc_indexer_params: BtcIndexerParams,
-    titan_client: Arc<BtcIndexer<C, Db>>,
+    titan_client: Arc<C>,
+    tx_validator: Arc<TxValidator>,
+    task_tracker: &mut TaskTracker,
 ) {
-    tokio::spawn({
+    // Update txs info tracking task
+    task_tracker.spawn({
         let mut interval = tokio::time::interval(Duration::from_millis(btc_indexer_params.update_interval_millis));
         let local_db = local_db.clone();
+        let cancellation_token = cancellation_token.clone();
+        let titan_client = titan_client.clone();
+        let tx_validator = tx_validator.clone();
+
         async move {
-            // todo: save about user that begun transaction to renew connection in bad cases
-            //  change status on processing
-            trace!("[{ACCOUNT_TRACKING_LOG_PATH}] Loop spawned..");
+            trace!("[{UPDATE_TXS_INFO_LOG_PATH}] Loop spawned..");
             'checking_loop: loop {
                 tokio::select! {
                     _ = cancellation_token.cancelled() => {
-                        debug!("[{ACCOUNT_TRACKING_LOG_PATH}] Closing [Btc indexer] account updating task, because of cancellation token");
+                        debug!("[{UPDATE_TXS_INFO_LOG_PATH}] Closing [Btc indexer] txs update task, because of cancellation token");
                         break 'checking_loop;
                     },
                     _ = interval.tick() => {
-                        //todo: retrieve list of txs to track
-                        perform_status_update(local_db.clone(), titan_client.clone()).await;
+                         perform_status_update(local_db.clone(), titan_client.clone(),tx_validator.clone())
+                            .await
+                            .unwrap();
+                    }
+                }
+            }
+        }
+    });
+
+    // Tx finalization tracking task
+    task_tracker.spawn({
+        let mut interval = tokio::time::interval(Duration::from_millis(btc_indexer_params.update_interval_millis));
+        let local_db = local_db.clone();
+        let client = Arc::new(reqwest::Client::new());
+        async move {
+            trace!("[{SEND_RESPONSE_TRACKING_LOG_PATH}] Loop spawned..");
+            'checking_loop: loop {
+                tokio::select! {
+                    _ = cancellation_token.cancelled() => {
+                        debug!("[{SEND_RESPONSE_TRACKING_LOG_PATH}] Closing [Btc indexer] tx finalization, because of cancellation token");
+                        break 'checking_loop;
+                    },
+                    _ = interval.tick() => {
+                        let _ = send_response_to_recipients(client.clone(), local_db.clone())
+                            .await
+                            .inspect_err(|e|
+                                error!("[{SEND_RESPONSE_TRACKING_LOG_PATH}] Error: {}", e)
+                            );
                     }
                 }
             }
@@ -43,31 +89,151 @@ pub fn spawn<C: TitanApi, Db: PersistentRepoTrait + Clone + Send + Sync + 'stati
     });
 }
 
-async fn perform_status_update<C: TitanApi, Db: PersistentRepoTrait + Clone + Send + Sync + 'static>(
-    db_storage: Arc<Db>,
-    titan_client: Arc<BtcIndexer<C, Db>>,
-) {
-    // let txs: Vec<TxIdIndexed> = get_list_of_txs_to_track(db_storage.clone()).await?;
-    trace!("[{ACCOUNT_TRACKING_LOG_PATH}] tick triggered");
-    // for tx_id in txs
-    // match titan_client.get_transaction(&tx_id.).await {
-    //     Ok(data) => {
-    //         trace!("[{ACCOUNT_TRACKING_LOG_PATH}] address data successfully received, {data:?}");
-    //         if !data.outputs.is_empty() && is_confirmed_outs(&data.outputs) {
-    //             let _ = event_tx.send(AccountReplenishmentEvent { address: account_addr, account_data: data });
-    //             // todo: save data in db about processed tx
-    //             break 'checking_loop;
-    //         }
-    //     }
-    //     Err(e) => {
-    //         error!("[{ACCOUNT_TRACKING_LOG_PATH}] Failed to retrieve account data by address: {e}")
-    //     }
-    // };
-    todo!()
+/// Gets information about finalized txs and sends already
+#[instrument(skip(client, local_db), level = "debug")]
+async fn send_response_to_recipients<Db: IndexerDbBounds>(
+    client: Arc<reqwest::Client>,
+    local_db: Db,
+) -> anyhow::Result<()> {
+    let updated_txs = local_db.get_values_to_send_response().await?;
+    trace!("[{SEND_RESPONSE_TRACKING_LOG_PATH}] Already received txs to send callback response, txs: {updated_txs:?}");
+    let tasks = spawn_tasks_to_send_response(client, local_db, updated_txs)?;
+    tasks.join_all().await;
+    Ok(())
 }
 
-async fn get_list_of_txs_to_track<Db: PersistentRepoTrait + Clone + Send + Sync>(
-    db_storage: Arc<Db>,
-) -> Result<Vec<TxIdIndexed>, DbError> {
-    todo!()
+#[instrument(skip(client, local_db), level = "debug")]
+fn spawn_tasks_to_send_response<Db: IndexerDbBounds>(
+    client: Arc<reqwest::Client>,
+    local_db: Db,
+    txs_to_update_status: Vec<TxTrackingRequestsToSendResponse>,
+) -> anyhow::Result<JoinSet<()>> {
+    let mut tasks = JoinSet::default();
+    for x in txs_to_update_status {
+        tasks.spawn({
+            trace!("[{SEND_RESPONSE_TRACKING_LOG_PATH}] Request uuid: {:?}", x.uuid);
+            let client = client.clone();
+            let local_db = local_db.clone();
+            _inner_response_task_spawn(x, client, local_db)
+        });
+    }
+    Ok(tasks)
+}
+
+#[instrument(skip(local_db), level = "trace")]
+fn _inner_response_task_spawn<Db: IndexerDbBounds>(
+    data: TxTrackingRequestsToSendResponse,
+    client: Arc<Client>,
+    local_db: Db,
+) -> impl Future<Output = ()> {
+    async move {
+        let resp = BtcIndexerCallbackResponse::Ok {
+            meta: ResponseMeta {
+                outpoint: data.out_point,
+                status: data.review,
+                sats_fee_amount: data.transaction.fee_paid_sat().unwrap_or_default(),
+            },
+        };
+        let client_resp = client.post(data.callback_url.0).json(&resp).send().await;
+        match client_resp {
+            Ok(client_resp) => {
+                let status = TrackedReqStatus::Finished;
+                let _ = local_db.finalize_tx_request(data.uuid, status).await.inspect_err(|e| {
+                    error!(
+                        "[{SEND_RESPONSE_TRACKING_LOG_PATH}] Db finalization error: {}, status: {:?}",
+                        e, status
+                    )
+                });
+                trace!("[{SEND_RESPONSE_TRACKING_LOG_PATH}] Got response: {:?}", client_resp);
+            }
+            Err(e) => {
+                let status = TrackedReqStatus::FailedToSend;
+                let _ = local_db.finalize_tx_request(data.uuid, status).await.inspect_err(|e| {
+                    error!(
+                        "[{SEND_RESPONSE_TRACKING_LOG_PATH}] Db finalization error: {}, status: {:?}",
+                        e, status
+                    )
+                });
+                error!("[{SEND_RESPONSE_TRACKING_LOG_PATH}] Error: {}", e);
+            }
+        }
+    }
+}
+
+#[instrument(skip(titan_client, local_db, tx_validator), level = "debug", ret)]
+async fn perform_status_update<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArbiterTrait>(
+    local_db: Db,
+    titan_client: Arc<C>,
+    tx_validator: Arc<TxValidator>,
+) -> anyhow::Result<()> {
+    let txs = local_db.get_txs_to_update_status().await?;
+    trace!("[{UPDATE_TXS_INFO_LOG_PATH}] Performing update for txs: {:?}", txs);
+    let tasks = spawn_tasks_to_check_txs(txs, local_db, titan_client, tx_validator).await?;
+    tasks.join_all().await;
+    Ok(())
+}
+
+#[instrument(skip(titan_client, local_db, tx_validator), level = "debug")]
+async fn spawn_tasks_to_check_txs<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArbiterTrait>(
+    checked_txs: Vec<TxToUpdateStatus>,
+    local_db: Db,
+    titan_client: Arc<C>,
+    tx_validator: Arc<TxValidator>,
+) -> anyhow::Result<JoinSet<()>> {
+    let mut check_txs_tasks = JoinSet::default();
+    for tx_id in checked_txs {
+        let local_db = local_db.clone();
+        check_txs_tasks.spawn({
+            let titan_client = titan_client.clone();
+            let tx_validator = tx_validator.clone();
+            _inner_update_task_spawn(tx_id, local_db, titan_client, tx_validator)
+        });
+    }
+    Ok(check_txs_tasks)
+}
+
+#[instrument(skip(titan_client, local_db, tx_validator), level = "trace")]
+fn _inner_update_task_spawn<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArbiterTrait>(
+    tx_id: TxToUpdateStatus,
+    local_db: Db,
+    titan_client: Arc<C>,
+    tx_validator: Arc<TxValidator>,
+) -> impl Future<Output = ()> {
+    async move {
+        debug!("[{UPDATE_TXS_INFO_LOG_PATH}] Starting task with tx_id: {:?}", tx_id);
+        match titan_client.get_transaction(&tx_id.tx_id.0).await {
+            Ok(tx_to_check) => {
+                trace!("[{UPDATE_TXS_INFO_LOG_PATH}] Get transaction info: {:?}", tx_to_check);
+                let r = check_obtained_transaction(titan_client, tx_validator, &tx_to_check, &tx_id)
+                    .await
+                    .inspect_err(|e| {
+                        error!(
+                            "[{UPDATE_TXS_INFO_LOG_PATH}] Failed to check obtained transaction: {e}, tx_id: {}",
+                            tx_to_check.txid
+                        )
+                    });
+                if let Ok(res) = r
+                    && let TxArbiterResponse::ReviewFormed(review, out_point) = res
+                {
+                    let _ = local_db
+                        .insert_tx_tracking_report(out_point, &review, &tx_to_check)
+                        .await;
+                }
+            }
+            Err(e) => {
+                error!("[{UPDATE_TXS_INFO_LOG_PATH}] Failed to retrieve account data by address: {e}");
+            }
+        };
+    }
+}
+
+#[instrument(skip(titan_client, tx_validator), level = "trace", ret)]
+async fn check_obtained_transaction<C: TitanApi, TxValidator: TxArbiterTrait>(
+    titan_client: Arc<C>,
+    tx_validator: Arc<TxValidator>,
+    tx_to_check: &Transaction,
+    tx_info: &TxToUpdateStatus,
+) -> anyhow::Result<TxArbiterResponse> {
+    trace!("[{UPDATE_TXS_INFO_LOG_PATH}] address data successfully received and checking.. ");
+    Ok(tx_validator.check_tx(titan_client, tx_to_check, tx_info).await?)
 }

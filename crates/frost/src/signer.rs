@@ -35,7 +35,10 @@ impl FrostSigner {
     pub async fn lock_musig_id(&self, musig_id: &MusigId) -> Result<(), SignerError> {
         let mut locked_musig_ids = self.locked_musig_ids.lock().await;
         if locked_musig_ids.contains(musig_id) {
-            return Err(SignerError::MusigAlreadyExists(format!("Musig id already exists: {:?}", musig_id)));
+            return Err(SignerError::MusigAlreadyExists(format!(
+                "Musig id already exists: {:?}",
+                musig_id
+            )));
         }
         locked_musig_ids.insert(musig_id.clone());
         Ok(())
@@ -45,7 +48,10 @@ impl FrostSigner {
         let mut locked_musig_ids = self.locked_musig_ids.lock().await;
         let removed = locked_musig_ids.remove(musig_id);
         if !removed {
-            return Err(SignerError::MusigNotFound(format!("Something bad went wrong: {:?}", musig_id)));
+            return Err(SignerError::MusigNotFound(format!(
+                "Something bad went wrong: {:?}",
+                musig_id
+            )));
         }
         Ok(())
     }
@@ -83,7 +89,10 @@ impl FrostSigner {
             }
             _ => {
                 self.unlock_musig_id(&musig_id).await?;
-                Err(SignerError::MusigAlreadyExists(format!("Musig id already exists: {:?}", musig_id)))
+                Err(SignerError::MusigAlreadyExists(format!(
+                    "Musig id already exists: {:?}",
+                    musig_id
+                )))
             }
         }
     }

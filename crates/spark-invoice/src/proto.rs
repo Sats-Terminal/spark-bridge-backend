@@ -30,11 +30,15 @@ pub enum DecodeError {
 }
 
 impl From<std::string::FromUtf8Error> for DecodeError {
-    fn from(e: std::string::FromUtf8Error) -> Self { DecodeError::Utf8(e) }
+    fn from(e: std::string::FromUtf8Error) -> Self {
+        DecodeError::Utf8(e)
+    }
 }
 
 impl From<TokenIdentifierParseError> for DecodeError {
-    fn from(e: TokenIdentifierParseError) -> Self { DecodeError::InvalidTokenIdentifier(e) }
+    fn from(e: TokenIdentifierParseError) -> Self {
+        DecodeError::InvalidTokenIdentifier(e)
+    }
 }
 
 /// Write a u32 as a varint into buffer.
@@ -116,7 +120,11 @@ pub fn write_len_prefixed_str(out: &mut Vec<u8>, s: &str) {
 /// Ensure buffer has enough remaining bytes.
 #[inline]
 fn ensure(buf: &[u8], pos: usize, need: usize) -> Result<(), DecodeError> {
-    if pos + need > buf.len() { Err(DecodeError::Truncated) } else { Ok(()) }
+    if pos + need > buf.len() {
+        Err(DecodeError::Truncated)
+    } else {
+        Ok(())
+    }
 }
 
 /// Read a single byte from buffer.
@@ -136,7 +144,9 @@ pub fn read_varint_u32(buf: &[u8], pos: &mut usize) -> Result<u32, DecodeError> 
     for _ in 0..5 {
         let b = read_u8(buf, pos)?;
         x |= u32::from(b & 0x7F) << s;
-        if (b & 0x80) == 0 { return Ok(x); }
+        if (b & 0x80) == 0 {
+            return Ok(x);
+        }
         s += 7;
     }
     Err(DecodeError::Overflow)
@@ -150,7 +160,9 @@ pub fn read_varint_u64(buf: &[u8], pos: &mut usize) -> Result<u64, DecodeError> 
     for _ in 0..10 {
         let b = read_u8(buf, pos)?;
         x |= u64::from(b & 0x7F) << s;
-        if (b & 0x80) == 0 { return Ok(x); }
+        if (b & 0x80) == 0 {
+            return Ok(x);
+        }
         s += 7;
     }
     Err(DecodeError::Overflow)
@@ -183,18 +195,36 @@ pub fn read_string(buf: &[u8], pos: &mut usize, len: usize) -> Result<String, De
 /// Skip field of given wire type in buffer.
 pub fn skip_field(wire_type: u32, buf: &[u8], pos: &mut usize) -> Result<(), DecodeError> {
     match wire_type {
-        0 => { read_varint_u64(buf, pos)?; Ok(()) }                   // varint
-        1 => { ensure(buf, *pos, 8)?; *pos += 8; Ok(()) }             // 64-bit
-        2 => { let l = read_len(buf, pos)?; *pos += l; Ok(()) }       // length-delimited
-        3 | 4 => Err(DecodeError::InvalidWireType),                   // groups unused
-        5 => { ensure(buf, *pos, 4)?; *pos += 4; Ok(()) }             // 32-bit
+        0 => {
+            read_varint_u64(buf, pos)?;
+            Ok(())
+        } // varint
+        1 => {
+            ensure(buf, *pos, 8)?;
+            *pos += 8;
+            Ok(())
+        } // 64-bit
+        2 => {
+            let l = read_len(buf, pos)?;
+            *pos += l;
+            Ok(())
+        } // length-delimited
+        3 | 4 => Err(DecodeError::InvalidWireType), // groups unused
+        5 => {
+            ensure(buf, *pos, 4)?;
+            *pos += 4;
+            Ok(())
+        } // 32-bit
         _ => Err(DecodeError::InvalidWireType),
     }
 }
 
 /// Protobuf timestamp with seconds and nanos.
 #[derive(Debug, Clone, Copy, Default)]
-pub struct Timestamp { seconds: i64, nanos: i32 }
+pub struct Timestamp {
+    seconds: i64,
+    nanos: i32,
+}
 
 /// Decode a protobuf timestamp from bytes.
 pub fn decode_timestamp(input: &[u8]) -> Result<Timestamp, DecodeError> {
@@ -204,18 +234,24 @@ pub fn decode_timestamp(input: &[u8]) -> Result<Timestamp, DecodeError> {
 
     while pos < end {
         let tag = read_varint_u32(input, &mut pos)?;
-        if tag == 0 { break; }
+        if tag == 0 {
+            break;
+        }
         let field = tag >> 3;
         let wt = tag & 7;
 
         match field {
             1 => {
-                if wt != 0 { return Err(DecodeError::InvalidWireType); }
+                if wt != 0 {
+                    return Err(DecodeError::InvalidWireType);
+                }
                 let v = read_varint_u64(input, &mut pos)?;
                 ts.seconds = v as i64;
             }
             2 => {
-                if wt != 0 { return Err(DecodeError::InvalidWireType); }
+                if wt != 0 {
+                    return Err(DecodeError::InvalidWireType);
+                }
                 ts.nanos = i32::try_from(read_varint_u32(input, &mut pos)?).unwrap_or(i32::MAX);
             }
             _ => skip_field(wt, input, &mut pos)?,
@@ -230,5 +266,3 @@ pub fn timestamp_to_datetime(ts: Timestamp) -> Result<DateTime<Utc>, DecodeError
         .single()
         .ok_or(DecodeError::InvalidTimestamp)
 }
-
-

@@ -9,9 +9,8 @@ use gateway_local_db_store::storage::LocalDbStorage;
 use gateway_server::init::create_app;
 use gateway_verifier_client::client::VerifierClient;
 use global_utils::config_path::ConfigPath;
-use global_utils::config_variant::ConfigVariant;
 use global_utils::logger::init_logger;
-use global_utils::network::NetworkConfig;
+
 use persistent_storage::config::PostgresDbCredentials;
 use persistent_storage::init::PostgresRepo;
 use std::collections::{BTreeMap, HashMap};
@@ -55,8 +54,9 @@ async fn main() {
         server_config.flow_processor.cancellation_retries,
         frost_aggregator,
         server_config.network.network,
-    ).await;
-    let _ = tokio::spawn(async move {
+    )
+    .await;
+    tokio::spawn(async move {
         flow_processor.run().await;
     });
 

@@ -4,7 +4,10 @@ use bitcoin::Network;
 use frost::aggregator::FrostAggregator;
 use gateway_config_parser::config::VerifierConfig;
 use gateway_local_db_store::storage::LocalDbStorage;
+use gateway_rune_transfer::bitcoin_client::BitcoinClient;
+use gateway_spark_service::service::SparkService;
 use global_utils::common_types::get_uuid;
+use spark_client::client::SparkRpcClient;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio;
@@ -14,9 +17,6 @@ use tokio::time::Duration;
 use tokio_util::sync::CancellationToken;
 use tracing;
 use uuid::Uuid;
-use gateway_spark_service::service::SparkService;
-use spark_client::client::SparkRpcClient;
-use gateway_rune_transfer::bitcoin_client::BitcoinClient;
 
 // This is core struct that handles flows execution
 // For each request it creates a thread that runs the flow
@@ -133,7 +133,7 @@ impl FlowProcessor {
                     }
 
                     for (flow_id, handle) in self.flows.iter() {
-                        let _ = handle.abort();
+                        handle.abort();
                         tracing::info!("[main] Aborted flow for id {}", flow_id);
                     }
 

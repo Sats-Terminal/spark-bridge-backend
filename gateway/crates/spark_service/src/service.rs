@@ -6,22 +6,22 @@ use bitcoin::hashes::{Hash, HashEngine};
 use bitcoin::secp256k1::PublicKey;
 use frost::aggregator::FrostAggregator;
 use frost::types::MusigId;
-use frost::types::SigningMetadata;
 use frost::types::Nonce;
+use frost::types::SigningMetadata;
 use futures::future::join_all;
 use lrc20::marshal::marshal_token_transaction;
 use lrc20::marshal::unmarshal_token_transaction;
-use spark_protos::reflect::ToDynamicMessage;
 use proto_hasher::ProtoHasher;
-use token_identifier::TokenIdentifier;
-use spark_client::client::SparkRpcClient;
 use spark_address::Network;
+use spark_client::client::SparkRpcClient;
+use spark_protos::reflect::ToDynamicMessage;
 use spark_protos::spark_authn::GetChallengeRequest;
 use spark_protos::spark_authn::VerifyChallengeRequest;
 use spark_protos::spark_token::CommitTransactionRequest;
 use spark_protos::spark_token::InputTtxoSignaturesPerOperator;
 use spark_protos::spark_token::SignatureWithIndex;
 use spark_protos::spark_token::StartTransactionRequest;
+use token_identifier::TokenIdentifier;
 
 const DEFAULT_VALIDITY_DURATION_SECONDS: u64 = 300;
 
@@ -33,7 +33,11 @@ pub struct SparkService {
 }
 
 impl SparkService {
-    pub fn new(spark_client: SparkRpcClient, frost_aggregator: FrostAggregator, spark_operator_identity_public_keys: Vec<PublicKey>) -> Self {
+    pub fn new(
+        spark_client: SparkRpcClient,
+        frost_aggregator: FrostAggregator,
+        spark_operator_identity_public_keys: Vec<PublicKey>,
+    ) -> Self {
         Self {
             spark_client,
             frost_aggregator,
@@ -137,14 +141,17 @@ impl SparkService {
             network,
         )?;
 
-        let partial_token_transaction_proto = marshal_token_transaction(&partial_token_transaction, false)
-            .map_err(|e| {
+        let partial_token_transaction_proto =
+            marshal_token_transaction(&partial_token_transaction, false).map_err(|e| {
                 SparkServiceError::InvalidData(format!("Failed to marshal partial token transaction: {:?}", e))
             })?;
 
-        let partial_token_transaction_hash =
-            self.proto_hasher.hash_proto(partial_token_transaction_proto.to_dynamic().map_err(|e| SparkServiceError::HashError(format!("Failed to hash partial token transaction: {:?}", e)))?)
-                .map_err(|e| SparkServiceError::HashError(format!("Failed to hash partial token transaction: {:?}", e)))?;
+        let partial_token_transaction_hash = self
+            .proto_hasher
+            .hash_proto(partial_token_transaction_proto.to_dynamic().map_err(|e| {
+                SparkServiceError::HashError(format!("Failed to hash partial token transaction: {:?}", e))
+            })?)
+            .map_err(|e| SparkServiceError::HashError(format!("Failed to hash partial token transaction: {:?}", e)))?;
 
         let signature = self
             .frost_aggregator
@@ -185,9 +192,12 @@ impl SparkService {
                 SparkServiceError::DecodeError(format!("Failed to unmarshal final token transaction: {:?}", e))
             })?;
 
-        let final_token_transaction_hash =
-            self.proto_hasher.hash_proto(final_token_transaction_proto.to_dynamic().map_err(|e| SparkServiceError::HashError(format!("Failed to hash final token transaction: {:?}", e)))?)
-                .map_err(|e| SparkServiceError::HashError(format!("Failed to hash final token transaction: {:?}", e)))?;
+        let final_token_transaction_hash = self
+            .proto_hasher
+            .hash_proto(final_token_transaction_proto.to_dynamic().map_err(|e| {
+                SparkServiceError::HashError(format!("Failed to hash final token transaction: {:?}", e))
+            })?)
+            .map_err(|e| SparkServiceError::HashError(format!("Failed to hash final token transaction: {:?}", e)))?;
 
         let mut join_handles = vec![];
 

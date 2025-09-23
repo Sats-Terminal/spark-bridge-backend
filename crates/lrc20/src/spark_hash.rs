@@ -1,17 +1,17 @@
 use std::ops::Deref;
 
-use bitcoin::hashes::{Hash, HashEngine, sha256::Hash as Sha256Hash};
-use thiserror::Error;
-use uuid::Uuid;
-use proto_hasher::errors::ProtoHasherError;
-use proto_hasher::ProtoHasher;
-use spark_protos::reflect::{SparkProtoReflectError, ToDynamicMessage};
-use spark_protos::spark_token::token_transaction::TokenInputs;
+use crate::marshal::marshal_token_transaction;
 use crate::{
     token_leaf::{TokenLeafOutput, TokenLeafToSpend},
     token_transaction::{TokenTransaction, TokenTransactionInput, TokenTransactionVersion},
 };
-use crate::marshal::marshal_token_transaction;
+use bitcoin::hashes::{Hash, HashEngine, sha256::Hash as Sha256Hash};
+use proto_hasher::ProtoHasher;
+use proto_hasher::errors::ProtoHasherError;
+use spark_protos::reflect::{SparkProtoReflectError, ToDynamicMessage};
+use spark_protos::spark_token::token_transaction::TokenInputs;
+use thiserror::Error;
+use uuid::Uuid;
 
 /// A hash of the LRC20 receipt data that uniquely identifies a receipt (coin).
 ///
@@ -60,10 +60,7 @@ impl SparkHash {
     /// # Returns
     ///
     /// A `SparkHash` representing the hash of the token transaction.
-    pub fn hash_token_transaction(
-        token_tx: &TokenTransaction,
-        is_partial_hash: bool,
-    ) -> Result<Self, SparkHashError> {
+    pub fn hash_token_transaction(token_tx: &TokenTransaction, is_partial_hash: bool) -> Result<Self, SparkHashError> {
         if token_tx.version == TokenTransactionVersion::V4 {
             return SparkHash::hash_token_transaction_v4(token_tx, is_partial_hash);
         }
@@ -90,21 +87,19 @@ impl SparkHash {
                 hash_engine.input(Sha256Hash::hash(&inputs_len.to_be_bytes()).as_byte_array());
 
                 for leaf in &transfer_input.leaves_to_spend {
-                    hash_engine.input(SparkHash::hash_token_leaf_to_spend(&leaf).0.as_byte_array());
+                    hash_engine.input(SparkHash::hash_token_leaf_to_spend(leaf).0.as_byte_array());
                 }
-            },
+            }
             TokenTransactionInput::Mint(mint_input) => {
-                hash_engine.input(
-                    Sha256Hash::hash(&mint_input.issuer_public_key.serialize()).as_byte_array(),
-                );
+                hash_engine.input(Sha256Hash::hash(&mint_input.issuer_public_key.serialize()).as_byte_array());
 
                 if let Some(identifier) = mint_input.token_identifier {
                     hash_engine.input(Sha256Hash::hash(&identifier.to_bytes()).as_byte_array());
                 }
-            },
+            }
             TokenTransactionInput::Create(_) => {
                 return Err(SparkHashError::InvalidTokenTransactionInput);
-            },
+            }
         }
 
         let outputs_len = token_tx.leaves_to_create.len() as u32;
@@ -136,27 +131,20 @@ impl SparkHash {
         }
 
         if not_v1 {
-            hash_engine.input(
-                Sha256Hash::hash(&token_tx.client_created_timestamp.to_be_bytes()).as_byte_array(),
-            );
+            hash_engine.input(Sha256Hash::hash(&token_tx.client_created_timestamp.to_be_bytes()).as_byte_array());
 
             if !is_partial_hash {
-                hash_engine
-                    .input(Sha256Hash::hash(&token_tx.expiry_time.to_be_bytes()).as_byte_array());
+                hash_engine.input(Sha256Hash::hash(&token_tx.expiry_time.to_be_bytes()).as_byte_array());
             }
         }
 
         if token_tx.version == TokenTransactionVersion::V3 {
-            let mut attachments = token_tx
-                .invoice_attachments
-                .iter()
-                .collect::<Vec<(&Uuid, &String)>>();
+            let mut attachments = token_tx.invoice_attachments.iter().collect::<Vec<(&Uuid, &String)>>();
 
             attachments.sort_by(|(l, _), (r, _)| l.as_bytes().cmp(r.as_bytes()));
 
             let attachments_len = attachments.len() as u32;
             hash_engine.input(Sha256Hash::hash(&attachments_len.to_be_bytes()).as_byte_array());
-
 
             for (_, invoice) in attachments.into_iter() {
                 hash_engine.input(Sha256Hash::hash(&invoice.as_bytes()).as_byte_array());
@@ -186,10 +174,7 @@ impl SparkHash {
     ///
     /// * `leaf` - The token leaf output to hash.
     /// * `is_partial_hash` - Whether to hash the leaf partially.
-    pub fn hash_token_leaf_output(
-        leaf: &TokenLeafOutput,
-        is_partial_hash: bool,
-    ) -> Result<Self, SparkHashError> {
+    pub fn hash_token_leaf_output(leaf: &TokenLeafOutput, is_partial_hash: bool) -> Result<Self, SparkHashError> {
         let mut hash_engine = Sha256Hash::engine();
 
         if !is_partial_hash && leaf.id.is_some() {
@@ -301,25 +286,24 @@ pub enum SparkHashError {
     /// Failed to convert proto into DynamicMessage
     #[error("Failed to convert proto into DynamicMessage: {0}")]
     ProtoReflectError(#[from] SparkProtoReflectError),
-
 }
 
 #[cfg(test)]
 mod test {
-    use core::str::FromStr;
-    use std::collections::HashMap;
-    use bitcoin::{Network, hashes::sha256::Hash as Sha256Hash, secp256k1};
-    use once_cell::sync::Lazy;
-    use uuid::Uuid;
-    use token_identifier::TokenIdentifier;
     use super::SparkHash;
     use crate::{
         token_leaf::{TokenLeafOutput, TokenLeafToSpend},
         token_transaction::{
-            TokenTransaction, TokenTransactionInput, TokenTransactionMintInput,
-            TokenTransactionTransferInput, TokenTransactionVersion,
+            TokenTransaction, TokenTransactionInput, TokenTransactionMintInput, TokenTransactionTransferInput,
+            TokenTransactionVersion,
         },
     };
+    use bitcoin::{Network, hashes::sha256::Hash as Sha256Hash, secp256k1};
+    use core::str::FromStr;
+    use once_cell::sync::Lazy;
+    use std::collections::HashMap;
+    use token_identifier::TokenIdentifier;
+    use uuid::Uuid;
 
     static TOKEN_IDENTIFIER: Lazy<TokenIdentifier> = Lazy::new(|| {
         TokenIdentifier::from_str(
@@ -330,38 +314,34 @@ mod test {
     });
 
     static ISSUER_PUBKEY: Lazy<secp256k1::PublicKey> = Lazy::new(|| {
-        secp256k1::PublicKey::from_slice(
-            &[0x02,
-                242, 155, 208, 90, 72, 211, 120, 244, 69, 99, 28, 101, 149, 222, 123, 50,
-                252, 63, 99, 54, 137, 226, 7, 224, 163, 122, 93, 248, 42, 159, 173, 45,]
-        )
+        secp256k1::PublicKey::from_slice(&[
+            0x02, 242, 155, 208, 90, 72, 211, 120, 244, 69, 99, 28, 101, 149, 222, 123, 50, 252, 63, 99, 54, 137, 226,
+            7, 224, 163, 122, 93, 248, 42, 159, 173, 45,
+        ])
         .unwrap()
     });
 
     static IDENTITY_PUBKEY: Lazy<secp256k1::PublicKey> = Lazy::new(|| {
-        secp256k1::PublicKey::from_slice(
-            &[0x02,
-                25, 155, 208, 90, 72, 211, 120, 244, 69, 99, 28, 101, 149, 222, 123, 50,
-                252, 63, 99, 54, 137, 226, 7, 224, 163, 122, 93, 248, 42, 159, 173, 46,]
-        )
+        secp256k1::PublicKey::from_slice(&[
+            0x02, 25, 155, 208, 90, 72, 211, 120, 244, 69, 99, 28, 101, 149, 222, 123, 50, 252, 63, 99, 54, 137, 226,
+            7, 224, 163, 122, 93, 248, 42, 159, 173, 46,
+        ])
         .unwrap()
     });
 
     static REVOCATION_COMMITMENT: Lazy<secp256k1::PublicKey> = Lazy::new(|| {
-        secp256k1::PublicKey::from_slice(
-            &[0x02,
-                100, 155, 208, 90, 72, 211, 120, 244, 69, 99, 28, 101, 149, 222, 123, 50,
-                252, 63, 99, 54, 137, 226, 7, 224, 163, 122, 93, 248, 42, 159, 173, 46,]
-        )
+        secp256k1::PublicKey::from_slice(&[
+            0x02, 100, 155, 208, 90, 72, 211, 120, 244, 69, 99, 28, 101, 149, 222, 123, 50, 252, 63, 99, 54, 137, 226,
+            7, 224, 163, 122, 93, 248, 42, 159, 173, 46,
+        ])
         .unwrap()
     });
 
     static SO_PUBKEY: Lazy<secp256k1::PublicKey> = Lazy::new(|| {
-        secp256k1::PublicKey::from_slice(
-            &[0x02,
-                200, 155, 208, 90, 72, 211, 120, 244, 69, 99, 28, 101, 149, 222, 123, 50,
-                252, 63, 99, 54, 137, 226, 7, 224, 163, 122, 93, 248, 42, 159, 173, 46,]
-        )
+        secp256k1::PublicKey::from_slice(&[
+            0x02, 200, 155, 208, 90, 72, 211, 120, 244, 69, 99, 28, 101, 149, 222, 123, 50, 252, 63, 99, 54, 137, 226,
+            7, 224, 163, 122, 93, 248, 42, 159, 173, 46,
+        ])
         .unwrap()
     });
 
@@ -413,18 +393,18 @@ mod test {
         assert_eq!(
             partial_spark_hash.0,
             Sha256Hash::from_slice(&[
-                0x3c, 0xd1, 0xfd, 0xe3, 0x66, 0x2d, 0x05, 0x47, 0x8d, 0x99, 0x75, 0xf3, 0x64, 0x23, 0x96, 0x78,
-                0x84, 0x2f, 0xf7, 0xe4, 0x8f, 0x1a, 0xcc, 0xd2, 0x84, 0x87, 0x94, 0xe6, 0x71, 0x9d, 0x87, 0xbd,
+                0x3c, 0xd1, 0xfd, 0xe3, 0x66, 0x2d, 0x05, 0x47, 0x8d, 0x99, 0x75, 0xf3, 0x64, 0x23, 0x96, 0x78, 0x84,
+                0x2f, 0xf7, 0xe4, 0x8f, 0x1a, 0xcc, 0xd2, 0x84, 0x87, 0x94, 0xe6, 0x71, 0x9d, 0x87, 0xbd,
             ])
-                .unwrap()
+            .unwrap()
         );
         assert_eq!(
             final_spark_hash.0,
             Sha256Hash::from_slice(&[
-                0x2d, 0x27, 0xc5, 0xdd, 0x8b, 0x93, 0x6f, 0xcb, 0x3b, 0xb0, 0x3e, 0x97, 0xbe, 0x49, 0x10, 0xd8,
-         	    0xcf, 0xb7, 0x43, 0x78, 0x50, 0x5c, 0xa2, 0xb7, 0x8e, 0x77, 0xc7, 0x11, 0xb4, 0x4a, 0x0d, 0x2b,
+                0x2d, 0x27, 0xc5, 0xdd, 0x8b, 0x93, 0x6f, 0xcb, 0x3b, 0xb0, 0x3e, 0x97, 0xbe, 0x49, 0x10, 0xd8, 0xcf,
+                0xb7, 0x43, 0x78, 0x50, 0x5c, 0xa2, 0xb7, 0x8e, 0x77, 0xc7, 0x11, 0xb4, 0x4a, 0x0d, 0x2b,
             ])
-                .unwrap()
+            .unwrap()
         );
 
         Ok(())
@@ -469,18 +449,18 @@ mod test {
         assert_eq!(
             partial_spark_hash.0,
             Sha256Hash::from_slice(&[
-                0xe8, 0x8d, 0x13, 0xc2, 0x37, 0x00, 0xd2, 0x46, 0x26, 0xed, 0x62, 0x14, 0xf3, 0x04, 0x51, 0x85,
-                0xde, 0x8a, 0x98, 0xcf, 0x51, 0x2c, 0x0d, 0xbc, 0x6a, 0x27, 0x9f, 0xc0, 0xbb, 0x7b, 0x56, 0x2a,
+                0xe8, 0x8d, 0x13, 0xc2, 0x37, 0x00, 0xd2, 0x46, 0x26, 0xed, 0x62, 0x14, 0xf3, 0x04, 0x51, 0x85, 0xde,
+                0x8a, 0x98, 0xcf, 0x51, 0x2c, 0x0d, 0xbc, 0x6a, 0x27, 0x9f, 0xc0, 0xbb, 0x7b, 0x56, 0x2a,
             ])
-                .unwrap()
+            .unwrap()
         );
         assert_eq!(
             final_spark_hash.0,
             Sha256Hash::from_slice(&[
-                0x8f, 0xf2, 0xa8, 0xfa, 0xe0, 0x5d, 0xf8, 0xdc, 0xe1, 0x17, 0x0f, 0x25, 0xb1, 0x8a, 0x43, 0x64,
-                0x86, 0x65, 0x8b, 0x4d, 0xf0, 0x4c, 0x2c, 0xa3, 0x35, 0xb1, 0xfa, 0x31, 0x53, 0x86, 0x81, 0xad,
+                0x8f, 0xf2, 0xa8, 0xfa, 0xe0, 0x5d, 0xf8, 0xdc, 0xe1, 0x17, 0x0f, 0x25, 0xb1, 0x8a, 0x43, 0x64, 0x86,
+                0x65, 0x8b, 0x4d, 0xf0, 0x4c, 0x2c, 0xa3, 0x35, 0xb1, 0xfa, 0x31, 0x53, 0x86, 0x81, 0xad,
             ])
-                .unwrap()
+            .unwrap()
         );
 
         Ok(())
@@ -525,19 +505,19 @@ mod test {
         assert_eq!(
             partial_spark_hash.0,
             Sha256Hash::from_slice(&[
-                0xa2, 0x85, 0x55, 0x31, 0xd2, 0x4c, 0x96, 0x3e, 0x69, 0xc1, 0xc1, 0x66, 0x7a, 0x30, 0xdf, 0xe0,
-                0x3c, 0x5f, 0xa4, 0xd2, 0x1, 0xa5, 0xeb, 0xea, 0x52, 0x17, 0xc3, 0xc9, 0x89, 0xac, 0x6b, 0xd
+                0xa2, 0x85, 0x55, 0x31, 0xd2, 0x4c, 0x96, 0x3e, 0x69, 0xc1, 0xc1, 0x66, 0x7a, 0x30, 0xdf, 0xe0, 0x3c,
+                0x5f, 0xa4, 0xd2, 0x1, 0xa5, 0xeb, 0xea, 0x52, 0x17, 0xc3, 0xc9, 0x89, 0xac, 0x6b, 0xd
             ])
-                .unwrap()
+            .unwrap()
         );
 
         assert_eq!(
             final_spark_hash.0,
             Sha256Hash::from_slice(&[
-                0xc4, 0xf4, 0x5f, 0x17, 0x8d, 0xaf, 0xdc, 0x4, 0xf1, 0xc7, 0x19, 0x1, 0x17, 0x80, 0xc4, 0xd,
-                0xb3, 0x3e, 0x1f, 0xd8, 0x4f, 0x64, 0x35, 0x91, 0x6f, 0xae, 0x6c, 0x95, 0x5e, 0xee, 0x4d, 0x75
+                0xc4, 0xf4, 0x5f, 0x17, 0x8d, 0xaf, 0xdc, 0x4, 0xf1, 0xc7, 0x19, 0x1, 0x17, 0x80, 0xc4, 0xd, 0xb3,
+                0x3e, 0x1f, 0xd8, 0x4f, 0x64, 0x35, 0x91, 0x6f, 0xae, 0x6c, 0x95, 0x5e, 0xee, 0x4d, 0x75
             ])
-                .unwrap()
+            .unwrap()
         );
 
         Ok(())
@@ -582,19 +562,19 @@ mod test {
         assert_eq!(
             partial_spark_hash.0,
             Sha256Hash::from_slice(&[
-                0x27, 0x68, 0xbc, 0x5c, 0xb4, 0xef, 0x22, 0xd3, 0x68, 0x34, 0xb3, 0x7e, 0xb9, 0xb4, 0xe4, 0x43,
-                0xec, 0xf7, 0xb2, 0x50, 0x15, 0x6c, 0xd3, 0xa7, 0x9b, 0xb6, 0xb9, 0x70, 0xd0, 0xf3, 0x66, 0x5b
+                0x27, 0x68, 0xbc, 0x5c, 0xb4, 0xef, 0x22, 0xd3, 0x68, 0x34, 0xb3, 0x7e, 0xb9, 0xb4, 0xe4, 0x43, 0xec,
+                0xf7, 0xb2, 0x50, 0x15, 0x6c, 0xd3, 0xa7, 0x9b, 0xb6, 0xb9, 0x70, 0xd0, 0xf3, 0x66, 0x5b
             ])
-                .unwrap()
+            .unwrap()
         );
 
         assert_eq!(
             final_spark_hash.0,
             Sha256Hash::from_slice(&[
-                0x79, 0x32, 0x8f, 0xdc, 0xc7, 0x84, 0xac, 0xcf, 0x3f, 0xb8, 0x8d, 0x9c, 0xf9, 0x6e, 0x92, 0xfa,
-                0x6d, 0xd4, 0x55, 0xe3, 0x7d, 0xfc, 0x52, 0xac, 0x4d, 0x4a, 0xb, 0x9f, 0xf0, 0xc2, 0xc7, 0x81
+                0x79, 0x32, 0x8f, 0xdc, 0xc7, 0x84, 0xac, 0xcf, 0x3f, 0xb8, 0x8d, 0x9c, 0xf9, 0x6e, 0x92, 0xfa, 0x6d,
+                0xd4, 0x55, 0xe3, 0x7d, 0xfc, 0x52, 0xac, 0x4d, 0x4a, 0xb, 0x9f, 0xf0, 0xc2, 0xc7, 0x81
             ])
-                .unwrap()
+            .unwrap()
         );
 
         Ok(())
@@ -635,12 +615,17 @@ mod test {
 
         let partial_hash = SparkHash::hash_token_transaction(&token_tx, true)?;
 
-        assert_eq!("3594cc7673c2339bb097b4236b51d267717694294391fee92e99a3a361cb0ac4", partial_hash.0.to_string());
+        assert_eq!(
+            "3594cc7673c2339bb097b4236b51d267717694294391fee92e99a3a361cb0ac4",
+            partial_hash.0.to_string()
+        );
 
         let final_hash = SparkHash::hash_token_transaction(&token_tx, false)?;
-        assert_eq!("8fe449eb9baa0e4642d327a6a5ef5d54910a93fdd7ef15a98979539575a5d781", final_hash.0.to_string());
+        assert_eq!(
+            "8fe449eb9baa0e4642d327a6a5ef5d54910a93fdd7ef15a98979539575a5d781",
+            final_hash.0.to_string()
+        );
 
         Ok(())
     }
-
 }

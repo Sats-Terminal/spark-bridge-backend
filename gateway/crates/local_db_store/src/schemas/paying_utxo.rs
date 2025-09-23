@@ -1,14 +1,17 @@
-use gateway_rune_transfer::transfer::PayingTransferInput;
-use async_trait::async_trait;
-use persistent_storage::error::DbError;
 use crate::storage::LocalDbStorage;
+use async_trait::async_trait;
 use bitcoin::Txid;
+use gateway_rune_transfer::transfer::PayingTransferInput;
+use persistent_storage::error::DbError;
 use std::str::FromStr;
 
 #[async_trait]
 pub trait PayingUtxoStorage: Send + Sync {
     async fn insert_paying_utxo(&self, paying_utxo: PayingTransferInput) -> Result<(), DbError>;
-    async fn get_paying_utxo_by_spark_deposit_address(&self, spark_deposit_address: String) -> Result<Option<PayingTransferInput>, DbError>;
+    async fn get_paying_utxo_by_spark_deposit_address(
+        &self,
+        spark_deposit_address: String,
+    ) -> Result<Option<PayingTransferInput>, DbError>;
 }
 
 #[async_trait]
@@ -30,7 +33,10 @@ impl PayingUtxoStorage for LocalDbStorage {
         Ok(())
     }
 
-    async fn get_paying_utxo_by_spark_deposit_address(&self, spark_deposit_address: String) -> Result<Option<PayingTransferInput>, DbError> {
+    async fn get_paying_utxo_by_spark_deposit_address(
+        &self,
+        spark_deposit_address: String,
+    ) -> Result<Option<PayingTransferInput>, DbError> {
         let paying_utxo: Option<(String, i32, String, i64, String)> = sqlx::query_as(
             "SELECT txid, vout, spark_deposit_address, sats_amount, none_anyone_can_pay_signature
             FROM gateway.paying_utxo WHERE spark_deposit_address = $1",
@@ -41,16 +47,15 @@ impl PayingUtxoStorage for LocalDbStorage {
         .map_err(|e| DbError::BadRequest(format!("Failed to get paying utxo by spark deposit address: {}", e)))?;
 
         match paying_utxo {
-            Some((txid, vout, address, sats_amount, none_anyone_can_pay_signature)) => {
-                Ok(Some(PayingTransferInput { 
-                    txid: Txid::from_str(&txid).map_err(|e| DbError::BadRequest(format!("Failed to parse txid: {}", e)))?, 
-                    vout: vout as u32, 
-                    address, 
-                    sats_amount: sats_amount as u64, 
-                    none_anyone_can_pay_signature: none_anyone_can_pay_signature.parse()
-                        .map_err(|e| DbError::BadRequest(format!("Failed to parse none anyone can pay signature: {}", e)))?,
-                }))
-            }
+            Some((txid, vout, address, sats_amount, none_anyone_can_pay_signature)) => Ok(Some(PayingTransferInput {
+                txid: Txid::from_str(&txid).map_err(|e| DbError::BadRequest(format!("Failed to parse txid: {}", e)))?,
+                vout: vout as u32,
+                address,
+                sats_amount: sats_amount as u64,
+                none_anyone_can_pay_signature: none_anyone_can_pay_signature.parse().map_err(|e| {
+                    DbError::BadRequest(format!("Failed to parse none anyone can pay signature: {}", e))
+                })?,
+            })),
             None => Ok(None),
         }
     }

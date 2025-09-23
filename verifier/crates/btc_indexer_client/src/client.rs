@@ -1,10 +1,9 @@
 use crate::error::BtcIndexerClientError;
-use bitcoin::Txid;
+use bitcoin::OutPoint;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use url::Url;
 use verifier_config_parser::config::BtcIndexerConfig;
-use bitcoin::OutPoint;
 
 const WATCH_RUNES_DEPOSIT_PATH: &str = "/track_tx";
 

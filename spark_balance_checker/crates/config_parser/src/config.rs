@@ -32,7 +32,7 @@ impl ServerConfig {
             .add_source(config::File::with_name(&path))
             .build()
             .unwrap();
-        
+
         config.try_deserialize().unwrap()
     }
 }

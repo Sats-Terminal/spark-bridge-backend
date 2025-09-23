@@ -21,7 +21,8 @@ pub struct CertificateConfig {
 
 impl CertificateConfig {
     pub fn get_certificate(&self) -> Result<Certificate, SparkClientError> {
-        let file = std::fs::read(self.path.clone()).map_err(|e| SparkClientError::ConfigError(format!("Failed to read certificate: {}", e)))?;
+        let file = std::fs::read(self.path.clone())
+            .map_err(|e| SparkClientError::ConfigError(format!("Failed to read certificate: {}", e)))?;
         Ok(Certificate::from_pem(file))
     }
 }

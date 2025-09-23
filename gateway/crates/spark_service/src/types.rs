@@ -2,6 +2,7 @@ use crate::errors::SparkServiceError;
 use bitcoin::secp256k1::PublicKey;
 use chrono;
 use frost::types::SigningMetadata;
+use lrc20::marshal::marshal_token_transaction;
 use lrc20::token_leaf::TokenLeafOutput;
 use lrc20::token_transaction::TokenTransaction;
 use lrc20::token_transaction::TokenTransactionCreateInput;
@@ -9,9 +10,8 @@ use lrc20::token_transaction::TokenTransactionInput;
 use lrc20::token_transaction::TokenTransactionMintInput;
 use lrc20::token_transaction::TokenTransactionVersion;
 use spark_address::Network;
-use token_identifier::TokenIdentifier;
 use spark_protos::spark_token::TokenTransaction as TokenTransactionSparkProto;
-use lrc20::marshal::marshal_token_transaction;
+use token_identifier::TokenIdentifier;
 
 const DEFAULT_MAX_SUPPLY: u64 = 21_000_000_000;
 const DEFAULT_DECIMALS: u32 = 8;
@@ -44,7 +44,7 @@ pub fn create_partial_token_transaction(
             let token_transaction = TokenTransaction {
                 version: TokenTransactionVersion::V2,
                 input: TokenTransactionInput::Mint(TokenTransactionMintInput {
-                    issuer_public_key: issuer_public_key,
+                    issuer_public_key,
                     token_identifier: Some(token_identifier),
                     issuer_signature: None,
                     issuer_provided_timestamp: None,
@@ -120,14 +120,18 @@ pub fn create_signing_metadata(
     let token_transaction_proto = marshal_token_transaction(&token_transaction, is_partial)
         .map_err(|e| SparkServiceError::InvalidData(format!("Failed to marshal token transaction: {:?}", e)))?;
     let signing_metadata: SigningMetadata = match (spark_transaction_type, is_partial) {
-        (SparkTransactionType::Mint { .. }, true) => SigningMetadata::PartialMintToken { token_transaction: token_transaction_proto },
-        (SparkTransactionType::Mint { .. }, false) => SigningMetadata::FinalMintToken { token_transaction: token_transaction_proto },
-        (SparkTransactionType::Create { .. }, true) => {
-            SigningMetadata::PartialCreateToken { token_transaction: token_transaction_proto }
-        }
-        (SparkTransactionType::Create { .. }, false) => {
-            SigningMetadata::FinalCreateToken { token_transaction: token_transaction_proto }
-        }
+        (SparkTransactionType::Mint { .. }, true) => SigningMetadata::PartialMintToken {
+            token_transaction: token_transaction_proto,
+        },
+        (SparkTransactionType::Mint { .. }, false) => SigningMetadata::FinalMintToken {
+            token_transaction: token_transaction_proto,
+        },
+        (SparkTransactionType::Create { .. }, true) => SigningMetadata::PartialCreateToken {
+            token_transaction: token_transaction_proto,
+        },
+        (SparkTransactionType::Create { .. }, false) => SigningMetadata::FinalCreateToken {
+            token_transaction: token_transaction_proto,
+        },
     };
     Ok(signing_metadata)
 }

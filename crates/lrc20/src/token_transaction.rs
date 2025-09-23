@@ -8,10 +8,10 @@ use bitcoin::{
     hashes::{FromSliceError, sha256::Hash},
     secp256k1::{Error as Secp256k1Error, PublicKey},
 };
-use thiserror::Error;
-use uuid::Uuid;
 use spark_address::SparkAddressError;
+use thiserror::Error;
 use token_identifier::TokenIdentifier;
+use uuid::Uuid;
 
 use crate::{
     spark_hash::SparkHash,
@@ -109,8 +109,7 @@ impl TokenTransaction {
     /// # Returns
     /// A `SparkHash` representing the hash of the token transaction.
     pub fn hash(&self) -> Result<SparkHash, TokenTransactionError> {
-        self.try_into()
-            .map_err(|err| TokenTransactionError::HashError(err))
+        self.try_into().map_err(TokenTransactionError::HashError)
     }
 }
 
@@ -252,5 +251,5 @@ pub enum TokenTransactionError {
 
     /// Invoice data is missing.
     #[error("Invoice data is missing")]
-    InvoiceDataMissing
+    InvoiceDataMissing,
 }

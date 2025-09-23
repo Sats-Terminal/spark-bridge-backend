@@ -3,9 +3,7 @@
 use std::collections::HashMap;
 
 use lazy_static::lazy_static;
-use prost_reflect::{
-    DescriptorPool, DynamicMessage, MapKey, MessageDescriptor, Value,
-};
+use prost_reflect::{DescriptorPool, DynamicMessage, MapKey, MessageDescriptor, Value};
 
 use proto_hasher::ProtoHasher;
 
@@ -82,10 +80,7 @@ fn mk_value_list_of_strings(items: &[&str]) -> DynamicMessage {
     }
 
     let mut value_msg = DynamicMessage::new(vd.clone());
-    value_msg.set_field(
-        &vd.get_field_by_name("list_value").unwrap(),
-        Value::Message(list_msg),
-    );
+    value_msg.set_field(&vd.get_field_by_name("list_value").unwrap(), Value::Message(list_msg));
     value_msg
 }
 
@@ -225,26 +220,17 @@ fn non_wkt_field_sorting_by_number_or_key() {
 fn non_wkt_nested_messages() {
     let nested1 = mk_struct_with_map(&[(
         "user",
-        mk_struct_with_map(&[
-            ("name", mk_value_string("alice")),
-            ("id", mk_value_number(123.0)),
-        ]),
+        mk_struct_with_map(&[("name", mk_value_string("alice")), ("id", mk_value_number(123.0))]),
     )]);
 
     let nested2 = mk_struct_with_map(&[(
         "user",
-        mk_struct_with_map(&[
-            ("name", mk_value_string("alice")),
-            ("id", mk_value_number(123.0)),
-        ]),
+        mk_struct_with_map(&[("name", mk_value_string("alice")), ("id", mk_value_number(123.0))]),
     )]);
 
     let nested3 = mk_struct_with_map(&[(
         "user",
-        mk_struct_with_map(&[
-            ("name", mk_value_string("bob")),
-            ("id", mk_value_number(123.0)),
-        ]),
+        mk_struct_with_map(&[("name", mk_value_string("bob")), ("id", mk_value_number(123.0))]),
     )]);
 
     let hasher = ProtoHasher::new();
@@ -295,7 +281,10 @@ fn non_wkt_value_types() {
     for (i, (n1, h1)) in hashes.iter().enumerate() {
         for (j, (n2, h2)) in hashes.iter().enumerate() {
             if i != j {
-                assert_ne!(h1, h2, "different value types {n1} and {n2} should have different hashes");
+                assert_ne!(
+                    h1, h2,
+                    "different value types {n1} and {n2} should have different hashes"
+                );
             }
         }
     }

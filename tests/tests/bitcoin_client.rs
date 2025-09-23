@@ -1,8 +1,7 @@
-use tests::bitcoin_client::{BitcoinClient, BitcoinClientConfig};
-use tokio;
 use bitcoin::{Address, Network};
 use std::str::FromStr;
-
+use tests::bitcoin_client::{BitcoinClient, BitcoinClientConfig};
+use tokio;
 
 #[tokio::test]
 async fn test_get_address_data() {
@@ -25,5 +24,4 @@ async fn test_get_address_data() {
 
     let address_data = bitcoin_client.get_address_data(address).await.unwrap();
     println!("address_data: {:?}", address_data);
-
 }

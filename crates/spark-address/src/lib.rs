@@ -130,7 +130,7 @@ impl fmt::Display for SparkAddressError {
             SparkAddressError::Hex(e) => write!(f, "hex decode error: {e}"),
             SparkAddressError::WrongKeyLength(n) => {
                 write!(f, "wrong pubkey length: {n} (expected 33)")
-            },
+            }
             #[cfg(feature = "validate-secp256k1")]
             SparkAddressError::InvalidSecp256k1 => write!(f, "invalid secp256k1 pubkey"),
             SparkAddressError::Bech32Encode(e) => write!(f, "bech32 encode error: {e}"),
@@ -173,7 +173,7 @@ pub struct SparkAddressData {
     /// Optional Spark invoice data
     pub invoice: Option<SparkInvoiceFields>,
     /// Optional signature bytes
-    pub signature: Option<Vec<u8>>
+    pub signature: Option<Vec<u8>>,
 }
 
 /* ------------------------------------------------------------- *
@@ -183,7 +183,6 @@ pub struct SparkAddressData {
 const PUBLIC_KEY_TAG: u8 = 0x0a; // (1 << 3) | 2
 const INVOICE_TAG: u8 = 0x12;
 const SIGNATURE_TAG: u8 = 0x1a;
-
 
 fn encode_proto(key: &[u8], spark_invoice_fields: Option<SparkInvoiceFields>, signature: Option<Vec<u8>>) -> Vec<u8> {
     let mut out = Vec::with_capacity(2 + key.len());
@@ -241,13 +240,12 @@ fn decode_proto(buf: &[u8]) -> Result<DecodedProto, SparkAddressError> {
     if pos < buf.len() && buf[pos] == INVOICE_TAG {
         pos += 1;
 
-        let len = read_varint_u32(buf, &mut pos)
-            .map_err(|_| SparkAddressError::BadProto)? as usize;
+        let len = read_varint_u32(buf, &mut pos).map_err(|_| SparkAddressError::BadProto)? as usize;
         if pos + len > buf.len() {
             return Err(SparkAddressError::BadProto);
         }
-        let (decoded, used) = SparkInvoiceFields::decode_proto(&buf[pos..pos + len])
-            .map_err(|_| SparkAddressError::BadProto)?;
+        let (decoded, used) =
+            SparkInvoiceFields::decode_proto(&buf[pos..pos + len]).map_err(|_| SparkAddressError::BadProto)?;
         invoice_fields = Some(decoded);
         pos += used;
     }
@@ -257,8 +255,7 @@ fn decode_proto(buf: &[u8]) -> Result<DecodedProto, SparkAddressError> {
     if pos < buf.len() && buf[pos] == SIGNATURE_TAG {
         pos += 1;
 
-        let len = read_varint_u32(buf, &mut pos)
-            .map_err(|_| SparkAddressError::BadProto)? as usize;
+        let len = read_varint_u32(buf, &mut pos).map_err(|_| SparkAddressError::BadProto)? as usize;
         if pos + len > buf.len() {
             return Err(SparkAddressError::BadProto);
         }
@@ -266,7 +263,11 @@ fn decode_proto(buf: &[u8]) -> Result<DecodedProto, SparkAddressError> {
         pos += len;
     }
 
-    Ok(DecodedProto { key: key.to_vec(), invoice_fields, signature })
+    Ok(DecodedProto {
+        key: key.to_vec(),
+        invoice_fields,
+        signature,
+    })
 }
 
 /* ------------------------------------------------------------- *
@@ -339,8 +340,7 @@ pub fn decode_spark_address(addr: &str) -> Result<SparkAddressData, SparkAddress
         return Err(SparkAddressError::InvalidVariant);
     }
 
-    let network = Network::from_hrp(&hrp_str)
-        .ok_or_else(|| SparkAddressError::UnknownPrefix(hrp_str.clone()))?;
+    let network = Network::from_hrp(&hrp_str).ok_or_else(|| SparkAddressError::UnknownPrefix(hrp_str.clone()))?;
 
     let data = decode_proto(&proto)?;
 
@@ -382,45 +382,32 @@ fn _validate_pubkey(_: &str) {}
 
 #[cfg(test)]
 mod tests {
-    use core::str::FromStr;
+    use super::*;
     use bitcoin::secp256k1::PublicKey;
     use chrono::{DateTime, NaiveDateTime, Utc};
+    use core::str::FromStr;
     use lazy_static::lazy_static;
+    use spark_invoice::{SatsPayment, TokensPayment};
     use token_identifier::TokenIdentifier;
     use uuid::Uuid;
-    use spark_invoice::{SatsPayment, TokensPayment};
-    use super::*;
 
     const PUBKEY: &str = "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
-    const MAINNET_ADDRESS: &str =
-        "sp1pgssy7d7vel0nh9m4326qc54e6rskpczn07dktww9rv4nu5ptvt0s9ucez8h3s";
-    const REGTEST_ADDRESS: &str =
-        "sprt1pgssy7d7vel0nh9m4326qc54e6rskpczn07dktww9rv4nu5ptvt0s9ucd5rgc0";
+    const MAINNET_ADDRESS: &str = "sp1pgssy7d7vel0nh9m4326qc54e6rskpczn07dktww9rv4nu5ptvt0s9ucez8h3s";
+    const REGTEST_ADDRESS: &str = "sprt1pgssy7d7vel0nh9m4326qc54e6rskpczn07dktww9rv4nu5ptvt0s9ucd5rgc0";
 
-    const REGTEST_INVOICE_ADDRESS: &str =
-        "sprt1pgss9n9jdwnecca27cxfryhasa97xzr6arv8qvn4mu89tpcy5mf6fufjzf6ssqgjzqqe352f0zv8wyvjfjdp9drc3lsj5pnd09xk2mt0xgss9n9jdwnecca27cxfryhasa97xzr6arv8qvn4mu89tpcy5mf6fufj8gxq3ad25mzsvyxq3jkmxqc6yc9zpd3qfcplvq92wnuz3t25djj9rerff338xweffdn69406e24klz53zgpq86qcqsq08";
+    const REGTEST_INVOICE_ADDRESS: &str = "sprt1pgss9n9jdwnecca27cxfryhasa97xzr6arv8qvn4mu89tpcy5mf6fufjzf6ssqgjzqqe352f0zv8wyvjfjdp9drc3lsj5pnd09xk2mt0xgss9n9jdwnecca27cxfryhasa97xzr6arv8qvn4mu89tpcy5mf6fufj8gxq3ad25mzsvyxq3jkmxqc6yc9zpd3qfcplvq92wnuz3t25djj9rerff338xweffdn69406e24klz53zgpq86qcqsq08";
 
     lazy_static! {
         pub static ref TEST_UUID: Uuid = Uuid::now_v7();
-
         pub static ref TOKEN_IDENTIFIER_STR: &'static str =
             "btknrt1kcsyuqlkqz48f7pg442xefz3u355ccnn8v55keaz6hav42m032gs5nly6r";
-
         pub static ref TOKEN_IDENTIFIER: TokenIdentifier =
-            TokenIdentifier::decode_bech32m(
-                &TOKEN_IDENTIFIER_STR,
-                bitcoin::network::Network::Regtest,
-            ).expect("decode token identifier");
-
+            TokenIdentifier::decode_bech32m(&TOKEN_IDENTIFIER_STR, bitcoin::network::Network::Regtest,)
+                .expect("decode token identifier");
         pub static ref SATS_AMOUNT: u64 = 1000;
-
         pub static ref TOKEN_AMOUNT: u128 = 1000;
-
-        pub static ref EXPIRY_TIME: DateTime<Utc> =
-            Utc::now() + chrono::Duration::hours(24);
-
+        pub static ref EXPIRY_TIME: DateTime<Utc> = Utc::now() + chrono::Duration::hours(24);
         pub static ref MEMO: &'static str = "myMemo";
-
         pub static ref SCHNORR_SIGNATURE_BYTES: Vec<u8> = vec![0x11; 64];
     }
 
@@ -462,12 +449,10 @@ mod tests {
 
     #[test]
     fn regtest_token_invoice_encode_decode() {
-        let payment_type = PaymentType::Tokens(
-            TokensPayment {
-                token_identifier: *TOKEN_IDENTIFIER,
-                amount: *TOKEN_AMOUNT
-            }
-        );
+        let payment_type = PaymentType::Tokens(TokensPayment {
+            token_identifier: *TOKEN_IDENTIFIER,
+            amount: *TOKEN_AMOUNT,
+        });
 
         let invoice_fields = SparkInvoiceFields {
             version: 1,
@@ -492,11 +477,7 @@ mod tests {
 
     #[test]
     fn regtest_btc_invoice_encode_decode() {
-        let payment_type = PaymentType::Sats(
-            SatsPayment {
-                amount: *SATS_AMOUNT,
-            }
-        );
+        let payment_type = PaymentType::Sats(SatsPayment { amount: *SATS_AMOUNT });
 
         let invoice_fields = SparkInvoiceFields {
             version: 1,

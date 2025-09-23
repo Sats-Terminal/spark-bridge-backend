@@ -5,8 +5,8 @@ use bitcoin::Network;
 use bitcoincore_rpc::{Auth, bitcoin};
 use config::{Config, Environment};
 use global_utils::config_variant::ConfigVariant;
+use global_utils::env_parser;
 use global_utils::network::NetworkConfig;
-use global_utils::{env_parser, env_parser::lookup_ip_addr};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, instrument, trace};
 

@@ -1,14 +1,12 @@
-use prost_reflect::{DescriptorError, DescriptorPool, DynamicMessage, MessageDescriptor};
+use crate::{SPARK_FILE_DESCRIPTOR_SET, spark_token};
 use prost_reflect::prost::DecodeError;
-use crate::{spark_token, SPARK_FILE_DESCRIPTOR_SET};
+use prost_reflect::{DescriptorError, DescriptorPool, DynamicMessage, MessageDescriptor};
 
 pub trait ToDynamicMessage {
     fn to_dynamic(&self) -> Result<DynamicMessage, SparkProtoReflectError>;
 }
 
-fn spark_lookup_descriptor(
-    full_name: &str,
-) -> Result<MessageDescriptor, SparkProtoReflectError> {
+fn spark_lookup_descriptor(full_name: &str) -> Result<MessageDescriptor, SparkProtoReflectError> {
     DescriptorPool::decode(SPARK_FILE_DESCRIPTOR_SET)?
         .get_message_by_name(full_name)
         .ok_or(SparkProtoReflectError::MessageDescriptorNotFound(full_name.to_string()))
@@ -48,5 +46,3 @@ pub enum SparkProtoReflectError {
     #[error("Message decoding error: {0}")]
     MessageDecodeError(#[from] DecodeError),
 }
-
-

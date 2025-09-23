@@ -1,9 +1,9 @@
 use crate::error::GatewayClientError;
+use bitcoin::OutPoint;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use verifier_config_parser::config::GatewayConfig;
 use tracing;
-use bitcoin::OutPoint;
+use verifier_config_parser::config::GatewayConfig;
 use verifier_local_db_store::schemas::deposit_address::DepositStatus;
 
 const NOTIFY_RUNES_DEPOSIT_PATH: &str = "/api/verifier/notify-runes-deposit";
@@ -30,9 +30,18 @@ impl GatewayClient {
         }
     }
 
-    pub async fn notify_runes_deposit(&self, request: GatewayNotifyRunesDepositRequest) -> Result<(), GatewayClientError> {
-        tracing::info!("Sending request to notify runes deposit for verifier: {}", request.verifier_id);
-        let url = self.config.address.join(NOTIFY_RUNES_DEPOSIT_PATH)
+    pub async fn notify_runes_deposit(
+        &self,
+        request: GatewayNotifyRunesDepositRequest,
+    ) -> Result<(), GatewayClientError> {
+        tracing::info!(
+            "Sending request to notify runes deposit for verifier: {}",
+            request.verifier_id
+        );
+        let url = self
+            .config
+            .address
+            .join(NOTIFY_RUNES_DEPOSIT_PATH)
             .map_err(|e| GatewayClientError::DeserializeError(format!("Failed to join URL: {:?}", e)))?;
 
         let response = self
@@ -44,11 +53,18 @@ impl GatewayClient {
             .map_err(|e| GatewayClientError::HttpError(format!("Failed to send request: {:?}", e)))?;
 
         if response.status().is_success() {
-            tracing::info!("Request to notify runes deposit for verifier: {} successful", request.verifier_id);
+            tracing::info!(
+                "Request to notify runes deposit for verifier: {} successful",
+                request.verifier_id
+            );
             Ok(())
         } else {
             tracing::error!("Failed to send HTTP request with status {}", response.status());
-            Err(GatewayClientError::HttpError(format!("Failed to send HTTP request with status {}, error: {}", response.status(), response.text().await.unwrap_or_default())))
+            Err(GatewayClientError::HttpError(format!(
+                "Failed to send HTTP request with status {}, error: {}",
+                response.status(),
+                response.text().await.unwrap_or_default()
+            )))
         }
     }
 }

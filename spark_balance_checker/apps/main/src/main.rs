@@ -1,5 +1,4 @@
 use global_utils::config_path::ConfigPath;
-use global_utils::config_variant::ConfigVariant;
 use global_utils::logger::init_logger;
 use spark_balance_checker_config_parser::config::ServerConfig;
 use spark_balance_checker_server::init::create_app;
@@ -14,8 +13,7 @@ async fn main() {
     // Init configs
     let config_path = ConfigPath::from_env().unwrap();
     let config = ServerConfig::init_config(config_path.path);
-    let app = create_app(config.spark.clone())
-    .await;
+    let app = create_app(config.spark.clone()).await;
 
     // Init app
     let addr_to_listen = format!("{}:{}", config.app_config.ip, config.app_config.port);

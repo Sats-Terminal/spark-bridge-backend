@@ -42,11 +42,20 @@ pub struct DepositAddrInfo {
 
 #[async_trait]
 pub trait DepositAddressStorage {
-    async fn get_deposit_addr_info(&self, musig_id: &MusigId, tweak: Nonce) -> Result<Option<DepositAddrInfo>, DbError>;
+    async fn get_deposit_addr_info(&self, musig_id: &MusigId, tweak: Nonce)
+    -> Result<Option<DepositAddrInfo>, DbError>;
     async fn set_deposit_addr_info(&self, deposit_addr_info: DepositAddrInfo) -> Result<(), DbError>;
-    async fn set_confirmation_status_by_out_point(&self, out_point: OutPoint, confirmation_status: DepositStatus) -> Result<(), DbError>;
+    async fn set_confirmation_status_by_out_point(
+        &self,
+        out_point: OutPoint,
+        confirmation_status: DepositStatus,
+    ) -> Result<(), DbError>;
     async fn set_sats_fee_amount_by_out_point(&self, out_point: OutPoint, sats_fee_amount: u64) -> Result<(), DbError>;
-    async fn set_confirmation_status_by_deposit_address(&self, deposit_address: String, confirmation_status: DepositStatus) -> Result<(), DbError>;
+    async fn set_confirmation_status_by_deposit_address(
+        &self,
+        deposit_address: String,
+        confirmation_status: DepositStatus,
+    ) -> Result<(), DbError>;
 }
 
 #[async_trait]
@@ -72,10 +81,20 @@ impl DepositAddressStorage for LocalDbStorage {
         .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
         match result {
-            Some((deposit_address, bridge_address, is_btc, deposit_amount, sats_fee_amount, out_point_str, confirmation_status)) => {
+            Some((
+                deposit_address,
+                bridge_address,
+                is_btc,
+                deposit_amount,
+                sats_fee_amount,
+                out_point_str,
+                confirmation_status,
+            )) => {
                 let out_point = match out_point_str {
-                    Some(out_point_str) => Some(OutPoint::from_str(&out_point_str)
-                        .map_err(|e| DbError::DecodeError(format!("Failed to decode out point: {}", e)))?),
+                    Some(out_point_str) => Some(
+                        OutPoint::from_str(&out_point_str)
+                            .map_err(|e| DbError::DecodeError(format!("Failed to decode out point: {}", e)))?,
+                    ),
                     None => None,
                 };
 
@@ -95,10 +114,7 @@ impl DepositAddressStorage for LocalDbStorage {
         }
     }
 
-    async fn set_deposit_addr_info(
-        &self,
-        deposit_addr_info: DepositAddrInfo,
-    ) -> Result<(), DbError> {
+    async fn set_deposit_addr_info(&self, deposit_addr_info: DepositAddrInfo) -> Result<(), DbError> {
         let _ = sqlx::query(
             "INSERT INTO verifier.deposit_address (public_key, rune_id, nonce_tweak, deposit_address, bridge_address, is_btc, deposit_amount, sats_fee_amount, confirmation_status, out_point)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
@@ -122,10 +138,12 @@ impl DepositAddressStorage for LocalDbStorage {
         Ok(())
     }
 
-    async fn set_confirmation_status_by_out_point(&self, out_point: OutPoint, confirmation_status: DepositStatus) -> Result<(), DbError> {
-        let _ = sqlx::query(
-            "UPDATE verifier.deposit_address SET confirmation_status = $1 WHERE out_point = $2",
-        )
+    async fn set_confirmation_status_by_out_point(
+        &self,
+        out_point: OutPoint,
+        confirmation_status: DepositStatus,
+    ) -> Result<(), DbError> {
+        let _ = sqlx::query("UPDATE verifier.deposit_address SET confirmation_status = $1 WHERE out_point = $2")
             .bind(Json(confirmation_status))
             .bind(out_point.to_string())
             .execute(&self.get_conn().await?)
@@ -136,9 +154,7 @@ impl DepositAddressStorage for LocalDbStorage {
     }
 
     async fn set_sats_fee_amount_by_out_point(&self, out_point: OutPoint, sats_fee_amount: u64) -> Result<(), DbError> {
-        let _ = sqlx::query(
-            "UPDATE verifier.deposit_address SET sats_fee_amount = $1 WHERE out_point = $2",
-        )
+        let _ = sqlx::query("UPDATE verifier.deposit_address SET sats_fee_amount = $1 WHERE out_point = $2")
             .bind(sats_fee_amount as i64)
             .bind(out_point.to_string())
             .execute(&self.get_conn().await?)
@@ -148,10 +164,12 @@ impl DepositAddressStorage for LocalDbStorage {
         Ok(())
     }
 
-    async fn set_confirmation_status_by_deposit_address(&self, deposit_address: String, confirmation_status: DepositStatus) -> Result<(), DbError> {
-        let _ = sqlx::query(
-            "UPDATE verifier.deposit_address SET confirmation_status = $1 WHERE deposit_address = $2",
-        )
+    async fn set_confirmation_status_by_deposit_address(
+        &self,
+        deposit_address: String,
+        confirmation_status: DepositStatus,
+    ) -> Result<(), DbError> {
+        let _ = sqlx::query("UPDATE verifier.deposit_address SET confirmation_status = $1 WHERE deposit_address = $2")
             .bind(Json(confirmation_status))
             .bind(deposit_address)
             .execute(&self.get_conn().await?)

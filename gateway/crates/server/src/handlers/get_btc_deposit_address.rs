@@ -2,7 +2,7 @@ use crate::error::GatewayError;
 use crate::init::AppState;
 use axum::{Json, extract::State};
 use gateway_flow_processor::flow_sender::TypedMessageSender;
-use gateway_flow_processor::types::{FlowProcessorResponse, IssueBtcDepositAddressRequest};
+use gateway_flow_processor::types::IssueBtcDepositAddressRequest;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use tracing::{debug, instrument};

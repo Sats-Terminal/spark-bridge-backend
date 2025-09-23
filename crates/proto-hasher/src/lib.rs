@@ -46,7 +46,7 @@ impl ProtoHasher {
                     descriptor.full_name().to_owned(),
                 ));
             }
-            _ => {},
+            _ => {}
         };
 
         let hash = hash_message(message)?.ok_or(ProtoHasherError::NothingToHash)?;

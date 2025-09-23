@@ -1,7 +1,6 @@
 use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
-use bitcoin::Address;
-use bitcoin::Txid;
+
 use frost::types::MusigId;
 use frost::types::Nonce;
 use persistent_storage::error::DbError;
@@ -57,7 +56,9 @@ impl VerifiersResponses {
     }
 
     pub fn empty() -> Self {
-        VerifiersResponses { responses: HashMap::new() }
+        VerifiersResponses {
+            responses: HashMap::new(),
+        }
     }
 }
 
@@ -74,12 +75,26 @@ pub struct DepositAddrInfo {
 
 #[async_trait]
 pub trait DepositAddressStorage: Send + Sync + Debug {
-    async fn get_deposit_addr_info(&self, musig_id: &MusigId, tweak: Nonce) -> Result<Option<DepositAddrInfo>, DbError>;
+    async fn get_deposit_addr_info(&self, musig_id: &MusigId, tweak: Nonce)
+    -> Result<Option<DepositAddrInfo>, DbError>;
     async fn set_deposit_addr_info(&self, deposit_addr_info: DepositAddrInfo) -> Result<(), DbError>;
-    async fn set_confirmation_status_by_deposit_address(&self, address: String, confirmation_status: VerifiersResponses) -> Result<(), DbError>;
+    async fn set_confirmation_status_by_deposit_address(
+        &self,
+        address: String,
+        confirmation_status: VerifiersResponses,
+    ) -> Result<(), DbError>;
     async fn get_row_by_deposit_address(&self, address: String) -> Result<Option<DepositAddrInfo>, DbError>;
-    async fn update_confirmation_status_by_deposit_address(&self, deposit_address: String, verifier_id: u16, verifier_response: DepositStatus) -> Result<(), DbError>;
-    async fn update_bridge_address_by_deposit_address(&self, deposit_address: String, bridge_address: String) -> Result<(), DbError>;
+    async fn update_confirmation_status_by_deposit_address(
+        &self,
+        deposit_address: String,
+        verifier_id: u16,
+        verifier_response: DepositStatus,
+    ) -> Result<(), DbError>;
+    async fn update_bridge_address_by_deposit_address(
+        &self,
+        deposit_address: String,
+        bridge_address: String,
+    ) -> Result<(), DbError>;
 }
 
 #[async_trait]
@@ -97,32 +112,28 @@ impl DepositAddressStorage for LocalDbStorage {
             FROM gateway.deposit_address
             WHERE public_key = $1 AND rune_id = $2 AND nonce_tweak = $3",
         )
-            .bind(public_key.to_string())
-            .bind(rune_id)
-            .bind(tweak)
-            .fetch_optional(&self.get_conn().await?)
-            .await
-            .map_err(|e| DbError::BadRequest(e.to_string()))?;
+        .bind(public_key.to_string())
+        .bind(rune_id)
+        .bind(tweak)
+        .fetch_optional(&self.get_conn().await?)
+        .await
+        .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
         match result {
-            Some((deposit_address, bridge_address, is_btc, amount, confirmation_status)) => {
-                Ok(Some(DepositAddrInfo {
-                    musig_id: musig_id.clone(),
-                    nonce: tweak,
-                    deposit_address,
-                    bridge_address,
-                    is_btc,
-                    amount: amount as u64,
-                    confirmation_status: confirmation_status.0,
-                }))
-            }
+            Some((deposit_address, bridge_address, is_btc, amount, confirmation_status)) => Ok(Some(DepositAddrInfo {
+                musig_id: musig_id.clone(),
+                nonce: tweak,
+                deposit_address,
+                bridge_address,
+                is_btc,
+                amount: amount as u64,
+                confirmation_status: confirmation_status.0,
+            })),
             None => Ok(None),
         }
-
     }
 
     async fn set_deposit_addr_info(&self, deposit_addr_info: DepositAddrInfo) -> Result<(), DbError> {
-
         let _ = sqlx::query(
             "INSERT INTO gateway.deposit_address (public_key, rune_id, nonce_tweak, deposit_address, bridge_address, is_btc, amount, confirmation_status)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -143,10 +154,12 @@ impl DepositAddressStorage for LocalDbStorage {
         Ok(())
     }
 
-    async fn set_confirmation_status_by_deposit_address(&self, address: String, confirmation_status: VerifiersResponses) -> Result<(), DbError> {
-        let _ = sqlx::query(
-            "UPDATE gateway.deposit_address SET confirmation_status = $1 WHERE address = $2",
-        )
+    async fn set_confirmation_status_by_deposit_address(
+        &self,
+        address: String,
+        confirmation_status: VerifiersResponses,
+    ) -> Result<(), DbError> {
+        let _ = sqlx::query("UPDATE gateway.deposit_address SET confirmation_status = $1 WHERE address = $2")
             .bind(Json(confirmation_status))
             .bind(address)
             .execute(&self.get_conn().await?)
@@ -167,7 +180,16 @@ impl DepositAddressStorage for LocalDbStorage {
         .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
         match result {
-            Some((public_key, rune_id, nonce_tweak, deposit_address, bridge_address, is_btc, amount, confirmation_status)) => {
+            Some((
+                public_key,
+                rune_id,
+                nonce_tweak,
+                deposit_address,
+                bridge_address,
+                is_btc,
+                amount,
+                confirmation_status,
+            )) => {
                 let musig_id = MusigId::User {
                     rune_id,
                     user_public_key: bitcoin::secp256k1::PublicKey::from_str(&public_key).unwrap(),
@@ -188,51 +210,65 @@ impl DepositAddressStorage for LocalDbStorage {
         }
     }
 
-    async fn update_confirmation_status_by_deposit_address(&self, deposit_address: String, verifier_id: u16, verifier_response: DepositStatus) -> Result<(), DbError> {
+    async fn update_confirmation_status_by_deposit_address(
+        &self,
+        deposit_address: String,
+        verifier_id: u16,
+        verifier_response: DepositStatus,
+    ) -> Result<(), DbError> {
         let mut tx = self.get_conn().await?.begin().await?;
 
-        let response: Option<(Json<VerifiersResponses>, )> = sqlx::query_as(
+        let response: Option<(Json<VerifiersResponses>,)> = sqlx::query_as(
             "SELECT confirmation_status 
             FROM gateway.deposit_address 
             WHERE deposit_address = $1
             FOR UPDATE",
         )
-            .bind(deposit_address.clone())
-            .fetch_optional(&mut *tx)
-            .await?;
-        
+        .bind(deposit_address.clone())
+        .fetch_optional(&mut *tx)
+        .await?;
+
         let mut confirmation_status = match response {
-            Some((confirmation_status, )) => confirmation_status.0,
-            None => return Err(DbError::NotFound(format!("Confirmation status not found for address: {}", deposit_address))),
+            Some((confirmation_status,)) => confirmation_status.0,
+            None => {
+                return Err(DbError::NotFound(format!(
+                    "Confirmation status not found for address: {}",
+                    deposit_address
+                )));
+            }
         };
 
         confirmation_status.responses.insert(verifier_id, verifier_response);
-        
+
         let _ = sqlx::query(
             "UPDATE gateway.deposit_address 
             SET confirmation_status = $1 
             WHERE address = $2",
         )
-            .bind(Json(confirmation_status))
-            .bind(deposit_address)
-            .execute(&mut *tx)
-            .await?;
+        .bind(Json(confirmation_status))
+        .bind(deposit_address)
+        .execute(&mut *tx)
+        .await?;
 
         tx.commit().await?;
 
         Ok(())
     }
 
-    async fn update_bridge_address_by_deposit_address(&self, deposit_address: String, bridge_address: String) -> Result<(), DbError> {
+    async fn update_bridge_address_by_deposit_address(
+        &self,
+        deposit_address: String,
+        bridge_address: String,
+    ) -> Result<(), DbError> {
         let _ = sqlx::query(
             "UPDATE gateway.deposit_address 
             SET bridge_address = $1 
             WHERE deposit_address = $2",
         )
-            .bind(bridge_address)
-            .bind(deposit_address)
-            .execute(&self.get_conn().await?)
-            .await?;
+        .bind(bridge_address)
+        .bind(deposit_address)
+        .execute(&self.get_conn().await?)
+        .await?;
 
         Ok(())
     }

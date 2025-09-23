@@ -9,6 +9,7 @@ readme.workspace = true
 [dependencies]
 anyhow = { workspace = true }
 async-trait = { workspace = true }
+bitcoin = { workspace = true }
 global_utils = { workspace = true }
 persistent_storage = { workspace = true }
 serde = { workspace = true }
@@ -20,6 +21,7 @@ url = { workspace = true }
 uuid = { workspace = true }
 btc_indexer_api = { workspace = true }
 titan-client = { workspace = true }
+ordinals = { workspace = true }
 
 [dev-dependencies]
 bitcoin = { workspace = true }
