@@ -55,5 +55,7 @@ pub async fn create_app(
         .route("/api/gateway/dkg-round-1", post(handlers::dkg_round_1::handle))
         .route("/api/gateway/dkg-round-2", post(handlers::dkg_round_2::handle))
         .route("/api/gateway/dkg-finalize", post(handlers::dkg_finalize::handle))
+        .route("/api/gateway/sign-round-1", post(handlers::sign_round_1::handle))
+        .route("/api/gateway/sign-round-2", post(handlers::sign_round_2::handle))
         .with_state(state)
 }

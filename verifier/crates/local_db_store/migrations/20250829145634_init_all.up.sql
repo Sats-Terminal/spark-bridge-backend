@@ -2,6 +2,8 @@ BEGIN TRANSACTION;
 
 CREATE SCHEMA verifier;
 
+----------- MUSIG_IDENTIFIER -----------
+
 CREATE TABLE IF NOT EXISTS verifier.musig_identifier
 (
     public_key TEXT    NOT NULL,
@@ -11,18 +13,22 @@ CREATE TABLE IF NOT EXISTS verifier.musig_identifier
     PRIMARY KEY (public_key, rune_id)
 );
 
+----------- SIGN_SESSION -----------
+
 CREATE TABLE IF NOT EXISTS verifier.sign_session
 (
     public_key   TEXT  NOT NULL,
     rune_id      TEXT  NOT NULL,
     session_id   TEXT  NOT NULL,
-    tweak        BYTEA NOT NULL,
+    tweak        BYTEA,
     message_hash BYTEA NOT NULL,
     metadata     JSON  NOT NULL,
     sign_state   JSON  NOT NULL,
     PRIMARY KEY (session_id),
     FOREIGN KEY (public_key, rune_id) REFERENCES verifier.musig_identifier (public_key, rune_id)
 );
+
+------------ DEPOSIT_ADDRESS -----------
 
 CREATE TABLE IF NOT EXISTS verifier.deposit_address
 (

@@ -82,6 +82,7 @@ async fn main() {
         "{}:{}",
         server_config.server_public.ip, server_config.server_public.port
     );
-    let listener = TcpListener::bind(addr_to_listen).await.unwrap();
+    let listener = TcpListener::bind(addr_to_listen.clone()).await.unwrap();
+    tracing::info!("Listening on {:?}", addr_to_listen);
     axum::serve(listener, app).await.unwrap();
 }
