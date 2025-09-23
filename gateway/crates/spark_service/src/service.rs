@@ -2,7 +2,7 @@ use crate::errors::SparkServiceError;
 use crate::types::create_partial_token_transaction;
 use crate::types::*;
 use bitcoin::hashes::sha256::Hash as Sha256Hash;
-use bitcoin::hashes::{Hash, HashEngine};
+use bitcoin::hashes::{Hash, HashEngine, sha256};
 use bitcoin::secp256k1::PublicKey;
 use frost::aggregator::FrostAggregator;
 use frost::types::MusigId;
@@ -22,6 +22,7 @@ use spark_protos::spark_token::InputTtxoSignaturesPerOperator;
 use spark_protos::spark_token::SignatureWithIndex;
 use spark_protos::spark_token::StartTransactionRequest;
 use token_identifier::TokenIdentifier;
+use spark_protos::prost::Message;
 
 const DEFAULT_VALIDITY_DURATION_SECONDS: u64 = 300;
 
@@ -69,6 +70,7 @@ impl SparkService {
     }
 
     async fn authenticate(&self, musig_id: MusigId, nonce_tweak: Option<Nonce>) -> Result<(), SparkServiceError> {
+        tracing::debug!("Authenticating with musig id: {:?}, nonce tweak: {:?}", musig_id, nonce_tweak);
         let identity_public_key = self.get_musig_public_key(musig_id.clone(), nonce_tweak).await?;
 
         let session_token = self.spark_client.get_auth_session(identity_public_key).await;
@@ -91,11 +93,13 @@ impl SparkService {
             .challenge
             .ok_or(SparkServiceError::DecodeError("Challenge is not found".to_string()))?;
 
+        let message_hash = sha256::Hash::hash(challenge.encode_to_vec().as_slice());
+
         let signature = self
             .frost_aggregator
             .run_signing_flow(
                 musig_id.clone(),
-                challenge.nonce.as_ref(),
+                message_hash.as_byte_array().as_slice(),
                 SigningMetadata::Authorization,
                 nonce_tweak,
             )
@@ -115,6 +119,8 @@ impl SparkService {
             })
             .await
             .map_err(|e| SparkServiceError::SparkClientError(format!("Failed to verify challenge: {}", e)))?;
+
+        tracing::debug!("Challenge verified for musig id: {:?}", musig_id);
 
         Ok(())
     }
