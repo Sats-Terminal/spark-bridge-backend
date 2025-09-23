@@ -10,4 +10,6 @@ pub enum SparkClientError {
     AuthenticationError(String),
     #[error("Failed to decode: {0}")]
     DecodeError(String),
+    #[error("No auth session found")]
+    NoAuthSessionFound(String),
 }

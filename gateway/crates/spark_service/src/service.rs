@@ -183,7 +183,7 @@ impl SparkService {
                     input_index: 0,
                 }],
                 validity_duration_seconds: DEFAULT_VALIDITY_DURATION_SECONDS,
-            })
+            }, identity_public_key)
             .await
             .map_err(|e| SparkServiceError::SparkClientError(e.to_string()))?;
 
@@ -262,7 +262,7 @@ impl SparkService {
                 final_token_transaction_hash: final_token_transaction_hash.to_byte_array().to_vec(),
                 input_ttxo_signatures_per_operator: signatures,
                 owner_identity_public_key: identity_public_key.serialize().to_vec(),
-            })
+            }, identity_public_key)
             .await
             .map_err(|e| SparkServiceError::SparkClientError(e.to_string()))?;
 

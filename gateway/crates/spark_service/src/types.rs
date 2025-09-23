@@ -42,7 +42,7 @@ pub fn create_partial_token_transaction(
             token_amount,
         } => {
             let token_transaction = TokenTransaction {
-                version: TokenTransactionVersion::V2,
+                version: TokenTransactionVersion::V4,
                 input: TokenTransactionInput::Mint(TokenTransactionMintInput {
                     issuer_public_key,
                     token_identifier: Some(token_identifier),
@@ -68,7 +68,7 @@ pub fn create_partial_token_transaction(
             token_ticker,
         } => {
             let token_transaction = TokenTransaction {
-                version: TokenTransactionVersion::V2,
+                version: TokenTransactionVersion::V4,
                 input: TokenTransactionInput::Create(TokenTransactionCreateInput {
                     issuer_public_key,
                     token_name,
