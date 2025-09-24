@@ -1,6 +1,7 @@
 use bitcoin::secp256k1;
 use persistent_storage::error::DbError;
 use thiserror::Error;
+use spark_address::SparkAddressError;
 
 #[derive(Error, Debug)]
 pub enum FlowProcessorError {
@@ -24,4 +25,6 @@ pub enum FlowProcessorError {
     SparkServiceError(String),
     #[error("Rune transfer error: {0}")]
     RuneTransferError(String),
+    #[error("Spark address error: {0}")]
+    SparkAddressError(#[from] SparkAddressError),
 }

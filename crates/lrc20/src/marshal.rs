@@ -33,12 +33,14 @@ pub fn marshal_token_transaction(
     tx: &TokenTransaction,
     with_revocation_commitments: bool,
 ) -> Result<TokenTransactionV2SparkProto, TokenTransactionError> {
-    let spark_operator_identity_public_keys = tx
+    let mut spark_operator_identity_public_keys: Vec<Vec<u8>> = tx
         .spark_operator_identity_public_keys
+        .clone()
         .iter()
-        .cloned()
         .map(|pubkey| pubkey.serialize().to_vec())
         .collect();
+
+    spark_operator_identity_public_keys.sort();
 
     let network = tx.network.ok_or(TokenTransactionError::NetworkMissing)?;
 

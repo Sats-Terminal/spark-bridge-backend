@@ -86,17 +86,14 @@ pub async fn handle(
             "Deposit address info not found".to_string(),
         ))?;
 
-    let receiver_spark_address = deposit_addr_info.bridge_address.ok_or(
         // TODO: remove this once we have deposit verification flow
-        // FlowProcessorError::InvalidDataError("Bridge address not found".to_string()),
-        encode_spark_address(SparkAddressData {
-            identity_public_key: deposit_addr_info.musig_id.get_public_key().to_string(),
-            network: convert_network_to_spark_network(flow_processor.network),
-            invoice: None,
-            signature: None,
-        })
-        .map_err(|e| FlowProcessorError::InvalidDataError(format!("Failed to encode bridge spark address: {}", e)))?,
-    ).map_err(|e| FlowProcessorError::InvalidDataError(format!("Failed to encode bridge spark address: {}", e)))?;
+    let receiver_spark_address = encode_spark_address(SparkAddressData {
+        identity_public_key: deposit_addr_info.musig_id.get_public_key().to_string(),
+        network: convert_network_to_spark_network(flow_processor.network),
+        invoice: None,
+        signature: None,
+    })
+        .map_err(|e| FlowProcessorError::SparkAddressError(e))?;
 
     flow_processor
         .spark_service

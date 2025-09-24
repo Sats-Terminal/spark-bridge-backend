@@ -103,7 +103,7 @@ impl SparkRpcClient {
                 .spark_token
                 .start_transaction(tonic_request)
                 .await
-                .map_err(|e| SparkClientError::ConnectionError(format!("Failed to start transaction: {}", e)))
+                .map_err(|e| SparkClientError::ConnectionError(format!("Failed to start transaction: {}", e.message())))
         };
 
         self.retry_query(query_fn, request).await.map(|r| r.into_inner())
@@ -131,7 +131,7 @@ impl SparkRpcClient {
                 .spark_token
                 .commit_transaction(tonic_request)
                 .await
-                .map_err(|e| SparkClientError::ConnectionError(format!("Failed to commit transaction: {}", e)))
+                .map_err(|e| SparkClientError::ConnectionError(format!("Failed to commit transaction: {}", e.message())))
         };
 
         self.retry_query(query_fn, request).await.map(|r| r.into_inner())

@@ -7,7 +7,7 @@ async fn test_spark() {
     });
 
     let get_runes_deposit_address_request = GetRunesDepositAddressRequest {
-        user_public_key: "0324f3e4fdd2d2c3f95d26d281868bbe4d68c6c7b573dbf57bf0d3454fd77b88c0".to_string(),
+        user_public_key: "0346ceb91af8542d954ca10408a3a02cfcccf521ddb7d8f674f8241c85cdfaef9b".to_string(),
         rune_id: "101:3".to_string(),
         amount: 1_000_000,
     };
