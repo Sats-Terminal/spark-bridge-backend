@@ -32,7 +32,10 @@ impl SparkTlsConnection {
         let base_url = self.spark_config.operators[self.coordinator_operator].base_url.clone();
         let uri = Uri::from_str(base_url.0.as_ref())
             .map_err(|e| SparkClientError::ConnectionError(format!("Failed to create URI: {}", e)))?;
-        let mut tls = ClientTlsConfig::new().ca_certificate(self.spark_config.certificate.get_certificate()?);
+        let mut tls = ClientTlsConfig::new();
+        for certificate in self.spark_config.certificates.iter() {
+            tls = tls.ca_certificate(certificate.get_certificate()?);
+        }
         if let Some(host) = uri.host() {
             tls = tls.domain_name(host);
         }

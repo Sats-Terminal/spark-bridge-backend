@@ -34,7 +34,7 @@ pub fn create_partial_token_transaction(
     spark_transaction_type: SparkTransactionType,
     token_identifier: TokenIdentifier,
     spark_operator_identity_public_keys: Vec<PublicKey>,
-    network: Network,
+    network: u32,
 ) -> Result<TokenTransaction, SparkServiceError> {
     match spark_transaction_type {
         SparkTransactionType::Mint {
@@ -57,7 +57,7 @@ pub fn create_partial_token_transaction(
                 )],
                 spark_operator_identity_public_keys,
                 expiry_time: 0,
-                network: Some(network as u32),
+                network: Some(network),
                 client_created_timestamp: chrono::Utc::now().timestamp_millis() as u64,
                 invoice_attachments: Default::default(),
             };
@@ -81,7 +81,7 @@ pub fn create_partial_token_transaction(
                 leaves_to_create: vec![],
                 spark_operator_identity_public_keys,
                 expiry_time: 0,
-                network: Some(network as u32),
+                network: Some(network),
                 client_created_timestamp: chrono::Utc::now().timestamp_millis() as u64,
                 invoice_attachments: Default::default(),
             };

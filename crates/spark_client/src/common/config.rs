@@ -30,7 +30,7 @@ impl CertificateConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SparkConfig {
     pub operators: Vec<SparkOperatorConfig>,
-    pub certificate: CertificateConfig,
+    pub certificates: Vec<CertificateConfig>,
 }
 
 impl SparkConfig {
