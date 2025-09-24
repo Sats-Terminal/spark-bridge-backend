@@ -6,7 +6,6 @@ use ordinals::RuneId;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::str::FromStr;
-use titan_client::TxOut;
 use utoipa::{PartialSchema, openapi};
 
 pub struct BtcIndexerApi;

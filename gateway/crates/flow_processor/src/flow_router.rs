@@ -1,6 +1,6 @@
 use crate::error::FlowProcessorError;
 use crate::types::*;
-use bitcoin::{KnownHrp, Network};
+use bitcoin::Network;
 use frost::aggregator::FrostAggregator;
 use gateway_config_parser::config::VerifierConfig;
 use gateway_local_db_store::storage::LocalDbStorage;

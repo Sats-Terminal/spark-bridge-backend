@@ -8,13 +8,21 @@ swagger = []
 
 [dependencies]
 axum = { workspace = true }
+bech32 = { workspace = true }
+global_utils = { workspace = true }
+hex = { workspace = true }
 serde = { workspace = true }
+spark-address = { workspace = true }
+spark-protos = { workspace = true }
 spark_client = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 utoipa = { workspace = true }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
-hex = { workspace = true }
-spark-protos = { workspace = true }
-bech32 = { workspace = true }
-spark-address = { workspace = true }
+
+[dev-dependencies]
+anyhow = { workspace = true }
+axum-test = { workspace = true }
+dotenv = { workspace = true }
+tokio = { workspace = true }
+spark_balance_checker_config_parser = { workspace = true }

@@ -10,4 +10,6 @@ pub enum DepositVerificationError {
     FlowProcessorError(String),
     #[error("Http error: {0}")]
     HttpError(String),
+    #[error("Failed to check status of verifier id: {id}, msg: [{msg}]")]
+    FailedToCheckStatusOfVerifier { id: u16, msg: String },
 }

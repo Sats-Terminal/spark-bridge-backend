@@ -17,7 +17,7 @@ async fn main() -> anyhow::Result<()> {
     // Init configs
     let config_path = ConfigPath::from_env()?;
     let app_config = ServerConfig::init_config(ConfigVariant::OnlyOneFilepath(config_path.path))?;
-    let (btc_creds, postgres_creds) = (BtcRpcCredentials::new()?, PostgresDbCredentials::from_envs()?);
+    let (btc_creds, postgres_creds) = (BtcRpcCredentials::new()?, PostgresDbCredentials::from_db_url()?);
 
     // Init App
     let db_pool = LocalDbStorage::from_config(postgres_creds).await?;

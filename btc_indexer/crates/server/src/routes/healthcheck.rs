@@ -2,7 +2,7 @@ use crate::AppState;
 use crate::error::ServerError;
 use axum::Json;
 use axum::extract::State;
-use btc_indexer_api::api::{TrackTxRequest, TrackTxResponse};
+use btc_indexer_api::api::TrackTxResponse;
 use btc_indexer_internals::api::BtcIndexerApi;
 use btc_indexer_internals::tx_arbiter::TxArbiterTrait;
 use global_utils::common_resp::Empty;

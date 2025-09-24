@@ -259,4 +259,9 @@ impl FrostSigner {
             )),
         }
     }
+
+    pub fn healthcheck(&self) -> Result<(), SignerError> {
+        // TODO: maybe perform some internal checks
+        Ok(())
+    }
 }

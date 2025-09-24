@@ -18,7 +18,7 @@ const NAN_BITS: u64 = 0x7FF8000000000001;
 pub(crate) fn hash_fields_by_names(message: &DynamicMessage, names: &[&str]) -> Result<Sha256Hash, ProtoHasherError> {
     let mut hash_engine = Sha256Hash::engine();
 
-    hash_engine.input(&LIST_IDENTIFIER.as_bytes());
+    hash_engine.input(LIST_IDENTIFIER.as_bytes());
 
     for name in names {
         let descriptor = message.descriptor();

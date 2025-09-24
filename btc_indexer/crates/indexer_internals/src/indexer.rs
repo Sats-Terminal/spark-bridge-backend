@@ -116,11 +116,17 @@ impl<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArbiterTrait> BtcIndexerAp
         Ok(())
     }
 
-    #[instrument(level = "debug", skip(self), ret)]
+    #[instrument(level = "debug", skip(self), err)]
     async fn healthcheck(&self) -> crate::error::Result<()> {
         if self.task_tracker.is_closed() {
-            return Err(BtcIndexerError::ThreadsClosedError);
+            return Err(BtcIndexerError::HealthcheckError(
+                "Threads closed, check internal logic".to_string(),
+            ));
         }
+        self.persistent_storage
+            .healthcheck()
+            .await
+            .map_err(|e| BtcIndexerError::HealthcheckError(e.to_string()))?;
         Ok(())
     }
 

@@ -14,6 +14,14 @@ pub struct AppState {
 #[openapi(paths(handlers::get_balance::handle))]
 struct ApiDoc;
 
+pub struct SparkBalanceCheckerApi;
+
+impl SparkBalanceCheckerApi {
+    /// Represents hardcoded `/track_tx` endpoint
+    pub const GET_BALANCE_ENDPOINT: &'static str = "/balance";
+    pub const HEALTHCHECK_ENDPOINT: &'static str = "/healthcheck";
+}
+
 #[instrument(level = "debug", ret, skip(config), fields(operators=?config.operators))]
 pub async fn create_app(config: SparkConfig) -> Router {
     info!(
@@ -24,7 +32,14 @@ pub async fn create_app(config: SparkConfig) -> Router {
         client: SparkRpcClient::new(config).await.unwrap(),
     };
     let app = Router::new()
-        .route("/balance", post(handlers::get_balance::handle))
+        .route(
+            SparkBalanceCheckerApi::GET_BALANCE_ENDPOINT,
+            post(handlers::get_balance::handle),
+        )
+        .route(
+            SparkBalanceCheckerApi::HEALTHCHECK_ENDPOINT,
+            post(handlers::healthcheck::handle),
+        )
         .with_state(state);
 
     #[cfg(feature = "swagger")]

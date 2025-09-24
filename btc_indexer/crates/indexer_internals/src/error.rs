@@ -8,8 +8,8 @@ pub enum BtcIndexerError {
     TitanTcpClientError(#[from] titan_client::TitanTcpClientError),
     #[error("Receive db client failure, error: {0}")]
     DatabaseError(#[from] DbError),
-    #[error("Threads closed, check internal logic")]
-    ThreadsClosedError,
+    #[error("Healthcheck failed, error: {0}")]
+    HealthcheckError(String),
 }
 
 pub type Result<T> = std::result::Result<T, BtcIndexerError>;

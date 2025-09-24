@@ -77,7 +77,7 @@ pub struct MockAggregatorSignSessionStorage {
 impl MockAggregatorMusigIdStorage {
     pub fn new() -> Self {
         Self {
-            storage: Arc::new(Mutex::new(BTreeMap::new())),
+            storage: Arc::new(Mutex::new(BTreeMap::default())),
         }
     }
 }
@@ -85,7 +85,7 @@ impl MockAggregatorMusigIdStorage {
 impl MockAggregatorSignSessionStorage {
     pub fn new() -> Self {
         Self {
-            storage: Arc::new(Mutex::new(BTreeMap::new())),
+            storage: Arc::new(Mutex::new(BTreeMap::default())),
         }
     }
 }

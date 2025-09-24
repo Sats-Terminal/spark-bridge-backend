@@ -4,7 +4,6 @@ use crate::{
     connection::{SparkServicesClients, SparkTlsConnection},
 };
 use bitcoin::secp256k1::PublicKey;
-use log;
 use spark_protos::spark::{QueryTokenOutputsRequest, QueryTokenOutputsResponse};
 use spark_protos::spark_authn::{
     GetChallengeRequest, GetChallengeResponse, VerifyChallengeRequest, VerifyChallengeResponse,
@@ -15,6 +14,7 @@ use spark_protos::spark_token::{
 use std::collections::HashMap;
 use std::{future::Future, sync::Arc};
 use tokio::sync::Mutex;
+use tracing;
 
 const N_QUERY_RETRIES: usize = 3;
 
@@ -53,10 +53,10 @@ impl SparkRpcClient {
                     return Ok(response);
                 }
                 Err(e) => {
-                    log::error!("Query failed, retry {}/{}: {:?}", _j + 1, N_QUERY_RETRIES, e);
+                    tracing::error!("Query failed, retry {}/{}: {:?}", _j + 1, N_QUERY_RETRIES, e);
                 }
             }
-            log::info!("Sleeping for 100ms and retrying");
+            tracing::info!("Sleeping for 100ms and retrying");
             tokio::time::sleep(std::time::Duration::from_millis(100)).await;
         }
 
@@ -173,27 +173,27 @@ impl SparkRpcClient {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::config::{CaCertificate, SparkConfig, SparkOperatorConfig};
-    use crate::utils::spark_address::decode_spark_address;
+    use crate::common::config::{CaCertificate, CertificateConfig, SparkConfig, SparkOperatorConfig};
     use global_utils::common_types::{Url, UrlWrapped};
+    use global_utils::logger::{LoggerGuard, init_logger};
+    use spark_address::decode_spark_address;
     use std::str::FromStr;
+    use std::sync::LazyLock;
+    use tracing::info;
 
-    fn init_logger() {
-        let _ = env_logger::builder()
-            .filter_level(log::LevelFilter::Info)
-            .is_test(true)
-            .try_init();
-    }
+    const PATH_TO_CA_PEM: &str = "../../infrastructure/configurations/common/ca.pem";
+
+    pub static TEST_LOGGER: LazyLock<LoggerGuard> = LazyLock::new(|| init_logger());
 
     #[tokio::test]
     async fn test_get_balances_direct() -> anyhow::Result<()> {
-        init_logger();
-        log::info!("Starting test");
+        let _logger_guard = &*TEST_LOGGER;
+        info!("Starting test");
 
         let address = "sprt1pgss8fxt9jxuv4dgjwrg539s6u06ueausq076xvfej7wdah0htvjlxunt9fa4n".to_string();
         let rune_id = "btknrt1p2sy7a8cx5pqfm3u4p2qfqa475fgwj3eg5d03hhk47t66605zf6qg52vj2".to_string();
 
-        let address_data = decode_spark_address(address)?;
+        let address_data = decode_spark_address(&address)?;
 
         let identity_public_key = hex::decode(address_data.identity_public_key)
             .map_err(|e| SparkClientError::DecodeError(format!("Failed to decode identity public key: {}", e)))?;
@@ -217,7 +217,9 @@ mod tests {
                 running_authority: "".to_string(),
                 is_coordinator: Some(true),
             }],
-            ca_pem: CaCertificate::from_path("../../spark_balance_checker/infrastructure/configuration/ca.pem")?.ca_pem,
+            certificate: CertificateConfig {
+                path: PATH_TO_CA_PEM.to_string(),
+            },
         };
 
         let balance_checker = SparkRpcClient::new(config).await.unwrap();
@@ -226,10 +228,10 @@ mod tests {
 
         for output in response.outputs_with_previous_transaction_data {
             if let Some(output) = output.output {
-                log::info!("token identifier: {:?}", hex::encode(output.token_identifier.unwrap()));
-                log::info!("token pubkey: {:?}", hex::encode(output.token_public_key.unwrap()));
+                info!("token identifier: {:?}", hex::encode(output.token_identifier.unwrap()));
+                info!("token pubkey: {:?}", hex::encode(output.token_public_key.unwrap()));
                 let amount = u128::from_be_bytes(output.token_amount.try_into().unwrap());
-                log::info!("amount: {:?}", amount);
+                info!("amount: {:?}", amount);
             }
         }
         Ok(())

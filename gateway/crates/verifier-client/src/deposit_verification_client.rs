@@ -19,7 +19,7 @@ impl VerificationClient for VerifierClient {
             DepositVerificationError::InvalidRequest(format!("Failed to get URL for watch runes deposit: {}", e))
         })?;
 
-        self.send_request(url, request).await.map_err(|e| {
+        self.send_post_json_request(url, request).await.map_err(|e| {
             DepositVerificationError::HttpError(format!("Failed to send request for watch runes deposit: {}", e))
         })
     }
@@ -32,7 +32,7 @@ impl VerificationClient for VerifierClient {
             DepositVerificationError::InvalidRequest(format!("Failed to get URL for watch spark deposit: {}", e))
         })?;
 
-        self.send_request(url, request).await.map_err(|e| {
+        self.send_post_json_request(url, request).await.map_err(|e| {
             DepositVerificationError::HttpError(format!("Failed to send request for watch spark deposit: {}", e))
         })
     }

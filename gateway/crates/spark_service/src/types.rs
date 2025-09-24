@@ -10,7 +10,6 @@ use lrc20::token_transaction::TokenTransactionInput;
 use lrc20::token_transaction::TokenTransactionMintInput;
 use lrc20::token_transaction::TokenTransactionVersion;
 use spark_address::Network;
-use spark_protos::spark_token::TokenTransaction as TokenTransactionSparkProto;
 use token_identifier::TokenIdentifier;
 
 const DEFAULT_MAX_SUPPLY: u64 = 21_000_000_000;

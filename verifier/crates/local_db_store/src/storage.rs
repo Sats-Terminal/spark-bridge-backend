@@ -1,9 +1,18 @@
+use async_trait::async_trait;
 pub use persistent_storage::error::DbError;
+use persistent_storage::init::{PersistentRepoTrait, StorageHealthcheck};
 use persistent_storage::{config::*, init::PostgresPool, init::PostgresRepo};
 
 #[derive(Clone, Debug)]
 pub struct LocalDbStorage {
     pub postgres_repo: PostgresRepo,
+}
+
+#[async_trait]
+impl StorageHealthcheck for LocalDbStorage {
+    async fn healthcheck(&self) -> Result<(), DbError> {
+        self.postgres_repo.healthcheck().await
+    }
 }
 
 impl LocalDbStorage {

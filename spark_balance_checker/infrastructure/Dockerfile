@@ -29,9 +29,6 @@ FROM debian:bullseye
 
 RUN apt-get update
 
-# Copying configs
-COPY ./spark_balance_checker/infrastructure/configuration/base.toml /configuration_spark_balance_checker/base.toml
-
 # Copying binaries
 COPY --from=builder /usr/local/cargo/bin/spark_balance_checker_main /usr/local/bin/spark_balance_checker_main
 CMD ["spark_balance_checker_main"]

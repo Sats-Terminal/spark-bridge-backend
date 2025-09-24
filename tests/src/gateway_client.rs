@@ -1,4 +1,3 @@
-use bitcoin::Address;
 use reqwest::Client;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use thiserror::Error;

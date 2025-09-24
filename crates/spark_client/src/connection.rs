@@ -63,20 +63,18 @@ impl SparkTlsConnection {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::config::{CaCertificate, SparkOperatorConfig};
-    use env_logger;
+    use crate::common::config::{CaCertificate, CertificateConfig, SparkOperatorConfig};
     use global_utils::common_types::{Url, UrlWrapped};
+    use global_utils::logger::{LoggerGuard, init_logger};
+    use std::sync::LazyLock;
     use tokio;
-    fn init_logger() {
-        let _ = env_logger::builder()
-            .filter_level(log::LevelFilter::Info)
-            .is_test(true)
-            .try_init();
-    }
+
+    const PATH_TO_CA_PEM: &str = "../../infrastructure/configurations/common/ca.pem";
+    pub static TEST_LOGGER: LazyLock<LoggerGuard> = LazyLock::new(|| init_logger());
 
     #[tokio::test]
     async fn test_get_client() -> anyhow::Result<()> {
-        init_logger();
+        let _logger_guard = &*TEST_LOGGER;
 
         let spark_config = SparkConfig {
             operators: vec![SparkOperatorConfig {
@@ -87,10 +85,12 @@ mod tests {
                 running_authority: "".to_string(),
                 is_coordinator: Some(true),
             }],
-            ca_pem: CaCertificate::from_path("../../spark_balance_checker/infrastructure/configuration/ca.pem")?.ca_pem,
+            certificate: CertificateConfig {
+                path: PATH_TO_CA_PEM.to_string(),
+            },
         };
         let connection = SparkTlsConnection::new(spark_config).unwrap();
-        connection.create_clients().await.unwrap();
+        connection.create_clients().await?;
         Ok(())
     }
 }

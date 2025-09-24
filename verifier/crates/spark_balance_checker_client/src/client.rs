@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use verifier_config_parser::config::SparkBalanceCheckerConfig;
 
 const GET_BALANCE_PATH: &str = "/balance";
+const HEALTHCHECK_PATH: &str = "/healthcheck";
 
 #[derive(Clone, Debug)]
 pub struct SparkBalanceCheckerClient {
@@ -54,6 +55,30 @@ impl SparkBalanceCheckerClient {
         } else {
             Err(SparkBalanceCheckerClientError::HttpError(format!(
                 "Failed to send HTTP request with status {}, error: {}",
+                response.status(),
+                response.text().await.unwrap_or_default()
+            )))
+        }
+    }
+
+    #[tracing::instrument(skip_all, err)]
+    pub async fn healthcheck(&self) -> Result<(), SparkBalanceCheckerClientError> {
+        let url =
+            self.config.address.join(HEALTHCHECK_PATH).map_err(|e| {
+                SparkBalanceCheckerClientError::DeserializeError(format!("Failed to join URL: {:?}", e))
+            })?;
+        let response = self
+            .client
+            .post(url)
+            .send()
+            .await
+            .map_err(|e| SparkBalanceCheckerClientError::HttpError(format!("Failed to send request: {:?}", e)))?;
+
+        if response.status().is_success() {
+            Ok(())
+        } else {
+            Err(SparkBalanceCheckerClientError::HttpError(format!(
+                "Failed to send {HEALTHCHECK_PATH} HTTP request with status {}, error: {}",
                 response.status(),
                 response.text().await.unwrap_or_default()
             )))
