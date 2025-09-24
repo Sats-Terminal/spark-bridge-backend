@@ -56,12 +56,13 @@ impl AggregatorMusigIdStorage for LocalDbStorage {
         Ok(())
     }
 
-    async fn get_issuer_musig_id(&self) -> Result<Option<MusigId>, DbError> {
+    async fn get_issuer_musig_id(&self, rune_id: String) -> Result<Option<MusigId>, DbError> {
         let result: Option<(String, String)> = sqlx::query_as(
             "SELECT public_key, rune_id 
             FROM gateway.musig_identifier 
-            WHERE is_issuer = true",
+            WHERE is_issuer = true AND rune_id = $1",
         )
+        .bind(rune_id)
         .fetch_optional(&self.get_conn().await?)
         .await
         .map_err(|e| DbError::BadRequest(e.to_string()))?;

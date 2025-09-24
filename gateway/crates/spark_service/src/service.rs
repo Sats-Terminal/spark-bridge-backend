@@ -266,6 +266,8 @@ impl SparkService {
             .into_iter()
             .collect::<Result<Vec<InputTtxoSignaturesPerOperator>, SparkServiceError>>()?;
 
+        tracing::debug!("Sending commit transaction");
+
         let _ = self
             .spark_client
             .commit_token_transaction(CommitTransactionRequest {

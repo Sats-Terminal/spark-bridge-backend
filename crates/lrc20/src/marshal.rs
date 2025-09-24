@@ -200,6 +200,7 @@ pub fn unmarshal_token_transaction(
         0 => TokenTransactionVersion::V1,
         1 => TokenTransactionVersion::V2,
         2 => TokenTransactionVersion::V3,
+        3 => TokenTransactionVersion::V4,
         _ => {
             return Err(TokenTransactionError::InvalidTokenTransactionVersion(token_tx.version));
         }

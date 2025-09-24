@@ -9,8 +9,8 @@ use lrc20::token_transaction::TokenTransactionCreateInput;
 use lrc20::token_transaction::TokenTransactionInput;
 use lrc20::token_transaction::TokenTransactionMintInput;
 use lrc20::token_transaction::TokenTransactionVersion;
-use spark_address::Network;
-use spark_protos::spark_token::TokenTransaction as TokenTransactionSparkProto;
+use spark_address::decode_spark_address;
+use std::str::FromStr;
 use token_identifier::TokenIdentifier;
 
 const DEFAULT_MAX_SUPPLY: u64 = 21_000_000_000;
@@ -20,7 +20,7 @@ const DEFAULT_IS_FREEZABLE: bool = false;
 #[derive(Debug, Clone)]
 pub enum SparkTransactionType {
     Mint {
-        receiver_identity_public_key: PublicKey,
+        receiver_spark_address: String,
         token_amount: u64,
     },
     Create {
@@ -38,9 +38,13 @@ pub fn create_partial_token_transaction(
 ) -> Result<TokenTransaction, SparkServiceError> {
     match spark_transaction_type {
         SparkTransactionType::Mint {
-            receiver_identity_public_key,
+            receiver_spark_address,
             token_amount,
         } => {
+            let spark_address_data = decode_spark_address(&receiver_spark_address)?;
+            let receiver_identity_public_key = PublicKey::from_str(&spark_address_data.identity_public_key)
+                .map_err(|e| SparkServiceError::InvalidData(format!("Failed to parse receiver identity public key: {}", e)))?;
+
             let token_transaction = TokenTransaction {
                 version: TokenTransactionVersion::V4,
                 input: TokenTransactionInput::Mint(TokenTransactionMintInput {

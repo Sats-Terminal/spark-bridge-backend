@@ -16,6 +16,7 @@ use std::collections::HashMap;
 use std::{future::Future, sync::Arc};
 use tokio::sync::Mutex;
 use tonic::metadata::MetadataValue;
+use tracing;
 
 const N_QUERY_RETRIES: usize = 3;
 
@@ -113,6 +114,7 @@ impl SparkRpcClient {
         request: CommitTransactionRequest,
         user_public_key: PublicKey,
     ) -> Result<CommitTransactionResponse, SparkClientError> {
+        tracing::debug!("Client sending commit transaction");
         let spark_session = self.get_auth_session(user_public_key).await
             .ok_or_else(|| SparkClientError::NoAuthSessionFound(format!("No auth session found for user public key: {}", user_public_key)))?;
         let request = CommitTransactionRequestWithAuth {

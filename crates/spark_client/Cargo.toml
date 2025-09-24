@@ -19,6 +19,7 @@ lrc20 = { workspace = true }
 chrono = { workspace = true }
 eyre = { workspace = true }
 spark-address = { workspace = true }
+tracing = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
