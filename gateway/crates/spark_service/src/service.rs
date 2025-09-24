@@ -133,11 +133,17 @@ impl SparkService {
         transaction_type: SparkTransactionType,
         network: Network,
     ) -> Result<(), SparkServiceError> {
+        tracing::debug!("Send spark transaction with musig id: {:?}, nonce tweak: {:?}", musig_id, nonce_tweak);
+
         self.authenticate(musig_id.clone(), nonce_tweak).await?;
+
+        tracing::debug!("Network: {:?}", network);
 
         let identity_public_key = self.get_musig_public_key(musig_id.clone(), nonce_tweak).await?;
 
         // ----- Start the transaction -----
+
+        tracing::debug!("Start the transaction");
 
         let partial_token_transaction = create_partial_token_transaction(
             identity_public_key,
@@ -187,7 +193,11 @@ impl SparkService {
             .await
             .map_err(|e| SparkServiceError::SparkClientError(e.to_string()))?;
 
+        tracing::debug!("Transaction started");
+
         // ----- Finalize the transaction -----
+
+        tracing::debug!("Finalize the transaction");
 
         let final_token_transaction_proto = response.final_token_transaction.ok_or(SparkServiceError::DecodeError(
             "Final token transaction is not found".to_string(),
@@ -265,6 +275,8 @@ impl SparkService {
             }, identity_public_key)
             .await
             .map_err(|e| SparkServiceError::SparkClientError(e.to_string()))?;
+
+        tracing::debug!("Transaction committed");
 
         Ok(())
     }
