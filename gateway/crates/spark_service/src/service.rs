@@ -134,7 +134,7 @@ impl SparkService {
         transaction_type: SparkTransactionType,
         network: Network,
     ) -> Result<(), SparkServiceError> {
-        tracing::debug!("Send spark transaction with musig id: {:?}, nonce tweak: {:?}", musig_id, nonce_tweak);
+        tracing::debug!("Send spark transaction with musig id: {:?}, nonce tweak: {:?}, token identifier: {:?}", musig_id, nonce_tweak, token_identifier.to_string());
 
         self.authenticate(musig_id.clone(), nonce_tweak).await?;
 
@@ -268,7 +268,7 @@ impl SparkService {
 
         tracing::debug!("Sending commit transaction");
 
-        let _ = self
+        let response = self
             .spark_client
             .commit_token_transaction(CommitTransactionRequest {
                 final_token_transaction: Some(final_token_transaction_proto),
@@ -278,6 +278,8 @@ impl SparkService {
             }, identity_public_key)
             .await
             .map_err(|e| SparkServiceError::SparkClientError(e.to_string()))?;
+
+        tracing::debug!("Commit transaction response: {:?}", response);
 
         tracing::debug!("Transaction committed");
 

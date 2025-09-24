@@ -87,6 +87,7 @@ impl SparkRpcClient {
         request: StartTransactionRequest,
         user_public_key: PublicKey,
     ) -> Result<StartTransactionResponse, SparkClientError> {
+        tracing::debug!("Client sending start transaction");
         let spark_session = self.get_auth_session(user_public_key).await
             .ok_or_else(|| SparkClientError::NoAuthSessionFound(format!("No auth session found for user public key: {}", user_public_key)))?;
         let request = StartTransactionRequestWithAuth {
