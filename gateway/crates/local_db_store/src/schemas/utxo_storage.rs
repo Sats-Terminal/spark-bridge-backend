@@ -1,3 +1,4 @@
+use std::str::FromStr;
 use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
 use bitcoin::OutPoint;
@@ -5,10 +6,10 @@ use persistent_storage::error::DbError;
 use serde::{Deserialize, Serialize};
 use sqlx::{Postgres, Transaction};
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone)]
 pub struct Utxo {
     pub out_point: OutPoint,
-    pub btc_address: String,
+    pub btc_address: bitcoin::Address,
     pub rune_amount: u64,
     pub rune_id: String,
     pub status: UtxoStatus,
@@ -28,8 +29,11 @@ struct UtxoRow {
 impl From<UtxoRow> for Utxo {
     fn from(row: UtxoRow) -> Self {
         Self {
-            out_point: row.out_point.to_string().parse().unwrap(),
-            btc_address: row.btc_address,
+            out_point: row.out_point.parse().unwrap(),
+            btc_address: bitcoin::Address::from_str(&row.btc_address)
+                .unwrap()
+                .require_network(bitcoin::Network::Bitcoin)
+                .unwrap(),
             rune_amount: row.rune_amount as u64,
             rune_id: row.rune_id,
             status: row.status,
@@ -81,16 +85,15 @@ impl UtxoStorage for LocalDbStorage {
                 rune_id = EXCLUDED.rune_id,
                 status = EXCLUDED.status,
                 btc_address = EXCLUDED.btc_address,
-                transaction = EXCLUDED.transaction,
                 sats_fee_amount = EXCLUDED.sats_fee_amount
-            RETURNING out_point, rune_amount, rune_id, status, btc_address, transaction, sats_fee_amount
+            RETURNING out_point, rune_amount, rune_id, status, btc_address, sats_fee_amount
             "#,
         )
         .bind(utxo.out_point.to_string())
         .bind(utxo.rune_amount as i64)
         .bind(&utxo.rune_id)
         .bind(utxo.status)
-        .bind(&utxo.btc_address)
+        .bind(&utxo.btc_address.to_string())
         .bind(utxo.sats_fee_amount as i64)
         .fetch_one(&self.postgres_repo.pool)
         .await
