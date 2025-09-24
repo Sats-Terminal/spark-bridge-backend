@@ -1,6 +1,6 @@
 mod tests {
     use chrono::Utc;
-    use gateway_local_db_store::storage::LocalDbStorage;
+    use gateway_local_db_store::storage::{make_repo_with_config, LocalDbStorage};
     // use gateway_runes_utxo_manager::traits::{CoinSelector, Utxo, UtxoManager, UtxoStatus, UtxoStorage};
     // use gateway_runes_utxo_manager::utxo_manager::GreedySelector;
     use gateway_local_db_store::schemas::utxo_storage::Utxo;
@@ -10,17 +10,11 @@ mod tests {
     use std::sync::Arc;
     use std::sync::atomic::{AtomicU64, Ordering};
 
-    async fn make_repo(db: PostgresPool) -> Arc<LocalDbStorage> {
-        Arc::new(LocalDbStorage {
-            postgres_repo: PostgresRepo { pool: db },
-        })
-    }
-
     pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
 
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_select_and_lock_basic_flow(db: PostgresPool) -> Result<(), DatabaseError> {
-        let repo = make_repo(db).await;
+        let repo = make_repo_with_config(db).await;
 
         sqlx::query("TRUNCATE gateway.utxo RESTART IDENTITY CASCADE")
             .execute(&repo.postgres_repo.pool)
@@ -98,7 +92,7 @@ mod tests {
     #[sqlx::test(migrator = "MIGRATOR")]
 
     async fn test_select_exact_and_single_large_utxo(db: PostgresPool) -> Result<(), DatabaseError> {
-        let repo = make_repo(db).await;
+        let repo = make_repo_with_config(db).await;
 
         sqlx::query("TRUNCATE gateway.utxo RESTART IDENTITY CASCADE")
             .execute(&repo.postgres_repo.pool)
@@ -195,7 +189,7 @@ mod tests {
     #[sqlx::test(migrator = "MIGRATOR")]
 
     async fn test_insufficient_funds_rollback(db: PostgresPool) -> Result<(), DatabaseError> {
-        let repo = make_repo(db).await;
+        let repo = make_repo_with_config(db).await;
 
         sqlx::query("TRUNCATE gateway.utxo RESTART IDENTITY CASCADE")
             .execute(&repo.postgres_repo.pool)
@@ -244,7 +238,7 @@ mod tests {
     #[sqlx::test(migrator = "MIGRATOR")]
 
     async fn test_unlock_mark_spent_and_update_status(db: PostgresPool) -> Result<(), DatabaseError> {
-        let repo = make_repo(db).await;
+        let repo = make_repo_with_config(db).await;
 
         sqlx::query("TRUNCATE gateway.utxo RESTART IDENTITY CASCADE")
             .execute(&repo.postgres_repo.pool)
@@ -299,7 +293,7 @@ mod tests {
     #[sqlx::test(migrator = "MIGRATOR")]
 
     async fn test_concurrent_selection_one_wins(db: PostgresPool) -> Result<(), DatabaseError> {
-        let repo = make_repo(db).await;
+        let repo = make_repo_with_config(db).await;
 
         sqlx::query("TRUNCATE gateway.utxo RESTART IDENTITY CASCADE")
             .execute(&repo.postgres_repo.pool)
@@ -418,7 +412,7 @@ mod tests {
     #[sqlx::test(migrator = "MIGRATOR")]
 
     async fn test_insert_utxo(db: PostgresPool) -> Result<(), DatabaseError> {
-        let repo = make_repo(db).await;
+        let repo = make_repo_with_config(db).await;
 
         cleanup_test_db(repo.clone()).await;
 
@@ -446,7 +440,7 @@ mod tests {
     #[sqlx::test(migrator = "MIGRATOR")]
 
     async fn test_insert_pending_utxo(db: PostgresPool) -> Result<(), DatabaseError> {
-        let repo = make_repo(db).await;
+        let repo = make_repo_with_config(db).await;
 
         cleanup_test_db(repo.clone()).await;
 
@@ -473,7 +467,7 @@ mod tests {
     #[sqlx::test(migrator = "MIGRATOR")]
 
     async fn test_update_status(db: PostgresPool) -> Result<(), DatabaseError> {
-        let repo = make_repo(db).await;
+        let repo = make_repo_with_config(db).await;
 
         cleanup_test_db(repo.clone()).await;
 
@@ -507,7 +501,7 @@ mod tests {
     #[sqlx::test(migrator = "MIGRATOR")]
 
     async fn test_update_status_not_found(db: PostgresPool) -> Result<(), DatabaseError> {
-        let repo = make_repo(db).await;
+        let repo = make_repo_with_config(db).await;
 
         cleanup_test_db(repo.clone()).await;
 
@@ -521,7 +515,7 @@ mod tests {
     #[sqlx::test(migrator = "MIGRATOR")]
 
     async fn test_list_unspent_includes_pending(db: PostgresPool) -> Result<(), DatabaseError> {
-        let repo = make_repo(db).await;
+        let repo = make_repo_with_config(db).await;
 
         cleanup_test_db(repo.clone()).await;
 
@@ -562,7 +556,7 @@ mod tests {
 
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_select_and_lock_utxos(db: PostgresPool) -> Result<(), DatabaseError> {
-        let repo = make_repo(db).await;
+        let repo = make_repo_with_config(db).await;
 
         cleanup_test_db(repo.clone()).await;
 
@@ -610,7 +604,7 @@ mod tests {
     #[sqlx::test(migrator = "MIGRATOR")]
 
     async fn test_select_and_lock_insufficient_funds(db: PostgresPool) -> Result<(), DatabaseError> {
-        let repo = make_repo(db).await;
+        let repo = make_repo_with_config(db).await;
 
         cleanup_test_db(repo.clone()).await;
 
@@ -634,7 +628,7 @@ mod tests {
     #[sqlx::test(migrator = "MIGRATOR")]
 
     async fn test_unlock_utxos(db: PostgresPool) -> Result<(), DatabaseError> {
-        let repo = make_repo(db).await;
+        let repo = make_repo_with_config(db).await;
 
         cleanup_test_db(repo.clone()).await;
 
@@ -659,7 +653,7 @@ mod tests {
     #[sqlx::test(migrator = "MIGRATOR")]
 
     async fn test_unlock_empty_list(db: PostgresPool) -> Result<(), DatabaseError> {
-        let repo = make_repo(db).await;
+        let repo = make_repo_with_config(db).await;
 
         let result = repo.unlock_utxos_ids(&[]).await;
         assert!(result.is_ok());
@@ -670,7 +664,7 @@ mod tests {
     #[sqlx::test(migrator = "MIGRATOR")]
 
     async fn test_set_block_height_not_found(db: PostgresPool) -> Result<(), DatabaseError> {
-        let repo = make_repo(db).await;
+        let repo = make_repo_with_config(db).await;
 
         cleanup_test_db(repo.clone()).await;
 
@@ -684,7 +678,7 @@ mod tests {
     #[sqlx::test(migrator = "MIGRATOR")]
 
     async fn test_concurrent_select_and_lock(db: PostgresPool) -> Result<(), DatabaseError> {
-        let repo = make_repo(db).await;
+        let repo = make_repo_with_config(db).await;
 
         cleanup_test_db(repo.clone()).await;
 
@@ -786,7 +780,7 @@ mod tests {
     #[sqlx::test(migrator = "MIGRATOR")]
 
     async fn test_comprehensive_flow(db: PostgresPool) -> Result<(), DatabaseError> {
-        let repo = make_repo(db).await;
+        let repo = make_repo_with_config(db).await;
 
         cleanup_test_db(repo.clone()).await;
 
@@ -877,7 +871,7 @@ mod tests {
     #[sqlx::test(migrator = "MIGRATOR")]
 
     async fn test_comprehensive_flow_v2(db: PostgresPool) -> Result<(), DatabaseError> {
-        let repo = make_repo(db).await;
+        let repo = make_repo_with_config(db).await;
 
         cleanup_test_db(repo.clone()).await;
 

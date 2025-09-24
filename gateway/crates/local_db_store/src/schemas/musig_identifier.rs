@@ -95,6 +95,7 @@ mod tests {
     use persistent_storage::init::{PostgresPool, PostgresRepo};
     use std::collections::BTreeMap;
     use std::sync::Arc;
+    use crate::storage::{make_repo_with_config};
 
     pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
 
@@ -159,9 +160,7 @@ mod tests {
 
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_aggregator_signer_integration(db: PostgresPool) -> anyhow::Result<()> {
-        let storage = Arc::new(LocalDbStorage {
-            postgres_repo: PostgresRepo { pool: db },
-        });
+        let storage = make_repo_with_config(db).await;
 
         let verifiers_map = create_verifiers_map_easy().await;
         let aggregator = FrostAggregator::new(verifiers_map, storage.clone(), storage);
