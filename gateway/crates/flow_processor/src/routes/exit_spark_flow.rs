@@ -71,7 +71,7 @@ pub async fn handle(
     let outputs_to_spend = utxos.iter().map(|utxo| utxo.out_point).collect::<Vec<OutPoint>>();
 
     let mut rune_transfer_outputs = vec![RuneTransferOutput {
-        address: exit_address.clone().to_string(),
+        address: exit_address.clone(),
         sats_amount: DUST_AMOUNT,
         runes_amount: exit_amount,
     }];
@@ -102,7 +102,7 @@ pub async fn handle(
             .await?;
 
         rune_transfer_outputs.push(RuneTransferOutput {
-            address: deposit_address.to_string(),
+            address: deposit_address,
             sats_amount: DUST_AMOUNT,
             runes_amount: total_amount - exit_amount,
         });
@@ -113,7 +113,6 @@ pub async fn handle(
         paying_utxo,
         rune_transfer_outputs.clone(),
         deposit_addr_info.musig_id.get_rune_id(),
-        flow_router.network,
     )
     .map_err(|e| FlowProcessorError::RuneTransferError(format!("Failed to create rune partial transaction: {e}")))?;
 
@@ -125,7 +124,7 @@ pub async fn handle(
         let input_btc_address = utxos[i].btc_address.clone();
         let input_deposit_addr_info = flow_router
             .storage
-            .get_row_by_deposit_address(input_btc_address)
+            .get_row_by_deposit_address(input_btc_address.to_string())
             .await?
             .ok_or(FlowProcessorError::DbError(DbError::NotFound(
                 "Input deposit address info not found".to_string(),

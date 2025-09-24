@@ -1,6 +1,6 @@
 use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
-use bitcoin::Txid;
+use bitcoin::{Txid, Address};
 use gateway_rune_transfer::transfer::PayingTransferInput;
 use persistent_storage::error::DbError;
 use std::str::FromStr;
@@ -23,7 +23,7 @@ impl PayingUtxoStorage for LocalDbStorage {
         )
         .bind(paying_utxo.txid.to_string())
         .bind(paying_utxo.vout as i32)
-        .bind(paying_utxo.address)
+        .bind(paying_utxo.address.to_string())
         .bind(paying_utxo.sats_amount as i64)
         .bind(paying_utxo.none_anyone_can_pay_signature.to_string())
         .execute(&self.get_conn().await?)
@@ -50,7 +50,7 @@ impl PayingUtxoStorage for LocalDbStorage {
             Some((txid, vout, address, sats_amount, none_anyone_can_pay_signature)) => Ok(Some(PayingTransferInput {
                 txid: Txid::from_str(&txid).map_err(|e| DbError::BadRequest(format!("Failed to parse txid: {}", e)))?,
                 vout: vout as u32,
-                address,
+                address: Address::from_str(&address).unwrap().assume_checked(),
                 sats_amount: sats_amount as u64,
                 none_anyone_can_pay_signature: none_anyone_can_pay_signature.parse().map_err(|e| {
                     DbError::BadRequest(format!("Failed to parse none anyone can pay signature: {}", e))
