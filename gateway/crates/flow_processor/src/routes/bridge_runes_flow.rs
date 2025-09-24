@@ -4,7 +4,7 @@ use crate::types::BridgeRunesRequest;
 use frost::traits::AggregatorMusigIdStorage;
 use frost::types::MusigId;
 use frost::utils::generate_issuer_public_key;
-use gateway_local_db_store::schemas::deposit_address::DepositAddressStorage;
+use gateway_local_db_store::schemas::deposit_address::{DepositAddressStorage, InnerAddress};
 use gateway_spark_service::types::SparkTransactionType;
 use gateway_spark_service::utils::{convert_network_to_spark_network, create_wrunes_metadata};
 use tracing::{info, instrument};
@@ -21,7 +21,7 @@ pub async fn handle(
 
     let deposit_addr_info = flow_processor
         .storage
-        .get_row_by_deposit_address(request.btc_address.to_string())
+        .get_row_by_deposit_address(InnerAddress::BitcoinAddress(request.btc_address.clone()))
         .await
         .map_err(FlowProcessorError::DbError)?
         .ok_or(FlowProcessorError::InvalidDataError("Deposit address info not found".to_string()))?;
@@ -79,7 +79,7 @@ pub async fn handle(
 
     let deposit_addr_info = flow_processor
         .storage
-        .get_row_by_deposit_address(request.btc_address.to_string())
+        .get_row_by_deposit_address(InnerAddress::BitcoinAddress(request.btc_address.clone()))
         .await
         .map_err(FlowProcessorError::DbError)?
         .ok_or(FlowProcessorError::InvalidDataError(

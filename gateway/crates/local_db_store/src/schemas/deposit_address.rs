@@ -37,6 +37,20 @@ impl InnerAddress {
     pub fn is_bitcoin(&self) -> bool {
         matches!(self, InnerAddress::BitcoinAddress(_))
     }
+
+    pub fn to_spark_address(&self) -> Result<String, DbError> {
+        match self {
+            InnerAddress::SparkAddress(addr) => Ok(addr.clone()),
+            InnerAddress::BitcoinAddress(_) => Err(DbError::InvalidData("Cannot convert Bitcoin address to Spark address".to_string())),
+        }
+    }
+
+    pub fn to_bitcoin_address(&self) -> Result<Address, DbError> {
+        match self {
+            InnerAddress::SparkAddress(_) => Err(DbError::InvalidData("Cannot convert Spark address to Bitcoin address".to_string())),
+            InnerAddress::BitcoinAddress(addr) => Ok(addr.clone()),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -5,7 +5,7 @@ use bitcoin::OutPoint;
 use bitcoin::secp256k1::schnorr::Signature;
 use frost::types::SigningMetadata;
 use frost::utils::{convert_public_key_package, generate_nonce, get_address};
-use gateway_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositAddressStorage, VerifiersResponses};
+use gateway_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositAddressStorage, VerifiersResponses, InnerAddress};
 use gateway_local_db_store::schemas::paying_utxo::PayingUtxoStorage;
 use gateway_local_db_store::schemas::utxo_storage::{Utxo, UtxoStatus, UtxoStorage};
 use gateway_rune_transfer::transfer::RuneTransferOutput;
@@ -29,14 +29,14 @@ pub async fn handle(
 
     let deposit_addr_info = flow_router
         .storage
-        .get_row_by_deposit_address(request.spark_address.clone())
+        .get_row_by_deposit_address(InnerAddress::SparkAddress(request.spark_address.clone()))
         .await?
         .ok_or(FlowProcessorError::DbError(DbError::NotFound(
             "Deposit address info not found".to_string(),
         )))?;
 
     let exit_address = match deposit_addr_info.bridge_address {
-        Some(address) => decode_address(&address, flow_router.network)
+        Some(address) => decode_address(&address.to_spark_address()?, flow_router.network)
             .map_err(|e| FlowProcessorError::InvalidDataError(format!("Failed to parse exit address: {e}")))?,
         None => {
             return Err(FlowProcessorError::InvalidDataError(
@@ -93,7 +93,7 @@ pub async fn handle(
             .set_deposit_addr_info(DepositAddrInfo {
                 musig_id: deposit_addr_info.musig_id.clone(),
                 nonce: new_nonce,
-                deposit_address: deposit_address.to_string(),
+                deposit_address: InnerAddress::BitcoinAddress(deposit_address.clone()),
                 bridge_address: None,
                 is_btc: true,
                 amount: total_amount - exit_amount,
@@ -124,7 +124,7 @@ pub async fn handle(
         let input_btc_address = utxos[i].btc_address.clone();
         let input_deposit_addr_info = flow_router
             .storage
-            .get_row_by_deposit_address(input_btc_address.to_string())
+            .get_row_by_deposit_address(InnerAddress::BitcoinAddress(input_btc_address.clone()))
             .await?
             .ok_or(FlowProcessorError::DbError(DbError::NotFound(
                 "Input deposit address info not found".to_string(),

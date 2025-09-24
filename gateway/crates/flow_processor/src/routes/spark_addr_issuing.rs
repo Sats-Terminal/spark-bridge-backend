@@ -6,7 +6,7 @@ use frost::types::AggregatorDkgState;
 use frost::utils::convert_public_key_package;
 use frost::utils::generate_nonce;
 use gateway_local_db_store::schemas::deposit_address::{
-    DepositAddrInfo, DepositAddressStorage, DepositStatus, VerifiersResponses,
+    DepositAddrInfo, DepositAddressStorage, DepositStatus, VerifiersResponses, InnerAddress,
 };
 use gateway_spark_service::utils::convert_network_to_spark_network;
 use spark_address::{SparkAddressData, encode_spark_address};
@@ -69,7 +69,7 @@ pub async fn handle(
         .set_deposit_addr_info(DepositAddrInfo {
             musig_id: request.musig_id.clone(),
             nonce,
-            deposit_address: address.clone(),
+            deposit_address: InnerAddress::SparkAddress(address.clone()),
             bridge_address: None,
             is_btc: true,
             amount: request.amount,
