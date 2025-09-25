@@ -16,37 +16,11 @@ use uuid::Uuid;
 pub type Nonce = [u8; 32];
 pub type RuneId = String;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
-pub enum MusigId {
-    User {
-        user_public_key: PublicKey,
-        rune_id: RuneId,
-    },
-    Issuer {
-        issuer_public_key: PublicKey,
-        rune_id: RuneId,
-    },
-}
-
-impl MusigId {
-    pub fn get_public_key(&self) -> PublicKey {
-        match self {
-            MusigId::User { user_public_key, .. } => *user_public_key,
-            MusigId::Issuer { issuer_public_key, .. } => *issuer_public_key,
-        }
-    }
-
-    pub fn get_rune_id(&self) -> String {
-        match self {
-            MusigId::User { rune_id, .. } => rune_id.clone(),
-            MusigId::Issuer { rune_id, .. } => rune_id.clone(),
-        }
-    }
-}
+pub type DkgShareId = Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DkgRound1Request {
-    pub musig_id: MusigId,
+    pub dkg_share_id: DkgShareId,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -56,7 +30,7 @@ pub struct DkgRound1Response {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DkgRound2Request {
-    pub musig_id: MusigId,
+    pub dkg_share_id: DkgShareId,
     pub round1_packages: BTreeMap<Identifier, round1::Package>,
 }
 
@@ -67,7 +41,7 @@ pub struct DkgRound2Response {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DkgFinalizeRequest {
-    pub musig_id: MusigId,
+    pub dkg_share_id: DkgShareId,
     pub round1_packages: BTreeMap<Identifier, round1::Package>,
     pub round2_packages: BTreeMap<Identifier, round2::Package>,
 }
@@ -79,7 +53,7 @@ pub struct DkgFinalizeResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignRound1Request {
-    pub musig_id: MusigId,
+    pub dkg_share_id: DkgShareId,
     pub session_id: Uuid,
     pub metadata: SigningMetadata,
     pub message_hash: Vec<u8>,
@@ -93,7 +67,7 @@ pub struct SignRound1Response {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignRound2Request {
-    pub musig_id: MusigId,
+    pub dkg_share_id: DkgShareId,
     pub session_id: Uuid,
     pub signing_package: SigningPackage,
 }
@@ -118,7 +92,7 @@ pub enum AggregatorDkgState {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AggregatorMusigIdData {
+pub struct AggregatorDkgShareData {
     pub dkg_state: AggregatorDkgState,
 }
 

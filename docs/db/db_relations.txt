@@ -1,29 +1,36 @@
+---
+title: Gateway | Verifier
+---
 erDiagram
-    
-    SIGNING_SESSION ||--|| MUSIG_IDENTIFIER : _
-    DEPOSIT_ADDRESS ||--|| MUSIG_IDENTIFIER : _
+	direction TB
+	
+	SIGNING_SESSION_VERIFIER {
+		UUID session_id PK ""  
+		UUID dkg_share_id FK ""  
+		Json sign_state  ""  
+		ByteA tweak  ""  
+		ByteA message_hash  ""  
+		Json metadata  ""  
+	}
+	DKG_SHARE_VERIFIER {
+		SERIAL dkg_share_id  ""  
+		Json dkg_state  ""  
+	}
+	DEPOSIT_ADDRESS_VERIFIER {
+		ByteA nonce_tweak PK ""  
+		SERIAL dkg_share_id FK ""  
+		String address  ""  
+		bool is_btc  ""  
+		u64 amount  ""  
+		Json confirmation_status  ""  
+	}
+	USER_IDENTIFIER {
+		UUID user_uuid  ""
+        Bool is_issuer ""
+		String rune_id  ""  
+		SERIAL dkg_share_id FK  
+	}
 
-    MUSIG_IDENTIFIER {
-        PublicKey public_key PK
-        String rune_id PK
-        Bool is_issuer 
-        Json dkg_state
-    }
-    SIGNING_SESSION {
-        UUID session_id PK
-        PublicKey user_public_key FK
-        String rune_id FK
-        Json sign_state 
-        ByteA tweak
-        ByteA message_hash
-        Json metadata
-    }
-    DEPOSIT_ADDRESS {
-        ByteA nonce_tweak PK
-        PublicKey user_public_key FK
-        String rune_id FK
-        String address 
-        bool is_btc
-        u64 amount
-        Json confirmation_status
-    }
+	SIGNING_SESSION_VERIFIER||--||DKG_SHARE_VERIFIER:"_"
+	DEPOSIT_ADDRESS_VERIFIER||--||DKG_SHARE_VERIFIER:"_"
+	USER_IDENTIFIER}|--|{DKG_SHARE_VERIFIER:"  "

@@ -2,11 +2,15 @@ use crate::handlers;
 use axum::Router;
 use axum::routing::post;
 use bitcoin::Network;
+use gateway_config_parser::config::DkgPregenConfig;
 use gateway_deposit_verification::aggregator::DepositVerificationAggregator;
 use gateway_flow_processor::flow_sender::FlowSender;
+use gateway_local_db_store::storage::LocalDbStorage;
 use gateway_verifier_client::client::VerifierClient;
 use std::collections::HashMap;
 use std::sync::Arc;
+use tokio_util::sync::CancellationToken;
+use tokio_util::task::TaskTracker;
 use tracing::instrument;
 
 #[derive(Clone)]
@@ -15,6 +19,8 @@ pub struct AppState {
     pub deposit_verification_aggregator: DepositVerificationAggregator,
     pub network: Network,
     pub typed_verifiers_clients: HashMap<u16, Arc<VerifierClient>>,
+    pub thread: TaskTracker,
+    pub cancellation_token: CancellationToken,
 }
 
 pub struct GatewayApi;
@@ -30,18 +36,31 @@ impl GatewayApi {
     pub const HEALTHCHECK_ENDPOINT: &'static str = "/healthcheck";
 }
 
-#[instrument(level = "debug", skip(flow_sender), ret)]
+#[instrument(level = "debug", skip(flow_sender, local_db, task_tracker), ret)]
 pub async fn create_app(
     flow_sender: FlowSender,
     deposit_verification_aggregator: DepositVerificationAggregator,
     network: Network,
     typed_verifiers_clients: HashMap<u16, Arc<VerifierClient>>,
+    local_db: Arc<LocalDbStorage>,
+    mut task_tracker: TaskTracker,
+    dkg_pregen_config: DkgPregenConfig,
 ) -> Router {
+    let cancellation_token = CancellationToken::new();
+    crate::dkg_pregen_thread::DkgPregenThread::spawn_thread(
+        &mut task_tracker,
+        local_db,
+        dkg_pregen_config,
+        cancellation_token.clone(),
+    )
+    .await;
     let state = AppState {
         network,
         flow_sender,
         deposit_verification_aggregator,
         typed_verifiers_clients,
+        thread: task_tracker,
+        cancellation_token,
     };
     Router::new()
         .route(

@@ -12,33 +12,33 @@ use uuid::Uuid;
 #[derive(Clone, Debug)]
 pub struct FrostAggregator {
     verifiers: BTreeMap<Identifier, Arc<dyn SignerClient>>,
-    musig_id_storage: Arc<dyn AggregatorMusigIdStorage>,
+    dkg_share_storage: Arc<dyn AggregatorDkgShareStorage>,
     sign_session_storage: Arc<dyn AggregatorSignSessionStorage>,
-    locked_musig_ids: Arc<Mutex<BTreeSet<MusigId>>>,
+    locked_dkg_share_ids: Arc<Mutex<BTreeSet<DkgShareId>>>,
 }
 
 impl FrostAggregator {
     pub fn new(
         verifiers: BTreeMap<Identifier, Arc<dyn SignerClient>>,
-        musig_id_storage: Arc<dyn AggregatorMusigIdStorage>,
+        musig_id_storage: Arc<dyn AggregatorDkgShareStorage>,
         sign_session_storage: Arc<dyn AggregatorSignSessionStorage>,
     ) -> Self {
         Self {
             verifiers,
-            musig_id_storage,
+            dkg_share_storage: musig_id_storage,
             sign_session_storage,
-            locked_musig_ids: Arc::new(Mutex::new(BTreeSet::new())),
+            locked_dkg_share_ids: Arc::new(Mutex::new(BTreeSet::new())),
         }
     }
 
-    async fn dkg_round_1(&self, musig_id: &MusigId) -> Result<(), AggregatorError> {
-        let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id).await?;
+    async fn dkg_round_1(&self, dkg_share_id: &DkgShareId) -> Result<(), AggregatorError> {
+        let dkg_share_data = self.dkg_share_storage.get_dkg_share_data(dkg_share_id).await?;
 
-        match musig_id_data {
+        match dkg_share_data {
             Some(_) => Err(AggregatorError::InvalidUserState("User state is not None".to_string())),
             None => {
                 let signer_clients_request = DkgRound1Request {
-                    musig_id: musig_id.clone(),
+                    dkg_share_id: dkg_share_id.clone(),
                 };
 
                 let mut verifier_responses = BTreeMap::new();
@@ -61,10 +61,10 @@ impl FrostAggregator {
                     verifier_responses.insert(verifier_id, response?.round1_package);
                 }
 
-                self.musig_id_storage
-                    .set_musig_id_data(
-                        musig_id,
-                        AggregatorMusigIdData {
+                self.dkg_share_storage
+                    .set_dkg_share_data(
+                        dkg_share_id,
+                        AggregatorDkgShareData {
                             dkg_state: AggregatorDkgState::DkgRound1 {
                                 round1_packages: verifier_responses,
                             },
@@ -77,11 +77,11 @@ impl FrostAggregator {
         }
     }
 
-    async fn dkg_round_2(&self, musig_id: &MusigId) -> Result<(), AggregatorError> {
-        let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id).await?;
+    async fn dkg_round_2(&self, dkg_share_id: &DkgShareId) -> Result<(), AggregatorError> {
+        let musig_id_data = self.dkg_share_storage.get_dkg_share_data(dkg_share_id).await?;
 
         match musig_id_data {
-            Some(AggregatorMusigIdData {
+            Some(AggregatorDkgShareData {
                 dkg_state: AggregatorDkgState::DkgRound1 { round1_packages },
             }) => {
                 let mut verifier_responses = BTreeMap::new();
@@ -91,7 +91,7 @@ impl FrostAggregator {
                     let mut packages = round1_packages.clone();
                     packages.remove(&verifier_id);
                     let signer_requests = DkgRound2Request {
-                        musig_id: musig_id.clone(),
+                        dkg_share_id: dkg_share_id.clone(),
                         round1_packages: packages,
                     };
                     let join_handle = async move { (verifier_id, signer_client.dkg_round_2(signer_requests).await) };
@@ -109,10 +109,10 @@ impl FrostAggregator {
                     }
                 }
 
-                self.musig_id_storage
-                    .set_musig_id_data(
-                        musig_id,
-                        AggregatorMusigIdData {
+                self.dkg_share_storage
+                    .set_dkg_share_data(
+                        dkg_share_id,
+                        AggregatorDkgShareData {
                             dkg_state: AggregatorDkgState::DkgRound2 {
                                 round1_packages,
                                 round2_packages: verifier_responses,
@@ -128,11 +128,11 @@ impl FrostAggregator {
         }
     }
 
-    async fn dkg_finalize(&self, musig_id: &MusigId) -> Result<(), AggregatorError> {
-        let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id).await?;
+    async fn dkg_finalize(&self, dkg_share_id: &DkgShareId) -> Result<(), AggregatorError> {
+        let dkg_share_data = self.dkg_share_storage.get_dkg_share_data(dkg_share_id).await?;
 
-        match musig_id_data {
-            Some(AggregatorMusigIdData {
+        match dkg_share_data {
+            Some(AggregatorDkgShareData {
                 dkg_state:
                     AggregatorDkgState::DkgRound2 {
                         round1_packages,
@@ -146,7 +146,7 @@ impl FrostAggregator {
                     let mut verifier_round1_packages = round1_packages.clone();
                     verifier_round1_packages.remove(&verifier_id);
                     let request = DkgFinalizeRequest {
-                        musig_id: musig_id.clone(),
+                        dkg_share_id: dkg_share_id.clone(),
                         round1_packages: verifier_round1_packages,
                         round2_packages: round2_packages
                             .get(&verifier_id)
@@ -173,10 +173,10 @@ impl FrostAggregator {
                     }
                 }
 
-                self.musig_id_storage
-                    .set_musig_id_data(
-                        musig_id,
-                        AggregatorMusigIdData {
+                self.dkg_share_storage
+                    .set_dkg_share_data(
+                        dkg_share_id,
+                        AggregatorDkgShareData {
                             dkg_state: AggregatorDkgState::DkgFinalized {
                                 public_key_package: public_key_package.clone(),
                             },
@@ -192,52 +192,52 @@ impl FrostAggregator {
         }
     }
 
-    pub async fn lock_musig_id(&self, musig_id: &MusigId) -> Result<(), AggregatorError> {
-        let mut locked_musig_ids = self.locked_musig_ids.lock().await;
-        if locked_musig_ids.contains(musig_id) {
+    pub async fn lock_dkg_share(&self, dkg_share_id: &DkgShareId) -> Result<(), AggregatorError> {
+        let mut locked_musig_ids = self.locked_dkg_share_ids.lock().await;
+        if locked_musig_ids.contains(dkg_share_id) {
             return Err(AggregatorError::MusigAlreadyExists(format!(
                 "Musig id already exists: {:?}",
-                musig_id
+                dkg_share_id
             )));
         }
-        locked_musig_ids.insert(musig_id.clone());
+        locked_musig_ids.insert(dkg_share_id.clone());
         Ok(())
     }
 
-    pub async fn unlock_musig_id(&self, musig_id: &MusigId) -> Result<(), AggregatorError> {
-        let mut locked_musig_ids = self.locked_musig_ids.lock().await;
-        let removed = locked_musig_ids.remove(musig_id);
+    pub async fn unlock_musig_id(&self, dkg_share_id: &DkgShareId) -> Result<(), AggregatorError> {
+        let mut locked_musig_ids = self.locked_dkg_share_ids.lock().await;
+        let removed = locked_musig_ids.remove(dkg_share_id);
         if !removed {
             return Err(AggregatorError::MusigNotFound(format!(
                 "Something bad went wrong: {:?}",
-                musig_id
+                dkg_share_id
             )));
         }
         Ok(())
     }
 
-    pub async fn run_dkg_flow(&self, musig_id: &MusigId) -> Result<keys::PublicKeyPackage, AggregatorError> {
-        self.lock_musig_id(&musig_id).await?;
+    pub async fn run_dkg_flow(&self, dkg_share_id: &DkgShareId) -> Result<keys::PublicKeyPackage, AggregatorError> {
+        self.lock_dkg_share(&dkg_share_id).await?;
 
-        let musig_id_data = self.musig_id_storage.get_musig_id_data(&musig_id).await?;
+        let musig_id_data = self.dkg_share_storage.get_dkg_share_data(&dkg_share_id).await?;
         if let Some(_) = musig_id_data {
-            self.unlock_musig_id(&musig_id).await?;
+            self.unlock_musig_id(&dkg_share_id).await?;
             return Err(AggregatorError::MusigAlreadyExists(format!(
                 "Musig id already exists: {:?}",
-                musig_id
+                dkg_share_id
             )));
         }
 
-        self.dkg_round_1(musig_id).await?;
-        self.dkg_round_2(musig_id).await?;
-        self.dkg_finalize(musig_id).await?;
+        self.dkg_round_1(dkg_share_id).await?;
+        self.dkg_round_2(dkg_share_id).await?;
+        self.dkg_finalize(dkg_share_id).await?;
 
-        let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id).await?;
+        let musig_id_data = self.dkg_share_storage.get_dkg_share_data(dkg_share_id).await?;
         match musig_id_data {
-            Some(AggregatorMusigIdData {
+            Some(AggregatorDkgShareData {
                 dkg_state: AggregatorDkgState::DkgFinalized { public_key_package },
             }) => {
-                self.unlock_musig_id(musig_id).await?;
+                self.unlock_musig_id(dkg_share_id).await?;
                 Ok(public_key_package)
             }
             _ => Err(AggregatorError::InvalidUserState(
@@ -248,16 +248,16 @@ impl FrostAggregator {
 
     async fn sign_round_1(
         &self,
-        musig_id: &MusigId,
+        dkg_share_id: &DkgShareId,
         session_id: Uuid,
         message_hash: &[u8],
         metadata: SigningMetadata,
         tweak: Option<Nonce>,
     ) -> Result<(), AggregatorError> {
-        let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id).await?;
+        let musig_id_data = self.dkg_share_storage.get_dkg_share_data(dkg_share_id).await?;
 
         match musig_id_data {
-            Some(AggregatorMusigIdData {
+            Some(AggregatorDkgShareData {
                 dkg_state: AggregatorDkgState::DkgFinalized { public_key_package },
             }) => {
                 let mut commitments = BTreeMap::new();
@@ -265,7 +265,7 @@ impl FrostAggregator {
 
                 for (verifier_id, signer_client) in self.verifiers.clone() {
                     let request = SignRound1Request {
-                        musig_id: musig_id.clone(),
+                        dkg_share_id: dkg_share_id.clone(),
                         metadata: metadata.clone(),
                         message_hash: message_hash.to_vec(),
                         session_id,
@@ -285,7 +285,7 @@ impl FrostAggregator {
 
                 self.sign_session_storage
                     .set_sign_data(
-                        musig_id,
+                        dkg_share_id,
                         session_id,
                         AggregatorSignData {
                             tweak: tweak.map(|t| t.to_vec()),
@@ -304,18 +304,18 @@ impl FrostAggregator {
         }
     }
 
-    async fn sign_round_2(&self, musig_id: &MusigId, session_id: Uuid) -> Result<(), AggregatorError> {
-        let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id).await?;
+    async fn sign_round_2(&self, dkg_share_id: &DkgShareId, session_id: Uuid) -> Result<(), AggregatorError> {
+        let dkg_share_data = self.dkg_share_storage.get_dkg_share_data(dkg_share_id).await?;
         let mut sign_data = self
             .sign_session_storage
-            .get_sign_data(musig_id, session_id)
+            .get_sign_data(dkg_share_id, session_id)
             .await?
             .ok_or(AggregatorError::InvalidUserState(
                 "Session state is not SigningRound1".to_string(),
             ))?;
 
-        let public_key_package = match musig_id_data {
-            Some(AggregatorMusigIdData {
+        let public_key_package = match dkg_share_data {
+            Some(AggregatorDkgShareData {
                 dkg_state: AggregatorDkgState::DkgFinalized { public_key_package },
             }) => public_key_package,
             _ => {
@@ -341,7 +341,7 @@ impl FrostAggregator {
 
                 for (verifier_id, signer_client) in self.verifiers.clone() {
                     let request = SignRound2Request {
-                        musig_id: musig_id.clone(),
+                        dkg_share_id: dkg_share_id.clone(),
                         session_id,
                         signing_package: signing_package.clone(),
                     };
@@ -369,7 +369,7 @@ impl FrostAggregator {
 
                 sign_data.sign_state = AggregatorSignState::SigningRound2 { signature };
                 self.sign_session_storage
-                    .set_sign_data(musig_id, session_id, sign_data)
+                    .set_sign_data(dkg_share_id, session_id, sign_data)
                     .await?;
 
                 Ok(())
@@ -382,18 +382,21 @@ impl FrostAggregator {
 
     pub async fn run_signing_flow(
         &self,
-        musig_id: MusigId,
+        dkg_share_id: DkgShareId,
         message_hash: &[u8],
         metadata: SigningMetadata,
         tweak: Option<Nonce>,
     ) -> Result<Signature, AggregatorError> {
         let session_id = global_utils::common_types::get_uuid();
 
-        self.sign_round_1(&musig_id, session_id, message_hash, metadata, tweak)
+        self.sign_round_1(&dkg_share_id, session_id, message_hash, metadata, tweak)
             .await?;
-        self.sign_round_2(&musig_id, session_id).await?;
+        self.sign_round_2(&dkg_share_id, session_id).await?;
 
-        let sign_data = self.sign_session_storage.get_sign_data(&musig_id, session_id).await?;
+        let sign_data = self
+            .sign_session_storage
+            .get_sign_data(&dkg_share_id, session_id)
+            .await?;
         let state = sign_data
             .ok_or(AggregatorError::InvalidUserState(
                 "Session state is not SigningRound2".to_string(),
@@ -410,13 +413,13 @@ impl FrostAggregator {
 
     pub async fn get_public_key_package(
         &self,
-        musig_id: MusigId,
+        dkg_share_id: DkgShareId,
         tweak: Option<Nonce>,
     ) -> Result<keys::PublicKeyPackage, AggregatorError> {
-        let musig_id_data = self.musig_id_storage.get_musig_id_data(&musig_id).await?;
+        let musig_id_data = self.dkg_share_storage.get_dkg_share_data(&dkg_share_id).await?;
 
         match musig_id_data {
-            Some(AggregatorMusigIdData {
+            Some(AggregatorDkgShareData {
                 dkg_state: AggregatorDkgState::DkgFinalized { public_key_package },
             }) => {
                 let tweaked_public_key_package = match tweak {

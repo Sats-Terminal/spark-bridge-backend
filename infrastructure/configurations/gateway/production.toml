@@ -25,6 +25,11 @@ update_interval_milliseconds = 10000
 [flow_processor_config]
 cancellation_retries = 10
 
+[dkg_pregen_config]
+update_interval_millis = 1000
+min_threshold = 50
+max_cached = 500
+
 [database_config]
 url = "postgres://admin_manager:password@persistent-db-storage_gateway:5432/production_db_name"
 

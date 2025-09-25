@@ -6,18 +6,18 @@ use tokio::sync::Mutex;
 
 #[derive(Clone, Debug)]
 pub struct FrostSigner {
-    musig_id_storage: Arc<dyn SignerMusigIdStorage>, // TODO: implement signer storage
+    musig_id_storage: Arc<dyn SignerDkgShareStorage>,
     identifier: Identifier,
     sign_session_storage: Arc<dyn SignerSignSessionStorage>,
     total_participants: u16,
     threshold: u16,
-    locked_musig_ids: Arc<Mutex<BTreeSet<MusigId>>>,
+    locked_musig_ids: Arc<Mutex<BTreeSet<DkgShareId>>>,
 }
 
 impl FrostSigner {
     pub fn new(
         identifier: u16,
-        musig_id_storage: Arc<dyn SignerMusigIdStorage>,
+        musig_id_storage: Arc<dyn SignerDkgShareStorage>,
         sign_session_storage: Arc<dyn SignerSignSessionStorage>,
         total_participants: u16,
         threshold: u16,
@@ -32,7 +32,7 @@ impl FrostSigner {
         }
     }
 
-    pub async fn lock_musig_id(&self, musig_id: &MusigId) -> Result<(), SignerError> {
+    pub async fn lock_musig_id(&self, musig_id: &DkgShareId) -> Result<(), SignerError> {
         let mut locked_musig_ids = self.locked_musig_ids.lock().await;
         if locked_musig_ids.contains(musig_id) {
             return Err(SignerError::MusigAlreadyExists(format!(
@@ -44,7 +44,7 @@ impl FrostSigner {
         Ok(())
     }
 
-    pub async fn unlock_musig_id(&self, musig_id: &MusigId) -> Result<(), SignerError> {
+    pub async fn unlock_musig_id(&self, musig_id: &DkgShareId) -> Result<(), SignerError> {
         let mut locked_musig_ids = self.locked_musig_ids.lock().await;
         let removed = locked_musig_ids.remove(musig_id);
         if !removed {
@@ -57,9 +57,9 @@ impl FrostSigner {
     }
 
     pub async fn dkg_round_1(&self, request: DkgRound1Request) -> Result<DkgRound1Response, SignerError> {
-        self.lock_musig_id(&request.musig_id).await?;
+        self.lock_musig_id(&request.dkg_share_id).await?;
 
-        let musig_id = request.musig_id;
+        let musig_id = request.dkg_share_id;
         let musig_id_data = self.musig_id_storage.get_musig_id_data(&musig_id).await?;
 
         match musig_id_data {
@@ -98,7 +98,7 @@ impl FrostSigner {
     }
 
     pub async fn dkg_round_2(&self, request: DkgRound2Request) -> Result<DkgRound2Response, SignerError> {
-        let musig_id = request.musig_id;
+        let musig_id = request.dkg_share_id;
         let musig_id_data = self.musig_id_storage.get_musig_id_data(&musig_id).await?;
 
         match musig_id_data {
@@ -132,7 +132,7 @@ impl FrostSigner {
     }
 
     pub async fn dkg_finalize(&self, request: DkgFinalizeRequest) -> Result<DkgFinalizeResponse, SignerError> {
-        let musig_id = request.musig_id;
+        let musig_id = request.dkg_share_id;
         let musig_id_data = self.musig_id_storage.get_musig_id_data(&musig_id).await?;
 
         match musig_id_data {
@@ -170,7 +170,7 @@ impl FrostSigner {
     }
 
     pub async fn sign_round_1(&self, request: SignRound1Request) -> Result<SignRound1Response, SignerError> {
-        let musig_id = request.musig_id;
+        let musig_id = request.dkg_share_id;
         let session_id = request.session_id;
         let tweak = request.tweak;
         let message_hash = request.message_hash;
@@ -210,7 +210,7 @@ impl FrostSigner {
     }
 
     pub async fn sign_round_2(&self, request: SignRound2Request) -> Result<SignRound2Response, SignerError> {
-        let musig_id = request.musig_id;
+        let musig_id = request.dkg_share_id;
         let session_id = request.session_id;
 
         let musig_id_data = self.musig_id_storage.get_musig_id_data(&musig_id).await?;

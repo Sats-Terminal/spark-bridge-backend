@@ -1,6 +1,6 @@
 use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
-use frost::traits::SignerMusigIdStorage;
+use frost::traits::SignerDkgShareStorage;
 use frost::types::MusigId;
 use frost::types::SignerDkgState;
 use frost::types::SignerMusigIdData;
@@ -8,7 +8,7 @@ use persistent_storage::error::DbError;
 use sqlx::types::Json;
 
 #[async_trait]
-impl SignerMusigIdStorage for LocalDbStorage {
+impl SignerDkgShareStorage for LocalDbStorage {
     async fn get_musig_id_data(&self, musig_id: &MusigId) -> Result<Option<SignerMusigIdData>, DbError> {
         let public_key = musig_id.get_public_key();
         let rune_id = musig_id.get_rune_id();
@@ -60,7 +60,7 @@ mod tests {
     use frost::mocks::*;
     use frost::signer::FrostSigner;
     use frost::traits::SignerClient;
-    use frost::traits::SignerMusigIdStorage;
+    use frost::traits::SignerDkgShareStorage;
     use frost::traits::SignerSignSessionStorage;
     use frost::types::SigningMetadata;
     use frost::types::TokenTransactionMetadata;
@@ -79,8 +79,8 @@ mod tests {
                 .unwrap();
         let arc_storage = Arc::new(storage);
 
-        let user_key_storage: Arc<dyn SignerMusigIdStorage> = if is_mock_key_storage {
-            Arc::new(MockSignerMusigIdStorage::new())
+        let user_key_storage: Arc<dyn SignerDkgShareStorage> = if is_mock_key_storage {
+            Arc::new(MockSignerDkgShareIdStorage::new())
         } else {
             arc_storage.clone()
         };

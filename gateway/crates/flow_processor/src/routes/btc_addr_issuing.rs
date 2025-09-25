@@ -2,7 +2,7 @@ use crate::error::FlowProcessorError;
 use crate::flow_router::FlowProcessorRouter;
 use crate::types::IssueBtcDepositAddressRequest;
 use bitcoin::Address;
-use frost::traits::AggregatorMusigIdStorage;
+use frost::traits::AggregatorDkgShareStorage;
 use frost::types::AggregatorDkgState;
 use frost::utils::convert_public_key_package;
 use frost::utils::{generate_nonce, get_address};
@@ -19,7 +19,7 @@ pub async fn handle(
 ) -> Result<Address, FlowProcessorError> {
     let local_db_storage = flow_processor.storage.clone();
 
-    let public_key_package = match flow_processor.storage.get_musig_id_data(&request.musig_id).await? {
+    let public_key_package = match flow_processor.storage.get_dkg_share_data(&request.musig_id).await? {
         None => {
             tracing::debug!("[{LOG_PATH}] Missing musig, running dkg from the beginning ...");
             let pubkey_package = flow_processor

@@ -5,8 +5,10 @@ edition = "2024"
 [dependencies]
 axum = { workspace = true }
 axum-test = { workspace = true }
+anyhow = { workspace = true }
 bitcoin = { workspace = true }
 frost = { workspace = true }
+gateway_config_parser = { workspace = true }
 gateway_deposit_verification = { workspace = true }
 gateway_flow_processor = { workspace = true }
 gateway_local_db_store = { workspace = true }

@@ -17,3 +17,7 @@ eyre = { workspace = true }
 persistent_storage = { workspace = true }
 spark-protos = { workspace = true }
 global_utils = { workspace = true }
+
+[dev-dependencies]
+anyhow = { workspace = true }
+lrc20 = { workspace = true }

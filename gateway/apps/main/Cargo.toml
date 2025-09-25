@@ -15,6 +15,7 @@ gateway_server = { workspace = true }
 global_utils = { workspace = true }
 persistent_storage = { workspace = true }
 tokio = { workspace = true }
+tokio-util = { workspace = true }
 tracing = { workspace = true }
 futures = { workspace = true }
 gateway_deposit_verification = { workspace = true }

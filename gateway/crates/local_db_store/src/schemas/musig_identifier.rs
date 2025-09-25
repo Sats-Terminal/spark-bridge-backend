@@ -1,9 +1,9 @@
 use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
 use bitcoin::secp256k1::PublicKey;
-use frost::traits::AggregatorMusigIdStorage;
+use frost::traits::AggregatorDkgShareStorage;
+use frost::types::AggregatorDkgShareData;
 use frost::types::AggregatorDkgState;
-use frost::types::AggregatorMusigIdData;
 use frost::types::MusigId;
 use persistent_storage::error::DbError;
 use sqlx::types::Json;
@@ -11,9 +11,9 @@ use std::str::FromStr;
 use tracing::instrument;
 
 #[async_trait]
-impl AggregatorMusigIdStorage for LocalDbStorage {
+impl AggregatorDkgShareStorage for LocalDbStorage {
     #[instrument(level = "trace", skip(self), ret)]
-    async fn get_musig_id_data(&self, musig_id: &MusigId) -> Result<Option<AggregatorMusigIdData>, DbError> {
+    async fn get_dkg_share_data(&self, musig_id: &MusigId) -> Result<Option<AggregatorDkgShareData>, DbError> {
         let public_key = musig_id.get_public_key();
         let rune_id = musig_id.get_rune_id();
 
@@ -28,13 +28,13 @@ impl AggregatorMusigIdStorage for LocalDbStorage {
         .await
         .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
-        Ok(result.map(|(json_dkg_state,)| AggregatorMusigIdData {
+        Ok(result.map(|(json_dkg_state,)| AggregatorDkgShareData {
             dkg_state: json_dkg_state.0,
         }))
     }
 
     #[instrument(level = "trace", skip(self), ret)]
-    async fn set_musig_id_data(&self, musig_id: &MusigId, user_state: AggregatorMusigIdData) -> Result<(), DbError> {
+    async fn set_dkg_share_data(&self, musig_id: &MusigId, user_state: AggregatorDkgShareData) -> Result<(), DbError> {
         let dkg_state = Json(user_state.dkg_state);
         let public_key = musig_id.get_public_key();
         let rune_id = musig_id.get_rune_id();
@@ -103,7 +103,7 @@ mod tests {
     async fn create_signer(identifier: u16) -> FrostSigner {
         FrostSigner::new(
             identifier,
-            Arc::new(MockSignerMusigIdStorage::new()),
+            Arc::new(MockSignerDkgShareIdStorage::new()),
             Arc::new(MockSignerSignSessionStorage::default()),
             3,
             2,

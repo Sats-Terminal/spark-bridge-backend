@@ -25,6 +25,7 @@ use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
+use tokio_util::task::{TaskTracker, task_tracker};
 use tracing::{info, instrument};
 use url::Url;
 use verifier_server::init::VerifierApi;
@@ -75,7 +76,9 @@ pub async fn init_mocked_test_server(pool: PostgresPool) -> anyhow::Result<TestS
         server_config.network.network,
     )
     .await;
-    tokio::spawn(async move {
+
+    let mut task_tracker = TaskTracker::default();
+    task_tracker.spawn(async move {
         flow_processor.run().await;
     });
 
@@ -90,6 +93,8 @@ pub async fn init_mocked_test_server(pool: PostgresPool) -> anyhow::Result<TestS
         deposit_verification_aggregator.clone(),
         server_config.network.network,
         typed_verifier_clients_hash_map,
+        db_pool,
+        task_tracker,
     )
     .await;
 

@@ -1,7 +1,7 @@
 use crate::error::FlowProcessorError;
 use crate::flow_router::FlowProcessorRouter;
 use crate::types::IssueSparkDepositAddressRequest;
-use frost::traits::AggregatorMusigIdStorage;
+use frost::traits::AggregatorDkgShareStorage;
 use frost::types::AggregatorDkgState;
 use frost::utils::convert_public_key_package;
 use frost::utils::generate_nonce;
@@ -16,7 +16,7 @@ pub async fn handle(
     flow_router: &mut FlowProcessorRouter,
     request: IssueSparkDepositAddressRequest,
 ) -> Result<String, FlowProcessorError> {
-    let public_key_package = match flow_router.storage.get_musig_id_data(&request.musig_id).await? {
+    let public_key_package = match flow_router.storage.get_dkg_share_data(&request.musig_id).await? {
         None => {
             tracing::debug!("Missing musig, running dkg from the beginning ...");
             let pubkey_package = flow_router

@@ -16,6 +16,7 @@ use persistent_storage::init::PostgresRepo;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 use tokio::net::TcpListener;
+use tokio_util::task::TaskTracker;
 use tracing::instrument;
 
 #[instrument(level = "trace", ret)]
@@ -57,7 +58,9 @@ async fn main() {
         server_config.network.network,
     )
     .await;
-    tokio::spawn(async move {
+
+    let mut task_tracker = TaskTracker::default();
+    task_tracker.spawn(async move {
         flow_processor.run().await;
     });
 
@@ -72,6 +75,9 @@ async fn main() {
         deposit_verification_aggregator.clone(),
         server_config.network.network,
         typed_verifier_clients_hash_map,
+        shared_db_pool,
+        task_tracker,
+        server_config.dkg_pregen_config,
     )
     .await;
 

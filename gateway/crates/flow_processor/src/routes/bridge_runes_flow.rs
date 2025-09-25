@@ -1,7 +1,7 @@
 use crate::error::FlowProcessorError;
 use crate::flow_router::FlowProcessorRouter;
 use crate::types::BridgeRunesRequest;
-use frost::traits::AggregatorMusigIdStorage;
+use frost::traits::AggregatorDkgShareStorage;
 use frost::types::MusigId;
 use frost::utils::generate_issuer_public_key;
 use gateway_local_db_store::schemas::deposit_address::{DepositAddressStorage, InnerAddress};
