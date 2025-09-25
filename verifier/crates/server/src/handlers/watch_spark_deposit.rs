@@ -6,7 +6,7 @@ use frost::types::MusigId;
 use frost::types::Nonce;
 use serde::{Deserialize, Serialize};
 use verifier_local_db_store::schemas::deposit_address::DepositAddressStorage;
-use verifier_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositStatus, TxRejectReason};
+use verifier_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositStatus, TxRejectReason, InnerAddress};
 use verifier_spark_balance_checker_client::client::GetBalanceRequest;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -27,15 +27,19 @@ pub async fn handle(
     State(state): State<AppState>,
     Json(request): Json<WatchSparkDepositRequest>,
 ) -> Result<Json<WatchSparkDepositResponse>, VerifierError> {
+    let deposit_address = InnerAddress::SparkAddress(request.spark_address.clone());
+    let bridge_address = InnerAddress::from_string_and_type(request.exit_address, true)
+        .map_err(|e| VerifierError::ValidationError(format!("Invalid exit address: {}", e)))?;
+
     state
         .storage
         .set_deposit_addr_info(DepositAddrInfo {
             musig_id: request.musig_id.clone(),
             nonce: request.nonce,
             out_point: None,
-            deposit_address: request.spark_address.clone(),
-            bridge_address: request.exit_address,
-            is_btc: true,
+            deposit_address: deposit_address.clone(),
+            bridge_address,
+            is_btc: false, // ??
             deposit_amount: request.amount,
             sats_fee_amount: None,
             confirmation_status: DepositStatus::WaitingForConfirmation,
@@ -62,7 +66,7 @@ pub async fn handle(
 
     state
         .storage
-        .set_confirmation_status_by_deposit_address(request.spark_address, confirmation_status.clone())
+        .set_confirmation_status_by_deposit_address(deposit_address, confirmation_status.clone())
         .await
         .map_err(|e| VerifierError::StorageError(format!("Failed to update confirmation status: {}", e)))?;
 

@@ -8,7 +8,7 @@ use frost::types::Nonce;
 use serde::{Deserialize, Serialize};
 use verifier_btc_indexer_client::client::WatchRunesDepositRequest as IndexerWatchRunesDepositRequest;
 use verifier_config_parser::config::construct_hardcoded_callback_url;
-use verifier_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositAddressStorage, DepositStatus};
+use verifier_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositAddressStorage, DepositStatus, InnerAddress};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WatchRunesDepositRequest {
@@ -27,15 +27,19 @@ pub async fn handle(
     State(state): State<AppState>,
     Json(request): Json<WatchRunesDepositRequest>,
 ) -> Result<Json<WatchRunesDepositResponse>, VerifierError> {
+    let deposit_address = InnerAddress::from_string_and_type(request.btc_address.clone(), true)
+        .map_err(|e| VerifierError::ValidationError(format!("Invalid BTC address: {}", e)))?;
+    let bridge_address = InnerAddress::SparkAddress(request.bridge_address.clone());
+
     state
         .storage
         .set_deposit_addr_info(DepositAddrInfo {
             musig_id: request.musig_id.clone(),
             nonce: request.nonce,
             out_point: Some(request.out_point),
-            deposit_address: request.btc_address.clone(),
-            bridge_address: request.bridge_address.clone(),
-            is_btc: false,
+            deposit_address,
+            bridge_address,
+            is_btc: true, // ??
             deposit_amount: request.amount,
             sats_fee_amount: None,
             confirmation_status: DepositStatus::WaitingForConfirmation,
