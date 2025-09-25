@@ -76,13 +76,13 @@ async fn test_etch() {
     // Create inscription struct
 
     let etching = Etching {
-        rune: Some(Rune::from_str("TEST").unwrap()),
-        divisibility: Some(6),
-        premine: Some(0),
+        rune: Some(Rune::from_str("UNCOMMONGOODS").unwrap()),
+        divisibility: Some(3),
+        premine: None,
         spacers: None,
         symbol: Some('$'),
         terms: Some(Terms {
-            amount: Some(1000),
+            amount: Some(1000000),
             cap: Some(1000),
             height: (None, None),
             offset: (None, None),
@@ -246,11 +246,11 @@ async fn test_etch() {
 
     // Check etching transaction
 
-    sleep(Duration::from_secs(5)).await;
+    sleep(Duration::from_secs(1)).await;
     
-    let runes = bitcoin_client.list_runes().await.expect("list runes should work");
-    println!("runes: {:?}", runes);
+    let rune_id = bitcoin_client.get_rune_id(&etching_tx.compute_txid()).await.expect("get rune id should work");
+    println!("rune_id: {:?}", rune_id);
 
-    assert!(runes.items.len() > 0, "should have more than one rune");
-
+    let rune = bitcoin_client.get_rune(rune_id.to_string()).await.expect("get rune should work");
+    println!("rune: {:?}", rune);
 }

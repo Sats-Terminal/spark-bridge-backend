@@ -9,7 +9,9 @@ use bitcoin::Txid;
 use bitcoin::secp256k1::{Secp256k1};
 use bitcoin::PrivateKey;
 use tracing;
-use titan_client::{PaginationResponse, RuneResponse, Pagination, Transaction as TitanTransaction};
+use titan_client::{RuneResponse, query::Block, query::Rune};
+use ordinals::RuneId;
+use std::str::FromStr;
 
 #[derive(Error, Debug)]
 pub enum BitcoinClientError {
@@ -112,14 +114,23 @@ impl BitcoinClient {
             .map_err(BitcoinClientError::TitanRpcError)
     }
 
-    pub async fn list_runes(&self) -> Result<PaginationResponse<RuneResponse>, BitcoinClientError> {
-        let response = self.titan_client.get_runes(None).await
+    pub async fn get_rune_id(&self, txid: &Txid) -> Result<RuneId, BitcoinClientError> {
+        let response = self.titan_client.get_transaction(txid).await
             .map_err(BitcoinClientError::TitanRpcError)?;
-        Ok(response)
+        let block_height = response.status.block_height
+            .ok_or(BitcoinClientError::DecodeError("Block height not found".to_string()))?;
+        let block = self.titan_client.get_block(&Block::Height(block_height)).await
+            .map_err(BitcoinClientError::TitanRpcError)?;
+        let tx_index = block.tx_ids.iter().position(|id| id.to_string() == txid.to_string())
+            .ok_or(BitcoinClientError::DecodeError("Transaction not found in block".to_string()))?;
+        let rune_id = RuneId::new(block_height, tx_index as u32)
+            .ok_or(BitcoinClientError::DecodeError("Rune ID not found".to_string()))?;
+        Ok(rune_id)
     }
 
-    pub async fn get_transaction(&self, txid: &Txid) -> Result<TitanTransaction, BitcoinClientError> {
-        let response = self.titan_client.get_transaction(txid).await
+    pub async fn get_rune(&self, rune_id: String) -> Result<RuneResponse, BitcoinClientError> {
+        let rune = Rune::from_str(&rune_id).map_err(|e| BitcoinClientError::DecodeError(e.to_string()))?;
+        let response = self.titan_client.get_rune(&rune).await
             .map_err(BitcoinClientError::TitanRpcError)?;
         Ok(response)
     }
