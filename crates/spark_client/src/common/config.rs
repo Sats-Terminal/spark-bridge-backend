@@ -44,6 +44,11 @@ impl SparkConfig {
             "Coordinator operator not found".to_string(),
         ))
     }
+
+    pub fn coordinator_operator_config(&self) -> Result<&SparkOperatorConfig, SparkClientError> {
+        let coordinator_index = self.coordinator_operator()?;
+        Ok(&self.operators[coordinator_index])
+    }
 }
 
 #[derive(Debug)]

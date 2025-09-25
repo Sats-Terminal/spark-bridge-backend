@@ -13,9 +13,9 @@ use spark_address::decode_spark_address;
 use std::str::FromStr;
 use token_identifier::TokenIdentifier;
 
-const DEFAULT_MAX_SUPPLY: u64 = 21_000_000_000;
-const DEFAULT_DECIMALS: u32 = 8;
-const DEFAULT_IS_FREEZABLE: bool = false;
+pub const DEFAULT_MAX_SUPPLY: u128 = 21_000_000_000;
+pub const DEFAULT_DECIMALS: u8 = 8;
+pub const DEFAULT_IS_FREEZABLE: bool = false;
 
 #[derive(Debug, Clone)]
 pub enum SparkTransactionType {
@@ -77,8 +77,8 @@ pub fn create_partial_token_transaction(
                     issuer_public_key,
                     token_name,
                     token_ticker,
-                    decimals: DEFAULT_DECIMALS,
-                    max_supply: DEFAULT_MAX_SUPPLY as u128,
+                    decimals: DEFAULT_DECIMALS as u32,
+                    max_supply: DEFAULT_MAX_SUPPLY,
                     is_freezable: DEFAULT_IS_FREEZABLE,
                     creation_entity_public_key: None,
                 }),
