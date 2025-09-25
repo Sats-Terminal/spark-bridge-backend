@@ -15,3 +15,7 @@ tokio = { workspace = true }
 reqwest = { workspace = true }
 url = { workspace = true }
 serde = { workspace = true }
+ord = { workspace = true }
+rand_core = { workspace = true }
+tracing = { workspace = true }
+global_utils = { workspace = true }

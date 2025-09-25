@@ -1,9 +1,15 @@
-use bitcoin::Address;
+use bitcoin::{Address, CompressedPublicKey};
 use bitcoin::{Transaction, consensus::Encodable};
 use bitcoincore_rpc::bitcoin::Amount as RpcAmount;
 use bitcoincore_rpc::{Auth::UserPass, Client, RpcApi};
 use thiserror::Error;
 use titan_client::{AddressData, TitanApi, TitanClient};
+use bitcoin::Network;
+use bitcoin::Txid;
+use bitcoin::secp256k1::{Secp256k1};
+use bitcoin::PrivateKey;
+use tracing;
+use titan_client::{PaginationResponse, RuneResponse, Pagination, Transaction as TitanTransaction};
 
 #[derive(Error, Debug)]
 pub enum BitcoinClientError {
@@ -25,7 +31,6 @@ pub struct BitcoinClientConfig {
 pub struct BitcoinClient {
     bitcoin_client: Client,
     titan_client: TitanClient,
-    faucet_wallet_address: Option<Address>,
 }
 
 impl BitcoinClient {
@@ -39,30 +44,38 @@ impl BitcoinClient {
         let mut client = Self {
             bitcoin_client,
             titan_client,
-            faucet_wallet_address: None,
         };
         client.init_bitcoin_faucet_wallet()?;
 
         Ok(client)
     }
 
-    fn get_faucet_wallet_address(&mut self) -> Result<Address, BitcoinClientError> {
-        match self.faucet_wallet_address.clone() {
-            Some(address) => Ok(address),
-            None => {
-                let address = self.bitcoin_client.get_new_address(None, None)?.assume_checked();
-                self.faucet_wallet_address = Some(address.clone());
-                Ok(address)
-            }
-        }
+    fn dump_address(&self) -> Result<Address, BitcoinClientError> {
+        let private_key = PrivateKey::from_wif("cSYFixQzjSrZ4b4LBT16Q7RXBk52DZ5cpJydE7DzuZS1RhzaXpEN")
+            .map_err(|e| BitcoinClientError::DecodeError(e.to_string()))?;
+        let compressed_public_key = CompressedPublicKey::from_private_key(&Secp256k1::new(), &private_key)
+            .map_err(|e| BitcoinClientError::DecodeError(e.to_string()))?;
+        Ok(Address::p2wpkh(&compressed_public_key, Network::Regtest))
     }
 
     fn init_bitcoin_faucet_wallet(&mut self) -> Result<(), BitcoinClientError> {
+        tracing::info!("Initializing bitcoin faucet wallet");
         let wallets = self.bitcoin_client.list_wallets()?;
         if !wallets.contains(&"faucet_wallet".to_string()) {
-            self.generate_blocks(121)?;
+            tracing::info!("Creating faucet wallet");
+            self.bitcoin_client.create_wallet("faucet_wallet", None, None, None, None)?;
+            let address = self.get_funding_address()?;
+            self.generate_blocks(100, Some(address))?;
+            self.generate_blocks(121, None)?;
         }
         Ok(())
+    }
+
+    fn get_funding_address(&mut self) -> Result<Address, BitcoinClientError> {
+        let address = self.bitcoin_client.get_new_address(None, None)?
+            .require_network(Network::Regtest)
+            .map_err(|e| BitcoinClientError::DecodeError(e.to_string()))?;
+        Ok(address)
     }
 
     pub fn broadcast_transaction(&self, transaction: Transaction) -> Result<(), BitcoinClientError> {
@@ -74,10 +87,13 @@ impl BitcoinClient {
         Ok(())
     }
 
-    pub fn generate_blocks(&mut self, blocks: u64) -> Result<(), BitcoinClientError> {
-        let faucet_wallet_address = self.get_faucet_wallet_address()?;
+    pub fn generate_blocks(&mut self, blocks: u64, address: Option<Address>) -> Result<(), BitcoinClientError> {
+        let address = match address {
+            Some(address) => address,
+            None => self.dump_address()?,
+        };
         self.bitcoin_client
-            .generate_to_address(blocks, &faucet_wallet_address)?;
+            .generate_to_address(blocks, &address)?;
         Ok(())
     }
 
@@ -85,7 +101,7 @@ impl BitcoinClient {
         let amount = RpcAmount::from_sat(sats_amount);
         self.bitcoin_client
             .send_to_address(&address, amount, None, None, None, None, None, None)?;
-        self.generate_blocks(6)?;
+        self.generate_blocks(6, None)?;
         Ok(())
     }
 
@@ -94,5 +110,17 @@ impl BitcoinClient {
             .get_address(address.to_string().as_str())
             .await
             .map_err(BitcoinClientError::TitanRpcError)
+    }
+
+    pub async fn list_runes(&self) -> Result<PaginationResponse<RuneResponse>, BitcoinClientError> {
+        let response = self.titan_client.get_runes(None).await
+            .map_err(BitcoinClientError::TitanRpcError)?;
+        Ok(response)
+    }
+
+    pub async fn get_transaction(&self, txid: &Txid) -> Result<TitanTransaction, BitcoinClientError> {
+        let response = self.titan_client.get_transaction(txid).await
+            .map_err(BitcoinClientError::TitanRpcError)?;
+        Ok(response)
     }
 }

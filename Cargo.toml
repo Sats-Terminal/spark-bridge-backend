@@ -51,6 +51,7 @@ log = { version = "0.4.27" }
 mockall = { version = "0.13.1" }
 once_cell = { version = "1.21.3" }
 ordinals = { version = "0.0.15" }
+ord = { version = "0.23.3" }
 ord-rs = { version = "0.3.0", features = ["rune"] }
 prost = "0.13.5"
 prost-reflect = { version = "0.16.1", features = ["serde"] }
