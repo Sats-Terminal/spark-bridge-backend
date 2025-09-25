@@ -56,12 +56,13 @@ impl AggregatorMusigIdStorage for LocalDbStorage {
         Ok(())
     }
 
-    async fn get_issuer_musig_id(&self) -> Result<Option<MusigId>, DbError> {
+    async fn get_issuer_musig_id(&self, rune_id: String) -> Result<Option<MusigId>, DbError> {
         let result: Option<(String, String)> = sqlx::query_as(
             "SELECT public_key, rune_id 
             FROM gateway.musig_identifier 
-            WHERE is_issuer = true",
+            WHERE is_issuer = true AND rune_id = $1",
         )
+        .bind(rune_id)
         .fetch_optional(&self.get_conn().await?)
         .await
         .map_err(|e| DbError::BadRequest(e.to_string()))?;
@@ -79,6 +80,7 @@ impl AggregatorMusigIdStorage for LocalDbStorage {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::storage::make_repo_with_config;
     use bitcoin::secp256k1::{PublicKey, Secp256k1, SecretKey};
     use frost::aggregator::FrostAggregator;
     use frost::mocks::*;
@@ -159,9 +161,7 @@ mod tests {
 
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_aggregator_signer_integration(db: PostgresPool) -> anyhow::Result<()> {
-        let storage = Arc::new(LocalDbStorage {
-            postgres_repo: PostgresRepo { pool: db },
-        });
+        let storage = make_repo_with_config(db).await;
 
         let verifiers_map = create_verifiers_map_easy().await;
         let aggregator = FrostAggregator::new(verifiers_map, storage.clone(), storage);

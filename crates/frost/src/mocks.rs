@@ -101,7 +101,7 @@ impl AggregatorMusigIdStorage for MockAggregatorMusigIdStorage {
         Ok(())
     }
 
-    async fn get_issuer_musig_id(&self) -> Result<Option<MusigId>, DbError> {
+    async fn get_issuer_musig_id(&self, rune_id: String) -> Result<Option<MusigId>, DbError> {
         Ok(None)
     }
 }

@@ -1,8 +1,9 @@
 use crate::errors::SparkServiceError;
 use crate::types::create_partial_token_transaction;
 use crate::types::*;
+use crate::utils::spark_network_to_proto_network;
 use bitcoin::hashes::sha256::Hash as Sha256Hash;
-use bitcoin::hashes::{Hash, HashEngine};
+use bitcoin::hashes::{Hash, HashEngine, sha256};
 use bitcoin::secp256k1::PublicKey;
 use frost::aggregator::FrostAggregator;
 use frost::types::MusigId;
@@ -14,6 +15,7 @@ use lrc20::marshal::unmarshal_token_transaction;
 use proto_hasher::ProtoHasher;
 use spark_address::Network;
 use spark_client::client::SparkRpcClient;
+use spark_protos::prost::Message;
 use spark_protos::reflect::ToDynamicMessage;
 use spark_protos::spark_authn::GetChallengeRequest;
 use spark_protos::spark_authn::VerifyChallengeRequest;
@@ -69,6 +71,11 @@ impl SparkService {
     }
 
     async fn authenticate(&self, musig_id: MusigId, nonce_tweak: Option<Nonce>) -> Result<(), SparkServiceError> {
+        tracing::debug!(
+            "Authenticating with musig id: {:?}, nonce tweak: {:?}",
+            musig_id,
+            nonce_tweak
+        );
         let identity_public_key = self.get_musig_public_key(musig_id.clone(), nonce_tweak).await?;
 
         let session_token = self.spark_client.get_auth_session(identity_public_key).await;
@@ -91,11 +98,13 @@ impl SparkService {
             .challenge
             .ok_or(SparkServiceError::DecodeError("Challenge is not found".to_string()))?;
 
+        let message_hash = sha256::Hash::hash(challenge.encode_to_vec().as_slice());
+
         let signature = self
             .frost_aggregator
             .run_signing_flow(
                 musig_id.clone(),
-                challenge.nonce.as_ref(),
+                message_hash.as_byte_array().as_slice(),
                 SigningMetadata::Authorization,
                 nonce_tweak,
             )
@@ -116,6 +125,8 @@ impl SparkService {
             .await
             .map_err(|e| SparkServiceError::SparkClientError(format!("Failed to verify challenge: {}", e)))?;
 
+        tracing::debug!("Challenge verified for musig id: {:?}", musig_id);
+
         Ok(())
     }
 
@@ -127,18 +138,29 @@ impl SparkService {
         transaction_type: SparkTransactionType,
         network: Network,
     ) -> Result<(), SparkServiceError> {
+        tracing::debug!(
+            "Send spark transaction with musig id: {:?}, nonce tweak: {:?}, token identifier: {:?}",
+            musig_id,
+            nonce_tweak,
+            token_identifier.to_string()
+        );
+
         self.authenticate(musig_id.clone(), nonce_tweak).await?;
+
+        tracing::debug!("Network: {:?}", network);
 
         let identity_public_key = self.get_musig_public_key(musig_id.clone(), nonce_tweak).await?;
 
         // ----- Start the transaction -----
+
+        tracing::debug!("Start the transaction");
 
         let partial_token_transaction = create_partial_token_transaction(
             identity_public_key,
             transaction_type.clone(),
             token_identifier,
             self.spark_operator_identity_public_keys.clone(),
-            network,
+            spark_network_to_proto_network(network),
         )?;
 
         let partial_token_transaction_proto =
@@ -166,22 +188,31 @@ impl SparkService {
 
         let response = self
             .spark_client
-            .start_token_transaction(StartTransactionRequest {
-                identity_public_key: identity_public_key.serialize().to_vec(),
-                partial_token_transaction: Some(partial_token_transaction_proto),
-                partial_token_transaction_owner_signatures: vec![SignatureWithIndex {
-                    signature: signature
-                        .serialize()
-                        .map_err(|e| SparkServiceError::DecodeError(format!("Failed to serialize signature: {:?}", e)))?
-                        .to_vec(),
-                    input_index: 0,
-                }],
-                validity_duration_seconds: DEFAULT_VALIDITY_DURATION_SECONDS,
-            })
+            .start_token_transaction(
+                StartTransactionRequest {
+                    identity_public_key: identity_public_key.serialize().to_vec(),
+                    partial_token_transaction: Some(partial_token_transaction_proto),
+                    partial_token_transaction_owner_signatures: vec![SignatureWithIndex {
+                        signature: signature
+                            .serialize()
+                            .map_err(|e| {
+                                SparkServiceError::DecodeError(format!("Failed to serialize signature: {:?}", e))
+                            })?
+                            .to_vec(),
+                        input_index: 0,
+                    }],
+                    validity_duration_seconds: DEFAULT_VALIDITY_DURATION_SECONDS,
+                },
+                identity_public_key,
+            )
             .await
             .map_err(|e| SparkServiceError::SparkClientError(e.to_string()))?;
 
+        tracing::debug!("Transaction started");
+
         // ----- Finalize the transaction -----
+
+        tracing::debug!("Finalize the transaction");
 
         let final_token_transaction_proto = response.final_token_transaction.ok_or(SparkServiceError::DecodeError(
             "Final token transaction is not found".to_string(),
@@ -249,16 +280,25 @@ impl SparkService {
             .into_iter()
             .collect::<Result<Vec<InputTtxoSignaturesPerOperator>, SparkServiceError>>()?;
 
-        let _ = self
+        tracing::debug!("Sending commit transaction");
+
+        let response = self
             .spark_client
-            .commit_token_transaction(CommitTransactionRequest {
-                final_token_transaction: Some(final_token_transaction_proto),
-                final_token_transaction_hash: final_token_transaction_hash.to_byte_array().to_vec(),
-                input_ttxo_signatures_per_operator: signatures,
-                owner_identity_public_key: identity_public_key.serialize().to_vec(),
-            })
+            .commit_token_transaction(
+                CommitTransactionRequest {
+                    final_token_transaction: Some(final_token_transaction_proto),
+                    final_token_transaction_hash: final_token_transaction_hash.to_byte_array().to_vec(),
+                    input_ttxo_signatures_per_operator: signatures,
+                    owner_identity_public_key: identity_public_key.serialize().to_vec(),
+                },
+                identity_public_key,
+            )
             .await
             .map_err(|e| SparkServiceError::SparkClientError(e.to_string()))?;
+
+        tracing::debug!("Commit transaction response: {:?}", response);
+
+        tracing::debug!("Transaction committed");
 
         Ok(())
     }

@@ -22,7 +22,7 @@ pub trait SignerClient: Send + Sync + Debug {
 pub trait AggregatorMusigIdStorage: Send + Sync + Debug {
     async fn get_musig_id_data(&self, musig_id: &MusigId) -> Result<Option<AggregatorMusigIdData>, DbError>;
     async fn set_musig_id_data(&self, musig_id: &MusigId, musig_id_data: AggregatorMusigIdData) -> Result<(), DbError>;
-    async fn get_issuer_musig_id(&self) -> Result<Option<MusigId>, DbError>;
+    async fn get_issuer_musig_id(&self, rune_id: String) -> Result<Option<MusigId>, DbError>;
 }
 
 #[async_trait]

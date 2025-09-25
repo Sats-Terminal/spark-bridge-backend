@@ -106,14 +106,9 @@ impl SessionStorage for LocalDbStorage {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::storage::make_repo_with_config;
     use persistent_storage::error::DbError as DatabaseError;
     use std::sync::Arc;
-
-    async fn make_repo(db: sqlx::PgPool) -> Arc<LocalDbStorage> {
-        Arc::new(LocalDbStorage {
-            postgres_repo: crate::storage::PostgresRepo { pool: db },
-        })
-    }
 
     pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
 
@@ -140,7 +135,7 @@ mod tests {
 
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_create_session(db: sqlx::PgPool) -> Result<(), DatabaseError> {
-        let repo = make_repo(db).await;
+        let repo = make_repo_with_config(db).await;
         cleanup_and_setup(&repo).await;
 
         let session = create_test_session();
@@ -158,7 +153,7 @@ mod tests {
 
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_update_session_status(db: sqlx::PgPool) -> Result<(), DatabaseError> {
-        let repo = make_repo(db).await;
+        let repo = make_repo_with_config(db).await;
         cleanup_and_setup(&repo).await;
 
         let session = create_test_session();
@@ -178,7 +173,7 @@ mod tests {
 
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_get_session(db: sqlx::PgPool) -> Result<(), DatabaseError> {
-        let repo = make_repo(db).await;
+        let repo = make_repo_with_config(db).await;
         cleanup_and_setup(&repo).await;
 
         let original_session = create_test_session_with_type(RequestType::BridgeRunes, SessionStatus::Processing);
@@ -193,7 +188,7 @@ mod tests {
 
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_get_nonexistent_session(db: sqlx::PgPool) -> Result<(), DatabaseError> {
-        let repo = make_repo(db).await;
+        let repo = make_repo_with_config(db).await;
         cleanup_and_setup(&repo).await;
 
         let fake_id = get_uuid();
@@ -205,7 +200,7 @@ mod tests {
 
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_update_nonexistent_session(db: sqlx::PgPool) -> Result<(), DatabaseError> {
-        let repo = make_repo(db).await;
+        let repo = make_repo_with_config(db).await;
         cleanup_and_setup(&repo).await;
 
         let fake_id = get_uuid();
@@ -217,7 +212,7 @@ mod tests {
 
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_create_different_session_types(db: sqlx::PgPool) -> Result<(), DatabaseError> {
-        let repo = make_repo(db).await;
+        let repo = make_repo_with_config(db).await;
         cleanup_and_setup(&repo).await;
 
         let session_types = vec![
@@ -244,7 +239,7 @@ mod tests {
 
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_all_session_statuses(db: sqlx::PgPool) -> Result<(), DatabaseError> {
-        let repo = make_repo(db).await;
+        let repo = make_repo_with_config(db).await;
         cleanup_and_setup(&repo).await;
 
         let statuses = vec![
@@ -267,7 +262,7 @@ mod tests {
 
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_status_progression(db: sqlx::PgPool) -> Result<(), DatabaseError> {
-        let repo = make_repo(db).await;
+        let repo = make_repo_with_config(db).await;
         cleanup_and_setup(&repo).await;
 
         let session = create_test_session();
@@ -285,7 +280,7 @@ mod tests {
 
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_create_multiple_sessions(db: sqlx::PgPool) -> Result<(), DatabaseError> {
-        let repo = make_repo(db).await;
+        let repo = make_repo_with_config(db).await;
         cleanup_and_setup(&repo).await;
 
         let mut session_ids = Vec::new();
@@ -305,7 +300,7 @@ mod tests {
 
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_session_serialization(db: sqlx::PgPool) -> Result<(), DatabaseError> {
-        let repo = make_repo(db).await;
+        let repo = make_repo_with_config(db).await;
         cleanup_and_setup(&repo).await;
 
         let session = create_test_session_with_type(RequestType::BridgeRunes, SessionStatus::Processing);
@@ -326,7 +321,7 @@ mod tests {
 
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_performance_create_many_sessions(db: sqlx::PgPool) -> Result<(), DatabaseError> {
-        let repo = make_repo(db).await;
+        let repo = make_repo_with_config(db).await;
         cleanup_and_setup(&repo).await;
 
         use std::time::Instant;

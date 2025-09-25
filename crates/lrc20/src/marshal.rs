@@ -33,12 +33,14 @@ pub fn marshal_token_transaction(
     tx: &TokenTransaction,
     with_revocation_commitments: bool,
 ) -> Result<TokenTransactionV2SparkProto, TokenTransactionError> {
-    let spark_operator_identity_public_keys = tx
+    let mut spark_operator_identity_public_keys: Vec<Vec<u8>> = tx
         .spark_operator_identity_public_keys
+        .clone()
         .iter()
-        .cloned()
         .map(|pubkey| pubkey.serialize().to_vec())
         .collect();
+
+    spark_operator_identity_public_keys.sort();
 
     let network = tx.network.ok_or(TokenTransactionError::NetworkMissing)?;
 
@@ -200,6 +202,7 @@ pub fn unmarshal_token_transaction(
         0 => TokenTransactionVersion::V1,
         1 => TokenTransactionVersion::V2,
         2 => TokenTransactionVersion::V3,
+        3 => TokenTransactionVersion::V4,
         _ => {
             return Err(TokenTransactionError::InvalidTokenTransactionVersion(token_tx.version));
         }
@@ -251,11 +254,20 @@ fn into_token_input_v2(
                 spark_protos::spark_token::TokenTransferInput { outputs_to_spend },
             )
         }
-        _ => {
-            return Err(TokenTransactionError::InvalidTokenTransactionInput(format!(
-                "{:?} is not allowed for token transactions V2",
-                tx.input
-            )));
+        TokenTransactionInput::Create(create_input) => {
+            spark_protos::spark_token::token_transaction::TokenInputs::CreateInput(
+                spark_protos::spark_token::TokenCreateInput {
+                    issuer_public_key: create_input.issuer_public_key.serialize().to_vec(),
+                    token_name: create_input.token_name,
+                    token_ticker: create_input.token_ticker,
+                    decimals: create_input.decimals,
+                    max_supply: create_input.max_supply.to_be_bytes().to_vec(),
+                    is_freezable: create_input.is_freezable,
+                    creation_entity_public_key: create_input
+                        .creation_entity_public_key
+                        .map(|public_key| public_key.serialize().to_vec()),
+                },
+            )
         }
     };
 

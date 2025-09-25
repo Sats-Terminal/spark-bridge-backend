@@ -19,7 +19,7 @@ uuid = { workspace = true }
 serde = { workspace = true }
 anyhow = { workspace = true }
 gateway_rune_transfer = { workspace = true }
-
+gateway_config_parser = { path = "../config_parser" }
 
 [dev-dependencies]
 lrc20 = { workspace = true }

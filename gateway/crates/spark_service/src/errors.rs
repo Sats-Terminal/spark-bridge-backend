@@ -1,3 +1,4 @@
+use spark_address::SparkAddressError;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -12,4 +13,6 @@ pub enum SparkServiceError {
     HashError(String),
     #[error("Decode error: {0}")]
     DecodeError(String),
+    #[error("Spark address error: {0}")]
+    SparkAddressError(#[from] SparkAddressError),
 }

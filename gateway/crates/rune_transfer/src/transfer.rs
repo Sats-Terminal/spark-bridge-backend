@@ -12,21 +12,20 @@ use bitcoin::transaction::Version;
 use bitcoin::{Address, Amount, Network, OutPoint, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Txid, Witness};
 use global_utils::conversion::decode_address;
 use ordinals::{Edict, RuneId, Runestone};
-use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
-#[derive(Deserialize, Serialize, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct PayingTransferInput {
     pub txid: Txid,
     pub vout: u32,
-    pub address: String,
+    pub address: Address,
     pub sats_amount: u64,
     pub none_anyone_can_pay_signature: Signature,
 }
 
-#[derive(Deserialize, Serialize, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct RuneTransferOutput {
-    pub address: String,
+    pub address: Address,
     pub sats_amount: u64,
     pub runes_amount: u64,
 }
@@ -36,7 +35,6 @@ pub fn create_rune_partial_transaction(
     paying_input: PayingTransferInput,
     rune_transfer_outputs: Vec<RuneTransferOutput>,
     rune_id: String,
-    network: Network,
 ) -> Result<Transaction, RuneTransferError> {
     let rune_id = RuneId::from_str(&rune_id)
         .map_err(|e| RuneTransferError::InvalidData(format!("Failed to parse rune id: {}", e)))?;
@@ -91,9 +89,7 @@ pub fn create_rune_partial_transaction(
     for transfer_output in rune_transfer_outputs.iter() {
         outputs.push(TxOut {
             value: Amount::from_sat(transfer_output.sats_amount),
-            script_pubkey: decode_address(&transfer_output.address, network)
-                .map_err(|e| RuneTransferError::InvalidData(format!("Failed to decode address: {}", e)))?
-                .script_pubkey(),
+            script_pubkey: transfer_output.address.script_pubkey(),
         });
     }
 

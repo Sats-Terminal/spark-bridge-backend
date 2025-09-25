@@ -4,6 +4,7 @@ use spark_protos::spark::spark_service_client::SparkServiceClient;
 use spark_protos::spark_authn::spark_authn_service_client::SparkAuthnServiceClient;
 use spark_protos::spark_token::spark_token_service_client::SparkTokenServiceClient;
 use tonic::transport::{Channel, ClientTlsConfig, Uri};
+use tracing;
 
 use crate::common::{config::SparkConfig, error::SparkClientError};
 
@@ -22,6 +23,7 @@ pub struct SparkTlsConnection {
 impl SparkTlsConnection {
     pub(crate) fn new(config: SparkConfig) -> Result<Self, SparkClientError> {
         let coordinator_operator = config.coordinator_operator()?;
+        tracing::debug!("Coordinator operator: {}", coordinator_operator);
         Ok(SparkTlsConnection {
             spark_config: config,
             coordinator_operator,
@@ -30,9 +32,18 @@ impl SparkTlsConnection {
 
     async fn create_tls_channel(&self) -> Result<Channel, SparkClientError> {
         let base_url = self.spark_config.operators[self.coordinator_operator].base_url.clone();
+        tracing::debug!(
+            "Spark operator identity public key: {}",
+            self.spark_config.operators[self.coordinator_operator]
+                .identity_public_key
+                .clone()
+        );
         let uri = Uri::from_str(base_url.0.as_ref())
             .map_err(|e| SparkClientError::ConnectionError(format!("Failed to create URI: {}", e)))?;
-        let mut tls = ClientTlsConfig::new().ca_certificate(self.spark_config.certificate.get_certificate()?);
+        let mut tls = ClientTlsConfig::new();
+        for certificate in self.spark_config.certificates.iter() {
+            tls = tls.ca_certificate(certificate.get_certificate()?);
+        }
         if let Some(host) = uri.host() {
             tls = tls.domain_name(host);
         }

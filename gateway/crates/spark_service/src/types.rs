@@ -9,7 +9,8 @@ use lrc20::token_transaction::TokenTransactionCreateInput;
 use lrc20::token_transaction::TokenTransactionInput;
 use lrc20::token_transaction::TokenTransactionMintInput;
 use lrc20::token_transaction::TokenTransactionVersion;
-use spark_address::Network;
+use spark_address::decode_spark_address;
+use std::str::FromStr;
 use token_identifier::TokenIdentifier;
 
 const DEFAULT_MAX_SUPPLY: u64 = 21_000_000_000;
@@ -19,7 +20,7 @@ const DEFAULT_IS_FREEZABLE: bool = false;
 #[derive(Debug, Clone)]
 pub enum SparkTransactionType {
     Mint {
-        receiver_identity_public_key: PublicKey,
+        receiver_spark_address: String,
         token_amount: u64,
     },
     Create {
@@ -33,15 +34,21 @@ pub fn create_partial_token_transaction(
     spark_transaction_type: SparkTransactionType,
     token_identifier: TokenIdentifier,
     spark_operator_identity_public_keys: Vec<PublicKey>,
-    network: Network,
+    network: u32,
 ) -> Result<TokenTransaction, SparkServiceError> {
     match spark_transaction_type {
         SparkTransactionType::Mint {
-            receiver_identity_public_key,
+            receiver_spark_address,
             token_amount,
         } => {
+            let spark_address_data = decode_spark_address(&receiver_spark_address)?;
+            let receiver_identity_public_key =
+                PublicKey::from_str(&spark_address_data.identity_public_key).map_err(|e| {
+                    SparkServiceError::InvalidData(format!("Failed to parse receiver identity public key: {}", e))
+                })?;
+
             let token_transaction = TokenTransaction {
-                version: TokenTransactionVersion::V2,
+                version: TokenTransactionVersion::V4,
                 input: TokenTransactionInput::Mint(TokenTransactionMintInput {
                     issuer_public_key,
                     token_identifier: Some(token_identifier),
@@ -56,7 +63,7 @@ pub fn create_partial_token_transaction(
                 )],
                 spark_operator_identity_public_keys,
                 expiry_time: 0,
-                network: Some(network as u32),
+                network: Some(network),
                 client_created_timestamp: chrono::Utc::now().timestamp_millis() as u64,
                 invoice_attachments: Default::default(),
             };
@@ -67,7 +74,7 @@ pub fn create_partial_token_transaction(
             token_ticker,
         } => {
             let token_transaction = TokenTransaction {
-                version: TokenTransactionVersion::V2,
+                version: TokenTransactionVersion::V4,
                 input: TokenTransactionInput::Create(TokenTransactionCreateInput {
                     issuer_public_key,
                     token_name,
@@ -80,7 +87,7 @@ pub fn create_partial_token_transaction(
                 leaves_to_create: vec![],
                 spark_operator_identity_public_keys,
                 expiry_time: 0,
-                network: Some(network as u32),
+                network: Some(network),
                 client_created_timestamp: chrono::Utc::now().timestamp_millis() as u64,
                 invoice_attachments: Default::default(),
             };

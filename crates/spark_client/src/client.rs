@@ -14,6 +14,7 @@ use spark_protos::spark_token::{
 use std::collections::HashMap;
 use std::{future::Future, sync::Arc};
 use tokio::sync::Mutex;
+use tonic::metadata::MetadataValue;
 use tracing;
 
 const N_QUERY_RETRIES: usize = 3;
@@ -83,14 +84,30 @@ impl SparkRpcClient {
     pub async fn start_token_transaction(
         &self,
         request: StartTransactionRequest,
+        user_public_key: PublicKey,
     ) -> Result<StartTransactionResponse, SparkClientError> {
-        let query_fn = |mut clients: SparkServicesClients, request: StartTransactionRequest| async move {
-            clients
-                .spark_token
-                .start_transaction(request)
-                .await
-                .map_err(|e| SparkClientError::ConnectionError(format!("Failed to start transaction: {}", e)))
+        tracing::debug!("Client sending start transaction");
+        let spark_session = self.get_auth_session(user_public_key).await.ok_or_else(|| {
+            SparkClientError::NoAuthSessionFound(format!(
+                "No auth session found for user public key: {}",
+                user_public_key
+            ))
+        })?;
+        let request = StartTransactionRequestWithAuth {
+            request,
+            user_public_key,
+            spark_session,
         };
+
+        let query_fn =
+            |mut clients: SparkServicesClients, request: StartTransactionRequestWithAuth| async move {
+                let mut tonic_request = tonic::Request::new(request.request);
+                create_request(&mut tonic_request, request.user_public_key, request.spark_session)?;
+
+                clients.spark_token.start_transaction(tonic_request).await.map_err(|e| {
+                    SparkClientError::ConnectionError(format!("Failed to start transaction: {}", e.message()))
+                })
+            };
 
         self.retry_query(query_fn, request).await.map(|r| r.into_inner())
     }
@@ -98,13 +115,32 @@ impl SparkRpcClient {
     pub async fn commit_token_transaction(
         &self,
         request: CommitTransactionRequest,
+        user_public_key: PublicKey,
     ) -> Result<CommitTransactionResponse, SparkClientError> {
-        let query_fn = |mut clients: SparkServicesClients, request: CommitTransactionRequest| async move {
+        tracing::debug!("Client sending commit transaction");
+        let spark_session = self.get_auth_session(user_public_key).await.ok_or_else(|| {
+            SparkClientError::NoAuthSessionFound(format!(
+                "No auth session found for user public key: {}",
+                user_public_key
+            ))
+        })?;
+        let request = CommitTransactionRequestWithAuth {
+            request,
+            user_public_key,
+            spark_session,
+        };
+
+        let query_fn = |mut clients: SparkServicesClients, request: CommitTransactionRequestWithAuth| async move {
+            let mut tonic_request = tonic::Request::new(request.request);
+            create_request(&mut tonic_request, request.user_public_key, request.spark_session)?;
+
             clients
                 .spark_token
-                .commit_transaction(request)
+                .commit_transaction(tonic_request)
                 .await
-                .map_err(|e| SparkClientError::ConnectionError(format!("Failed to commit transaction: {}", e)))
+                .map_err(|e| {
+                    SparkClientError::ConnectionError(format!("Failed to commit transaction: {}", e.message()))
+                })
         };
 
         self.retry_query(query_fn, request).await.map(|r| r.into_inner())
@@ -170,6 +206,36 @@ impl SparkRpcClient {
     }
 }
 
+pub fn create_request<T>(
+    request: &mut tonic::Request<T>,
+    user_public_key: PublicKey,
+    spark_session: SparkAuthSession,
+) -> Result<(), SparkClientError> {
+    let identity_public_key_str = hex::encode(user_public_key.serialize());
+    let id_meta = MetadataValue::try_from(identity_public_key_str).unwrap(); // TODO: handle error
+    request.metadata_mut().insert("x-identity-public-key", id_meta);
+
+    let session_token = MetadataValue::try_from(spark_session.session_token)
+        .map_err(|e| SparkClientError::DecodeError(format!("Failed to decode session token: {}", e)))?;
+    request.metadata_mut().insert("authorization", session_token);
+
+    Ok(())
+}
+
+#[derive(Debug, Clone)]
+struct StartTransactionRequestWithAuth {
+    request: StartTransactionRequest,
+    user_public_key: PublicKey,
+    spark_session: SparkAuthSession,
+}
+
+#[derive(Debug, Clone)]
+struct CommitTransactionRequestWithAuth {
+    request: CommitTransactionRequest,
+    user_public_key: PublicKey,
+    spark_session: SparkAuthSession,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -217,9 +283,7 @@ mod tests {
                 running_authority: "".to_string(),
                 is_coordinator: Some(true),
             }],
-            certificate: CertificateConfig {
-                path: PATH_TO_CA_PEM.to_string(),
-            },
+            ca_pem: CaCertificate::from_path(PATH_TO_CA_PEM)?.ca_pem,
         };
 
         let balance_checker = SparkRpcClient::new(config).await.unwrap();

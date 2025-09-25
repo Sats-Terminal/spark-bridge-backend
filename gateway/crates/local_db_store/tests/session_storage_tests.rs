@@ -1,5 +1,6 @@
 mod tests {
-    use gateway_local_db_store::storage::LocalDbStorage;
+    use gateway_local_db_store::schemas::session_storage::SessionStorage;
+    use gateway_local_db_store::storage::{LocalDbStorage, make_repo_with_config};
     use gateway_session_storage::tracker::SessionTracker;
     use gateway_session_storage::traits::{RequestType, SessionStatus, SessionStorage};
     use global_utils::common_types::get_uuid;
@@ -7,12 +8,6 @@ mod tests {
     use persistent_storage::init::{PostgresPool, PostgresRepo};
     use serde_json::json;
     use std::sync::Arc;
-
-    async fn make_repo(db: PostgresPool) -> Arc<LocalDbStorage> {
-        Arc::new(LocalDbStorage {
-            postgres_repo: PostgresRepo { pool: db },
-        })
-    }
 
     async fn cleanup_sessions(repo: Arc<LocalDbStorage>) {
         sqlx::query("TRUNCATE gateway.session_requests")
@@ -25,7 +20,7 @@ mod tests {
 
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_create_session(db: PostgresPool) -> Result<(), DatabaseError> {
-        let repo = make_repo(db).await;
+        let repo = make_repo_with_config(db).await;
         //setup_test_table(&repo).await;
         cleanup_sessions(repo.clone()).await;
 
@@ -54,7 +49,7 @@ mod tests {
 
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_session_status_updates(db: PostgresPool) -> Result<(), DatabaseError> {
-        let repo = make_repo(db).await;
+        let repo = make_repo_with_config(db).await;
         //setup_test_table(&repo).await;
         cleanup_sessions(repo.clone()).await;
 
@@ -80,7 +75,7 @@ mod tests {
 
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_session_success(db: PostgresPool) -> Result<(), DatabaseError> {
-        let repo = make_repo(db).await;
+        let repo = make_repo_with_config(db).await;
         //setup_test_table(&repo).await;
         cleanup_sessions(repo.clone()).await;
 
@@ -106,7 +101,7 @@ mod tests {
 
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_list_sessions(db: PostgresPool) -> Result<(), DatabaseError> {
-        let repo = make_repo(db).await;
+        let repo = make_repo_with_config(db).await;
         //setup_test_table(&repo).await;
         cleanup_sessions(repo.clone()).await;
 
@@ -137,7 +132,7 @@ mod tests {
 
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_session_tracker_helper(db: PostgresPool) -> Result<(), DatabaseError> {
-        let repo = make_repo(db).await;
+        let repo = make_repo_with_config(db).await;
         //setup_test_table(&repo).await;
         cleanup_sessions(repo.clone()).await;
 
@@ -165,7 +160,7 @@ mod tests {
 
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_session_not_found(db: PostgresPool) -> Result<(), DatabaseError> {
-        let repo = make_repo(db).await;
+        let repo = make_repo_with_config(db).await;
         //setup_test_table(&repo).await;
         cleanup_sessions(repo.clone()).await;
 
@@ -180,7 +175,7 @@ mod tests {
 
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_concurrent_session_operations(db: PostgresPool) -> Result<(), DatabaseError> {
-        let repo = make_repo(db).await;
+        let repo = make_repo_with_config(db).await;
         //setup_test_table(&repo).await;
         cleanup_sessions(repo.clone()).await;
 
