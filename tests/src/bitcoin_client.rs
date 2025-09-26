@@ -12,6 +12,7 @@ use tracing;
 use titan_client::{RuneResponse, query::Block, query::Rune};
 use ordinals::RuneId;
 use std::str::FromStr;
+use std::sync::Arc;
 
 #[derive(Error, Debug)]
 pub enum BitcoinClientError {
@@ -30,9 +31,10 @@ pub struct BitcoinClientConfig {
     pub bitcoin_password: String,
 }
 
+#[derive(Clone)]
 pub struct BitcoinClient {
-    bitcoin_client: Client,
-    titan_client: TitanClient,
+    bitcoin_client: Arc<Client>,
+    titan_client: Arc<TitanClient>,
 }
 
 impl BitcoinClient {
@@ -44,8 +46,8 @@ impl BitcoinClient {
         let titan_client = TitanClient::new(config.titan_url.as_str());
 
         let mut client = Self {
-            bitcoin_client,
-            titan_client,
+            bitcoin_client: Arc::new(bitcoin_client),
+            titan_client: Arc::new(titan_client),
         };
         client.init_bitcoin_faucet_wallet()?;
 
