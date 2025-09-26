@@ -281,7 +281,7 @@ impl SparkService {
 
         tracing::debug!("Commit transaction response: {:?}", response);
 
-        tracing::debug!("Transaction committed");
+        tracing::debug!("Transaction committed: {}", final_token_transaction_hash);
 
         Ok(())
     }

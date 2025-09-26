@@ -40,6 +40,7 @@ base_url = "https://0.spark.lightspark.com"
 identity_public_key = "03dfbdff4b6332c220f8fa2ba8ed496c698ceada563fa01b67d9983bfc5c95e763"
 frost_identifier = "0000000000000000000000000000000000000000000000000000000000000001"
 running_authority = "Lightspark"
+is_coordinator = true
 
 [[spark_config.operators]]
 id = 2
@@ -54,7 +55,6 @@ base_url = "https://2.spark.flashnet.xyz"
 identity_public_key = "022eda13465a59205413086130a65dc0ed1b8f8e51937043161f8be0c369b1a410"
 frost_identifier = "0000000000000000000000000000000000000000000000000000000000000003"
 running_authority = "Flashnet"
-is_coordinator = true
 
 [bitcoin_client_config]
 url = "http://localhost:18443"

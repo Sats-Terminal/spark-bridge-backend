@@ -28,18 +28,24 @@ pub struct SparkAuthSession {
 
 #[derive(Clone)]
 pub struct SparkRpcClient {
+    config: SparkConfig,
     clients: SparkServicesClients,
     authn_sessions: Arc<Mutex<HashMap<PublicKey, SparkAuthSession>>>,
 }
 
 impl SparkRpcClient {
     pub async fn new(config: SparkConfig) -> Result<Self, SparkClientError> {
-        let tls_connection = SparkTlsConnection::new(config)?;
+        let tls_connection = SparkTlsConnection::new(config.clone())?;
         let clients = tls_connection.create_clients().await?;
         Ok(Self {
+            config,
             clients,
             authn_sessions: Arc::new(Mutex::new(HashMap::new())),
         })
+    }
+
+    pub fn get_config(&self) -> &SparkConfig {
+        &self.config
     }
 
     async fn retry_query<F, Fut, Resp, P>(&self, query_fn: F, params: P) -> Result<Resp, SparkClientError>

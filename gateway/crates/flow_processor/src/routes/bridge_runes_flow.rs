@@ -1,3 +1,6 @@
+use std::str::FromStr;
+use std::thread::sleep;
+use bitcoin::secp256k1::PublicKey;
 use crate::error::FlowProcessorError;
 use crate::flow_router::FlowProcessorRouter;
 use crate::types::BridgeRunesRequest;
@@ -52,7 +55,15 @@ pub async fn handle(
                     FlowProcessorError::FrostAggregatorError(format!("Failed to run DKG flow for issuer: {}", e))
                 })?;
 
-            let wrunes_metadata = create_wrunes_metadata(rune_id.clone());
+            let coordinator_config = flow_processor
+                .spark_client
+                .get_config()
+                .coordinator_operator_config()
+                .map_err(|_| FlowProcessorError::CoordinatorNotFound)?;
+            let coordinator_public_key = PublicKey::from_str(&coordinator_config.identity_public_key)
+                .map_err(|err| FlowProcessorError::InvalidDataError(format!("Invalid coordinator public key: {}", err)))?;
+
+            let wrunes_metadata = create_wrunes_metadata(rune_id.clone(), issuer_public_key, coordinator_public_key, flow_processor.network);
 
             flow_processor
                 .spark_service
@@ -75,7 +86,15 @@ pub async fn handle(
         }
     };
 
-    let wrunes_metadata = create_wrunes_metadata(rune_id.clone());
+    let coordinator_config = flow_processor
+        .spark_client
+        .get_config()
+        .coordinator_operator_config()
+        .map_err(|_| FlowProcessorError::CoordinatorNotFound)?;
+    let coordinator_public_key = PublicKey::from_str(&coordinator_config.identity_public_key)
+        .map_err(|err| FlowProcessorError::InvalidDataError(format!("Invalid coordinator public key: {}", err)))?;
+
+    let wrunes_metadata = create_wrunes_metadata(rune_id.clone(), issuer_musig_id.get_public_key(), coordinator_public_key, flow_processor.network);
 
     let deposit_addr_info = flow_processor
         .storage
@@ -94,6 +113,8 @@ pub async fn handle(
         signature: None,
     })
         .map_err(|e| FlowProcessorError::SparkAddressError(e))?;
+
+    sleep(std::time::Duration::from_secs(10));
 
     flow_processor
         .spark_service
