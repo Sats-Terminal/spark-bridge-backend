@@ -57,6 +57,8 @@ async fn test_etch() {
 
     // Funding 
 
+    tracing::info!("Funding default address");
+
     let faucet_sats = 1_000_000;
     let reveal_amount = 10_000;
     let dust_amount = 546;
@@ -74,6 +76,7 @@ async fn test_etch() {
     
     let mut funded_outpoint = None;
     for (index, output) in address_data.outputs.iter().enumerate() {
+        assert!(output.status.confirmed, "All outputs should be confirmed");
         if output.value == faucet_sats {
             funded_outpoint = Some(OutPoint {
                 txid: Txid::from_str(&output.txid.to_string()).unwrap(),
@@ -85,7 +88,11 @@ async fn test_etch() {
 
     let funded_outpoint = funded_outpoint.expect("funded outpoint should be found");
 
+    tracing::info!("Wallet funded");
+
     // Create inscription struct
+
+    tracing::info!("Creating inscription struct");
 
     let etching = Etching {
         rune: Some(Rune::from_str(&random_rune_name()).unwrap()),
@@ -110,7 +117,11 @@ async fn test_etch() {
         ..Default::default()
     };
 
+    tracing::info!("Inscription struct created");
+
     // Create inscription transaction
+
+    tracing::info!("Creating inscription transaction");
 
     let p2tr_pubkey = XOnlyPublicKey::from_keypair(&keypair).0;
     let encoded_public_key = p2tr_pubkey.serialize();
@@ -157,7 +168,11 @@ async fn test_etch() {
         output: tx_out,
     };
 
+    tracing::info!("Inscription transaction created");
+
     // Sign inscription transaction
+
+    tracing::info!("Signing inscription transaction");
 
     let mut sighash_cache = SighashCache::new(inscription_tx.clone());
     let sighash = sighash_cache.taproot_key_spend_signature_hash(
@@ -178,12 +193,23 @@ async fn test_etch() {
     });
     inscription_tx.input[0].witness = witness;
 
+    let inscription_txid = inscription_tx.compute_txid();
+
+    tracing::info!("inscription_txid: {:?}", inscription_txid);
+    tracing::info!("Inscription transaction signed");
+
     // Broadcast inscription transaction
+
+    tracing::info!("Broadcasting inscription transaction");
 
     bitcoin_client.broadcast_transaction(inscription_tx.clone()).expect("broadcast transaction should work");
     bitcoin_client.generate_blocks(6, None).expect("generate blocks should work");
 
+    tracing::info!("Inscription transaction broadcasted");
+
     // Create rune etching transaction
+
+    tracing::info!("Creating rune etching transaction");
 
     let runestone = Runestone {
         etching: Some(etching),
@@ -223,7 +249,11 @@ async fn test_etch() {
         output: tx_out,
     };
 
+    tracing::info!("Rune etching transaction created");
+
     // Sign etching transaction
+
+    tracing::info!("Signing rune etching transaction");
 
     let prevouts_array = vec![TxOut {
         value: Amount::from_sat(reveal_amount),
@@ -251,18 +281,29 @@ async fn test_etch() {
     witness.push(taproot_spend_info.control_block(&(redeem_script.clone(), LeafVersion::TapScript)).unwrap().serialize());
     etching_tx.input[0].witness = witness;
 
+    let etching_txid = etching_tx.compute_txid();
+
+    tracing::info!("etching_txid: {:?}", etching_txid);
+    tracing::info!("Rune etching transaction signed");
+
     // Broadcast etching transaction
+
+    tracing::info!("Broadcasting rune etching transaction");
 
     bitcoin_client.broadcast_transaction(etching_tx.clone()).expect("broadcast transaction should work");
     bitcoin_client.generate_blocks(6, None).expect("generate blocks should work");
 
+    tracing::info!("Rune etching transaction broadcasted");
+
     // Check etching transaction
+
+    tracing::info!("Checking rune etching transaction");
 
     sleep(Duration::from_secs(1)).await;
     
     let rune_id = bitcoin_client.get_rune_id(&etching_tx.compute_txid()).await.expect("get rune id should work");
-    println!("rune_id: {:?}", rune_id);
+    tracing::info!("rune_id: {:?}", rune_id);
 
     let rune = bitcoin_client.get_rune(rune_id.to_string()).await.expect("get rune should work");
-    println!("rune: {:?}", rune);
+    tracing::info!("rune: {:?}", rune);
 }

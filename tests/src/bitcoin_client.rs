@@ -84,12 +84,13 @@ impl BitcoinClient {
         let mut tx_bytes = Vec::new();
         transaction
             .consensus_encode(&mut tx_bytes)
-            .map_err(|e| BitcoinClientError::DecodeError(e.to_string()))?;
+            .map_err(|e| BitcoinClientError::DecodeError(format!("Failed to encode transaction: {}", e)))?;
         self.bitcoin_client.send_raw_transaction(&tx_bytes)?;
         Ok(())
     }
 
     pub fn generate_blocks(&mut self, blocks: u64, address: Option<Address>) -> Result<(), BitcoinClientError> {
+        tracing::debug!("Generating blocks: {:?}", blocks);
         let address = match address {
             Some(address) => address,
             None => self.dump_address()?,
@@ -101,8 +102,9 @@ impl BitcoinClient {
 
     pub fn faucet(&mut self, address: Address, sats_amount: u64) -> Result<(), BitcoinClientError> {
         let amount = RpcAmount::from_sat(sats_amount);
-        self.bitcoin_client
+        let txid = self.bitcoin_client
             .send_to_address(&address, amount, None, None, None, None, None, None)?;
+        tracing::info!("Fauceted transaction: {:?}", txid);
         self.generate_blocks(6, None)?;
         Ok(())
     }
