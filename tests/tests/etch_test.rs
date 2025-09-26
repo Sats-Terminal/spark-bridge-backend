@@ -20,6 +20,18 @@ use tracing;
 use tests::bitcoin_client::{BitcoinClient, BitcoinClientConfig};
 use global_utils::logger::init_logger;
 
+pub fn random_rune_name() -> String {
+    let letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    let mut result = String::new();
+    let mut rng = OsRng;
+    for _ in 0..15 {
+        let random_num = rng.next_u32() as usize % letters.len();
+        let new_char = letters.chars().nth(random_num).expect("should be able to generate a random rune name");
+        result.push(new_char);
+    }
+    result
+}
+
 #[tokio::test]
 async fn test_etch() {
     let _guard = init_logger();
@@ -76,7 +88,7 @@ async fn test_etch() {
     // Create inscription struct
 
     let etching = Etching {
-        rune: Some(Rune::from_str("UNCOMMONGOODS").unwrap()),
+        rune: Some(Rune::from_str(&random_rune_name()).unwrap()),
         divisibility: Some(3),
         premine: None,
         spacers: None,
