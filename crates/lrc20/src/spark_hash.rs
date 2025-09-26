@@ -12,6 +12,7 @@ use spark_protos::reflect::{SparkProtoReflectError, ToDynamicMessage};
 use spark_protos::spark_token::token_transaction::TokenInputs;
 use thiserror::Error;
 use uuid::Uuid;
+use tracing::debug;
 
 /// A hash of the LRC20 receipt data that uniquely identifies a receipt (coin).
 ///
@@ -64,6 +65,8 @@ impl SparkHash {
         if token_tx.version == TokenTransactionVersion::V4 {
             return SparkHash::hash_token_transaction_v4(token_tx, is_partial_hash);
         }
+        debug!(version = ?token_tx.version, is_partial_hash, leaves_count = token_tx.leaves_to_create.len(),
+           "Starting token transaction hash calculation");
 
         let mut hash_engine = Sha256Hash::engine();
 
@@ -80,7 +83,7 @@ impl SparkHash {
         };
         hash_engine.input(Sha256Hash::hash(&[0, 0, 0, input_type]).as_byte_array());
 
-        // Hash inputs
+        debug!("Hash inputs");
         match &token_tx.input {
             TokenTransactionInput::Transfer(transfer_input) => {
                 let inputs_len = transfer_input.leaves_to_spend.len() as u32;
@@ -105,7 +108,7 @@ impl SparkHash {
         let outputs_len = token_tx.leaves_to_create.len() as u32;
         hash_engine.input(Sha256Hash::hash(&outputs_len.to_be_bytes()).as_byte_array());
 
-        // Hash output leaves
+        debug!("Hash output leaves");
         for leaf in &token_tx.leaves_to_create {
             hash_engine.input(
                 SparkHash::hash_token_leaf_output(leaf, is_partial_hash)?
@@ -117,7 +120,7 @@ impl SparkHash {
         let mut so_pubkeys = token_tx.spark_operator_identity_public_keys.clone();
         so_pubkeys.sort();
 
-        // Hash spark operator identity public keys
+        debug!("Hash spark operator identity public keys");
         let so_pubkeys_len = so_pubkeys.len() as u32;
         hash_engine.input(Sha256Hash::hash(&so_pubkeys_len.to_be_bytes()).as_byte_array());
 
@@ -125,7 +128,7 @@ impl SparkHash {
             hash_engine.input(Sha256Hash::hash(&key.serialize()).as_byte_array());
         }
 
-        // Hash the network
+        debug!("Hash the network");
         if let Some(network) = token_tx.network {
             hash_engine.input(Sha256Hash::hash(&network.to_be_bytes()).as_byte_array());
         }
@@ -151,6 +154,7 @@ impl SparkHash {
             }
         }
 
+        debug!("Finished token transaction hash calculated successfully");
         Ok(Self(Sha256Hash::from_engine(hash_engine)))
     }
 
@@ -219,7 +223,7 @@ impl SparkHash {
         is_partial_hash: bool,
     ) -> Result<Self, SparkHashError> {
         let hasher = ProtoHasher::new();
-
+        debug!(version = ?token_tx.version, is_partial_hash, "Starting V4 token transaction hash");
         let mut proto = marshal_token_transaction(token_tx, !is_partial_hash)
             .map_err(|err| SparkHashError::TokenTransactionMarshalError(err.to_string()))?;
 
@@ -243,7 +247,7 @@ impl SparkHash {
         }
 
         let hash = hasher.hash_proto(proto.to_dynamic()?)?;
-
+        debug!(version = ?token_tx.version, "V4 token transaction hash completed");
         Ok(Self(hash))
     }
 }
