@@ -3,6 +3,7 @@ use frost_secp256k1_tr::{Identifier, keys::Tweak};
 use rand_core::OsRng;
 use std::{collections::BTreeSet, sync::Arc};
 use tokio::sync::Mutex;
+use tracing::debug;
 
 #[derive(Clone, Debug)]
 pub struct FrostSigner {
@@ -57,6 +58,7 @@ impl FrostSigner {
     }
 
     pub async fn dkg_round_1(&self, request: DkgRound1Request) -> Result<DkgRound1Response, SignerError> {
+        debug!(musig_id = ?request.musig_id, identifier = ?self.identifier, "Started DKG round 1");
         self.lock_musig_id(&request.musig_id).await?;
 
         let musig_id = request.musig_id;
@@ -83,6 +85,7 @@ impl FrostSigner {
                     )
                     .await?;
 
+                debug!(musig_id = ?musig_id, identifier = ?self.identifier, "DKG round 1 completed");
                 Ok(DkgRound1Response {
                     round1_package: package,
                 })
@@ -99,6 +102,7 @@ impl FrostSigner {
 
     pub async fn dkg_round_2(&self, request: DkgRound2Request) -> Result<DkgRound2Response, SignerError> {
         let musig_id = request.musig_id;
+        debug!(musig_id = ?musig_id, identifier = ?self.identifier, "Started DKG 2 round");
         let musig_id_data = self.musig_id_storage.get_musig_id_data(&musig_id).await?;
 
         match musig_id_data {
@@ -121,6 +125,7 @@ impl FrostSigner {
                     )
                     .await?;
 
+                debug!(musig_id = ?musig_id, identifier = ?self.identifier, "DKG 2 round completed");
                 Ok(DkgRound2Response {
                     round2_packages: packages,
                 })
@@ -133,6 +138,7 @@ impl FrostSigner {
 
     pub async fn dkg_finalize(&self, request: DkgFinalizeRequest) -> Result<DkgFinalizeResponse, SignerError> {
         let musig_id = request.musig_id;
+        debug!(musig_id = ?musig_id, identifier = ?self.identifier, "Started DKG finalize round");
         let musig_id_data = self.musig_id_storage.get_musig_id_data(&musig_id).await?;
 
         match musig_id_data {
@@ -161,6 +167,7 @@ impl FrostSigner {
 
                 self.unlock_musig_id(&musig_id).await?;
 
+                debug!(musig_id = ?musig_id, identifier = ?self.identifier, "DKG finalize completed");
                 Ok(DkgFinalizeResponse { public_key_package })
             }
             _ => Err(SignerError::InvalidUserState(
@@ -175,6 +182,8 @@ impl FrostSigner {
         let tweak = request.tweak;
         let message_hash = request.message_hash;
         let metadata = request.metadata;
+
+        debug!(musig_id = ?musig_id, session_id = %session_id, "Starting signing round 1");
 
         let musig_id_data = self.musig_id_storage.get_musig_id_data(&musig_id).await?;
 
@@ -201,6 +210,8 @@ impl FrostSigner {
                         },
                     )
                     .await?;
+
+                debug!(musig_id = ?musig_id, session_id = %session_id, "Signing round 1 completed");
                 Ok(SignRound1Response { commitments })
             }
             _ => Err(SignerError::InvalidUserState(
@@ -212,6 +223,8 @@ impl FrostSigner {
     pub async fn sign_round_2(&self, request: SignRound2Request) -> Result<SignRound2Response, SignerError> {
         let musig_id = request.musig_id;
         let session_id = request.session_id;
+
+        debug!(musig_id = ?musig_id, session_id = %session_id, "Starting signing round 2");
 
         let musig_id_data = self.musig_id_storage.get_musig_id_data(&musig_id).await?;
 
@@ -251,6 +264,8 @@ impl FrostSigner {
                 self.sign_session_storage
                     .set_sign_data(&musig_id, session_id, sign_data)
                     .await?;
+
+                debug!(musig_id = ?musig_id, session_id = %session_id, "Signing round 2 finished");
 
                 Ok(SignRound2Response { signature_share })
             }
