@@ -69,7 +69,7 @@ impl SparkTlsConnection {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::config::{CaCertificate, SparkOperatorConfig};
+    use crate::common::config::SparkOperatorConfig;
     use env_logger;
     use global_utils::common_types::{Url, UrlWrapped};
     use tokio;
@@ -93,7 +93,8 @@ mod tests {
                 running_authority: "".to_string(),
                 is_coordinator: Some(true),
             }],
-            ca_pem: CaCertificate::from_path("../../spark_balance_checker/infrastructure/configuration/ca.pem")?.ca_pem,
+            //ca_pem: CaCertificate::from_path("../../spark_balance_checker/infrastructure/configuration/ca.pem")?.ca_pem,
+            certificates: vec![],
         };
         let connection = SparkTlsConnection::new(spark_config).unwrap();
         connection.create_clients().await.unwrap();

@@ -16,7 +16,7 @@ use std::collections::HashMap;
 use std::{future::Future, sync::Arc};
 use tokio::sync::Mutex;
 use tonic::metadata::MetadataValue;
-use tracing;
+use tracing::debug;
 
 const N_QUERY_RETRIES: usize = 3;
 
@@ -93,7 +93,7 @@ impl SparkRpcClient {
         request: StartTransactionRequest,
         user_public_key: PublicKey,
     ) -> Result<StartTransactionResponse, SparkClientError> {
-        tracing::debug!("Client sending start transaction");
+        debug!("Client sending start transaction");
         let spark_session = self.get_auth_session(user_public_key).await
             .ok_or_else(|| SparkClientError::NoAuthSessionFound(format!("No auth session found for user public key: {}", user_public_key)))?;
         let request = StartTransactionRequestWithAuth {
@@ -121,7 +121,7 @@ impl SparkRpcClient {
         request: CommitTransactionRequest,
         user_public_key: PublicKey,
     ) -> Result<CommitTransactionResponse, SparkClientError> {
-        tracing::debug!("Client sending commit transaction");
+        debug!("Client sending commit transaction");
         let spark_session = self.get_auth_session(user_public_key).await
             .ok_or_else(|| SparkClientError::NoAuthSessionFound(format!("No auth session found for user public key: {}", user_public_key)))?;
         let request = CommitTransactionRequestWithAuth {
@@ -242,9 +242,9 @@ struct CommitTransactionRequestWithAuth {
 mod tests {
     use super::*;
     use crate::common::config::{CaCertificate, SparkConfig, SparkOperatorConfig};
-    use crate::utils::spark_address::decode_spark_address;
     use global_utils::common_types::{Url, UrlWrapped};
     use std::str::FromStr;
+    use spark_address::decode_spark_address;
 
     fn init_logger() {
         let _ = env_logger::builder()
@@ -261,7 +261,7 @@ mod tests {
         let address = "sprt1pgss8fxt9jxuv4dgjwrg539s6u06ueausq076xvfej7wdah0htvjlxunt9fa4n".to_string();
         let rune_id = "btknrt1p2sy7a8cx5pqfm3u4p2qfqa475fgwj3eg5d03hhk47t66605zf6qg52vj2".to_string();
 
-        let address_data = decode_spark_address(address)?;
+        let address_data = decode_spark_address(&*address)?;
 
         let identity_public_key = hex::decode(address_data.identity_public_key)
             .map_err(|e| SparkClientError::DecodeError(format!("Failed to decode identity public key: {}", e)))?;
@@ -285,7 +285,8 @@ mod tests {
                 running_authority: "".to_string(),
                 is_coordinator: Some(true),
             }],
-            ca_pem: CaCertificate::from_path("../../spark_balance_checker/infrastructure/configuration/ca.pem")?.ca_pem,
+            //ca_pem: CaCertificate::from_path("../../spark_balance_checker/infrastructure/configuration/ca.pem")?.ca_pem,
+            certificates: vec![],
         };
 
         let balance_checker = SparkRpcClient::new(config).await.unwrap();
