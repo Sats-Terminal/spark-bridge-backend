@@ -45,6 +45,7 @@ use std::{string::String, vec::Vec};
 
 use bech32::{self, Bech32m, Hrp};
 use hex::{decode as hex_to_bytes, encode as bytes_to_hex};
+use tracing::debug;
 use spark_invoice::proto::{read_varint_u32, write_len_prefixed_bytes, write_varint_u32};
 use spark_invoice::{PaymentType, SparkInvoice, SparkInvoiceFields};
 /* ------------------------------------------------------------- *
@@ -316,6 +317,7 @@ pub fn encode_spark_address(data: SparkAddressData) -> Result<String, SparkAddre
 /// * The public key length is not 33 bytes (`SparkAddressError::WrongKeyLength`)
 /// * The public key is invalid secp256k1 (when `validate-secp256k1` feature is enabled) (`SparkAddressError::InvalidSecp256k1`)
 pub fn decode_spark_address(addr: &str) -> Result<SparkAddressData, SparkAddressError> {
+    debug!("Started decoding on address = {addr}");
     let has_upper = addr.bytes().any(|b| b.is_ascii_uppercase());
     let has_lower = addr.bytes().any(|b| b.is_ascii_lowercase());
     if has_upper && has_lower {
@@ -352,7 +354,7 @@ pub fn decode_spark_address(addr: &str) -> Result<SparkAddressData, SparkAddress
 
     #[cfg(feature = "validate-secp256k1")]
     validate_pubkey(&hex_key)?;
-
+    debug!("Finished decoding in address = {addr}");
     Ok(SparkAddressData {
         identity_public_key: hex_key,
         invoice: data.invoice_fields,
