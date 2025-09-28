@@ -5,7 +5,7 @@ use crate::error::FlowProcessorError;
 use crate::flow_router::FlowProcessorRouter;
 use crate::types::BridgeRunesRequest;
 use frost::traits::AggregatorMusigIdStorage;
-use frost::types::MusigId;
+use frost::types::{AggregatorDkgState, MusigId};
 use frost::utils::generate_issuer_public_key;
 use gateway_local_db_store::schemas::deposit_address::{DepositAddressStorage, InnerAddress};
 use gateway_spark_service::types::SparkTransactionType;
@@ -47,7 +47,7 @@ pub async fn handle(
                 rune_id: rune_id.clone(),
             };
 
-            flow_processor
+            let issuer_public_key_package = flow_processor
                 .frost_aggregator
                 .run_dkg_flow(&musig_id)
                 .await
@@ -55,15 +55,11 @@ pub async fn handle(
                     FlowProcessorError::FrostAggregatorError(format!("Failed to run DKG flow for issuer: {}", e))
                 })?;
 
-            let coordinator_config = flow_processor
-                .spark_client
-                .get_config()
-                .coordinator_operator_config()
-                .map_err(|_| FlowProcessorError::CoordinatorNotFound)?;
-            let coordinator_public_key = PublicKey::from_str(&coordinator_config.identity_public_key)
-                .map_err(|err| FlowProcessorError::InvalidDataError(format!("Invalid coordinator public key: {}", err)))?;
+            let issuer_musig_public_key_bytes = issuer_public_key_package.verifying_key().serialize()
+                .map_err(|e| FlowProcessorError::InvalidDataError(format!("Failed to serialize issuer musig public key: {}", e)))?;
+            let issuer_musig_public_key = PublicKey::from_slice(&issuer_musig_public_key_bytes)?;
 
-            let wrunes_metadata = create_wrunes_metadata(rune_id.clone(), issuer_public_key, coordinator_public_key, flow_processor.network);
+            let wrunes_metadata = create_wrunes_metadata(rune_id.clone(), issuer_musig_public_key, flow_processor.network)?;
 
             flow_processor
                 .spark_service
@@ -86,15 +82,24 @@ pub async fn handle(
         }
     };
 
-    let coordinator_config = flow_processor
-        .spark_client
-        .get_config()
-        .coordinator_operator_config()
-        .map_err(|_| FlowProcessorError::CoordinatorNotFound)?;
-    let coordinator_public_key = PublicKey::from_str(&coordinator_config.identity_public_key)
-        .map_err(|err| FlowProcessorError::InvalidDataError(format!("Invalid coordinator public key: {}", err)))?;
+    let musig_data = flow_processor
+        .storage
+        .get_musig_id_data(&issuer_musig_id)
+        .await
+        .map_err(FlowProcessorError::DbError)?
+        .ok_or(FlowProcessorError::InvalidDataError("Issuer musig data not found".to_string()))?;
 
-    let wrunes_metadata = create_wrunes_metadata(rune_id.clone(), issuer_musig_id.get_public_key(), coordinator_public_key, flow_processor.network);
+    let AggregatorDkgState::DkgFinalized { public_key_package: issuer_public_key_package } = musig_data.dkg_state else {
+        return Err(FlowProcessorError::InvalidDataError(
+            "Issuer musig data not finalized".to_string(),
+        ));
+    };
+
+    let issuer_musig_public_key_bytes = issuer_public_key_package.verifying_key().serialize()
+        .map_err(|e| FlowProcessorError::InvalidDataError(format!("Failed to serialize issuer musig public key: {}", e)))?;
+    let issuer_musig_public_key = PublicKey::from_slice(&issuer_musig_public_key_bytes)?;
+
+    let wrunes_metadata = create_wrunes_metadata(rune_id.clone(), issuer_musig_public_key, flow_processor.network)?;
 
     let deposit_addr_info = flow_processor
         .storage

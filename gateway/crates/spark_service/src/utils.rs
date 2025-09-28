@@ -1,9 +1,9 @@
-use bitcoin::Network;
+use bitcoin::{secp256k1, Network};
 use bitcoin::hashes::Hash;
 use bitcoin::hashes::sha256::Hash as Sha256Hash;
 use bitcoin::secp256k1::PublicKey;
 use serde::{Deserialize, Serialize};
-use lrc20::token_metadata::TokenMetadata;
+use lrc20::token_metadata::{TokenMetadata, SPARK_CREATION_ENTITY_PUBLIC_KEY};
 use spark_address::Network as SparkNetwork;
 use token_identifier::TokenIdentifier;
 use crate::types::{DEFAULT_DECIMALS, DEFAULT_IS_FREEZABLE, DEFAULT_MAX_SUPPLY};
@@ -15,7 +15,7 @@ pub struct WRunesMetadata {
     pub token_ticker: String,
 }
 
-pub fn create_wrunes_metadata(rune_id: String, issuer_public_key: PublicKey, entity_creation_public_key: PublicKey, network: Network) -> WRunesMetadata {
+pub fn create_wrunes_metadata(rune_id: String, issuer_public_key: PublicKey, network: Network) -> Result<WRunesMetadata, secp256k1::Error> {
     let token_name = rune_id;
     let token_ticker = "ticker".to_string();
 
@@ -26,17 +26,19 @@ pub fn create_wrunes_metadata(rune_id: String, issuer_public_key: PublicKey, ent
         DEFAULT_DECIMALS,
         DEFAULT_MAX_SUPPLY,
         DEFAULT_IS_FREEZABLE,
-        Some(entity_creation_public_key),
+        Some(PublicKey::from_slice(&SPARK_CREATION_ENTITY_PUBLIC_KEY)?),
         network,
     );
     
     println!("Token metadata: {:?}", token_metadata.compute_token_identifier());
 
-    WRunesMetadata {
+    Ok(
+       WRunesMetadata {
         token_identifier: token_metadata.compute_token_identifier(),
         token_name,
         token_ticker,
-    }
+       }
+    )
 }
 
 pub fn convert_network_to_spark_network(network: Network) -> SparkNetwork {
