@@ -9,6 +9,7 @@ serde.workspace = true
 eyre.workspace = true
 thiserror.workspace = true
 hex.workspace = true
+tracing.workspace= true
 
 [dev-dependencies]
 once_cell.workspace = true

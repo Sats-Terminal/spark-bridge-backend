@@ -11,6 +11,7 @@ use bitcoin::{
     p2p::Magic,
     secp256k1::PublicKey,
 };
+use tracing::debug;
 
 use crate::TokenIdentifier;
 
@@ -107,6 +108,7 @@ impl TokenMetadata {
 
     /// Computes the token identifier for the LRC20 token metadata.
     pub fn compute_token_identifier(&self) -> TokenIdentifier {
+        debug!("Stared computing token identifier");
         let mut engine = sha256::Hash::engine();
         // Try concatenation approach - maybe Go concatenates all hashes then takes SHA256
         let mut all_hashes = Vec::new();
