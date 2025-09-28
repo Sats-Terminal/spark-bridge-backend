@@ -4,6 +4,7 @@ use bitcoin::hashes::sha256::Hash as Sha256Hash;
 use bitcoin::hashes::{Hash, HashEngine};
 use prost_reflect::{DynamicMessage, FieldDescriptor, Kind, MapKey, MessageDescriptor, ReflectMessage, Value};
 use std::collections::HashMap;
+use tracing::debug;
 
 const BOOL_IDENTIFIER: &str = "b";
 pub(crate) const MAP_IDENTIFIER: &str = "d";
@@ -17,7 +18,6 @@ const NAN_BITS: u64 = 0x7FF8000000000001;
 
 pub(crate) fn hash_fields_by_names(message: &DynamicMessage, names: &[&str]) -> Result<Sha256Hash, ProtoHasherError> {
     let mut hash_engine = Sha256Hash::engine();
-
     hash_engine.input(&LIST_IDENTIFIER.as_bytes());
 
     for name in names {
@@ -38,6 +38,7 @@ pub(crate) fn hash_fields_by_names(message: &DynamicMessage, names: &[&str]) -> 
 }
 
 pub(crate) fn hash_value(kind: &Kind, value: &Value) -> Result<Option<Sha256Hash>, ProtoHasherError> {
+    debug!("hash_value: kind={:?}, value_type={}", kind, value_type_label(value));
     let h = match kind {
         Kind::Bool => {
             let v = value.as_bool().ok_or(ProtoHasherError::ValueTypeMismatch {
@@ -194,7 +195,7 @@ pub(crate) fn hash_bytes(bytes: &[u8]) -> Sha256Hash {
 /// Hashes DynamicMessage
 pub fn hash_message<M: Into<DynamicMessage>>(message: M) -> Result<Option<Sha256Hash>, ProtoHasherError> {
     let message = message.into();
-
+    debug!("hash_message: descriptor={}", message.descriptor().full_name());
     let descriptor = message.descriptor();
 
     if let Some(google_value) = GoogleValue::maybe_from_str(descriptor.full_name()) {
@@ -212,11 +213,13 @@ pub fn hash_message<M: Into<DynamicMessage>>(message: M) -> Result<Option<Sha256
         hash_engine.input(field_hash.k_hash.as_byte_array());
         hash_engine.input(field_hash.v_hash.as_byte_array());
     }
-
-    Ok(Some(Sha256Hash::from_engine(hash_engine)))
+    let result = Sha256Hash::from_engine(hash_engine);
+    debug!("hash_message: result={:?}", result);
+    Ok(Some(result))
 }
 
 fn hash_fields(message: DynamicMessage) -> Result<Vec<FieldHashEntry>, ProtoHasherError> {
+    debug!("hash_fields: message={}", message.descriptor().full_name());
     let mut hashes = vec![];
 
     for (fd, value) in message.fields() {
@@ -283,7 +286,7 @@ pub(crate) fn hash_field_value(fd: &FieldDescriptor, value: &Value) -> Result<Op
 
 pub(crate) fn hash_list(kind: &Kind, list: &[Value]) -> Result<Option<Sha256Hash>, ProtoHasherError> {
     let mut hash_engine = Sha256Hash::engine();
-
+    debug!("hash_list: len={}", list.len());
     if list.is_empty() {
         return Ok(None);
     }
@@ -306,7 +309,7 @@ pub(crate) fn hash_map(
     map: &HashMap<MapKey, Value>,
 ) -> Result<Option<Sha256Hash>, ProtoHasherError> {
     let mut hash_entries = vec![];
-
+    debug!("hash_map: entries={}", map.len());
     for (key, value) in map {
         if is_google_proto_value_null(value) {
             continue;

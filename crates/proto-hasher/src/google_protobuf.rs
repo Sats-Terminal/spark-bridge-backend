@@ -7,6 +7,7 @@ use bitcoin::hashes::sha256::Hash as Sha256Hash;
 use bitcoin::hashes::{Hash, HashEngine};
 use prost_reflect::{DynamicMessage, FieldDescriptor, OneofDescriptor, ReflectMessage, Value};
 use std::borrow::Cow;
+use tracing::debug;
 
 const VALUE_NAME: &str = "value";
 
@@ -17,6 +18,7 @@ const STRUCT_VALUE: &str = "struct_value";
 const LIST_VALUE: &str = "list_value";
 const NULL_VALUE: &str = "null_value";
 
+#[derive(Debug)]
 pub(crate) enum GoogleValue {
     Any,
     Bool,
@@ -58,6 +60,7 @@ impl GoogleValue {
     }
 
     pub fn hash(&self, message: &DynamicMessage) -> Result<Option<Sha256Hash>, ProtoHasherError> {
+        debug!("Hashing {:?} with message {:?}", self, message.descriptor().full_name());
         match self {
             GoogleValue::Any => hash_google_proto_any(message).map(Some),
             GoogleValue::Bool => hash_google_proto_bool(message).map(Some),
@@ -81,7 +84,7 @@ fn hash_google_proto_any(message: &DynamicMessage) -> Result<Sha256Hash, ProtoHa
     let type_url = message
         .get_field_by_name("type_url")
         .ok_or(ProtoHasherError::MissingField("type_url".to_string()))?;
-
+    debug!("hash_google_proto_any: type_url = {:?}", type_url);
     Err(ProtoHasherError::UnsupportedType(type_url.to_string()))
 }
 macro_rules! hash_google_proto_primitive {
@@ -92,6 +95,7 @@ macro_rules! hash_google_proto_primitive {
                 expected: $expected,
                 found: value_type_label(&v),
             })?;
+            debug!(concat!(stringify!($fn_name), ": value = {:?}"), x);
             Ok($hash_fn(x))
         }
     };
@@ -127,9 +131,10 @@ fn hash_google_proto_struct(message: &DynamicMessage) -> Result<Sha256Hash, Prot
         expected: "map",
         found: value_type_label(&fields_value),
     })?;
-
+    debug!("hash_google_proto_struct: {} fields", map.len());
     let mut entries = vec![];
     for (key, value) in map {
+        debug!("struct field key = {:?}, value = {:?}", key, value);
         let k_hash: Sha256Hash = hash_string(key.as_str().ok_or(ProtoHasherError::ValueTypeMismatch {
             expected: "string",
             found: key_type_label(key),
@@ -155,7 +160,7 @@ fn hash_google_proto_struct(message: &DynamicMessage) -> Result<Sha256Hash, Prot
     }
 
     entries.sort_by(|a, b| a.0.cmp(&b.0));
-
+    debug!("struct entries count after filtering = {}", entries.len());
     let mut hash_engine = Sha256Hash::engine();
     hash_engine.input(MAP_IDENTIFIER.as_bytes());
     for (k_hash, v_hash) in entries {
@@ -179,7 +184,8 @@ fn hash_google_proto_list(message: &DynamicMessage) -> Result<Option<Sha256Hash>
         expected: "list",
         found: value_type_label(&list_values),
     })?;
-
+    debug!("hash_google_proto_list: descriptor = {}, length = {}",
+       descriptor.full_name(), list.len());
     hash_list(&list_values_descriptor.kind(), list)
 }
 
@@ -194,7 +200,7 @@ fn hash_google_proto_value(message: &DynamicMessage) -> Result<Option<Sha256Hash
         .fields()
         .find(|f| message.has_field(f))
         .ok_or(ProtoHasherError::EmptyValue("kind".to_string()))?;
-
+    debug!("hash_google_proto_value: active field = {}", active.name());
     let value = message.get_field(&active);
     let hash = match active.name() {
         NUMBER_VALUE => {

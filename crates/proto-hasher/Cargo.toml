@@ -6,6 +6,7 @@ edition = "2024"
 prost-reflect = { workspace = true }
 bitcoin = { workspace = true }
 thiserror = { workspace = true }
+tracing =  { workspace = true }
 
 [dev-dependencies]
 lazy_static = { workspace = true }
