@@ -15,16 +15,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use titan_client::Transaction as TitanTransaction;
 use crate::constants::BLOCKS_TO_GENERATE;
-
-#[derive(Error, Debug)]
-pub enum BitcoinClientError {
-    #[error("Failed to make bitcoin client call: {0}")]
-    BitcoinRpcError(#[from] bitcoincore_rpc::Error),
-    #[error("Decode error: {0}")]
-    DecodeError(String),
-    #[error("Failed to make titan client call: {0}")]
-    TitanRpcError(#[from] titan_client::Error),
-}
+use crate::error::BitcoinClientError;
 
 pub struct BitcoinClientConfig {
     pub bitcoin_url: String,

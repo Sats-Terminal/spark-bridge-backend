@@ -3,7 +3,7 @@ use bitcoin::Address;
 use bitcoin::key::Keypair;
 use rand_core::{OsRng, RngCore};
 use crate::utils::create_credentials;
-use crate::error::TestError;
+use crate::error::RuneError;
 use ordinals::RuneId;
 use crate::rune_etching::{EtchRuneParams, etch_rune};
 use bitcoin::{TxIn, OutPoint, Sequence, Witness, TxOut, Amount, ScriptBuf, Transaction, Txid};
@@ -24,7 +24,7 @@ pub struct RuneManager {
 }
 
 impl RuneManager {
-    pub async fn new(mut bitcoin_client: BitcoinClient) -> Result<Self, TestError> {
+    pub async fn new(mut bitcoin_client: BitcoinClient) -> Result<Self, RuneError> {
         let (p2tr_address, keypair) = create_credentials();
 
         bitcoin_client.faucet(p2tr_address.clone(), DEFAULT_FAUCET_AMOUNT)?;
@@ -50,7 +50,7 @@ impl RuneManager {
         self.rune_id.clone()
     }
 
-    async fn unite_unspent_utxos(&mut self) -> Result<Txid, TestError> {
+    async fn unite_unspent_utxos(&mut self) -> Result<Txid, RuneError> {
         tracing::info!("Uniting unspent utxos");
 
         let address_data = self.bitcoin_client.get_address_data(self.p2tr_address.clone()).await?;
@@ -61,7 +61,7 @@ impl RuneManager {
 
         for utxo in address_data.outputs.iter() {
             if !utxo.status.confirmed {
-                return Err(TestError::UniteUnspentUtxosError("Unspent utxo is not confirmed".to_string()));
+                return Err(RuneError::UniteUnspentUtxosError("Unspent utxo is not confirmed".to_string()));
             }
             if let SpentStatus::Unspent = utxo.spent {
                 total_amount += utxo.value;
@@ -95,13 +95,13 @@ impl RuneManager {
 
         let txid = transaction.compute_txid();
         self.bitcoin_client.broadcast_transaction(transaction)?;
-        self.bitcoin_client.generate_blocks(6, None)?;
+        self.bitcoin_client.generate_blocks(BLOCKS_TO_GENERATE, None)?;
         sleep(Duration::from_secs(1)).await;
 
         Ok(txid)
     }
 
-    async fn get_funded_outpoint_data(&mut self) -> Result<(OutPoint, u64), TestError> {
+    async fn get_funded_outpoint_data(&mut self) -> Result<(OutPoint, u64), RuneError> {
         let address_data = self.bitcoin_client.get_address_data(self.p2tr_address.clone()).await?;
 
         for output in address_data.outputs.iter() {
@@ -115,10 +115,10 @@ impl RuneManager {
             }
         }
 
-        Err(TestError::GetFundedOutpointError("Failed to get funded outpoint".to_string()))
+        Err(RuneError::GetFundedOutpointError("Failed to get funded outpoint".to_string()))
     }
 
-    pub async fn mint_rune(&mut self, address: Address) -> Result<Txid, TestError> {
+    pub async fn mint_rune(&mut self, address: Address) -> Result<Txid, RuneError> {
         tracing::info!("Minting rune");
 
         let runestone = Runestone {

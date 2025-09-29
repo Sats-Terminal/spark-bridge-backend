@@ -7,9 +7,9 @@ use bitcoin::{Address, Txid};
 use std::str::FromStr;
 use spark_address::{encode_spark_address, SparkAddressData};
 use tests::utils::create_credentials;
-use verifier_spark_balance_checker_client::client::{SparkBalanceCheckerClient, SparkBalanceCheckerConfig, GetBalanceRequest};
 use tokio::time::sleep;
 use std::time::Duration;
+use tests::spark_client::{SparkClient, SparkClientConfig, GetSparkAddressDataRequest};
 
 #[tokio::test]
 async fn test_spark() {
@@ -17,9 +17,10 @@ async fn test_spark() {
 
     // Mint runes for user wallet
 
-    let spark_balance_checker_client = SparkBalanceCheckerClient::new(SparkBalanceCheckerConfig {
-        address: "http://localhost:8090".parse().unwrap(),
-    });
+    let mut spark_client = SparkClient::new(SparkClientConfig {
+        base_url: "https://2.spark.flashnet.xyz".to_string(),
+        certificate_path: "../infrastructure/configurations/certificates/Flashnet-CA.pem".to_string(),
+    }).await.unwrap();
 
     let bitcoin_client = BitcoinClient::new(
         BitcoinClientConfig {
@@ -89,12 +90,9 @@ async fn test_spark() {
 
     // check that runes are bridged
 
-    let get_balance_request = GetBalanceRequest {
+    let response = spark_client.get_spark_address_data(GetSparkAddressDataRequest {
         spark_address: spark_address,
-        rune_id: rune_id.to_string(),
-    };
-
-    let get_balance_response = spark_balance_checker_client.get_balance(get_balance_request).await.unwrap();
-    tracing::info!("get_balance_response: {:?}", get_balance_response);
-    assert_eq!(get_balance_response.balance as u64, deposit_amount, "Balance should be equal to deposit amount");
+    }).await.unwrap();
+    tracing::info!("response: {:?}", response);
+    assert_eq!(response.amount as u64, deposit_amount, "Balance should be equal to deposit amount");
 }

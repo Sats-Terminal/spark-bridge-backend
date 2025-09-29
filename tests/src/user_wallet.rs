@@ -2,7 +2,7 @@ use crate::utils::create_credentials;
 use bitcoin::Address;
 use bitcoin::key::Keypair;
 use crate::bitcoin_client::BitcoinClient;
-use crate::error::TestError;
+use crate::error::RuneError;
 use tokio::time::sleep;
 use std::time::Duration;
 use ordinals::RuneId;
@@ -24,7 +24,7 @@ pub struct UserWallet {
 }
 
 impl UserWallet {
-    pub async fn new(mut bitcoin_client: BitcoinClient, rune_id: RuneId) -> Result<Self, TestError> {
+    pub async fn new(mut bitcoin_client: BitcoinClient, rune_id: RuneId) -> Result<Self, RuneError> {
         tracing::info!("Creating user wallet");
         let (p2tr_address, keypair) = create_credentials();
 
@@ -38,7 +38,7 @@ impl UserWallet {
         self.p2tr_address.clone()
     }
 
-    pub async fn get_rune_balance(&self) -> Result<u64, TestError> {
+    pub async fn get_rune_balance(&self) -> Result<u64, RuneError> {
         let address_data = self.bitcoin_client.get_address_data(self.p2tr_address.clone()).await?;
         let mut total_balance = 0;
         for output in address_data.outputs.iter() {
@@ -53,7 +53,7 @@ impl UserWallet {
         Ok(total_balance as u64)
     }
 
-    pub async fn get_funded_outpoint_data(&self) -> Result<(OutPoint, u64), TestError> {
+    pub async fn get_funded_outpoint_data(&self) -> Result<(OutPoint, u64), RuneError> {
         let address_data = self.bitcoin_client.get_address_data(self.p2tr_address.clone()).await?;
         for output in address_data.outputs.iter() {
             if let SpentStatus::Unspent = output.spent {
@@ -67,14 +67,14 @@ impl UserWallet {
                 }
             }
         }
-        Err(TestError::GetFundedOutpointError("Failed to get funded outpoint".to_string()))
+        Err(RuneError::GetFundedOutpointError("Failed to get funded outpoint".to_string()))
     }
 
-    pub async fn transfer_runes(&mut self, amount: u64, transfer_address: Address) -> Result<Txid, TestError> {
+    pub async fn transfer_runes(&mut self, amount: u64, transfer_address: Address) -> Result<Txid, RuneError> {
         tracing::info!("Transferring runes");
         let balance = self.get_rune_balance().await?;
         if balance < amount {
-            return Err(TestError::TransferRunesError("Insufficient balance".to_string()));
+            return Err(RuneError::TransferRunesError("Insufficient balance".to_string()));
         }
 
         let (outpoint, value) = self.get_funded_outpoint_data().await?;
@@ -140,7 +140,7 @@ impl UserWallet {
         Ok(txid)
     }
 
-    pub async fn unite_unspent_utxos(&mut self) -> Result<Txid, TestError> {
+    pub async fn unite_unspent_utxos(&mut self) -> Result<Txid, RuneError> {
         let address_data = self.bitcoin_client.get_address_data(self.p2tr_address.clone()).await?;
 
         let mut total_btc = 0;

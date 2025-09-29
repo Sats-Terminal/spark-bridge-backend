@@ -3,6 +3,7 @@ use url::Url;
 use thiserror::Error;
 use bitcoin::Address;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use crate::error::GatewayClientError;
 
 #[derive(Clone, Debug)]
 pub struct GatewayClient {
@@ -13,16 +14,6 @@ pub struct GatewayClient {
 #[derive(Clone, Debug)]
 pub struct GatewayConfig {
     pub address: Url,
-}
-
-#[derive(Error, Debug)]
-pub enum GatewayClientError {
-    #[error("Failed to join URL: {0}")]
-    UrlJoinError(#[from] url::ParseError),
-    #[error("Failed to send request: {0}")]
-    SendRequestError(#[from] reqwest::Error),
-    #[error("Error response: {0}")]
-    ErrorResponse(String),
 }
 
 const GET_RUNES_DEPOSIT_ADDRESS_PATH: &str = "/api/user/get-btc-deposit-address";

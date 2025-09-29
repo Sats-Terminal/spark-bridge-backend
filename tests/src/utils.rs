@@ -4,7 +4,7 @@ use bitcoin::sighash::{SighashCache, Prevouts, TapSighashType};
 use bitcoin::secp256k1::Message;
 use bitcoin::{TxOut, Amount, Witness};
 use bitcoin::Transaction;
-use crate::error::TestError;
+use crate::error::RuneError;
 use bitcoin::taproot::Signature as TaprootSignature;
 use bitcoin::key::TapTweak;
 
@@ -23,11 +23,11 @@ pub fn sign_transaction(
     prev_input_amounts: Vec<u64>,
     p2tr_address: Address,
     keypair: Keypair
-) -> Result<(), TestError> {
+) -> Result<(), RuneError> {
     let mut sighash_cache = SighashCache::new(transaction.clone());
 
     if prev_input_amounts.len() != transaction.input.len() {
-        return Err(TestError::SignTransactionError(format!("Invalid number of input amounts: {} != {}", prev_input_amounts.len(), transaction.input.len())));
+        return Err(RuneError::SignTransactionError(format!("Invalid number of input amounts: {} != {}", prev_input_amounts.len(), transaction.input.len())));
     }
 
     let txouts = prev_input_amounts.iter().map(|o| TxOut {
@@ -41,9 +41,9 @@ pub fn sign_transaction(
             i, 
             &Prevouts::All(&txouts), 
             TapSighashType::All
-        ).map_err(|e| TestError::SignTransactionError(format!("Failed to create message hash: {}", e)))?;
+        ).map_err(|e| RuneError::SignTransactionError(format!("Failed to create message hash: {}", e)))?;
         let message = Message::try_from(message_hash)
-            .map_err(|e| TestError::SignTransactionError(format!("Failed to create message: {}", e)))?;
+            .map_err(|e| RuneError::SignTransactionError(format!("Failed to create message: {}", e)))?;
         messages.push(message);
     }
 

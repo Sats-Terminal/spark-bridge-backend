@@ -1,4 +1,4 @@
-use crate::error::TestError;
+use crate::error::RuneError;
 use ord::Inscription;
 use bitcoin::{key::Keypair, XOnlyPublicKey, key::UntweakedPublicKey};
 use bitcoin::secp256k1::Secp256k1;
@@ -33,7 +33,7 @@ pub struct EtchRuneParams {
 pub async fn etch_rune(
     params: EtchRuneParams,
     mut bitcoin_client: BitcoinClient,
-) -> Result<RuneId, TestError> {
+) -> Result<RuneId, RuneError> {
     tracing::info!("Starting etch test");
 
     let secp = Secp256k1::new();
@@ -48,19 +48,19 @@ pub async fn etch_rune(
     let fee_amount = DEFAULT_FEE_AMOUNT;
 
     let address_data = bitcoin_client.get_address_data(params.faucet_address.clone()).await
-        .map_err(|e| TestError::EtchRuneError(format!("Failed to get address data: {}", e)))?;
+        .map_err(|e| RuneError::EtchRuneError(format!("Failed to get address data: {}", e)))?;
 
     tracing::debug!("address_data: {:?}", address_data);
 
     if address_data.outputs.len() == 0 {
-        return Err(TestError::EtchRuneError("Address should have more than output".to_string()));
+        return Err(RuneError::EtchRuneError("Address should have more than output".to_string()));
     }
     
     let mut funded_outpoint = None;
     let mut faucet_sats = None;
     for output in address_data.outputs.iter() {
         if !output.status.confirmed {
-            return Err(TestError::EtchRuneError("Address is not confirmed".to_string()));
+            return Err(RuneError::EtchRuneError("Address is not confirmed".to_string()));
         }
         if output.value >= 100_000 {
             faucet_sats = Some(output.value);
@@ -73,9 +73,9 @@ pub async fn etch_rune(
     }
 
     let funded_outpoint = funded_outpoint
-        .ok_or(TestError::EtchRuneError("Failed to get funded outpoint".to_string()))?;
+        .ok_or(RuneError::EtchRuneError("Failed to get funded outpoint".to_string()))?;
     let faucet_sats = faucet_sats
-        .ok_or(TestError::EtchRuneError("Address should have at least 100_000 satoshis on one of the outputs".to_string()))?;
+        .ok_or(RuneError::EtchRuneError("Address should have at least 100_000 satoshis on one of the outputs".to_string()))?;
 
     tracing::info!("Wallet funded");
 
@@ -124,9 +124,9 @@ pub async fn etch_rune(
 
     let taproot_spend_info = TaprootBuilder::new()
         .add_leaf(0, redeem_script.clone())
-        .map_err(|e| TestError::EtchRuneError(format!("Failed to add leaf: {}", e)))?
+        .map_err(|e| RuneError::EtchRuneError(format!("Failed to add leaf: {}", e)))?
         .finalize(&secp, p2tr_pubkey)
-        .map_err(|_| TestError::EtchRuneError("Failed to finalize taproot".to_string()))?;
+        .map_err(|_| RuneError::EtchRuneError("Failed to finalize taproot".to_string()))?;
 
     let script_output_address = Address::p2tr_tweaked(taproot_spend_info.output_key(), network);
 
@@ -171,7 +171,7 @@ pub async fn etch_rune(
             script_pubkey: params.faucet_address.script_pubkey(),
         }]), 
         TapSighashType::All
-    ).map_err(|e| TestError::EtchRuneError(format!("Failed to create sighash signature: {}", e)))?;
+    ).map_err(|e| RuneError::EtchRuneError(format!("Failed to create sighash signature: {}", e)))?;
 
     let msg = Message::from_digest(sighash.to_byte_array());
 
@@ -192,9 +192,9 @@ pub async fn etch_rune(
     tracing::info!("Broadcasting inscription transaction");
 
     bitcoin_client.broadcast_transaction(inscription_tx.clone())
-        .map_err(|e| TestError::EtchRuneError(format!("Failed to broadcast inscription transaction: {}", e)))?;
+        .map_err(|e| RuneError::EtchRuneError(format!("Failed to broadcast inscription transaction: {}", e)))?;
     bitcoin_client.generate_blocks(BLOCKS_TO_GENERATE, None)
-        .map_err(|e| TestError::EtchRuneError(format!("Failed to generate blocks: {}", e)))?;
+        .map_err(|e| RuneError::EtchRuneError(format!("Failed to generate blocks: {}", e)))?;
 
     tracing::info!("Inscription transaction broadcasted");
 
@@ -258,7 +258,7 @@ pub async fn etch_rune(
         &prevouts,
         TapLeafHash::from_script(&redeem_script, LeafVersion::TapScript),
         TapSighashType::Default,
-    ).map_err(|e| TestError::EtchRuneError(format!("Failed to create sighash signature: {}", e)))?;
+    ).map_err(|e| RuneError::EtchRuneError(format!("Failed to create sighash signature: {}", e)))?;
 
     let msg = Message::from_digest(sighash_sig.to_byte_array());
 
@@ -282,9 +282,9 @@ pub async fn etch_rune(
     tracing::info!("Broadcasting rune etching transaction");
 
     bitcoin_client.broadcast_transaction(etching_tx.clone())
-        .map_err(|e| TestError::EtchRuneError(format!("Failed to broadcast etching transaction: {}", e)))?;
+        .map_err(|e| RuneError::EtchRuneError(format!("Failed to broadcast etching transaction: {}", e)))?;
     bitcoin_client.generate_blocks(BLOCKS_TO_GENERATE, None)
-        .map_err(|e| TestError::EtchRuneError(format!("Failed to generate blocks: {}", e)))?;
+        .map_err(|e| RuneError::EtchRuneError(format!("Failed to generate blocks: {}", e)))?;
 
     tracing::info!("Rune etching transaction broadcasted");
 
@@ -295,11 +295,11 @@ pub async fn etch_rune(
     sleep(Duration::from_secs(1)).await;
     
     let rune_id = bitcoin_client.get_rune_id(&etching_tx.compute_txid()).await
-        .map_err(|e| TestError::EtchRuneError(format!("Failed to get rune id: {}", e)))?;
+        .map_err(|e| RuneError::EtchRuneError(format!("Failed to get rune id: {}", e)))?;
     tracing::info!("rune_id: {:?}", rune_id);
 
     let rune = bitcoin_client.get_rune(rune_id.to_string()).await
-        .map_err(|e| TestError::EtchRuneError(format!("Failed to get rune: {}", e)))?;
+        .map_err(|e| RuneError::EtchRuneError(format!("Failed to get rune: {}", e)))?;
     tracing::info!("rune: {:?}", rune);
 
     Ok(rune_id)
