@@ -13,6 +13,7 @@ use titan_client::{RuneResponse, query::Block, query::Rune};
 use ordinals::RuneId;
 use std::str::FromStr;
 use std::sync::Arc;
+use titan_client::Transaction as TitanTransaction;
 
 #[derive(Error, Debug)]
 pub enum BitcoinClientError {
@@ -135,6 +136,12 @@ impl BitcoinClient {
     pub async fn get_rune(&self, rune_id: String) -> Result<RuneResponse, BitcoinClientError> {
         let rune = Rune::from_str(&rune_id).map_err(|e| BitcoinClientError::DecodeError(e.to_string()))?;
         let response = self.titan_client.get_rune(&rune).await
+            .map_err(BitcoinClientError::TitanRpcError)?;
+        Ok(response)
+    }
+
+    pub async fn get_transaction(&self, txid: &Txid) -> Result<TitanTransaction, BitcoinClientError> {
+        let response = self.titan_client.get_transaction(txid).await
             .map_err(BitcoinClientError::TitanRpcError)?;
         Ok(response)
     }

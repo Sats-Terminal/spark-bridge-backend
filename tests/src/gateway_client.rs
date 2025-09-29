@@ -49,6 +49,19 @@ pub struct TestSparkRequest {
 #[derive(Deserialize, Debug)]
 pub struct TestSparkResponse {}
 
+const BRIDGE_RUNES_PATH: &str = "/api/user/bridge-runes";
+
+#[derive(Serialize, Debug)]
+pub struct BridgeRunesSparkRequest {
+    pub btc_address: String,
+    pub bridge_address: String,
+    pub txid: String,
+    pub vout: u32,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct BridgeRunesSparkResponse {}
+
 impl GatewayClient {
     pub fn new(config: GatewayConfig) -> Self {
         Self {
@@ -76,5 +89,9 @@ impl GatewayClient {
 
     pub async fn test_spark(&self, request: TestSparkRequest) -> Result<TestSparkResponse, GatewayClientError> {
         self.send_request(TEST_SPARK_PATH, request).await
+    }
+
+    pub async fn bridge_runes(&self, request: BridgeRunesSparkRequest) -> Result<BridgeRunesSparkResponse, GatewayClientError> {
+        self.send_request(BRIDGE_RUNES_PATH, request).await
     }
 }

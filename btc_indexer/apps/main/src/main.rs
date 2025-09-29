@@ -17,7 +17,17 @@ async fn main() -> anyhow::Result<()> {
     // Init configs
     let config_path = ConfigPath::from_env()?;
     let app_config = ServerConfig::init_config(ConfigVariant::OnlyOneFilepath(config_path.path))?;
-    let (btc_creds, postgres_creds) = (BtcRpcCredentials::new()?, PostgresDbCredentials::from_envs()?);
+    
+    let btc_creds = BtcRpcCredentials {
+        url: app_config.bitcoin_rpc_config.url,
+        network: app_config.network_config.network,
+        name: app_config.bitcoin_rpc_config.name,
+        password: app_config.bitcoin_rpc_config.password,
+    };
+
+    let postgres_creds = PostgresDbCredentials {
+        url: app_config.database_config.url,
+    };
 
     // Init App
     let db_pool = LocalDbStorage::from_config(postgres_creds).await?;

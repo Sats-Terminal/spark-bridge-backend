@@ -45,6 +45,15 @@ pub struct ServerConfig {
     pub network_config: NetworkConfig,
     #[serde(rename(deserialize = "titan"))]
     pub titan_config: TitanConfig,
+    #[serde(rename(deserialize = "bitcoin_rpc"))]
+    pub bitcoin_rpc_config: BtcRpcConfig,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct BtcRpcConfig {
+    pub url: String,
+    pub name: String,
+    pub password: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

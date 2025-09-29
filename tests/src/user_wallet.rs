@@ -12,6 +12,7 @@ use ordinals::{Runestone, Edict};
 use bitcoin::Transaction;
 use bitcoin::transaction::Version;
 use crate::utils::sign_transaction;
+use bitcoin::Txid;
 use tracing;
 
 const DEFAULT_FEE_AMOUNT: u64 = 5_000;
@@ -71,7 +72,7 @@ impl UserWallet {
         Err(TestError::GetFundedOutpointError("Failed to get funded outpoint".to_string()))
     }
 
-    pub async fn transfer_runes(&mut self, amount: u64, transfer_address: Address) -> Result<(), TestError> {
+    pub async fn transfer_runes(&mut self, amount: u64, transfer_address: Address) -> Result<Txid, TestError> {
         tracing::info!("Transferring runes");
         let balance = self.get_rune_balance().await?;
         if balance < amount {
@@ -130,16 +131,18 @@ impl UserWallet {
         
         sign_transaction(&mut transaction, vec![value], self.p2tr_address.clone(), self.keypair)?;
 
+        let txid = transaction.compute_txid();
+
         self.bitcoin_client.broadcast_transaction(transaction)?;
         self.bitcoin_client.generate_blocks(6, None)?;
         sleep(Duration::from_secs(1)).await;
 
         tracing::info!("Runes transferred");
 
-        Ok(())
+        Ok(txid)
     }
 
-    pub async fn unite_unspent_utxos(&mut self) -> Result<(), TestError> {
+    pub async fn unite_unspent_utxos(&mut self) -> Result<Txid, TestError> {
         let address_data = self.bitcoin_client.get_address_data(self.p2tr_address.clone()).await?;
 
         let mut total_btc = 0;
@@ -200,10 +203,12 @@ impl UserWallet {
 
         sign_transaction(&mut transaction, prev_input_amounts, self.p2tr_address.clone(), self.keypair)?;
 
+        let txid = transaction.compute_txid();
+
         self.bitcoin_client.broadcast_transaction(transaction)?;
         self.bitcoin_client.generate_blocks(6, None)?;
         sleep(Duration::from_secs(1)).await;
 
-        Ok(())
+        Ok(txid)
     }
 }

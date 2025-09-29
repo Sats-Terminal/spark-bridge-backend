@@ -26,7 +26,7 @@ services:
     volumes:
       - "btcd-data:/var/lib/bitcoin-core"
     command: |
-      -${BITCOIN_NETWORK:-regtest}
+      -regtest
       -rpcallowip=0.0.0.0/0
       -datadir=/var/lib/bitcoin-core
       -rpcbind=bitcoind

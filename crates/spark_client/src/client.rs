@@ -132,7 +132,6 @@ impl SparkRpcClient {
 
         let query_fn = |mut clients: SparkServicesClients, request: CommitTransactionRequestWithAuth| async move {
             let mut tonic_request = tonic::Request::new(request.request);
-            println!("IIIIISSSSUUUEEEEER: {}", request.user_public_key.clone());
             create_request(&mut tonic_request, request.user_public_key, request.spark_session)?;
 
 
