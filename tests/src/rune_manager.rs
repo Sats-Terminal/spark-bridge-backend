@@ -162,7 +162,7 @@ impl RuneManager {
             output: txouts,
         };
 
-        sign_transaction(&mut transaction, vec![value], address.clone(), self.keypair)?;
+        sign_transaction(&mut transaction, vec![value], self.p2tr_address.clone(), self.keypair)?;
 
         let txid = transaction.compute_txid();
         self.bitcoin_client.broadcast_transaction(transaction)?;

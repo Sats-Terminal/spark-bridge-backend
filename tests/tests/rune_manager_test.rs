@@ -28,8 +28,13 @@ async fn test_rune_manager() {
     assert!(rune_balance > 0, "Rune balance should be greater than 0");
 
     let dummy_address = create_credentials().0;
-    user_wallet.transfer_runes(1000, dummy_address.clone()).await.unwrap();
+    let transfer_amount = 1000;
+    user_wallet.transfer_runes(transfer_amount, dummy_address.clone()).await.unwrap();
     let address_data = bitcoin_client.get_address_data(dummy_address).await.unwrap();
+
     tracing::info!("Address data: {:?}", address_data);
+    let output = address_data.outputs[0].clone();
+    assert_eq!(output.runes[0].rune_id.to_string(), rune_id.to_string());
+    assert_eq!(output.runes[0].amount as u64, transfer_amount);
 
 }
