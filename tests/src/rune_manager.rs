@@ -4,16 +4,16 @@ use bitcoin::key::Keypair;
 use rand_core::{OsRng, RngCore};
 use crate::utils::create_credentials;
 use crate::error::TestError;
-use ordinals::RuneId;
+use ordinals::{RuneId, Runestone};
 use crate::rune_etching::{EtchRuneParams, etch_rune};
 use bitcoin::{TxIn, OutPoint, Sequence, Witness, TxOut, Amount, ScriptBuf, Transaction, Txid};
 use bitcoin::transaction::Version;
 use tokio::time::sleep;
 use std::time::Duration;
 use titan_client::SpentStatus;
-use ordinals::Runestone;
 use std::str::FromStr;
 use crate::utils::sign_transaction;
+use std::collections::HashMap;
 
 const DEFAULT_FEE_AMOUNT: u64 = 5_000;
 const DEFAULT_DUST_AMOUNT: u64 = 546;
@@ -22,7 +22,15 @@ pub struct RuneManager {
     bitcoin_client: BitcoinClient,
     p2tr_address: Address,
     keypair: Keypair,
-    rune_id: RuneId,
+    managed_runes: HashMap<RuneId, RuneInfo>,
+}
+
+#[derive(Debug, Clone)]
+pub struct RuneInfo {
+    pub rune_id: RuneId,
+    pub name: String,
+    pub cap: u128,
+    pub amount_per_mint: u128,
 }
 
 impl RuneManager {
@@ -32,15 +40,38 @@ impl RuneManager {
         bitcoin_client.faucet(p2tr_address.clone(), 1_000_000)?;
         sleep(Duration::from_secs(1)).await;
 
+        Ok(Self {
+            bitcoin_client,
+            p2tr_address,
+            keypair,
+            managed_runes: HashMap::new()
+        })
+    }
+
+    pub async fn new_with_rune(mut bitcoin_client: BitcoinClient) -> Result<Self, TestError> {
+        let (p2tr_address, keypair) = create_credentials();
+
+        bitcoin_client.faucet(p2tr_address.clone(), 1_000_000)?;
+        sleep(Duration::from_secs(1)).await;
+
+        let rune_name = random_rune_name();
         let rune_id = etch_rune(EtchRuneParams {
-            rune_name: random_rune_name(),
+            rune_name: rune_name.clone(),
             cap: 1_000,
             amount: 1_000_000,
             key_pair: keypair,
             faucet_address: p2tr_address.clone(),
         }, bitcoin_client.clone()).await?;
 
-        let mut rune_manager = Self { bitcoin_client, p2tr_address, keypair, rune_id };
+        let mut managed_runes = HashMap::new();
+        managed_runes.insert(rune_id, RuneInfo {
+            rune_id,
+            name: rune_name,
+            cap: 1_000,
+            amount_per_mint: 1_000_000,
+        });
+
+        let mut rune_manager = Self { bitcoin_client, p2tr_address, keypair, managed_runes };
         let _ = rune_manager.unite_unspent_utxos().await?;
         rune_manager.bitcoin_client.generate_blocks(6, None)?;
         sleep(Duration::from_secs(1)).await;
@@ -48,15 +79,59 @@ impl RuneManager {
         Ok(rune_manager)
     }
 
-    pub async fn get_rune_id(&self) -> RuneId {
-        self.rune_id.clone()
+    pub async fn etch_new_rune(
+        &mut self,
+        rune_name: Option<String>,
+        cap: u128,
+        amount: u128,
+    ) -> Result<RuneId, TestError> {
+        tracing::info!("Etching new rune");
+
+        let name = rune_name.unwrap_or_else(random_rune_name);
+
+        let rune_id = etch_rune(EtchRuneParams {
+            rune_name: name.clone(),
+            cap: cap as u64,
+            amount: amount as u64,
+            key_pair: self.keypair,
+            faucet_address: self.p2tr_address.clone(),
+        }, self.bitcoin_client.clone()).await?;
+
+        self.managed_runes.insert(rune_id, RuneInfo {
+            rune_id,
+            name,
+            cap,
+            amount_per_mint: amount,
+        });
+
+        let _ = self.unite_unspent_utxos().await?;
+        self.bitcoin_client.generate_blocks(6, None)?;
+        sleep(Duration::from_secs(1)).await;
+
+        Ok(rune_id)
+    }
+
+    pub fn get_managed_runes(&self) -> HashMap<RuneId, RuneInfo> {
+        self.managed_runes.clone()
+    }
+
+    pub fn get_rune_info(&self, rune_id: &RuneId) -> Option<&RuneInfo> {
+        self.managed_runes.get(rune_id)
+    }
+
+    pub async fn get_rune_id(&self) -> Option<RuneId> {
+        self.managed_runes.keys().next().copied()
+    }
+
+    pub fn get_all_rune_ids(&self) -> Vec<RuneId> {
+        self.managed_runes.keys().copied().collect()
     }
 
     async fn unite_unspent_utxos(&mut self) -> Result<Txid, TestError> {
         tracing::info!("Uniting unspent utxos");
 
         let address_data = self.bitcoin_client.get_address_data(self.p2tr_address.clone()).await?;
-        
+
         let mut total_amount = 0;
         let mut prev_input_amounts = vec![];
         let mut txins = vec![];
@@ -85,7 +160,7 @@ impl RuneManager {
             value: Amount::from_sat(total_amount - DEFAULT_FEE_AMOUNT),
             script_pubkey: self.p2tr_address.script_pubkey(),
         };
-        
+
         let mut transaction = Transaction {
             version: Version::TWO,
             lock_time: bitcoin::absolute::LockTime::ZERO,
@@ -120,13 +195,19 @@ impl RuneManager {
         Err(TestError::GetFundedOutpointError("Failed to get funded outpoint".to_string()))
     }
 
-    pub async fn mint_rune(&mut self, address: Address) -> Result<Txid, TestError> {
-        tracing::info!("Minting rune");
+    pub async fn mint_rune(&mut self, rune_id: RuneId, address: Address) -> Result<Txid, TestError> {
+        tracing::info!("Minting rune {:?}", rune_id);
+
+        if !self.managed_runes.contains_key(&rune_id) {
+            return Err(TestError::MintRuneError(
+                format!("Rune {:?} is not managed by this RuneManager", rune_id)
+            ));
+        }
 
         let runestone = Runestone {
             edicts: vec![],
             etching: None,
-            mint: Some(self.rune_id),
+            mint: Some(rune_id),
             pointer: Some(1),
         };
         let op_return_script = runestone.encipher();

@@ -17,4 +17,8 @@ pub enum TestError {
     InsufficientBalanceError(String),
     #[error("Failed to transfer runes")]
     TransferRunesError(String),
+    #[error("Failed to mint rune")]
+    MintRuneError(String),
+    #[error("Failed to get balance")]
+    GetRuneBalanceError(String)
 }
