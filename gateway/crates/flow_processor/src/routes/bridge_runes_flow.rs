@@ -101,17 +101,8 @@ pub async fn handle(
         .ok_or(FlowProcessorError::InvalidDataError(
             "Deposit address info not found".to_string(),
         ))?;
-
-        // TODO: remove this once we have deposit verification flow
-    let receiver_spark_address = encode_spark_address(SparkAddressData {
-        identity_public_key: deposit_addr_info.musig_id.get_public_key().to_string(),
-        network: convert_network_to_spark_network(flow_processor.network),
-        invoice: None,
-        signature: None,
-    })
-        .map_err(|e| FlowProcessorError::SparkAddressError(e))?;
-
-    sleep(std::time::Duration::from_secs(10));
+    
+    let bridge_address = deposit_addr_info.bridge_address.ok_or(FlowProcessorError::InvalidDataError("Bridge address not found".to_string()))?;
 
     flow_processor
         .spark_service
@@ -120,7 +111,7 @@ pub async fn handle(
             None,
             wrunes_metadata.token_identifier,
             SparkTransactionType::Mint {
-                receiver_spark_address,
+                receiver_spark_address: bridge_address.to_string(),
                 token_amount: deposit_addr_info.amount,
             },
             convert_network_to_spark_network(flow_processor.network),
@@ -128,7 +119,7 @@ pub async fn handle(
         .await
         .map_err(|e| FlowProcessorError::SparkServiceError(format!("Failed to send spark mint transaction: {}", e)))?;
 
-    tracing::info!("[{LOG_PATH}] Bridge runes flow completed");
+    tracing::info!("[{LOG_PATH}] Bridge runes flow completed, address: {}", bridge_address.to_string());
 
     Ok(())
 }
