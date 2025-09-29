@@ -90,7 +90,7 @@ impl UserWallet {
                 Edict {
                     id: self.rune_id,
                     amount: (balance - amount) as u128,
-                    output: 1,
+                    output: 2,
                 },
             ],
             etching: None,
@@ -112,11 +112,11 @@ impl UserWallet {
                 script_pubkey: op_return_script,
             },
             TxOut {
-                value: Amount::from_sat(value - DEFAULT_FEE_AMOUNT - DEFAULT_DUST_AMOUNT),
+                value: Amount::from_sat(DEFAULT_DUST_AMOUNT),
                 script_pubkey: transfer_address.script_pubkey(),
             },
             TxOut {
-                value: Amount::from_sat(DEFAULT_DUST_AMOUNT),
+                value: Amount::from_sat(value - DEFAULT_FEE_AMOUNT - DEFAULT_DUST_AMOUNT),
                 script_pubkey: self.p2tr_address.script_pubkey(),
             },
         ];
@@ -145,6 +145,7 @@ impl UserWallet {
         let mut total_btc = 0;
         let mut total_runes = 0;
         let mut txins = vec![];
+        let mut prev_input_amounts = vec![];
 
         for output in address_data.outputs.iter() {
             if let SpentStatus::Unspent = output.spent && output.value > 0 {
@@ -163,6 +164,7 @@ impl UserWallet {
                     sequence: Sequence::ENABLE_RBF_NO_LOCKTIME,
                     witness: Witness::new(),
                 });
+                prev_input_amounts.push(output.value);
             }
         }
 
@@ -196,7 +198,7 @@ impl UserWallet {
             output: txouts,
         };
 
-        sign_transaction(&mut transaction, vec![total_btc], self.p2tr_address.clone(), self.keypair)?;
+        sign_transaction(&mut transaction, prev_input_amounts, self.p2tr_address.clone(), self.keypair)?;
 
         self.bitcoin_client.broadcast_transaction(transaction)?;
         self.bitcoin_client.generate_blocks(6, None)?;

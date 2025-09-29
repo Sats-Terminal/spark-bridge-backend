@@ -1,11 +1,10 @@
-use std::str::FromStr;
 use std::thread::sleep;
 use bitcoin::secp256k1::PublicKey;
 use crate::error::FlowProcessorError;
 use crate::flow_router::FlowProcessorRouter;
 use crate::types::BridgeRunesRequest;
 use frost::traits::AggregatorMusigIdStorage;
-use frost::types::{AggregatorDkgState, MusigId};
+use frost::types::MusigId;
 use frost::utils::generate_issuer_public_key;
 use gateway_local_db_store::schemas::deposit_address::{DepositAddressStorage, InnerAddress};
 use gateway_spark_service::types::SparkTransactionType;
@@ -82,18 +81,11 @@ pub async fn handle(
         }
     };
 
-    let musig_data = flow_processor
-        .storage
-        .get_musig_id_data(&issuer_musig_id)
+    let issuer_public_key_package = flow_processor
+        .frost_aggregator
+        .get_public_key_package(issuer_musig_id.clone(), None)
         .await
-        .map_err(FlowProcessorError::DbError)?
-        .ok_or(FlowProcessorError::InvalidDataError("Issuer musig data not found".to_string()))?;
-
-    let AggregatorDkgState::DkgFinalized { public_key_package: issuer_public_key_package } = musig_data.dkg_state else {
-        return Err(FlowProcessorError::InvalidDataError(
-            "Issuer musig data not finalized".to_string(),
-        ));
-    };
+        .map_err(|e| FlowProcessorError::FrostAggregatorError(format!("Failed to get public key package: {}", e)))?;
 
     let issuer_musig_public_key_bytes = issuer_public_key_package.verifying_key().serialize()
         .map_err(|e| FlowProcessorError::InvalidDataError(format!("Failed to serialize issuer musig public key: {}", e)))?;

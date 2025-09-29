@@ -57,7 +57,7 @@ pub async fn etch_rune(
     
     let mut funded_outpoint = None;
     let mut faucet_sats = None;
-    for (index, output) in address_data.outputs.iter().enumerate() {
+    for output in address_data.outputs.iter() {
         if !output.status.confirmed {
             return Err(TestError::EtchRuneError("Address is not confirmed".to_string()));
         }
@@ -65,7 +65,7 @@ pub async fn etch_rune(
             faucet_sats = Some(output.value);
             funded_outpoint = Some(OutPoint {
                 txid: Txid::from_str(&output.txid.to_string()).unwrap(),
-                vout: index as u32,
+                vout: output.vout,
             });
             break;
         }

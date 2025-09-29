@@ -70,17 +70,17 @@ async fn test_etch() {
 
     let address_data = bitcoin_client.get_address_data(default_address.clone()).await.expect("address data should work");
 
-    println!("address_data: {:?}", address_data);
+    tracing::info!("address_data: {:?}", address_data);
 
     assert!(address_data.outputs.len() > 0, "should have more than output");
     
     let mut funded_outpoint = None;
-    for (index, output) in address_data.outputs.iter().enumerate() {
+    for output in address_data.outputs.iter() {
         assert!(output.status.confirmed, "All outputs should be confirmed");
         if output.value == faucet_sats {
             funded_outpoint = Some(OutPoint {
                 txid: Txid::from_str(&output.txid.to_string()).unwrap(),
-                vout: index as u32,
+                vout: output.vout,
             });
             break;
         }
