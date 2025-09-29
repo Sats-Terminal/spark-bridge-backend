@@ -4,14 +4,15 @@ use async_trait::async_trait;
 use frost::traits::AggregatorDkgShareStorage;
 use frost::types::DkgShareId;
 use persistent_storage::error::DbError;
+use sqlx::types::Json;
 use std::fmt::Debug;
 use std::str::FromStr;
-use tracing::instrument;
+use tracing::{info, instrument};
 use uuid::Uuid;
 
 pub type UserUuid = Uuid;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct UserIdentifier {
     pub user_uuid: Uuid,
     pub dkg_share_id: Uuid,
@@ -35,7 +36,7 @@ pub struct UserIds {
 
 #[async_trait]
 pub trait UserIdentifierStorage: Send + Sync + Debug {
-    async fn get_row_bu_user_uuid(&self, dkg_share_id: &DkgShareId) -> Result<Option<UserIdentifier>, DbError>;
+    async fn get_row_by_user_uuid(&self, dkg_share_id: &DkgShareId) -> Result<Option<UserIdentifier>, DbError>;
     async fn get_dkg_share_data_via_dkg_share(
         &self,
         dkg_share_id: &DkgShareId,
@@ -66,8 +67,8 @@ impl UserIdentifierStorage for LocalDbStorage {
         )
         .bind(user_identifier)
         .bind(dkg_share_id)
-        .bind(user_identifier_data.rune_id)
         .bind(user_identifier_data.public_key)
+        .bind(user_identifier_data.rune_id)
         .bind(user_identifier_data.is_issuer)
         .execute(&self.get_conn().await?)
         .await
@@ -77,15 +78,15 @@ impl UserIdentifierStorage for LocalDbStorage {
     }
 
     #[instrument(level = "trace", skip(self), ret)]
-    async fn get_row_bu_user_uuid(&self, user_uuid: &UserUuid) -> Result<Option<UserIdentifier>, DbError> {
-        let result: Option<(Uuid, DkgShareId, String, String, bool,)> = sqlx::query_as(
-            "SELECT (user_uuid, dkg_share_id, public_key, rune_id, is_issuer) FROM gateway.user_identifier WHERE user_uuid = $1;",
+    async fn get_row_by_user_uuid(&self, user_uuid: &UserUuid) -> Result<Option<UserIdentifier>, DbError> {
+        let result: Option<(Uuid, Uuid, String, String, bool,)> = sqlx::query_as(
+            "SELECT user_uuid, dkg_share_id, public_key, rune_id, is_issuer FROM gateway.user_identifier WHERE user_uuid = $1;",
         )
             .bind(user_uuid)
             .fetch_optional(&self.get_conn().await?)
             .await
             .map_err(|e| DbError::BadRequest(e.to_string()))?;
-
+        info!("result: {result:?}");
         Ok(result.map(
             |(user_uuid, dkg_share_id, public_key, rune_id, is_issuer)| UserIdentifier {
                 user_uuid,
@@ -101,8 +102,8 @@ impl UserIdentifierStorage for LocalDbStorage {
         &self,
         dkg_share_id: &DkgShareId,
     ) -> Result<Option<UserIdentifier>, DbError> {
-        let result: Option<(Uuid, DkgShareId, String, String, bool,)> = sqlx::query_as(
-            "SELECT (user_uuid, dkg_share_id, public_key, rune_id, is_issuer) FROM gateway.user_identifier WHERE dkg_share_id = $1;",
+        let result: Option<(Uuid, Uuid, String, String, bool,)> = sqlx::query_as(
+            "SELECT user_uuid, dkg_share_id, public_key, rune_id, is_issuer FROM gateway.user_identifier WHERE dkg_share_id = $1;",
         )
             .bind(dkg_share_id)
             .fetch_optional(&self.get_conn().await?)
@@ -123,7 +124,7 @@ impl UserIdentifierStorage for LocalDbStorage {
     async fn get_issuer_ids(&self, rune_id: String) -> Result<Option<UserIds>, DbError> {
         let result: Option<(UserUuid, DkgShareId)> = sqlx::query_as(
             "SELECT (user_uuid, dkg_share_id)
-            FROM gateway.musig_identifier
+            FROM gateway.user_identifier
             WHERE is_issuer = true AND rune_id = $1",
         )
         .bind(rune_id)

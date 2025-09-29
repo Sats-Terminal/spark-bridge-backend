@@ -231,7 +231,7 @@ impl DepositAddressStorage for LocalDbStorage {
         let _ = sqlx::query(
             "INSERT INTO gateway.deposit_address (nonce_tweak, user_uuid, deposit_address, bridge_address, is_btc, amount, confirmation_status)
             VALUES ($1, $2, $3, $4, $5, $6, $7)
-            ON CONFLICT (public_key, rune_id, nonce_tweak) DO UPDATE SET confirmation_status = $7",
+            ON CONFLICT (nonce_tweak, user_uuid) DO UPDATE SET confirmation_status = $7",
         )
             .bind(deposit_addr_info.nonce)
             .bind(deposit_addr_info.user_uuid)

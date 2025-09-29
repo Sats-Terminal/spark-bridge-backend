@@ -1,7 +1,6 @@
 use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
 use frost::traits::SignerDkgShareStorage;
-use frost::types::MusigId;
 use frost::types::SignerDkgShareIdData;
 use frost::types::SignerDkgState;
 use persistent_storage::error::DbError;

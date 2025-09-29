@@ -13,12 +13,13 @@ CREATE TABLE IF NOT EXISTS gateway.dkg_share
 
 CREATE TABLE IF NOT EXISTS gateway.user_identifier
 (
-    user_uuid    UUID NOT NULL DEFAULT gen_random_uuid(),
-    dkg_share_id UUID             NOT NULL,
-    public_key   TEXT             NOT NULL,
-    rune_id      TEXT             NOT NULL,
-    is_issuer    BOOLEAN          NOT NULL,
+    user_uuid    UUID    NOT NULL DEFAULT gen_random_uuid(),
+    dkg_share_id UUID    NOT NULL,
+    public_key   TEXT    NOT NULL,
+    rune_id      TEXT    NOT NULL,
+    is_issuer    BOOLEAN NOT NULL,
     PRIMARY KEY (user_uuid),
+    UNIQUE (user_uuid, dkg_share_id),
     FOREIGN KEY (dkg_share_id) REFERENCES gateway.dkg_share (dkg_share_id)
 );
 
@@ -26,12 +27,12 @@ CREATE TABLE IF NOT EXISTS gateway.user_identifier
 
 CREATE TABLE IF NOT EXISTS gateway.sign_session
 (
-    session_id   TEXT  NOT NULL,
-    dkg_share_id    UUID  NOT NULL,
-    tweak        BYTEA,
-    message_hash BYTEA NOT NULL,
-    aggregator_metadata     JSON  NOT NULL,
-    sign_state   JSON  NOT NULL,
+    session_id          TEXT  NOT NULL,
+    dkg_share_id        UUID  NOT NULL,
+    tweak               BYTEA,
+    message_hash        BYTEA NOT NULL,
+    aggregator_metadata JSON  NOT NULL,
+    sign_state          JSON  NOT NULL,
     PRIMARY KEY (session_id),
     FOREIGN KEY (dkg_share_id) REFERENCES gateway.dkg_share (dkg_share_id)
 );

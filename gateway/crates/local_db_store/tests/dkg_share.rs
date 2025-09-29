@@ -1,4 +1,6 @@
+mod utils;
 mod tests {
+    use crate::utils::common::{GATEWAY_CONFIG_PATH, MIGRATOR, TEST_LOGGER};
     use bitcoin::Network;
     use bitcoin::key::Secp256k1;
     use bitcoin::secp256k1::SecretKey;
@@ -16,19 +18,15 @@ mod tests {
     use global_utils::common_types::get_uuid;
     use global_utils::config_path::ConfigPath;
     use global_utils::logger::{LoggerGuard, init_logger};
-    use persistent_storage::error::DbError as DatabaseError;
+    use persistent_storage::error::DbError;
     use persistent_storage::init::{PostgresPool, PostgresRepo};
     use serde_json::json;
     use std::collections::BTreeMap;
     use std::sync::{Arc, LazyLock};
     use tracing::info;
 
-    pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
-    pub static TEST_LOGGER: LazyLock<LoggerGuard> = LazyLock::new(|| init_logger());
-    pub const GATEWAY_CONFIG_PATH: &str = "../../../infrastructure/configurations/gateway/dev.toml";
-
     #[sqlx::test(migrator = "MIGRATOR")]
-    async fn test_create_session(db: PostgresPool) -> Result<(), DatabaseError> {
+    async fn test_create_session(db: PostgresPool) -> Result<(), DbError> {
         let _logger_guard = &*TEST_LOGGER;
 
         let server_config = ServerConfig::init_config(GATEWAY_CONFIG_PATH.to_string());

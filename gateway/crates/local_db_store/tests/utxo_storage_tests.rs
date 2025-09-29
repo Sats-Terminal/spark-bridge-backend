@@ -1,17 +1,17 @@
+mod utils;
 mod tests {
     use chrono::Utc;
     use gateway_local_db_store::storage::{LocalDbStorage, make_repo_with_config};
     // use gateway_runes_utxo_manager::traits::{CoinSelector, Utxo, UtxoManager, UtxoStatus, UtxoStorage};
     // use gateway_runes_utxo_manager::utxo_manager::GreedySelector;
+    use crate::utils::common::MIGRATOR;
     use gateway_local_db_store::schemas::utxo_storage::Utxo;
     use persistent_storage::error::DbError as DatabaseError;
     use persistent_storage::init::{PostgresPool, PostgresRepo};
     use sqlx::Executor;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicU64, Ordering};
-
-    pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
-
+    // TODO: fix tests
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_select_and_lock_basic_flow(db: PostgresPool) -> Result<(), DatabaseError> {
         let repo = make_repo_with_config(db).await;
@@ -23,6 +23,8 @@ mod tests {
 
         let utxos = vec![
             Utxo {
+                out_point: Default::default(),
+                btc_address: (),
                 id: 0,
                 txid: "t1".into(),
                 vout: 0,
@@ -34,6 +36,8 @@ mod tests {
                 block_height: Some(100),
                 created_at: Utc::now().naive_utc(),
                 updated_at: Utc::now().naive_utc(),
+                rune_amount: 0,
+                sats_fee_amount: 0,
             },
             Utxo {
                 id: 0,

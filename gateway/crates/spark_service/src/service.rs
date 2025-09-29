@@ -4,11 +4,11 @@ use crate::types::*;
 use crate::utils::spark_network_to_proto_network;
 use bitcoin::hashes::sha256::Hash as Sha256Hash;
 use bitcoin::hashes::{Hash, HashEngine, sha256};
+use bitcoin::secp256k1;
 use bitcoin::secp256k1::PublicKey;
 use frost::aggregator::FrostAggregator;
-use frost::types::MusigId;
-use frost::types::Nonce;
 use frost::types::SigningMetadata;
+use frost::types::{DkgShareId, Nonce};
 use futures::future::join_all;
 use lrc20::marshal::marshal_token_transaction;
 use lrc20::marshal::unmarshal_token_transaction;
@@ -50,12 +50,12 @@ impl SparkService {
 
     async fn get_musig_public_key(
         &self,
-        issuer_id: MusigId,
+        issuer_dkg_share_id: DkgShareId,
         nonce_tweak: Option<Nonce>,
     ) -> Result<PublicKey, SparkServiceError> {
         let public_key_package = self
             .frost_aggregator
-            .get_public_key_package(issuer_id.clone(), nonce_tweak)
+            .get_public_key_package(issuer_dkg_share_id, nonce_tweak)
             .await
             .map_err(|err| SparkServiceError::FrostAggregatorError(err.to_string()))?;
 
@@ -70,13 +70,17 @@ impl SparkService {
         Ok(issuer_public_key)
     }
 
-    async fn authenticate(&self, musig_id: MusigId, nonce_tweak: Option<Nonce>) -> Result<(), SparkServiceError> {
+    async fn authenticate(
+        &self,
+        issuer_dkg_share_id: DkgShareId,
+        nonce_tweak: Option<Nonce>,
+    ) -> Result<(), SparkServiceError> {
         tracing::debug!(
-            "Authenticating with musig id: {:?}, nonce tweak: {:?}",
-            musig_id,
+            "Authenticating with issuer_dkg_share_id: {:?}, nonce tweak: {:?}",
+            issuer_dkg_share_id,
             nonce_tweak
         );
-        let identity_public_key = self.get_musig_public_key(musig_id.clone(), nonce_tweak).await?;
+        let identity_public_key = self.get_musig_public_key(issuer_dkg_share_id, nonce_tweak).await?;
 
         let session_token = self.spark_client.get_auth_session(identity_public_key).await;
         if let Some(_) = session_token {
@@ -103,7 +107,7 @@ impl SparkService {
         let signature = self
             .frost_aggregator
             .run_signing_flow(
-                musig_id.clone(),
+                issuer_dkg_share_id.clone(),
                 message_hash.as_byte_array().as_slice(),
                 SigningMetadata::Authorization,
                 nonce_tweak,
@@ -125,31 +129,31 @@ impl SparkService {
             .await
             .map_err(|e| SparkServiceError::SparkClientError(format!("Failed to verify challenge: {}", e)))?;
 
-        tracing::debug!("Challenge verified for musig id: {:?}", musig_id);
+        tracing::debug!("Challenge verified for issuer_dkg_share_id: {:?}", issuer_dkg_share_id);
 
         Ok(())
     }
 
     pub async fn send_spark_transaction(
         &self,
-        musig_id: MusigId,
+        issuer_dkg_share_id: DkgShareId,
         nonce_tweak: Option<Nonce>,
         token_identifier: TokenIdentifier,
         transaction_type: SparkTransactionType,
         network: Network,
     ) -> Result<(), SparkServiceError> {
         tracing::debug!(
-            "Send spark transaction with musig id: {:?}, nonce tweak: {:?}, token identifier: {:?}",
-            musig_id,
+            "Send spark transaction with issuer_dkg_share_id: {:?}, nonce tweak: {:?}, token identifier: {:?}",
+            issuer_dkg_share_id,
             nonce_tweak,
             token_identifier.to_string()
         );
 
-        self.authenticate(musig_id.clone(), nonce_tweak).await?;
+        self.authenticate(issuer_dkg_share_id, nonce_tweak).await?;
 
         tracing::debug!("Network: {:?}", network);
 
-        let identity_public_key = self.get_musig_public_key(musig_id.clone(), nonce_tweak).await?;
+        let identity_public_key = self.get_musig_public_key(issuer_dkg_share_id, nonce_tweak).await?;
 
         // ----- Start the transaction -----
 
@@ -178,7 +182,7 @@ impl SparkService {
         let signature = self
             .frost_aggregator
             .run_signing_flow(
-                musig_id.clone(),
+                issuer_dkg_share_id,
                 partial_token_transaction_hash.as_ref(),
                 create_signing_metadata(partial_token_transaction.clone(), transaction_type.clone(), true)?,
                 nonce_tweak,
@@ -241,7 +245,6 @@ impl SparkService {
                 SparkServiceError::HashError(format!("Failed to hash operator specific signable payload: {:?}", err))
             })?;
 
-            let musig_id = musig_id.clone();
             let final_token_transaction = final_token_transaction.clone();
             let transaction_type = transaction_type.clone();
 
@@ -249,7 +252,7 @@ impl SparkService {
                 let signature = self
                     .frost_aggregator
                     .run_signing_flow(
-                        musig_id,
+                        issuer_dkg_share_id,
                         operator_specific_signable_payload.as_ref(),
                         create_signing_metadata(final_token_transaction, transaction_type, false)?,
                         nonce_tweak,

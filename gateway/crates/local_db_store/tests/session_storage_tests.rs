@@ -1,13 +1,17 @@
+mod utils;
+
 mod tests {
-    use gateway_local_db_store::schemas::session_storage::SessionStorage;
+    use crate::utils;
+    use gateway_local_db_store::schemas::session_storage::{RequestType, SessionStatus, SessionStorage};
     use gateway_local_db_store::storage::{LocalDbStorage, make_repo_with_config};
-    use gateway_session_storage::tracker::SessionTracker;
-    use gateway_session_storage::traits::{RequestType, SessionStatus, SessionStorage};
     use global_utils::common_types::get_uuid;
     use persistent_storage::error::DbError as DatabaseError;
     use persistent_storage::init::{PostgresPool, PostgresRepo};
     use serde_json::json;
     use std::sync::Arc;
+    use utils::common::*;
+
+    // TODO: fix tests
 
     async fn cleanup_sessions(repo: Arc<LocalDbStorage>) {
         sqlx::query("TRUNCATE gateway.session_requests")
@@ -15,8 +19,6 @@ mod tests {
             .await
             .unwrap();
     }
-
-    pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
 
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_create_session(db: PostgresPool) -> Result<(), DatabaseError> {
