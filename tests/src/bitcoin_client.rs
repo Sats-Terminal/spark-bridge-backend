@@ -14,6 +14,7 @@ use ordinals::RuneId;
 use std::str::FromStr;
 use std::sync::Arc;
 use titan_client::Transaction as TitanTransaction;
+use crate::constants::BLOCKS_TO_GENERATE;
 
 #[derive(Error, Debug)]
 pub enum BitcoinClientError {
@@ -108,7 +109,7 @@ impl BitcoinClient {
         let txid = self.bitcoin_client
             .send_to_address(&address, amount, None, None, None, None, None, None)?;
         tracing::info!("Fauceted transaction: {:?}", txid);
-        self.generate_blocks(6, None)?;
+        self.generate_blocks(BLOCKS_TO_GENERATE, None)?;
         Ok(())
     }
 

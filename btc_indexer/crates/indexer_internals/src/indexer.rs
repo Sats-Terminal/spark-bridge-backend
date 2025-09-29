@@ -5,7 +5,7 @@ use crate::tx_arbiter::{TxArbiter, TxArbiterTrait};
 use async_trait::async_trait;
 use bitcoincore_rpc::{Client, RawTx, RpcApi, bitcoin, json};
 use btc_indexer_api::api::TrackTxRequest;
-use config_parser::config::{BtcIndexerParams, BtcRpcCredentials};
+use config_parser::config::{BtcIndexerParams, BtcRpcCredentials, TitanConfig};
 
 use local_db_store_indexer::init::IndexerDbBounds;
 use local_db_store_indexer::init::LocalDbStorage;
@@ -37,6 +37,7 @@ pub struct IndexerParamsWithApi<C, Db, TxValidator> {
 }
 
 pub struct IndexerParams<Db> {
+    pub titan_config: TitanConfig,
     pub btc_rpc_creds: BtcRpcCredentials,
     pub db_pool: Db,
     pub btc_indexer_params: BtcIndexerParams,
@@ -45,7 +46,7 @@ pub struct IndexerParams<Db> {
 impl BtcIndexer<TitanClient, LocalDbStorage, TxArbiter> {
     #[instrument(skip(params))]
     pub fn with_api(params: IndexerParams<LocalDbStorage>) -> crate::error::Result<Self> {
-        let titan_api_client = TitanClient::new(&params.btc_rpc_creds.url.to_string());
+        let titan_api_client = TitanClient::new(&params.titan_config.url.to_string());
         Self::new(IndexerParamsWithApi {
             indexer_params: params,
             titan_api_client: Arc::new(titan_api_client),

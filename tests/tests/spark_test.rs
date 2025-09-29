@@ -3,7 +3,7 @@ use global_utils::logger::init_logger;
 use tests::bitcoin_client::{BitcoinClient, BitcoinClientConfig};
 use tests::rune_manager::RuneManager;
 use tests::user_wallet::UserWallet;
-use bitcoin::Address;
+use bitcoin::{Address, Txid};
 use std::str::FromStr;
 use spark_address::{encode_spark_address, SparkAddressData};
 use tests::utils::create_credentials;

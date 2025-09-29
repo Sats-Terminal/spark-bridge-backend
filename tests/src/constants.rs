@@ -1,0 +1,9 @@
+
+pub const BLOCKS_TO_GENERATE: u64 = 7;
+pub const DEFAULT_FEE_AMOUNT: u64 = 5_000;
+pub const DEFAULT_DUST_AMOUNT: u64 = 546;
+
+pub const DEFAULT_RUNE_AMOUNT: u64 = 1_000_000;
+pub const DEFAULT_RUNE_CAP: u64 = 1_000;
+
+pub const DEFAULT_FAUCET_AMOUNT: u64 = 1_000_000;

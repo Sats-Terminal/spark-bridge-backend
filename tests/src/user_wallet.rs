@@ -14,9 +14,7 @@ use bitcoin::transaction::Version;
 use crate::utils::sign_transaction;
 use bitcoin::Txid;
 use tracing;
-
-const DEFAULT_FEE_AMOUNT: u64 = 5_000;
-const DEFAULT_DUST_AMOUNT: u64 = 546;
+use crate::constants::{DEFAULT_FEE_AMOUNT, DEFAULT_DUST_AMOUNT};
 
 pub struct UserWallet {
     p2tr_address: Address,
@@ -30,7 +28,7 @@ impl UserWallet {
         tracing::info!("Creating user wallet");
         let (p2tr_address, keypair) = create_credentials();
 
-        bitcoin_client.faucet(p2tr_address.clone(), 1_000_000)?;
+        bitcoin_client.faucet(p2tr_address.clone(), DEFAULT_FAUCET_AMOUNT)?;
         sleep(Duration::from_secs(1)).await;
 
         Ok(Self { p2tr_address, keypair, bitcoin_client, rune_id })
@@ -134,7 +132,7 @@ impl UserWallet {
         let txid = transaction.compute_txid();
 
         self.bitcoin_client.broadcast_transaction(transaction)?;
-        self.bitcoin_client.generate_blocks(6, None)?;
+        self.bitcoin_client.generate_blocks(BLOCKS_TO_GENERATE, None)?;
         sleep(Duration::from_secs(1)).await;
 
         tracing::info!("Runes transferred");
@@ -206,7 +204,7 @@ impl UserWallet {
         let txid = transaction.compute_txid();
 
         self.bitcoin_client.broadcast_transaction(transaction)?;
-        self.bitcoin_client.generate_blocks(6, None)?;
+        self.bitcoin_client.generate_blocks(BLOCKS_TO_GENERATE, None)?;
         sleep(Duration::from_secs(1)).await;
 
         Ok(txid)

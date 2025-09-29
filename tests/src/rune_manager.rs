@@ -14,9 +14,7 @@ use titan_client::SpentStatus;
 use ordinals::Runestone;
 use std::str::FromStr;
 use crate::utils::sign_transaction;
-
-const DEFAULT_FEE_AMOUNT: u64 = 5_000;
-const DEFAULT_DUST_AMOUNT: u64 = 546;
+use crate::constants::{BLOCKS_TO_GENERATE, DEFAULT_FEE_AMOUNT, DEFAULT_DUST_AMOUNT, DEFAULT_RUNE_AMOUNT, DEFAULT_RUNE_CAP, DEFAULT_FAUCET_AMOUNT};
 
 pub struct RuneManager {
     bitcoin_client: BitcoinClient,
@@ -29,20 +27,20 @@ impl RuneManager {
     pub async fn new(mut bitcoin_client: BitcoinClient) -> Result<Self, TestError> {
         let (p2tr_address, keypair) = create_credentials();
 
-        bitcoin_client.faucet(p2tr_address.clone(), 1_000_000)?;
+        bitcoin_client.faucet(p2tr_address.clone(), DEFAULT_FAUCET_AMOUNT)?;
         sleep(Duration::from_secs(1)).await;
 
         let rune_id = etch_rune(EtchRuneParams {
             rune_name: random_rune_name(),
-            cap: 1_000,
-            amount: 1_000_000,
+            cap: DEFAULT_RUNE_CAP,
+            amount: DEFAULT_RUNE_AMOUNT,
             key_pair: keypair,
             faucet_address: p2tr_address.clone(),
         }, bitcoin_client.clone()).await?;
 
         let mut rune_manager = Self { bitcoin_client, p2tr_address, keypair, rune_id };
         let _ = rune_manager.unite_unspent_utxos().await?;
-        rune_manager.bitcoin_client.generate_blocks(6, None)?;
+        rune_manager.bitcoin_client.generate_blocks(BLOCKS_TO_GENERATE, None)?;
         sleep(Duration::from_secs(1)).await;
 
         Ok(rune_manager)
@@ -166,7 +164,7 @@ impl RuneManager {
 
         let txid = transaction.compute_txid();
         self.bitcoin_client.broadcast_transaction(transaction)?;
-        self.bitcoin_client.generate_blocks(6, None)?;
+        self.bitcoin_client.generate_blocks(BLOCKS_TO_GENERATE, None)?;
         sleep(Duration::from_secs(1)).await;
 
         Ok(txid)
