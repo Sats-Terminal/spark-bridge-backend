@@ -60,7 +60,7 @@ impl SparkClient {
                 owner_public_keys: vec![public_key],
                 token_identifiers: vec![],
                 issuer_public_keys: vec![],
-                network: 2, // Regtest
+                network: 2, // Regtest, search spark_network_to_proto_network function
                 page_request: None,
             }
         ).await?.into_inner();

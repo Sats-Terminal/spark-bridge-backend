@@ -128,5 +128,7 @@ pub async fn handle(
         .await
         .map_err(|e| FlowProcessorError::SparkServiceError(format!("Failed to send spark mint transaction: {}", e)))?;
 
+    tracing::info!("[{LOG_PATH}] Bridge runes flow completed");
+
     Ok(())
 }

@@ -89,7 +89,7 @@ impl TxArbiterTrait for TxArbiter {
         }
 
         let obtained_block_height = tx_to_check.status.block_height.unwrap();
-        if current_tip.height.saturating_sub(obtained_block_height) <= BTC_BLOCK_CONFIRMATION_HEIGHT {
+        if current_tip.height.saturating_sub(obtained_block_height) < BTC_BLOCK_CONFIRMATION_HEIGHT {
             return Ok(TxArbiterResponse::Rejected(RejectReason::NotEnoughConfirmations {
                 current_block_height: current_tip.height,
                 got: obtained_block_height,

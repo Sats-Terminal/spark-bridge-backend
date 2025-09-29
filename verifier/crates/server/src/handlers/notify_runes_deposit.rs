@@ -25,7 +25,7 @@ impl Into<DepositStatus> for BtcTxReview {
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct BtcIndexerNotifyRunesDepositRequest {
-    pub out_point: OutPoint,
+    pub outpoint: OutPoint,
     pub status: BtcTxReview,
     pub sats_fee_amount: u64,
 }
@@ -36,25 +36,25 @@ pub async fn handle(
     Json(request): Json<BtcIndexerNotifyRunesDepositRequest>,
 ) -> Result<Json<()>, VerifierError> {
     // TODO: This request should spawn task and immediately return Json(())
-    tracing::info!("Notifying runes deposit for out point: {}", request.out_point);
+    tracing::info!("Notifying runes deposit for out point: {}", request.outpoint);
 
     let deposit_status: DepositStatus = request.status.clone().into();
     let gateway_request = GatewayNotifyRunesDepositRequest {
         verifier_id: state.server_config.frost_signer.identifier,
-        out_point: request.out_point,
+        out_point: request.outpoint,
         sats_fee_amount: request.sats_fee_amount,
         status: deposit_status.clone(),
     };
 
     state
         .storage
-        .set_confirmation_status_by_out_point(request.out_point, deposit_status)
+        .set_confirmation_status_by_out_point(request.outpoint, deposit_status)
         .await
         .map_err(|e| VerifierError::StorageError(format!("Failed to update confirmation status: {}", e)))?;
 
     state
         .storage
-        .set_sats_fee_amount_by_out_point(request.out_point, request.sats_fee_amount)
+        .set_sats_fee_amount_by_out_point(request.outpoint, request.sats_fee_amount)
         .await
         .map_err(|e| VerifierError::StorageError(format!("Failed to update sats fee amount: {}", e)))?;
 
@@ -64,7 +64,7 @@ pub async fn handle(
         .await
         .map_err(|e| VerifierError::GatewayClientError(format!("Failed to notify runes deposit: {}", e)))?;
 
-    tracing::debug!("Runes deposit notified for out point: {}", request.out_point);
+    tracing::debug!("Runes deposit notified for out point: {}", request.outpoint);
 
     Ok(Json(()))
 }

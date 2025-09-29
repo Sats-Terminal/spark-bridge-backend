@@ -126,15 +126,15 @@ fn _inner_response_task_spawn<Db: IndexerDbBounds>(
     client: Arc<Client>,
     local_db: Db,
 ) -> impl Future<Output = ()> {
+    tracing::debug!("Sending response to recipient to url: {}", data.callback_url.0);
     async move {
-        let resp = BtcIndexerCallbackResponse::Ok {
-            meta: ResponseMeta {
-                outpoint: data.out_point,
-                status: data.review,
-                sats_fee_amount: data.transaction.fee_paid_sat().unwrap_or_default(),
-            },
+        let resp = ResponseMeta {
+            outpoint: data.out_point,
+            status: data.review,
+            sats_fee_amount: data.transaction.fee_paid_sat().unwrap_or_default(),
         };
         let client_resp = client.post(data.callback_url.0).json(&resp).send().await;
+        tracing::debug!("Client response: {:?}", client_resp);
         match client_resp {
             Ok(client_resp) => {
                 let status = TrackedReqStatus::Finished;
