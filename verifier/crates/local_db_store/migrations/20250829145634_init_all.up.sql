@@ -1,6 +1,6 @@
 BEGIN TRANSACTION;
 
-CREATE SCHEMA verifier;
+CREATE SCHEMA IF NOT EXISTS verifier;
 
 ----------- USER IDENTIFIERS -----------
 
@@ -34,8 +34,7 @@ CREATE TABLE IF NOT EXISTS verifier.user_identifier
     public_key   TEXT    NOT NULL,
     rune_id      TEXT    NOT NULL,
     is_issuer    BOOLEAN NOT NULL,
-    PRIMARY KEY (user_uuid),
-    UNIQUE (user_uuid, dkg_share_id),
+    PRIMARY KEY (user_uuid, rune_id),
     FOREIGN KEY (dkg_share_id) REFERENCES verifier.dkg_share (dkg_share_id)
 );
 
@@ -45,6 +44,7 @@ CREATE TABLE IF NOT EXISTS verifier.deposit_address
 (
     nonce_tweak         BYTEA   NOT NULL,
     user_uuid           UUID    NOT NULL,
+    rune_id             TEXT    NOT NULL,
     deposit_address     TEXT    NOT NULL,
     bridge_address      TEXT    NOT NULL,
     is_btc              BOOLEAN NOT NULL,
@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS verifier.deposit_address
     sats_fee_amount     BIGINT,
     out_point           TEXT,
     PRIMARY KEY (user_uuid, nonce_tweak),
-    FOREIGN KEY (user_uuid) REFERENCES verifier.user_identifier (user_uuid)
+    FOREIGN KEY (user_uuid, rune_id) REFERENCES verifier.user_identifier (user_uuid, rune_id)
 );
 
 COMMIT;

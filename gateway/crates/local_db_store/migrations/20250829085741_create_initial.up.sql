@@ -1,14 +1,14 @@
 BEGIN TRANSACTION;
 
-CREATE SCHEMA gateway;
+CREATE SCHEMA IF NOT EXISTS gateway;
 
 ----------- USER IDENTIFIERS -----------
 
 -- Dkg pregenerated shares
 CREATE TABLE IF NOT EXISTS gateway.dkg_share
 (
-    dkg_share_id UUID PRIMARY KEY NOT NULL DEFAULT gen_random_uuid(),
-    dkg_aggregator_state    JSONB            NOT NULL
+    dkg_share_id         UUID PRIMARY KEY NOT NULL DEFAULT gen_random_uuid(),
+    dkg_aggregator_state JSONB            NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS gateway.user_identifier
@@ -18,8 +18,7 @@ CREATE TABLE IF NOT EXISTS gateway.user_identifier
     public_key   TEXT    NOT NULL,
     rune_id      TEXT    NOT NULL,
     is_issuer    BOOLEAN NOT NULL,
-    PRIMARY KEY (user_uuid),
-    UNIQUE (user_uuid, dkg_share_id),
+    PRIMARY KEY (user_uuid, rune_id),
     FOREIGN KEY (dkg_share_id) REFERENCES gateway.dkg_share (dkg_share_id)
 );
 
@@ -43,13 +42,14 @@ CREATE TABLE IF NOT EXISTS gateway.deposit_address
 (
     nonce_tweak         BYTEA   NOT NULL,
     user_uuid           UUID    NOT NULL,
+    rune_id             TEXT    NOT NULL,
     deposit_address     TEXT    NOT NULL,
     bridge_address      TEXT,
     is_btc              BOOLEAN NOT NULL,
     amount              BIGINT  NOT NULL,
     confirmation_status JSON    NOT NULL,
     PRIMARY KEY (user_uuid, nonce_tweak),
-    FOREIGN KEY (user_uuid) REFERENCES gateway.user_identifier (user_uuid)
+    FOREIGN KEY (user_uuid, rune_id) REFERENCES gateway.user_identifier (user_uuid, rune_id)
 );
 
 ------------ UTXO -----------

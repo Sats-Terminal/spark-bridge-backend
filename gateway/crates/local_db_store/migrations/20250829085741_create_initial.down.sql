@@ -7,4 +7,6 @@ DROP TABLE IF EXISTS gateway.sign_session;
 DROP TABLE IF EXISTS gateway.user_identifier;
 DROP TABLE IF EXISTS gateway.dkg_share;
 
+DROP SCHEMA IF EXISTS gateway CASCADE;
+
 COMMIT;

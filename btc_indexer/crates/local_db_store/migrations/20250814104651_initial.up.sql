@@ -1,7 +1,7 @@
 BEGIN TRANSACTION;
 
 
-CREATE SCHEMA btc_indexer;
+CREATE SCHEMA IF NOT EXISTS btc_indexer;
 
 CREATE TYPE BTC_TRACK_TX_REQUEST_STATUS AS ENUM ('pending', 'finished', 'failed_to_send');
 CREATE TYPE BTC_TRACKED_TX_STATUS AS ENUM ('pending', 'finalized');
