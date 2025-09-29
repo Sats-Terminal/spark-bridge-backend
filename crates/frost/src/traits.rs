@@ -16,8 +16,11 @@ pub trait SignerClient: Send + Sync + Debug {
 
 #[async_trait]
 pub trait AggregatorDkgShareStorage: Send + Sync + Debug {
-    async fn get_dkg_share_data(&self, dkg_share_id: &DkgShareId) -> Result<Option<AggregatorDkgShareData>, DbError>;
-    async fn set_dkg_share_data(
+    async fn get_dkg_share_agg_data(
+        &self,
+        dkg_share_id: &DkgShareId,
+    ) -> Result<Option<AggregatorDkgShareData>, DbError>;
+    async fn set_dkg_share_agg_data(
         &self,
         dkg_share_id: &DkgShareId,
         dkg_share_data: AggregatorDkgShareData,
@@ -41,8 +44,11 @@ pub trait AggregatorSignSessionStorage: Send + Sync + Debug {
 
 #[async_trait]
 pub trait SignerDkgShareStorage: Send + Sync + Debug {
-    async fn get_dkg_share_data(&self, dkg_share_id: &DkgShareId) -> Result<Option<SignerDkgShareIdData>, DbError>;
-    async fn set_dkg_share_data(
+    async fn get_dkg_share_signer_data(
+        &self,
+        dkg_share_id: &DkgShareId,
+    ) -> Result<Option<SignerDkgShareIdData>, DbError>;
+    async fn set_dkg_share_signer_data(
         &self,
         dkg_share_id: &DkgShareId,
         dkg_share_data: SignerDkgShareIdData,

@@ -63,7 +63,7 @@ mod tests {
         let dkg_share_id: DkgShareId = get_uuid();
         let agg_storage = MockAggregatorDkgShareIdStorage::new();
         agg_storage
-            .set_dkg_share_data(
+            .set_dkg_share_agg_data(
                 &dkg_share_id,
                 AggregatorDkgShareData {
                     dkg_state: AggregatorDkgState::Initialized,
@@ -114,7 +114,7 @@ mod tests {
         let dkg_share_id: DkgShareId = get_uuid();
         let agg_storage = MockAggregatorDkgShareIdStorage::new();
         agg_storage
-            .set_dkg_share_data(
+            .set_dkg_share_agg_data(
                 &dkg_share_id,
                 AggregatorDkgShareData {
                     dkg_state: AggregatorDkgState::Initialized,

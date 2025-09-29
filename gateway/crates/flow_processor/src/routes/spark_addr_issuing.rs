@@ -25,7 +25,7 @@ pub async fn handle(
         None => {
             tracing::debug!("Missing DkgShareId, running dkg from the beginning ...");
 
-            let dkg_share_id: DkgShareId = local_db_storage.get_random_unused_dkg_share()?;
+            let dkg_share_id: DkgShareId = local_db_storage.get_random_unused_dkg_share().await?;
 
             // Assign to user some uuid | Add to `gateway.user_identifier` table | but we don't return this value, waiting for next invocation
             let user_uuid = get_uuid();
@@ -55,7 +55,7 @@ pub async fn handle(
                 user_uuid,
                 dkg_share_id,
             } = ids;
-            match local_db_storage.get_dkg_share_data(&dkg_share_id).await? {
+            match local_db_storage.get_dkg_share_agg_data(&dkg_share_id).await? {
                 None => {
                     return Err(FlowProcessorError::UnfinishedDkgState(
                         "Should be DkgFinalized, got None".to_string(),

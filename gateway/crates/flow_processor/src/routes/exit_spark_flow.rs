@@ -9,6 +9,7 @@ use gateway_local_db_store::schemas::deposit_address::{
     DepositAddrInfo, DepositAddressStorage, InnerAddress, VerifiersResponses,
 };
 use gateway_local_db_store::schemas::paying_utxo::PayingUtxoStorage;
+use gateway_local_db_store::schemas::user_identifier::UserIdentifierStorage;
 use gateway_local_db_store::schemas::utxo_storage::{Utxo, UtxoStatus, UtxoStorage};
 use gateway_rune_transfer::transfer::RuneTransferOutput;
 use gateway_rune_transfer::transfer::{
@@ -36,6 +37,13 @@ pub async fn handle(
         .ok_or(FlowProcessorError::DbError(DbError::NotFound(
             "Deposit address info not found".to_string(),
         )))?;
+    let user_info = flow_router
+        .storage
+        .get_row_by_user_uuid(&deposit_addr_info.user_uuid)
+        .await?
+        .ok_or(FlowProcessorError::DbError(DbError::NotFound(
+            "User identifier info not found".to_string(),
+        )))?;
 
     let exit_address = match deposit_addr_info.bridge_address {
         Some(address) => decode_address(&address.to_spark_address()?, flow_router.network)
@@ -57,7 +65,7 @@ pub async fn handle(
 
     let utxos = flow_router
         .storage
-        .select_utxos_for_amount(deposit_addr_info.musig_id.get_rune_id(), deposit_addr_info.amount)
+        .select_utxos_for_amount(user_info.rune_id.clone(), deposit_addr_info.amount)
         .await?;
     let total_amount = utxos.iter().map(|utxo| utxo.rune_amount).sum::<u64>();
     let exit_amount = deposit_addr_info.amount;
@@ -82,7 +90,7 @@ pub async fn handle(
         let new_nonce = generate_nonce();
         let public_key_package = flow_router
             .frost_aggregator
-            .get_public_key_package(deposit_addr_info.musig_id.clone(), Some(new_nonce))
+            .get_public_key_package(user_info.dkg_share_id, Some(new_nonce))
             .await
             .map_err(|e| FlowProcessorError::FrostAggregatorError(format!("Failed to get public key package: {e}")))?;
         let public_key = convert_public_key_package(&public_key_package)
@@ -93,7 +101,7 @@ pub async fn handle(
         flow_router
             .storage
             .set_deposit_addr_info(DepositAddrInfo {
-                musig_id: deposit_addr_info.musig_id.clone(),
+                user_uuid: user_info.user_uuid,
                 nonce: new_nonce,
                 deposit_address: InnerAddress::BitcoinAddress(deposit_address.clone()),
                 bridge_address: None,
@@ -114,7 +122,7 @@ pub async fn handle(
         outputs_to_spend,
         paying_utxo,
         rune_transfer_outputs.clone(),
-        deposit_addr_info.musig_id.get_rune_id(),
+        user_info.rune_id.clone(),
     )
     .map_err(|e| FlowProcessorError::RuneTransferError(format!("Failed to create rune partial transaction: {e}")))?;
 
@@ -135,7 +143,7 @@ pub async fn handle(
         let signature_bytes = flow_router
             .frost_aggregator
             .run_signing_flow(
-                input_deposit_addr_info.musig_id,
+                user_info.dkg_share_id,
                 message_hash.as_ref(),
                 SigningMetadata::BtcTransactionMetadata {},
                 Some(input_deposit_addr_info.nonce),
@@ -162,7 +170,7 @@ pub async fn handle(
             out_point: OutPoint::new(transaction.compute_txid(), 1), // Change utxo
             btc_address: rune_transfer_outputs[1].address.clone(),   // Change utxo address
             rune_amount: total_amount - exit_amount,
-            rune_id: deposit_addr_info.musig_id.get_rune_id(),
+            rune_id: user_info.rune_id,
             status: UtxoStatus::Confirmed,
             sats_fee_amount: transaction.output[1].value.to_sat(),
         };

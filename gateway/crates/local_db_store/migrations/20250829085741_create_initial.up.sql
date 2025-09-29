@@ -2,13 +2,13 @@ BEGIN TRANSACTION;
 
 CREATE SCHEMA gateway;
 
------------ MUSIG_IDENTIFIER -----------
+----------- USER IDENTIFIERS -----------
 
 -- Dkg pregenerated shares
 CREATE TABLE IF NOT EXISTS gateway.dkg_share
 (
     dkg_share_id UUID PRIMARY KEY NOT NULL DEFAULT gen_random_uuid(),
-    dkg_state    JSONB            NOT NULL
+    dkg_aggregator_state    JSONB            NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS gateway.user_identifier

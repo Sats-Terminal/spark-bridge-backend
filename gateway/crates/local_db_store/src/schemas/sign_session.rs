@@ -23,7 +23,7 @@ impl AggregatorSignSessionStorage for LocalDbStorage {
             Vec<u8>,
             Option<Vec<u8>>,
         )> = sqlx::query_as(
-            "SELECT sign_state, metadata, message_hash, tweak
+            "SELECT sign_state, aggregator_metadata, message_hash, tweak
             FROM gateway.sign_session
             WHERE dkg_share_id = $1 AND session_id = $2",
         )
@@ -53,7 +53,7 @@ impl AggregatorSignSessionStorage for LocalDbStorage {
         let sign_state = Json(sign_session_data.sign_state);
 
         let _ = sqlx::query(
-            "INSERT INTO gateway.sign_session (session_id, dkg_share_id, tweak, message_hash, metadata, sign_state)
+            "INSERT INTO gateway.sign_session (session_id, dkg_share_id, tweak, message_hash, aggregator_metadata, sign_state)
             VALUES ($1, $2, $3, $4, $5, $6)
             ON CONFLICT (session_id) DO UPDATE SET sign_state = $6",
         )

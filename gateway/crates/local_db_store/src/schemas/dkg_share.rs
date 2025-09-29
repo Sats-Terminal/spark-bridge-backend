@@ -21,7 +21,7 @@ pub trait DkgShareGenerate {
 impl DkgShareGenerate for LocalDbStorage {
     async fn generate_dkg_share_entity(&self) -> Result<DkgShareId, DbError> {
         let result: (Uuid,) =
-            sqlx::query_as("INSERT INTO gateway.dkg_share (dkg_state) VALUES ($1) RETURNING dkg_share_id;")
+            sqlx::query_as("INSERT INTO gateway.dkg_share (dkg_aggregator_state) VALUES ($1) RETURNING dkg_share_id;")
                 .bind(Json(AggregatorDkgState::Initialized))
                 .fetch_one(&self.get_conn().await?)
                 .await
@@ -41,9 +41,12 @@ impl DkgShareGenerate for LocalDbStorage {
 #[async_trait]
 impl AggregatorDkgShareStorage for LocalDbStorage {
     #[instrument(level = "trace", skip(self), ret)]
-    async fn get_dkg_share_data(&self, dkg_share_id: &DkgShareId) -> Result<Option<AggregatorDkgShareData>, DbError> {
+    async fn get_dkg_share_agg_data(
+        &self,
+        dkg_share_id: &DkgShareId,
+    ) -> Result<Option<AggregatorDkgShareData>, DbError> {
         let result: Option<(Json<AggregatorDkgState>,)> = sqlx::query_as(
-            "SELECT dkg_state 
+            "SELECT dkg_aggregator_state 
             FROM gateway.dkg_share
             WHERE dkg_share_id = $1",
         )
@@ -58,15 +61,15 @@ impl AggregatorDkgShareStorage for LocalDbStorage {
     }
 
     #[instrument(level = "trace", skip(self), ret)]
-    async fn set_dkg_share_data(
+    async fn set_dkg_share_agg_data(
         &self,
         dkg_share_id: &DkgShareId,
         dkg_share_data: AggregatorDkgShareData,
     ) -> Result<(), DbError> {
         let _ = sqlx::query(
-            "INSERT INTO gateway.dkg_share (dkg_share_id, dkg_state)
+            "INSERT INTO gateway.dkg_share (dkg_share_id, dkg_aggregator_state)
             VALUES ($1, $2)
-            ON CONFLICT (dkg_share_id) DO UPDATE SET dkg_state = $2",
+            ON CONFLICT (dkg_share_id) DO UPDATE SET dkg_aggregator_state = $2",
         )
         .bind(dkg_share_id)
         .bind(Json(dkg_share_data.dkg_state))

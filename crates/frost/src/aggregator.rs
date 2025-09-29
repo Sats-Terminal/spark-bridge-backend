@@ -7,6 +7,7 @@ use std::{
     sync::Arc,
 };
 use tokio::sync::Mutex;
+use tracing::instrument;
 use uuid::Uuid;
 
 #[derive(Clone, Debug)]
@@ -31,11 +32,12 @@ impl FrostAggregator {
         }
     }
 
+    #[instrument]
     async fn dkg_round_1(&self, dkg_share_id: &DkgShareId) -> Result<(), AggregatorError> {
-        let dkg_share_data = self.dkg_share_storage.get_dkg_share_data(dkg_share_id).await?;
+        let dkg_share_data = self.dkg_share_storage.get_dkg_share_agg_data(dkg_share_id).await?;
 
         match dkg_share_data {
-            None => Err(AggregatorError::InvalidUserState("User state is None".to_string())),
+            None => Err(AggregatorError::InvalidUserState("User DkgState is None".to_string())),
             Some(AggregatorDkgShareData {
                 dkg_state: AggregatorDkgState::Initialized,
             }) => {
@@ -64,7 +66,7 @@ impl FrostAggregator {
                 }
 
                 self.dkg_share_storage
-                    .set_dkg_share_data(
+                    .set_dkg_share_agg_data(
                         dkg_share_id,
                         AggregatorDkgShareData {
                             dkg_state: AggregatorDkgState::DkgRound1 {
@@ -83,8 +85,9 @@ impl FrostAggregator {
         }
     }
 
+    #[instrument]
     async fn dkg_round_2(&self, dkg_share_id: &DkgShareId) -> Result<(), AggregatorError> {
-        let dkg_share_data = self.dkg_share_storage.get_dkg_share_data(dkg_share_id).await?;
+        let dkg_share_data = self.dkg_share_storage.get_dkg_share_agg_data(dkg_share_id).await?;
 
         match dkg_share_data {
             Some(AggregatorDkgShareData {
@@ -116,7 +119,7 @@ impl FrostAggregator {
                 }
 
                 self.dkg_share_storage
-                    .set_dkg_share_data(
+                    .set_dkg_share_agg_data(
                         dkg_share_id,
                         AggregatorDkgShareData {
                             dkg_state: AggregatorDkgState::DkgRound2 {
@@ -129,13 +132,14 @@ impl FrostAggregator {
                 Ok(())
             }
             _ => Err(AggregatorError::InvalidUserState(
-                "User key state is not DkgRound2".to_string(),
+                "User key DkgState is not DkgRound2".to_string(),
             )),
         }
     }
 
+    #[instrument]
     async fn dkg_finalize(&self, dkg_share_id: &DkgShareId) -> Result<(), AggregatorError> {
-        let dkg_share_data = self.dkg_share_storage.get_dkg_share_data(dkg_share_id).await?;
+        let dkg_share_data = self.dkg_share_storage.get_dkg_share_agg_data(dkg_share_id).await?;
 
         match dkg_share_data {
             Some(AggregatorDkgShareData {
@@ -180,7 +184,7 @@ impl FrostAggregator {
                 }
 
                 self.dkg_share_storage
-                    .set_dkg_share_data(
+                    .set_dkg_share_agg_data(
                         dkg_share_id,
                         AggregatorDkgShareData {
                             dkg_state: AggregatorDkgState::DkgFinalized {
@@ -198,6 +202,7 @@ impl FrostAggregator {
         }
     }
 
+    #[instrument]
     pub async fn lock_dkg_share(&self, dkg_share_id: &DkgShareId) -> Result<(), AggregatorError> {
         let mut locked_dkg_shares = self.locked_dkg_share_ids.lock().await;
         if locked_dkg_shares.contains(dkg_share_id) {
@@ -210,6 +215,7 @@ impl FrostAggregator {
         Ok(())
     }
 
+    #[instrument]
     pub async fn unlock_dkg_share_id(&self, dkg_share_id: &DkgShareId) -> Result<(), AggregatorError> {
         let mut locked_dkg_share_ids = self.locked_dkg_share_ids.lock().await;
         let removed = locked_dkg_share_ids.remove(dkg_share_id);
@@ -222,10 +228,11 @@ impl FrostAggregator {
         Ok(())
     }
 
+    #[instrument]
     pub async fn run_dkg_flow(&self, dkg_share_id: &DkgShareId) -> Result<keys::PublicKeyPackage, AggregatorError> {
         self.lock_dkg_share(&dkg_share_id).await?;
 
-        let dkg_share_data = self.dkg_share_storage.get_dkg_share_data(&dkg_share_id).await?;
+        let dkg_share_data = self.dkg_share_storage.get_dkg_share_agg_data(&dkg_share_id).await?;
         if let Some(x) = dkg_share_data.as_ref() {
             match &x.dkg_state {
                 AggregatorDkgState::Initialized => {}
@@ -243,7 +250,7 @@ impl FrostAggregator {
         self.dkg_round_2(dkg_share_id).await?;
         self.dkg_finalize(dkg_share_id).await?;
 
-        let dkg_share_data = self.dkg_share_storage.get_dkg_share_data(dkg_share_id).await?;
+        let dkg_share_data = self.dkg_share_storage.get_dkg_share_agg_data(dkg_share_id).await?;
         match dkg_share_data {
             Some(AggregatorDkgShareData {
                 dkg_state: AggregatorDkgState::DkgFinalized { public_key_package },
@@ -257,6 +264,7 @@ impl FrostAggregator {
         }
     }
 
+    #[instrument]
     async fn sign_round_1(
         &self,
         dkg_share_id: &DkgShareId,
@@ -265,7 +273,7 @@ impl FrostAggregator {
         metadata: SigningMetadata,
         tweak: Option<Nonce>,
     ) -> Result<(), AggregatorError> {
-        let dkg_share_data = self.dkg_share_storage.get_dkg_share_data(dkg_share_id).await?;
+        let dkg_share_data = self.dkg_share_storage.get_dkg_share_agg_data(dkg_share_id).await?;
 
         match dkg_share_data {
             Some(AggregatorDkgShareData {
@@ -315,8 +323,9 @@ impl FrostAggregator {
         }
     }
 
+    #[instrument]
     async fn sign_round_2(&self, dkg_share_id: &DkgShareId, session_id: Uuid) -> Result<(), AggregatorError> {
-        let dkg_share_data = self.dkg_share_storage.get_dkg_share_data(dkg_share_id).await?;
+        let dkg_share_data = self.dkg_share_storage.get_dkg_share_agg_data(dkg_share_id).await?;
         let mut sign_data = self
             .sign_session_storage
             .get_sign_data(dkg_share_id, session_id)
@@ -391,6 +400,7 @@ impl FrostAggregator {
         }
     }
 
+    #[instrument]
     pub async fn run_signing_flow(
         &self,
         dkg_share_id: DkgShareId,
@@ -427,7 +437,7 @@ impl FrostAggregator {
         dkg_share_id: DkgShareId,
         tweak: Option<Nonce>,
     ) -> Result<keys::PublicKeyPackage, AggregatorError> {
-        let dkg_share_data = self.dkg_share_storage.get_dkg_share_data(&dkg_share_id).await?;
+        let dkg_share_data = self.dkg_share_storage.get_dkg_share_agg_data(&dkg_share_id).await?;
 
         match dkg_share_data {
             Some(AggregatorDkgShareData {

@@ -1,4 +1,3 @@
-use crate::schemas::musig_id::MusigId;
 use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
 use frost::traits::AggregatorDkgShareStorage;
@@ -48,7 +47,6 @@ pub trait UserIdentifierStorage: Send + Sync + Debug {
         user_identifier_data: UserIdentifierData,
     ) -> Result<(), DbError>;
     async fn get_issuer_ids(&self, rune_id: String) -> Result<Option<UserIds>, DbError>;
-    async fn get_ids_by_musig_id(&self, musig_id: &MusigId) -> Result<Option<UserIds>, DbError>;
 }
 
 #[async_trait]
@@ -137,28 +135,6 @@ impl UserIdentifierStorage for LocalDbStorage {
             dkg_share_id,
         }))
     }
-
-    async fn get_ids_by_musig_id(&self, musig_id: &MusigId) -> Result<Option<UserIds>, DbError> {
-        let rune_id = musig_id.get_rune_id();
-        let pubkey = musig_id.get_public_key();
-        let is_issuer = musig_id.is_issuer();
-        let result: Option<(UserUuid, DkgShareId)> = sqlx::query_as(
-            "SELECT (user_uuid, dkg_share_id)
-            FROM gateway.user_identifier
-            WHERE is_issuer = $1 AND rune_id = $2 AND public_key = $3",
-        )
-        .bind(is_issuer)
-        .bind(rune_id)
-        .bind(pubkey.to_string())
-        .fetch_optional(&self.get_conn().await?)
-        .await
-        .map_err(|e| DbError::BadRequest(e.to_string()))?;
-
-        Ok(result.map(|(user_uuid, dkg_share_id)| UserIds {
-            user_uuid,
-            dkg_share_id,
-        }))
-    }
 }
 
 #[cfg(test)]
@@ -171,11 +147,12 @@ mod tests {
     use frost::signer::FrostSigner;
     use frost::traits::SignerClient;
     use frost::traits::*;
-    use frost::types::{Nonce, SigningMetadata};
+    use frost::types::{Nonce, SignerDkgShareIdData, SignerDkgState, SigningMetadata};
     use frost::utils::generate_nonce;
     use frost_secp256k1_tr::Identifier;
     use frost_secp256k1_tr::keys::Tweak;
     use gateway_config_parser::config::ServerConfig;
+    use global_utils::common_types::get_uuid;
     use persistent_storage::init::{PostgresPool, PostgresRepo};
     use std::collections::BTreeMap;
     use std::sync::Arc;
@@ -232,6 +209,13 @@ mod tests {
             btc_network: server_config.network.network,
         });
 
+        let dkg_share_id = get_uuid();
+        local_repo.set_dkg_share_signer_data(
+            &dkg_share_id,
+            SignerDkgShareIdData {
+                dkg_state: SignerDkgState::Initialized,
+            },
+        );
         let user_id = local_repo.generate_dkg_share_entity().await?;
 
         let verifiers_map = create_verifiers_map_easy().await;

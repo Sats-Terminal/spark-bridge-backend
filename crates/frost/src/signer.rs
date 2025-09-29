@@ -60,7 +60,7 @@ impl FrostSigner {
         self.lock_dkg_share_id(&request.dkg_share_id).await?;
 
         let dkg_share_id = request.dkg_share_id;
-        let dkg_share_data = self.dkg_share_storage.get_dkg_share_data(&dkg_share_id).await?;
+        let dkg_share_data = self.dkg_share_storage.get_dkg_share_signer_data(&dkg_share_id).await?;
 
         match dkg_share_data {
             None => {
@@ -73,7 +73,7 @@ impl FrostSigner {
                 .map_err(|e| SignerError::Internal(format!("DKG round1 failed: {e}")))?;
 
                 self.dkg_share_storage
-                    .set_dkg_share_data(
+                    .set_dkg_share_signer_data(
                         &dkg_share_id,
                         SignerDkgShareIdData {
                             dkg_state: SignerDkgState::DkgRound1 {
@@ -99,7 +99,7 @@ impl FrostSigner {
 
     pub async fn dkg_round_2(&self, request: DkgRound2Request) -> Result<DkgRound2Response, SignerError> {
         let dkg_share_id = request.dkg_share_id;
-        let dkg_share_data = self.dkg_share_storage.get_dkg_share_data(&dkg_share_id).await?;
+        let dkg_share_data = self.dkg_share_storage.get_dkg_share_signer_data(&dkg_share_id).await?;
 
         match dkg_share_data {
             Some(SignerDkgShareIdData {
@@ -110,7 +110,7 @@ impl FrostSigner {
                         .map_err(|e| SignerError::Internal(format!("DKG round2 failed: {e}")))?;
 
                 self.dkg_share_storage
-                    .set_dkg_share_data(
+                    .set_dkg_share_signer_data(
                         &dkg_share_id,
                         SignerDkgShareIdData {
                             dkg_state: SignerDkgState::DkgRound2 {
@@ -133,7 +133,7 @@ impl FrostSigner {
 
     pub async fn dkg_finalize(&self, request: DkgFinalizeRequest) -> Result<DkgFinalizeResponse, SignerError> {
         let dkg_share_id = request.dkg_share_id;
-        let dkg_share_data = self.dkg_share_storage.get_dkg_share_data(&dkg_share_id).await?;
+        let dkg_share_data = self.dkg_share_storage.get_dkg_share_signer_data(&dkg_share_id).await?;
 
         match dkg_share_data {
             Some(SignerDkgShareIdData {
@@ -151,7 +151,7 @@ impl FrostSigner {
                 .map_err(|e| SignerError::Internal(format!("DKG finalize failed: {e}")))?;
 
                 self.dkg_share_storage
-                    .set_dkg_share_data(
+                    .set_dkg_share_signer_data(
                         &dkg_share_id,
                         SignerDkgShareIdData {
                             dkg_state: SignerDkgState::DkgFinalized { key_package },
@@ -176,7 +176,7 @@ impl FrostSigner {
         let message_hash = request.message_hash;
         let metadata = request.metadata;
 
-        let dkg_share_data = self.dkg_share_storage.get_dkg_share_data(&dkg_share_id).await?;
+        let dkg_share_data = self.dkg_share_storage.get_dkg_share_signer_data(&dkg_share_id).await?;
 
         match dkg_share_data {
             Some(SignerDkgShareIdData {
@@ -213,7 +213,7 @@ impl FrostSigner {
         let dkg_share_id = request.dkg_share_id;
         let session_id = request.session_id;
 
-        let dkg_share_data = self.dkg_share_storage.get_dkg_share_data(&dkg_share_id).await?;
+        let dkg_share_data = self.dkg_share_storage.get_dkg_share_signer_data(&dkg_share_id).await?;
 
         let key_package = match dkg_share_data {
             Some(SignerDkgShareIdData {

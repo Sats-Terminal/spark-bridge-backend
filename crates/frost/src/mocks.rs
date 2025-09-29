@@ -63,11 +63,14 @@ impl MockSignerDkgShareIdStorage {
 
 #[async_trait]
 impl SignerDkgShareStorage for MockSignerDkgShareIdStorage {
-    async fn get_dkg_share_data(&self, dkg_share_id: &DkgShareId) -> Result<Option<SignerDkgShareIdData>, DbError> {
+    async fn get_dkg_share_signer_data(
+        &self,
+        dkg_share_id: &DkgShareId,
+    ) -> Result<Option<SignerDkgShareIdData>, DbError> {
         Ok(self.storage.lock().await.get(dkg_share_id).cloned())
     }
 
-    async fn set_dkg_share_data(
+    async fn set_dkg_share_signer_data(
         &self,
         dkg_share_id: &DkgShareId,
         dkkg_share_data: SignerDkgShareIdData,
@@ -105,11 +108,11 @@ impl MockAggregatorSignSessionStorage {
 
 #[async_trait]
 impl AggregatorDkgShareStorage for MockAggregatorDkgShareIdStorage {
-    async fn get_dkg_share_data(&self, musig_id: &DkgShareId) -> Result<Option<AggregatorDkgShareData>, DbError> {
+    async fn get_dkg_share_agg_data(&self, musig_id: &DkgShareId) -> Result<Option<AggregatorDkgShareData>, DbError> {
         Ok(self.storage.lock().await.get(musig_id).cloned())
     }
 
-    async fn set_dkg_share_data(
+    async fn set_dkg_share_agg_data(
         &self,
         musig_id: &DkgShareId,
         dkg_share_data: AggregatorDkgShareData,

@@ -3,7 +3,6 @@ use crate::init::AppState;
 use axum::Json;
 use axum::extract::State;
 use bitcoin::OutPoint;
-use frost::types::MusigId;
 use frost::types::Nonce;
 use serde::{Deserialize, Serialize};
 use verifier_btc_indexer_client::client::WatchRunesDepositRequest as IndexerWatchRunesDepositRequest;
@@ -30,7 +29,7 @@ pub async fn handle(
     state
         .storage
         .set_deposit_addr_info(DepositAddrInfo {
-            musig_id: request.musig_id.clone(),
+            user_uuid: todo!(),
             nonce: request.nonce,
             out_point: Some(request.out_point),
             deposit_address: request.btc_address.clone(),
