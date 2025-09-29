@@ -39,7 +39,7 @@ pub async fn handle(
         )))?;
     let user_info = flow_router
         .storage
-        .get_row_by_user_uuid(&deposit_addr_info.user_uuid)
+        .get_row_by_user_unique_id(&deposit_addr_info.user_uuid)
         .await?
         .ok_or(FlowProcessorError::DbError(DbError::NotFound(
             "User identifier info not found".to_string(),

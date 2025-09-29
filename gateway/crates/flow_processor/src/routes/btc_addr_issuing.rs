@@ -31,12 +31,13 @@ pub async fn handle(
 
             // Assign to user some uuid | Add to `gateway.user_identifier` table | but we don't return this value, waiting for next invocation
             let user_uuid = get_uuid();
+            let rune_id = request.musig_id.get_rune_id();
             let _ = local_db_storage.set_user_identifier_data(
                 &user_uuid,
                 &dkg_share_id,
                 UserIdentifierData {
                     public_key: request.musig_id.get_public_key().to_string(),
-                    rune_id: request.musig_id.get_rune_id(),
+                    rune_id: rune_id.clone(),
                     is_issuer: false,
                 },
             );
@@ -47,7 +48,7 @@ pub async fn handle(
                 .await
                 .map_err(|e| FlowProcessorError::FrostAggregatorError(format!("Failed to run DKG flow: {}", e)))?;
             tracing::debug!("[{LOG_PATH}] DKG processing was successfully completed");
-            (pubkey_package, user_uuid)
+            (pubkey_package, user_uuid, rune_id)
         }
         Some(ids) => {
             tracing::debug!("DkgShareId exists, obtaining dkg pubkey ...");
@@ -56,6 +57,7 @@ pub async fn handle(
             let UserIds {
                 user_uuid,
                 dkg_share_id,
+                rune_id,
             } = ids;
             match local_db_storage.get_dkg_share_agg_data(&dkg_share_id).await? {
                 None => {
@@ -83,7 +85,7 @@ pub async fn handle(
                         }
                         AggregatorDkgState::DkgFinalized {
                             public_key_package: pubkey_package,
-                        } => (pubkey_package, user_uuid),
+                        } => (pubkey_package, user_uuid, rune_id),
                     }
                 }
             }

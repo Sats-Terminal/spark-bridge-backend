@@ -21,7 +21,8 @@ pub async fn handle(
 ) -> Result<String, FlowProcessorError> {
     let local_db_storage = flow_processor.storage.clone();
 
-    let (public_key_package, user_uuid) = match local_db_storage.get_ids_by_musig_id(&request.musig_id).await? {
+    let (public_key_package, user_uuid, rune_id) = match local_db_storage.get_ids_by_musig_id(&request.musig_id).await?
+    {
         None => {
             tracing::debug!("Missing DkgShareId, running dkg from the beginning ...");
 
@@ -29,12 +30,13 @@ pub async fn handle(
 
             // Assign to user some uuid | Add to `gateway.user_identifier` table | but we don't return this value, waiting for next invocation
             let user_uuid = get_uuid();
+            let rune_id = request.musig_id.get_rune_id();
             let _ = local_db_storage.set_user_identifier_data(
                 &user_uuid,
                 &dkg_share_id,
                 UserIdentifierData {
                     public_key: request.musig_id.get_public_key().to_string(),
-                    rune_id: request.musig_id.get_rune_id(),
+                    rune_id: rune_id.clone(),
                     is_issuer: false,
                 },
             );
@@ -45,7 +47,7 @@ pub async fn handle(
                 .await
                 .map_err(|e| FlowProcessorError::FrostAggregatorError(format!("Failed to run DKG flow: {}", e)))?;
             tracing::debug!("DKG processing was successfully completed");
-            (pubkey_package, user_uuid)
+            (pubkey_package, user_uuid, rune_id)
         }
         Some(ids) => {
             tracing::debug!("Musig exists, obtaining dkg pubkey ...");
@@ -54,6 +56,7 @@ pub async fn handle(
             let UserIds {
                 user_uuid,
                 dkg_share_id,
+                rune_id,
             } = ids;
             match local_db_storage.get_dkg_share_agg_data(&dkg_share_id).await? {
                 None => {
@@ -79,7 +82,7 @@ pub async fn handle(
                     }
                     AggregatorDkgState::DkgFinalized {
                         public_key_package: pubkey_package,
-                    } => (pubkey_package, user_uuid),
+                    } => (pubkey_package, user_uuid, rune_id),
                 },
             }
         }
@@ -104,6 +107,7 @@ pub async fn handle(
     local_db_storage
         .set_deposit_addr_info(DepositAddrInfo {
             user_uuid,
+            rune_id,
             nonce,
             deposit_address: InnerAddress::SparkAddress(address.clone()),
             bridge_address: None,

@@ -31,7 +31,7 @@ pub async fn handle(
         ))?;
     let user_info = flow_processor
         .storage
-        .get_row_by_user_uuid(&deposit_addr_info.user_uuid)
+        .get_row_by_user_unique_id(&deposit_addr_info.user_uuid)
         .await
         .map_err(FlowProcessorError::DbError)?
         .ok_or(FlowProcessorError::InvalidDataError("User info not found".to_string()))?;
@@ -98,7 +98,7 @@ pub async fn handle(
         ))?;
     let user_identifier = flow_processor
         .storage
-        .get_row_by_user_uuid(&deposit_addr_info.user_uuid)
+        .get_row_by_user_unique_id(&deposit_addr_info.user_uuid)
         .await
         .map_err(FlowProcessorError::DbError)?
         .ok_or(FlowProcessorError::InvalidDataError("User info not found".to_string()))?;

@@ -10,6 +10,8 @@ use frost::types::AggregatorDkgShareData;
 use std::str::FromStr;
 use tracing::instrument;
 
+// TODO: think about, maybe add another field that would be as flag, whether the entry were used or not
+
 #[async_trait]
 pub trait DkgShareGenerate {
     async fn generate_dkg_share_entity(&self) -> Result<DkgShareId, DbError>;
@@ -46,7 +48,7 @@ impl AggregatorDkgShareStorage for LocalDbStorage {
         dkg_share_id: &DkgShareId,
     ) -> Result<Option<AggregatorDkgShareData>, DbError> {
         let result: Option<(Json<AggregatorDkgState>,)> = sqlx::query_as(
-            "SELECT dkg_aggregator_state 
+            "SELECT dkg_aggregator_state
             FROM gateway.dkg_share
             WHERE dkg_share_id = $1",
         )

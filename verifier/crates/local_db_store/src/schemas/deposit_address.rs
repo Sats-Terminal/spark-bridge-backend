@@ -1,4 +1,4 @@
-use crate::schemas::user_identifier::UserUuid;
+use crate::schemas::user_identifier::{UserUniqueId, UserUuid};
 use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
 use bitcoin::OutPoint;
@@ -30,6 +30,7 @@ pub enum TxRejectReason {
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct DepositAddrInfo {
     pub user_uuid: UserUuid,
+    pub rune_id: String,
     pub nonce: Nonce,
     pub deposit_address: String,
     pub bridge_address: String,
@@ -44,7 +45,7 @@ pub struct DepositAddrInfo {
 pub trait DepositAddressStorage {
     async fn get_deposit_addr_info(
         &self,
-        user_uuid: UserUuid,
+        user_unique_id: &UserUniqueId,
         tweak: Nonce,
     ) -> Result<Option<DepositAddrInfo>, DbError>;
     async fn set_deposit_addr_info(&self, deposit_addr_info: DepositAddrInfo) -> Result<(), DbError>;
@@ -65,15 +66,16 @@ pub trait DepositAddressStorage {
 impl DepositAddressStorage for LocalDbStorage {
     async fn get_deposit_addr_info(
         &self,
-        user_uuid: UserUuid,
+        user_unique_id: &UserUniqueId,
         tweak: Nonce,
     ) -> Result<Option<DepositAddrInfo>, DbError> {
-        let result: Option<(String, String, bool, i64, Option<i64>, Option<String>, Json<DepositStatus>)> = sqlx::query_as(
-            "SELECT deposit_address, bridge_address, is_btc, deposit_amount, sats_fee_amount, out_point, confirmation_status
+        let result: Option<(UserUuid, String, String, String, bool, i64, Option<i64>, Option<String>, Json<DepositStatus>)> = sqlx::query_as(
+            "SELECT user_uuid, rune_id, deposit_address, bridge_address, is_btc, deposit_amount, sats_fee_amount, out_point, confirmation_status
             FROM verifier.deposit_address
-            WHERE public_key = $1 AND nonce_tweak = $2",
+            WHERE user_uuid = $1 AND rune_id = $2 AND nonce_tweak = $3",
         )
-        .bind(user_uuid)
+        .bind(user_unique_id.uuid)
+        .bind(&user_unique_id.rune_id)
         .bind(tweak)
         .fetch_optional(&self.get_conn().await?)
         .await
@@ -81,6 +83,8 @@ impl DepositAddressStorage for LocalDbStorage {
 
         match result {
             Some((
+                user_uuid,
+                rune_id,
                 deposit_address,
                 bridge_address,
                 is_btc,
@@ -99,6 +103,7 @@ impl DepositAddressStorage for LocalDbStorage {
 
                 Ok(Some(DepositAddrInfo {
                     user_uuid,
+                    rune_id,
                     nonce: tweak,
                     deposit_address,
                     bridge_address,
@@ -115,12 +120,13 @@ impl DepositAddressStorage for LocalDbStorage {
 
     async fn set_deposit_addr_info(&self, deposit_addr_info: DepositAddrInfo) -> Result<(), DbError> {
         let _ = sqlx::query(
-            "INSERT INTO verifier.deposit_address (user_uuid, nonce_tweak, deposit_address, bridge_address, is_btc, deposit_amount, sats_fee_amount, confirmation_status, out_point)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            "INSERT INTO verifier.deposit_address (user_uuid, rune_id, nonce_tweak, deposit_address, bridge_address, is_btc, deposit_amount, sats_fee_amount, confirmation_status, out_point)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             ON CONFLICT (public_key, rune_id, nonce_tweak) 
             DO UPDATE SET deposit_address = $3, bridge_address = $4, is_btc = $5, deposit_amount = $6, sats_fee_amount = $7, confirmation_status = $8, out_point = $9",
         )
             .bind(deposit_addr_info.user_uuid)
+            .bind(deposit_addr_info.rune_id)
             .bind(deposit_addr_info.nonce)
             .bind(deposit_addr_info.deposit_address)
             .bind(deposit_addr_info.bridge_address)

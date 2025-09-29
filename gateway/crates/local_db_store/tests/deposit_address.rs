@@ -13,7 +13,9 @@ mod tests {
         DepositAddrInfo, DepositAddressStorage, InnerAddress, VerifiersResponses,
     };
     use gateway_local_db_store::schemas::dkg_share::DkgShareGenerate;
-    use gateway_local_db_store::schemas::user_identifier::{UserIdentifier, UserIdentifierData, UserIdentifierStorage};
+    use gateway_local_db_store::schemas::user_identifier::{
+        UserIdentifier, UserIdentifierData, UserIdentifierStorage, UserUniqueId,
+    };
     use gateway_local_db_store::storage::LocalDbStorage;
     use global_utils::common_types::get_uuid;
     use persistent_storage::config::PostgresDbCredentials;
@@ -60,12 +62,16 @@ mod tests {
         assert_eq!(
             Some(user_identifier.clone()),
             shared_local_repo
-                .get_row_by_user_uuid(&user_identifier.user_uuid)
+                .get_row_by_user_unique_id(&UserUniqueId {
+                    uuid: user_identifier.user_uuid,
+                    rune_id: user_identifier.rune_id
+                })
                 .await?
         );
 
         let deposit_addr_info = DepositAddrInfo {
             user_uuid: user_identifier.user_uuid,
+            rune_id: todo!(),
             nonce: generate_nonce(),
             deposit_address: InnerAddress::BitcoinAddress(
                 bitcoin::Address::from_str("bc1ph50zvqvgdexjrwn33gy2ej659uvlm02ak9xwqwg7ll7dtvjelj0srp48n8")?
