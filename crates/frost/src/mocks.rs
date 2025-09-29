@@ -9,7 +9,7 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone)]
 pub struct MockSignerDkgShareIdStorage {
-    storage: Arc<Mutex<BTreeMap<DkgShareId, SignerMusigIdData>>>,
+    storage: Arc<Mutex<BTreeMap<DkgShareId, SignerDkgShareIdData>>>,
 }
 
 #[derive(Default, Debug, Clone)]
@@ -63,14 +63,14 @@ impl MockSignerDkgShareIdStorage {
 
 #[async_trait]
 impl SignerDkgShareStorage for MockSignerDkgShareIdStorage {
-    async fn get_musig_id_data(&self, dkg_share_id: &DkgShareId) -> Result<Option<SignerMusigIdData>, DbError> {
+    async fn get_dkg_share_data(&self, dkg_share_id: &DkgShareId) -> Result<Option<SignerDkgShareIdData>, DbError> {
         Ok(self.storage.lock().await.get(dkg_share_id).cloned())
     }
 
-    async fn set_musig_id_data(
+    async fn set_dkg_share_data(
         &self,
         dkg_share_id: &DkgShareId,
-        dkkg_share_data: SignerMusigIdData,
+        dkkg_share_data: SignerDkgShareIdData,
     ) -> Result<(), DbError> {
         self.storage.lock().await.insert(dkg_share_id.clone(), dkkg_share_data);
         Ok(())
@@ -78,7 +78,7 @@ impl SignerDkgShareStorage for MockSignerDkgShareIdStorage {
 }
 
 #[derive(Debug, Clone)]
-pub struct MockAggregatorMusigIdStorage {
+pub struct MockAggregatorDkgShareIdStorage {
     storage: Arc<Mutex<BTreeMap<DkgShareId, AggregatorDkgShareData>>>,
 }
 
@@ -87,7 +87,7 @@ pub struct MockAggregatorSignSessionStorage {
     storage: Arc<Mutex<BTreeMap<(DkgShareId, Uuid), AggregatorSignData>>>,
 }
 
-impl MockAggregatorMusigIdStorage {
+impl MockAggregatorDkgShareIdStorage {
     pub fn new() -> Self {
         Self {
             storage: Arc::new(Mutex::new(BTreeMap::default())),
@@ -104,7 +104,7 @@ impl MockAggregatorSignSessionStorage {
 }
 
 #[async_trait]
-impl AggregatorDkgShareStorage for MockAggregatorMusigIdStorage {
+impl AggregatorDkgShareStorage for MockAggregatorDkgShareIdStorage {
     async fn get_dkg_share_data(&self, musig_id: &DkgShareId) -> Result<Option<AggregatorDkgShareData>, DbError> {
         Ok(self.storage.lock().await.get(musig_id).cloned())
     }
@@ -116,10 +116,6 @@ impl AggregatorDkgShareStorage for MockAggregatorMusigIdStorage {
     ) -> Result<(), DbError> {
         self.storage.lock().await.insert(musig_id.clone(), dkg_share_data);
         Ok(())
-    }
-
-    async fn get_issuer_musig_id(&self, rune_id: String) -> Result<Option<DkgShareId>, DbError> {
-        Ok(None)
     }
 }
 

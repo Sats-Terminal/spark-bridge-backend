@@ -1,7 +1,8 @@
+use crate::schemas::musig_id::MusigId;
+use crate::schemas::user_identifier::UserUuid;
 use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
 use bitcoin::Address;
-use frost::types::MusigId;
 use frost::types::Nonce;
 use persistent_storage::error::DbError;
 use serde::{Deserialize, Serialize};
@@ -120,7 +121,7 @@ impl VerifiersResponses {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct DepositAddrInfo {
-    pub musig_id: MusigId,
+    pub user_uuid: UserUuid,
     pub nonce: Nonce,
     pub deposit_address: InnerAddress,
     pub bridge_address: Option<InnerAddress>,
@@ -140,7 +141,7 @@ impl DepositAddrInfo {
         }
     }
 
-    fn from_db_format(musig_id: MusigId, nonce: Nonce, db_info: DbDepositAddrInfo) -> Result<Self, String> {
+    fn from_db_format(user_uuid: &UserUuid, nonce: Nonce, db_info: DbDepositAddrInfo) -> Result<Self, String> {
         let deposit_address = InnerAddress::from_string_and_type(db_info.deposit_address, db_info.is_btc)?;
 
         let bridge_address = match db_info.bridge_address {
@@ -149,7 +150,7 @@ impl DepositAddrInfo {
         };
 
         Ok(DepositAddrInfo {
-            musig_id,
+            user_uuid: *user_uuid,
             nonce,
             deposit_address,
             bridge_address,
@@ -162,8 +163,11 @@ impl DepositAddrInfo {
 
 #[async_trait]
 pub trait DepositAddressStorage: Send + Sync + Debug {
-    async fn get_deposit_addr_info(&self, musig_id: &MusigId, tweak: Nonce)
-    -> Result<Option<DepositAddrInfo>, DbError>;
+    async fn get_deposit_addr_info(
+        &self,
+        user_uuid: &UserUuid,
+        tweak: Nonce,
+    ) -> Result<Option<DepositAddrInfo>, DbError>;
     async fn set_deposit_addr_info(&self, deposit_addr_info: DepositAddrInfo) -> Result<(), DbError>;
     async fn set_confirmation_status_by_deposit_address(
         &self,
@@ -188,19 +192,15 @@ pub trait DepositAddressStorage: Send + Sync + Debug {
 impl DepositAddressStorage for LocalDbStorage {
     async fn get_deposit_addr_info(
         &self,
-        musig_id: &MusigId,
+        user_uuid: &UserUuid,
         tweak: Nonce,
     ) -> Result<Option<DepositAddrInfo>, DbError> {
-        let public_key = musig_id.get_public_key();
-        let rune_id = musig_id.get_rune_id();
-
         let result: Option<(String, Option<String>, bool, i64, Json<VerifiersResponses>)> = sqlx::query_as(
             "SELECT deposit_address, bridge_address, is_btc, amount, confirmation_status
             FROM gateway.deposit_address
-            WHERE public_key = $1 AND rune_id = $2 AND nonce_tweak = $3",
+            WHERE user_uuid = $1 AND nonce_tweak = $2",
         )
-        .bind(public_key.to_string())
-        .bind(rune_id)
+        .bind(user_uuid)
         .bind(tweak)
         .fetch_optional(&self.get_conn().await?)
         .await
@@ -216,7 +216,7 @@ impl DepositAddressStorage for LocalDbStorage {
                     confirmation_status: confirmation_status.0,
                 };
 
-                match DepositAddrInfo::from_db_format(musig_id.clone(), tweak, db_info) {
+                match DepositAddrInfo::from_db_format(user_uuid, tweak, db_info) {
                     Ok(info) => Ok(Some(info)),
                     Err(e) => Err(DbError::BadRequest(format!("Failed to parse address: {}", e))),
                 }
@@ -229,13 +229,12 @@ impl DepositAddressStorage for LocalDbStorage {
         let db_info = deposit_addr_info.to_db_format();
 
         let _ = sqlx::query(
-            "INSERT INTO gateway.deposit_address (public_key, rune_id, nonce_tweak, deposit_address, bridge_address, is_btc, amount, confirmation_status)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            ON CONFLICT (public_key, rune_id, nonce_tweak) DO UPDATE SET confirmation_status = $8",
+            "INSERT INTO gateway.deposit_address (nonce_tweak, user_uuid, deposit_address, bridge_address, is_btc, amount, confirmation_status)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            ON CONFLICT (public_key, rune_id, nonce_tweak) DO UPDATE SET confirmation_status = $7",
         )
-            .bind(deposit_addr_info.musig_id.get_public_key().to_string())
-            .bind(deposit_addr_info.musig_id.get_rune_id())
             .bind(deposit_addr_info.nonce)
+            .bind(deposit_addr_info.user_uuid)
             .bind(db_info.deposit_address)
             .bind(db_info.bridge_address)
             .bind(db_info.is_btc)
@@ -270,19 +269,26 @@ impl DepositAddressStorage for LocalDbStorage {
     ) -> Result<Option<DepositAddrInfo>, DbError> {
         let address_str = deposit_address.to_string();
 
-        let result: Option<(String, String, Nonce, String, Option<String>, bool, i64, Json<VerifiersResponses>)> = sqlx::query_as(
-            "SELECT public_key, rune_id, nonce_tweak, deposit_address, bridge_address, is_btc, amount, confirmation_status
+        let result: Option<(
+            UserUuid,
+            Nonce,
+            String,
+            Option<String>,
+            bool,
+            i64,
+            Json<VerifiersResponses>,
+        )> = sqlx::query_as(
+            "SELECT user_uuid, nonce_tweak, deposit_address, bridge_address, is_btc, amount, confirmation_status
             FROM gateway.deposit_address WHERE deposit_address = $1",
         )
-            .bind(address_str)
-            .fetch_optional(&self.get_conn().await?)
-            .await
-            .map_err(|e| DbError::BadRequest(e.to_string()))?;
+        .bind(address_str)
+        .fetch_optional(&self.get_conn().await?)
+        .await
+        .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
         match result {
             Some((
-                public_key,
-                rune_id,
+                user_uuid,
                 nonce_tweak,
                 deposit_address_str,
                 bridge_address_str,
@@ -290,11 +296,6 @@ impl DepositAddressStorage for LocalDbStorage {
                 amount,
                 confirmation_status,
             )) => {
-                let musig_id = MusigId::User {
-                    rune_id,
-                    user_public_key: bitcoin::secp256k1::PublicKey::from_str(&public_key)
-                        .map_err(|e| DbError::BadRequest(format!("Invalid public key: {}", e)))?,
-                };
                 let nonce = Nonce::from(nonce_tweak);
 
                 let db_info = DbDepositAddrInfo {
@@ -305,7 +306,7 @@ impl DepositAddressStorage for LocalDbStorage {
                     confirmation_status: confirmation_status.0,
                 };
 
-                match DepositAddrInfo::from_db_format(musig_id, nonce, db_info) {
+                match DepositAddrInfo::from_db_format(&user_uuid, nonce, db_info) {
                     Ok(info) => Ok(Some(info)),
                     Err(e) => Err(DbError::BadRequest(format!("Failed to parse address: {}", e))),
                 }

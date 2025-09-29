@@ -35,8 +35,10 @@ impl FrostAggregator {
         let dkg_share_data = self.dkg_share_storage.get_dkg_share_data(dkg_share_id).await?;
 
         match dkg_share_data {
-            Some(_) => Err(AggregatorError::InvalidUserState("User state is not None".to_string())),
-            None => {
+            None => Err(AggregatorError::InvalidUserState("User state is None".to_string())),
+            Some(AggregatorDkgShareData {
+                dkg_state: AggregatorDkgState::Initialized,
+            }) => {
                 let signer_clients_request = DkgRound1Request {
                     dkg_share_id: dkg_share_id.clone(),
                 };
@@ -74,13 +76,17 @@ impl FrostAggregator {
 
                 Ok(())
             }
+            Some(x) => Err(AggregatorError::InvalidUserState(format!(
+                "User state is {:?}",
+                x.dkg_state
+            ))),
         }
     }
 
     async fn dkg_round_2(&self, dkg_share_id: &DkgShareId) -> Result<(), AggregatorError> {
-        let musig_id_data = self.dkg_share_storage.get_dkg_share_data(dkg_share_id).await?;
+        let dkg_share_data = self.dkg_share_storage.get_dkg_share_data(dkg_share_id).await?;
 
-        match musig_id_data {
+        match dkg_share_data {
             Some(AggregatorDkgShareData {
                 dkg_state: AggregatorDkgState::DkgRound1 { round1_packages },
             }) => {
@@ -193,22 +199,22 @@ impl FrostAggregator {
     }
 
     pub async fn lock_dkg_share(&self, dkg_share_id: &DkgShareId) -> Result<(), AggregatorError> {
-        let mut locked_musig_ids = self.locked_dkg_share_ids.lock().await;
-        if locked_musig_ids.contains(dkg_share_id) {
-            return Err(AggregatorError::MusigAlreadyExists(format!(
-                "Musig id already exists: {:?}",
+        let mut locked_dkg_shares = self.locked_dkg_share_ids.lock().await;
+        if locked_dkg_shares.contains(dkg_share_id) {
+            return Err(AggregatorError::DkgShareIdAlreadyExists(format!(
+                "Dkg share id already exists: {:?}",
                 dkg_share_id
             )));
         }
-        locked_musig_ids.insert(dkg_share_id.clone());
+        locked_dkg_shares.insert(dkg_share_id.clone());
         Ok(())
     }
 
-    pub async fn unlock_musig_id(&self, dkg_share_id: &DkgShareId) -> Result<(), AggregatorError> {
-        let mut locked_musig_ids = self.locked_dkg_share_ids.lock().await;
-        let removed = locked_musig_ids.remove(dkg_share_id);
+    pub async fn unlock_dkg_share_id(&self, dkg_share_id: &DkgShareId) -> Result<(), AggregatorError> {
+        let mut locked_dkg_share_ids = self.locked_dkg_share_ids.lock().await;
+        let removed = locked_dkg_share_ids.remove(dkg_share_id);
         if !removed {
-            return Err(AggregatorError::MusigNotFound(format!(
+            return Err(AggregatorError::DkgShareIdNotFound(format!(
                 "Something bad went wrong: {:?}",
                 dkg_share_id
             )));
@@ -219,25 +225,30 @@ impl FrostAggregator {
     pub async fn run_dkg_flow(&self, dkg_share_id: &DkgShareId) -> Result<keys::PublicKeyPackage, AggregatorError> {
         self.lock_dkg_share(&dkg_share_id).await?;
 
-        let musig_id_data = self.dkg_share_storage.get_dkg_share_data(&dkg_share_id).await?;
-        if let Some(_) = musig_id_data {
-            self.unlock_musig_id(&dkg_share_id).await?;
-            return Err(AggregatorError::MusigAlreadyExists(format!(
-                "Musig id already exists: {:?}",
-                dkg_share_id
-            )));
+        let dkg_share_data = self.dkg_share_storage.get_dkg_share_data(&dkg_share_id).await?;
+        if let Some(x) = dkg_share_data.as_ref() {
+            match &x.dkg_state {
+                AggregatorDkgState::Initialized => {}
+                _ => {
+                    self.unlock_dkg_share_id(&dkg_share_id).await?;
+                    return Err(AggregatorError::DkgShareIdAlreadyExists(format!(
+                        "Dkg share id already exists: {:?}",
+                        dkg_share_id
+                    )));
+                }
+            }
         }
 
         self.dkg_round_1(dkg_share_id).await?;
         self.dkg_round_2(dkg_share_id).await?;
         self.dkg_finalize(dkg_share_id).await?;
 
-        let musig_id_data = self.dkg_share_storage.get_dkg_share_data(dkg_share_id).await?;
-        match musig_id_data {
+        let dkg_share_data = self.dkg_share_storage.get_dkg_share_data(dkg_share_id).await?;
+        match dkg_share_data {
             Some(AggregatorDkgShareData {
                 dkg_state: AggregatorDkgState::DkgFinalized { public_key_package },
             }) => {
-                self.unlock_musig_id(dkg_share_id).await?;
+                self.unlock_dkg_share_id(dkg_share_id).await?;
                 Ok(public_key_package)
             }
             _ => Err(AggregatorError::InvalidUserState(
@@ -254,9 +265,9 @@ impl FrostAggregator {
         metadata: SigningMetadata,
         tweak: Option<Nonce>,
     ) -> Result<(), AggregatorError> {
-        let musig_id_data = self.dkg_share_storage.get_dkg_share_data(dkg_share_id).await?;
+        let dkg_share_data = self.dkg_share_storage.get_dkg_share_data(dkg_share_id).await?;
 
-        match musig_id_data {
+        match dkg_share_data {
             Some(AggregatorDkgShareData {
                 dkg_state: AggregatorDkgState::DkgFinalized { public_key_package },
             }) => {
@@ -416,9 +427,9 @@ impl FrostAggregator {
         dkg_share_id: DkgShareId,
         tweak: Option<Nonce>,
     ) -> Result<keys::PublicKeyPackage, AggregatorError> {
-        let musig_id_data = self.dkg_share_storage.get_dkg_share_data(&dkg_share_id).await?;
+        let dkg_share_data = self.dkg_share_storage.get_dkg_share_data(&dkg_share_id).await?;
 
-        match musig_id_data {
+        match dkg_share_data {
             Some(AggregatorDkgShareData {
                 dkg_state: AggregatorDkgState::DkgFinalized { public_key_package },
             }) => {

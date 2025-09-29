@@ -79,6 +79,7 @@ pub struct SignRound2Response {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AggregatorDkgState {
+    Initialized,
     DkgRound1 {
         round1_packages: BTreeMap<Identifier, round1::Package>,
     },
@@ -125,7 +126,7 @@ pub enum SignerDkgState {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SignerMusigIdData {
+pub struct SignerDkgShareIdData {
     pub dkg_state: SignerDkgState,
 }
 

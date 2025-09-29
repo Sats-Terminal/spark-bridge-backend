@@ -3,12 +3,17 @@ use crate::flow_router::FlowProcessorRouter;
 use crate::types::IssueBtcDepositAddressRequest;
 use bitcoin::Address;
 use frost::traits::AggregatorDkgShareStorage;
-use frost::types::AggregatorDkgState;
+use frost::types::{AggregatorDkgShareData, AggregatorDkgState, DkgShareId};
 use frost::utils::convert_public_key_package;
 use frost::utils::{generate_nonce, get_address};
 use gateway_local_db_store::schemas::deposit_address::{
     DepositAddrInfo, DepositAddressStorage, DepositStatus, InnerAddress, VerifiersResponses,
 };
+use gateway_local_db_store::schemas::dkg_share::DkgShareGenerate;
+use gateway_local_db_store::schemas::user_identifier::{
+    UserIdentifier, UserIdentifierData, UserIdentifierStorage, UserIds,
+};
+use global_utils::common_types::get_uuid;
 use tracing;
 
 const LOG_PATH: &str = "flow_processor:routes:btc_addr_issuing";
@@ -19,34 +24,68 @@ pub async fn handle(
 ) -> Result<Address, FlowProcessorError> {
     let local_db_storage = flow_processor.storage.clone();
 
-    let public_key_package = match flow_processor.storage.get_dkg_share_data(&request.musig_id).await? {
+    let (public_key_package, user_uuid) = match local_db_storage.get_ids_by_musig_id(&request.musig_id).await? {
         None => {
-            tracing::debug!("[{LOG_PATH}] Missing musig, running dkg from the beginning ...");
+            tracing::debug!("[{LOG_PATH}] Missing DkgShareId, running dkg from the beginning ...");
+            let dkg_share_id: DkgShareId = local_db_storage.get_random_unused_dkg_share()?;
+
+            // Assign to user some uuid | Add to `gateway.user_identifier` table | but we don't return this value, waiting for next invocation
+            let user_uuid = get_uuid();
+            let _ = local_db_storage.set_user_identifier_data(
+                &user_uuid,
+                &dkg_share_id,
+                UserIdentifierData {
+                    public_key: request.musig_id.get_public_key().to_string(),
+                    rune_id: request.musig_id.get_rune_id(),
+                    is_issuer: false,
+                },
+            );
+
             let pubkey_package = flow_processor
                 .frost_aggregator
-                .run_dkg_flow(&request.musig_id)
+                .run_dkg_flow(&dkg_share_id)
                 .await
                 .map_err(|e| FlowProcessorError::FrostAggregatorError(format!("Failed to run DKG flow: {}", e)))?;
             tracing::debug!("[{LOG_PATH}] DKG processing was successfully completed");
-            pubkey_package
+            (pubkey_package, user_uuid)
         }
-        Some(x) => {
-            tracing::debug!("[{LOG_PATH}] Musig exists, obtaining dkg pubkey ...");
+        Some(ids) => {
+            tracing::debug!("DkgShareId exists, obtaining dkg pubkey ...");
             // extract data from db, get nonce and generate new one, return it to user
-            match x.dkg_state {
-                AggregatorDkgState::DkgRound1 { .. } => {
+
+            let UserIds {
+                user_uuid,
+                dkg_share_id,
+            } = ids;
+            match local_db_storage.get_dkg_share_data(&dkg_share_id).await? {
+                None => {
                     return Err(FlowProcessorError::UnfinishedDkgState(
-                        "Should be DkgFinalized, got DkgRound1".to_string(),
+                        "Should be DkgFinalized, got None".to_string(),
                     ));
                 }
-                AggregatorDkgState::DkgRound2 { .. } => {
-                    return Err(FlowProcessorError::UnfinishedDkgState(
-                        "Should be DkgFinalized, got DkgRound2".to_string(),
-                    ));
+                Some(AggregatorDkgShareData { dkg_state }) => {
+                    tracing::debug!("[{LOG_PATH}] Musig exists, obtaining dkg pubkey ...");
+                    match dkg_state {
+                        AggregatorDkgState::Initialized => {
+                            return Err(FlowProcessorError::UnfinishedDkgState(
+                                "Should be DkgFinalized, got Initialized".to_string(),
+                            ));
+                        }
+                        AggregatorDkgState::DkgRound1 { .. } => {
+                            return Err(FlowProcessorError::UnfinishedDkgState(
+                                "Should be DkgFinalized, got DkgRound1".to_string(),
+                            ));
+                        }
+                        AggregatorDkgState::DkgRound2 { .. } => {
+                            return Err(FlowProcessorError::UnfinishedDkgState(
+                                "Should be DkgFinalized, got DkgRound2".to_string(),
+                            ));
+                        }
+                        AggregatorDkgState::DkgFinalized {
+                            public_key_package: pubkey_package,
+                        } => (pubkey_package, user_uuid),
+                    }
                 }
-                AggregatorDkgState::DkgFinalized {
-                    public_key_package: pubkey_package,
-                } => pubkey_package,
             }
         }
     };
@@ -64,7 +103,7 @@ pub async fn handle(
 
     local_db_storage
         .set_deposit_addr_info(DepositAddrInfo {
-            musig_id: request.musig_id.clone(),
+            user_uuid,
             nonce,
             deposit_address: InnerAddress::BitcoinAddress(address.clone()),
             bridge_address: None,

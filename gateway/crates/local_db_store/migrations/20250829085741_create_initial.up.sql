@@ -4,9 +4,16 @@ CREATE SCHEMA gateway;
 
 ----------- MUSIG_IDENTIFIER -----------
 
+-- Dkg pregenerated shares
+CREATE TABLE IF NOT EXISTS gateway.dkg_share
+(
+    dkg_share_id UUID PRIMARY KEY NOT NULL DEFAULT gen_random_uuid(),
+    dkg_state    JSONB            NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS gateway.user_identifier
 (
-    user_uuid    UUID PRIMARY KEY NOT NULL DEFAULT gen_random_uuid(),
+    user_uuid    UUID NOT NULL DEFAULT gen_random_uuid(),
     dkg_share_id UUID             NOT NULL,
     public_key   TEXT             NOT NULL,
     rune_id      TEXT             NOT NULL,
@@ -15,25 +22,18 @@ CREATE TABLE IF NOT EXISTS gateway.user_identifier
     FOREIGN KEY (dkg_share_id) REFERENCES gateway.dkg_share (dkg_share_id)
 );
 
--- Dkg pregenerated shares
-CREATE TABLE IF NOT EXISTS gateway.dkg_share
-(
-    dkg_share_id UUID PRIMARY KEY NOT NULL DEFAULT gen_random_uuid(),
-    dkg_state    JSONB            NOT NULL
-);
-
 ----------- SIGN_SESSION -----------
 
 CREATE TABLE IF NOT EXISTS gateway.sign_session
 (
     session_id   TEXT  NOT NULL,
-    user_uuid    UUID  NOT NULL,
+    dkg_share_id    UUID  NOT NULL,
     tweak        BYTEA,
     message_hash BYTEA NOT NULL,
-    metadata     JSON  NOT NULL,
+    aggregator_metadata     JSON  NOT NULL,
     sign_state   JSON  NOT NULL,
     PRIMARY KEY (session_id),
-    FOREIGN KEY (user_uuid) REFERENCES gateway.user_identifier (user_uuid)
+    FOREIGN KEY (dkg_share_id) REFERENCES gateway.dkg_share (dkg_share_id)
 );
 
 ------------ DEPOSIT_ADDRESS -----------

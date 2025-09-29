@@ -19,9 +19,10 @@ uuid = { workspace = true }
 serde = { workspace = true }
 anyhow = { workspace = true }
 gateway_rune_transfer = { workspace = true }
-gateway_config_parser = { path = "../config_parser" }
+gateway_config_parser = { workspace = true }
 
 [dev-dependencies]
 lrc20 = { workspace = true }
 frost-secp256k1-tr = { workspace = true }
-futures = {workspace = true}
+futures = { workspace = true }
+frost = { workspace = true }

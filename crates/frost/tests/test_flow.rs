@@ -1,8 +1,10 @@
 mod tests {
     use bitcoin::key::TapTweak;
     use bitcoin::key::UntweakedPublicKey;
-    use bitcoin::secp256k1::{PublicKey, Secp256k1, SecretKey};
-    use frost::types::{DkgShareId, Nonce, SigningMetadata};
+    use bitcoin::secp256k1::{PublicKey, Secp256k1};
+    use frost::traits::AggregatorDkgShareStorage;
+    use frost::types::{AggregatorDkgShareData, AggregatorDkgState, DkgShareId, Nonce, SigningMetadata};
+    use frost::utils::generate_nonce;
     use frost::{aggregator::FrostAggregator, mocks::*, signer::FrostSigner, traits::SignerClient};
     use frost_secp256k1_tr::{Identifier, keys::Tweak};
     use global_utils::common_types::get_uuid;
@@ -19,7 +21,7 @@ mod tests {
     #[tokio::test]
     async fn test_aggregator_signer_integration_tweaked() -> anyhow::Result<()> {
         let msg_hash = b"test_message";
-        let tweak = Nonce::default();
+        let tweak = generate_nonce();
         _test_aggregator_signer_integration(msg_hash, Some(tweak)).await?;
         Ok(())
     }
@@ -35,7 +37,7 @@ mod tests {
     async fn test_parallel_signing_sessions_via_aggregator_tweaked() -> anyhow::Result<()> {
         let msg_a = b"parallel message A".to_vec();
         let msg_b = b"parallel message B".to_vec();
-        let tweak = Nonce::default();
+        let tweak = generate_nonce();
         _test_parallel_signing_sessions_via_aggregator(&msg_a, &msg_b, Some(tweak)).await?;
         Ok(())
     }
@@ -58,13 +60,22 @@ mod tests {
     ) -> anyhow::Result<()> {
         let verifiers_map = create_verifiers_map_easy();
 
+        let dkg_share_id: DkgShareId = get_uuid();
+        let agg_storage = MockAggregatorDkgShareIdStorage::new();
+        agg_storage
+            .set_dkg_share_data(
+                &dkg_share_id,
+                AggregatorDkgShareData {
+                    dkg_state: AggregatorDkgState::Initialized,
+                },
+            )
+            .await?;
+
         let aggregator = FrostAggregator::new(
             verifiers_map,
-            Arc::new(MockAggregatorMusigIdStorage::new()),
+            Arc::new(agg_storage),
             Arc::new(MockAggregatorSignSessionStorage::new()),
         );
-
-        let dkg_share_id: DkgShareId = get_uuid();
 
         let public_key_package = aggregator.run_dkg_flow(&dkg_share_id).await?;
         let metadata = SigningMetadata::Authorization;
@@ -100,15 +111,24 @@ mod tests {
     async fn _test_aggregator_signer_integration(msg_hash: &[u8], tweak: Option<Nonce>) -> anyhow::Result<()> {
         let verifiers_map = create_verifiers_map_easy();
 
+        let dkg_share_id: DkgShareId = get_uuid();
+        let agg_storage = MockAggregatorDkgShareIdStorage::new();
+        agg_storage
+            .set_dkg_share_data(
+                &dkg_share_id,
+                AggregatorDkgShareData {
+                    dkg_state: AggregatorDkgState::Initialized,
+                },
+            )
+            .await?;
+
         let aggregator = FrostAggregator::new(
             verifiers_map,
-            Arc::new(MockAggregatorMusigIdStorage::new()),
+            Arc::new(agg_storage),
             Arc::new(MockAggregatorSignSessionStorage::new()),
         );
 
-        let dkg_share_id: DkgShareId = get_uuid();
-
-        let public_key_package = aggregator.run_dkg_flow(&dkg_share_id).await.unwrap();
+        let public_key_package = aggregator.run_dkg_flow(&dkg_share_id).await?;
         let metadata = SigningMetadata::Authorization;
 
         let signature = aggregator

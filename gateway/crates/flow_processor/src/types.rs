@@ -1,6 +1,6 @@
 use crate::error::FlowProcessorError;
 use bitcoin::Address;
-use frost::types::MusigId;
+use gateway_local_db_store::schemas::musig_id::MusigId;
 use tokio::sync::oneshot;
 
 pub type OneshotFlowProcessorSender = oneshot::Sender<Result<FlowProcessorResponse, FlowProcessorError>>;

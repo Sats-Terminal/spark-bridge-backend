@@ -2,14 +2,14 @@ use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
 use frost::traits::SignerDkgShareStorage;
 use frost::types::MusigId;
+use frost::types::SignerDkgShareIdData;
 use frost::types::SignerDkgState;
-use frost::types::SignerMusigIdData;
 use persistent_storage::error::DbError;
 use sqlx::types::Json;
 
 #[async_trait]
 impl SignerDkgShareStorage for LocalDbStorage {
-    async fn get_musig_id_data(&self, musig_id: &MusigId) -> Result<Option<SignerMusigIdData>, DbError> {
+    async fn get_dkg_share_data(&self, musig_id: &MusigId) -> Result<Option<SignerDkgShareIdData>, DbError> {
         let public_key = musig_id.get_public_key();
         let rune_id = musig_id.get_rune_id();
 
@@ -24,12 +24,12 @@ impl SignerDkgShareStorage for LocalDbStorage {
         .await
         .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
-        Ok(result.map(|(json_dkg_state,)| SignerMusigIdData {
+        Ok(result.map(|(json_dkg_state,)| SignerDkgShareIdData {
             dkg_state: json_dkg_state.0,
         }))
     }
 
-    async fn set_musig_id_data(&self, musig_id: &MusigId, musig_id_data: SignerMusigIdData) -> Result<(), DbError> {
+    async fn set_dkg_share_data(&self, musig_id: &MusigId, musig_id_data: SignerDkgShareIdData) -> Result<(), DbError> {
         let dkg_state = Json(musig_id_data.dkg_state);
         let public_key = musig_id.get_public_key();
         let rune_id = musig_id.get_rune_id();
@@ -149,7 +149,7 @@ mod tests {
 
         let aggregator = FrostAggregator::new(
             verifiers_map,
-            Arc::new(MockAggregatorMusigIdStorage::new()),
+            Arc::new(MockAggregatorDkgShareIdStorage::new()),
             Arc::new(MockAggregatorSignSessionStorage::new()),
         );
 

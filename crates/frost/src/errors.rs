@@ -11,10 +11,10 @@ pub enum SignerError {
     Internal(String),
     #[error("Database error: {0}")]
     DatabaseError(#[from] DbError),
-    #[error("Musig already exists")]
-    MusigAlreadyExists(String),
-    #[error("Musig not found")]
-    MusigNotFound(String),
+    #[error("DkgShareId already exists")]
+    DkgShareIdAlreadyExists(String),
+    #[error("DkgShareId not found")]
+    DkgShareIdNotFound(String),
 }
 
 #[derive(Error, Debug)]
@@ -31,8 +31,8 @@ pub enum AggregatorError {
     HttpError(String),
     #[error("Database error: {0}")]
     DatabaseError(#[from] DbError),
-    #[error("Musig already exists")]
-    MusigAlreadyExists(String),
-    #[error("Musig not found")]
-    MusigNotFound(String),
+    #[error("DkgShareId already exists")]
+    DkgShareIdAlreadyExists(String),
+    #[error("DkgShareId not found")]
+    DkgShareIdNotFound(String),
 }
