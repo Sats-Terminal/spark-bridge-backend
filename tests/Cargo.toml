@@ -20,3 +20,4 @@ rand_core = { workspace = true }
 tracing = { workspace = true }
 global_utils = { workspace = true }
 spark-address = { workspace = true }
+verifier_spark_balance_checker_client = { workspace = true }

@@ -112,7 +112,6 @@ verifier_main = { path = "verifier/apps/main" }
 
 ####### Gateway #######
 # Gateway crates
-sha3 = { version = "0.10.8" }
 gateway_config_parser = { path = "gateway/crates/config_parser" }
 gateway_flow_processor = { path = "gateway/crates/flow_processor" }
 gateway_local_db_store = { path = "gateway/crates/local_db_store" }

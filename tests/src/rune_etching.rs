@@ -20,6 +20,7 @@ use std::time::Duration;
 use tracing;
 use crate::bitcoin_client::BitcoinClient;
 use ordinals::RuneId;
+use crate::constants::{BLOCKS_TO_GENERATE, DEFAULT_FEE_AMOUNT, DEFAULT_DUST_AMOUNT, DEFAULT_REVEAL_AMOUNT};
 
 pub struct EtchRuneParams {
     pub rune_name: String,
@@ -42,9 +43,9 @@ pub async fn etch_rune(
 
     tracing::info!("Funding default address");
 
-    let reveal_amount = 10_000;
-    let dust_amount = 546;
-    let fee_amount = 5_000;
+    let reveal_amount = DEFAULT_REVEAL_AMOUNT;
+    let dust_amount = DEFAULT_DUST_AMOUNT;
+    let fee_amount = DEFAULT_FEE_AMOUNT;
 
     let address_data = bitcoin_client.get_address_data(params.faucet_address.clone()).await
         .map_err(|e| TestError::EtchRuneError(format!("Failed to get address data: {}", e)))?;
@@ -192,7 +193,7 @@ pub async fn etch_rune(
 
     bitcoin_client.broadcast_transaction(inscription_tx.clone())
         .map_err(|e| TestError::EtchRuneError(format!("Failed to broadcast inscription transaction: {}", e)))?;
-    bitcoin_client.generate_blocks(6, None)
+    bitcoin_client.generate_blocks(BLOCKS_TO_GENERATE, None)
         .map_err(|e| TestError::EtchRuneError(format!("Failed to generate blocks: {}", e)))?;
 
     tracing::info!("Inscription transaction broadcasted");
@@ -282,7 +283,7 @@ pub async fn etch_rune(
 
     bitcoin_client.broadcast_transaction(etching_tx.clone())
         .map_err(|e| TestError::EtchRuneError(format!("Failed to broadcast etching transaction: {}", e)))?;
-    bitcoin_client.generate_blocks(6, None)
+    bitcoin_client.generate_blocks(BLOCKS_TO_GENERATE, None)
         .map_err(|e| TestError::EtchRuneError(format!("Failed to generate blocks: {}", e)))?;
 
     tracing::info!("Rune etching transaction broadcasted");

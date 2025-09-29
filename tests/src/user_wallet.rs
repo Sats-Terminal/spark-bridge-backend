@@ -14,7 +14,7 @@ use bitcoin::transaction::Version;
 use crate::utils::sign_transaction;
 use bitcoin::Txid;
 use tracing;
-use crate::constants::{DEFAULT_FEE_AMOUNT, DEFAULT_DUST_AMOUNT};
+use crate::constants::{DEFAULT_FEE_AMOUNT, DEFAULT_DUST_AMOUNT, DEFAULT_FAUCET_AMOUNT, BLOCKS_TO_GENERATE};
 
 pub struct UserWallet {
     p2tr_address: Address,

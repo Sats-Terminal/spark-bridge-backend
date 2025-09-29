@@ -1,7 +1,7 @@
 use crate::error::SparkBalanceCheckerClientError;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use verifier_config_parser::config::SparkBalanceCheckerConfig;
+pub use verifier_config_parser::config::SparkBalanceCheckerConfig;
 
 const GET_BALANCE_PATH: &str = "/balance";
 
