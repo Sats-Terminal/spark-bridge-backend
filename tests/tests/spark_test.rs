@@ -5,6 +5,8 @@ use tests::rune_manager::RuneManager;
 use tests::user_wallet::UserWallet;
 use bitcoin::Address;
 use std::str::FromStr;
+use spark_address::{encode_spark_address, SparkAddressData};
+use tests::utils::create_credentials;
 
 #[tokio::test]
 async fn test_spark() {
@@ -58,9 +60,17 @@ async fn test_spark() {
 
     // bridge runes
 
+    let public_key = create_credentials().1.public_key();
+    let spark_address = encode_spark_address(SparkAddressData {
+        identity_public_key: public_key.to_string(),
+        invoice: None,
+        signature: None,
+        network: spark_address::Network::Regtest,
+    }).unwrap();
+
     let bridge_runes_request = BridgeRunesSparkRequest {
         btc_address: get_runes_deposit_address_response.address,
-        bridge_address: "038347b1f5471e28612f0324f5cf5eaa74bc1e1207ae7cdef1c69f0f1e72254d59".to_string(),
+        bridge_address: spark_address,
         txid: txid.to_string(),
         vout: 1,
     };

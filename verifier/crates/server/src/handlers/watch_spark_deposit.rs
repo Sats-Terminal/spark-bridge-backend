@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use verifier_local_db_store::schemas::deposit_address::DepositAddressStorage;
 use verifier_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositStatus, TxRejectReason, InnerAddress};
 use verifier_spark_balance_checker_client::client::GetBalanceRequest;
+use tracing;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WatchSparkDepositRequest {
@@ -27,6 +28,8 @@ pub async fn handle(
     State(state): State<AppState>,
     Json(request): Json<WatchSparkDepositRequest>,
 ) -> Result<Json<WatchSparkDepositResponse>, VerifierError> {
+    tracing::info!("Watching spark deposit for address: {}", request.spark_address);
+
     let deposit_address = InnerAddress::SparkAddress(request.spark_address.clone());
     let bridge_address = InnerAddress::from_string_and_type(request.exit_address, true)
         .map_err(|e| VerifierError::ValidationError(format!("Invalid exit address: {}", e)))?;
@@ -69,6 +72,8 @@ pub async fn handle(
         .set_confirmation_status_by_deposit_address(deposit_address, confirmation_status.clone())
         .await
         .map_err(|e| VerifierError::StorageError(format!("Failed to update confirmation status: {}", e)))?;
+
+    tracing::debug!("Spark deposit watched for address: {}", request.spark_address);
 
     Ok(Json(WatchSparkDepositResponse {
         verifier_response: confirmation_status,

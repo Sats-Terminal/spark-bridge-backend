@@ -59,8 +59,7 @@ pub struct BridgeRunesSparkRequest {
     pub vout: u32,
 }
 
-#[derive(Deserialize, Debug)]
-pub struct BridgeRunesSparkResponse {}
+pub type BridgeRunesSparkResponse = ();
 
 impl GatewayClient {
     pub fn new(config: GatewayConfig) -> Self {

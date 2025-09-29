@@ -19,3 +19,4 @@ ord = { workspace = true }
 rand_core = { workspace = true }
 tracing = { workspace = true }
 global_utils = { workspace = true }
+spark-address = { workspace = true }

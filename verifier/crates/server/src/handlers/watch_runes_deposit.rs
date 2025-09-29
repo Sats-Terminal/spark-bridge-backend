@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use verifier_btc_indexer_client::client::WatchRunesDepositRequest as IndexerWatchRunesDepositRequest;
 use verifier_config_parser::config::construct_hardcoded_callback_url;
 use verifier_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositAddressStorage, DepositStatus, InnerAddress};
+use tracing;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WatchRunesDepositRequest {
@@ -27,6 +28,8 @@ pub async fn handle(
     State(state): State<AppState>,
     Json(request): Json<WatchRunesDepositRequest>,
 ) -> Result<Json<WatchRunesDepositResponse>, VerifierError> {
+    tracing::info!("Watching runes deposit for address: {}", request.btc_address);
+
     let deposit_address = InnerAddress::from_string_and_type(request.btc_address.clone(), true)
         .map_err(|e| VerifierError::ValidationError(format!("Invalid BTC address: {}", e)))?;
     let bridge_address = InnerAddress::SparkAddress(request.bridge_address.clone());
@@ -52,7 +55,7 @@ pub async fn handle(
     state
         .btc_indexer_client
         .watch_runes_deposit(IndexerWatchRunesDepositRequest {
-            btc_address: request.btc_address,
+            btc_address: request.btc_address.clone(),
             out_point: request.out_point,
             rune_id: request.musig_id.get_rune_id(),
             rune_amount: request.amount,
@@ -60,6 +63,8 @@ pub async fn handle(
         })
         .await
         .map_err(|e| VerifierError::BtcIndexerClientError(format!("Failed to watch runes deposit: {}", e)))?;
+
+    tracing::debug!("Runes deposit watched for address: {}", request.btc_address);
 
     Ok(Json(WatchRunesDepositResponse {}))
 }

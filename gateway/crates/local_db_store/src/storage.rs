@@ -11,15 +11,15 @@ use gateway_config_parser::config::ServerConfig;
 #[derive(Clone, Debug)]
 pub struct LocalDbStorage {
     pub postgres_repo: PostgresRepo,
-    pub btc_network: Network,
+    pub network: Network,
 }
 
 impl LocalDbStorage {
-    pub async fn new(database_url: String, btc_network: Network) -> Result<Self, DbError> {
+    pub async fn new(database_url: String, network: Network) -> Result<Self, DbError> {
         let postgres_repo = PostgresRepo::from_config(PostgresDbCredentials { url: database_url }).await?;
         Ok(Self {
             postgres_repo,
-            btc_network
+            network
         })
     }
 
@@ -34,6 +34,6 @@ pub async fn make_repo_with_config(db: sqlx::PgPool) -> Arc<LocalDbStorage> {
 
     Arc::new(LocalDbStorage {
         postgres_repo: PostgresRepo { pool: db },
-        btc_network: server_config.network.network
+        network: server_config.network.network
     })
 }

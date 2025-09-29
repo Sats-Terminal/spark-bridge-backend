@@ -49,7 +49,7 @@ async fn main() {
     };
     let db_pool = LocalDbStorage {
         postgres_repo: PostgresRepo::from_config(postgres_creds).await.unwrap(),
-        btc_network: server_config.network.network
+        network: server_config.network.network
     };
     let shared_db_pool = Arc::new(db_pool);
 

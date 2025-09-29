@@ -36,6 +36,8 @@ pub async fn handle(
     Json(request): Json<BtcIndexerNotifyRunesDepositRequest>,
 ) -> Result<Json<()>, VerifierError> {
     // TODO: This request should spawn task and immediately return Json(())
+    tracing::info!("Notifying runes deposit for out point: {}", request.out_point);
+
     let deposit_status: DepositStatus = request.status.clone().into();
     let gateway_request = GatewayNotifyRunesDepositRequest {
         verifier_id: state.server_config.frost_signer.identifier,
@@ -61,6 +63,8 @@ pub async fn handle(
         .notify_runes_deposit(gateway_request)
         .await
         .map_err(|e| VerifierError::GatewayClientError(format!("Failed to notify runes deposit: {}", e)))?;
+
+    tracing::debug!("Runes deposit notified for out point: {}", request.out_point);
 
     Ok(Json(()))
 }
