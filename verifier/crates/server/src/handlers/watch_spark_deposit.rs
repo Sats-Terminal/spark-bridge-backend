@@ -6,11 +6,12 @@ use frost::types::Nonce;
 use serde::{Deserialize, Serialize};
 use verifier_local_db_store::schemas::deposit_address::DepositAddressStorage;
 use verifier_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositStatus, TxRejectReason};
+use verifier_local_db_store::schemas::user_identifier::UserUniqueId;
 use verifier_spark_balance_checker_client::client::GetBalanceRequest;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WatchSparkDepositRequest {
-    pub musig_id: MusigId,
+    pub user_unique_id: UserUniqueId,
     pub nonce: Nonce,
     pub spark_address: String,
     pub exit_address: String,
@@ -29,7 +30,8 @@ pub async fn handle(
     state
         .storage
         .set_deposit_addr_info(DepositAddrInfo {
-            musig_id: request.musig_id.clone(),
+            user_uuid: request.user_unique_id.uuid,
+            rune_id: request.user_unique_id.rune_id.clone(),
             nonce: request.nonce,
             out_point: None,
             deposit_address: request.spark_address.clone(),
@@ -46,7 +48,7 @@ pub async fn handle(
         .spark_balance_checker_client
         .get_balance(GetBalanceRequest {
             spark_address: request.spark_address.clone(),
-            rune_id: request.musig_id.get_rune_id(),
+            rune_id: request.user_unique_id.rune_id,
         })
         .await
         .map_err(|e| VerifierError::SparkBalanceCheckerClientError(format!("Failed to get balance: {}", e)))?;

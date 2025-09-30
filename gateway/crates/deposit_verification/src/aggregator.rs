@@ -9,10 +9,10 @@ use gateway_flow_processor::types::{BridgeRunesRequest, ExitSparkRequest};
 use gateway_local_db_store::schemas::deposit_address::{
     DepositAddressStorage, DepositStatus, InnerAddress, VerifiersResponses,
 };
+use gateway_local_db_store::schemas::user_identifier::UserUniqueId;
 use gateway_local_db_store::schemas::utxo_storage::{Utxo, UtxoStatus, UtxoStorage};
 use gateway_local_db_store::storage::LocalDbStorage;
 use std::collections::HashMap;
-use std::str::FromStr;
 use std::sync::Arc;
 use tracing;
 
@@ -62,7 +62,10 @@ impl DepositVerificationAggregator {
             ))?;
 
         let watch_runes_deposit_request = WatchRunesDepositRequest {
-            musig_id: deposit_addr_info.musig_id.clone(),
+            user_unique_id: UserUniqueId {
+                uuid: deposit_addr_info.user_uuid,
+                rune_id: deposit_addr_info.rune_id.clone(),
+            },
             nonce: deposit_addr_info.nonce,
             amount: deposit_addr_info.amount,
             btc_address: request.btc_address.clone(),
@@ -70,8 +73,7 @@ impl DepositVerificationAggregator {
             out_point: request.out_point,
         };
 
-        let mut futures = vec![];
-
+        let mut futures = Vec::with_capacity(self.verifiers.len());
         for (id, verifier) in self.verifiers.iter() {
             let watch_runes_deposit_request_clone = watch_runes_deposit_request.clone();
             let join_handle = async move {
@@ -80,7 +82,6 @@ impl DepositVerificationAggregator {
             };
             futures.push(join_handle);
         }
-
         let _ = join_all(futures)
             .await
             .into_iter()
@@ -104,7 +105,7 @@ impl DepositVerificationAggregator {
             out_point: request.out_point,
             btc_address: request.btc_address.clone(),
             rune_amount: deposit_addr_info.amount,
-            rune_id: deposit_addr_info.musig_id.get_rune_id(),
+            rune_id: deposit_addr_info.rune_id,
             status: UtxoStatus::Pending,
             sats_fee_amount: 0,
         };
@@ -220,7 +221,10 @@ impl DepositVerificationAggregator {
             ))?;
 
         let watch_spark_deposit_request = WatchSparkDepositRequest {
-            musig_id: deposit_addr_info.musig_id.clone(),
+            user_unique_id: UserUniqueId {
+                uuid: deposit_addr_info.user_uuid,
+                rune_id: deposit_addr_info.rune_id,
+            },
             nonce: deposit_addr_info.nonce,
             spark_address: request.spark_address.clone(),
             amount: deposit_addr_info.amount,

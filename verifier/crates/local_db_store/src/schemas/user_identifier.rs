@@ -3,6 +3,7 @@ use async_trait::async_trait;
 use frost::traits::AggregatorDkgShareStorage;
 use frost::types::DkgShareId;
 use persistent_storage::error::DbError;
+use serde::{Deserialize, Serialize};
 use sqlx::types::Json;
 use std::fmt::Debug;
 use std::str::FromStr;
@@ -11,7 +12,7 @@ use uuid::Uuid;
 
 pub type UserUuid = Uuid;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserUniqueId {
     pub uuid: UserUuid,
     pub rune_id: String,

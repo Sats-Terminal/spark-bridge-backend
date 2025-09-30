@@ -283,7 +283,9 @@ mod tests {
                 running_authority: "".to_string(),
                 is_coordinator: Some(true),
             }],
-            ca_pem: CaCertificate::from_path(PATH_TO_CA_PEM)?.ca_pem,
+            certificates: vec![CertificateConfig {
+                path: PATH_TO_CA_PEM.to_string(),
+            }],
         };
 
         let balance_checker = SparkRpcClient::new(config).await.unwrap();

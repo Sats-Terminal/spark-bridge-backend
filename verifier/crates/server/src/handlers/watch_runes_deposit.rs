@@ -8,10 +8,11 @@ use serde::{Deserialize, Serialize};
 use verifier_btc_indexer_client::client::WatchRunesDepositRequest as IndexerWatchRunesDepositRequest;
 use verifier_config_parser::config::construct_hardcoded_callback_url;
 use verifier_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositAddressStorage, DepositStatus};
+use verifier_local_db_store::schemas::user_identifier::UserUniqueId;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WatchRunesDepositRequest {
-    pub musig_id: MusigId,
+    pub user_unique_id: UserUniqueId,
     pub nonce: Nonce,
     pub amount: u64,
     pub btc_address: String,
@@ -29,7 +30,8 @@ pub async fn handle(
     state
         .storage
         .set_deposit_addr_info(DepositAddrInfo {
-            user_uuid: todo!(),
+            user_uuid: request.user_unique_id.uuid,
+            rune_id: request.user_unique_id.rune_id.clone(),
             nonce: request.nonce,
             out_point: Some(request.out_point),
             deposit_address: request.btc_address.clone(),
@@ -49,7 +51,7 @@ pub async fn handle(
         .watch_runes_deposit(IndexerWatchRunesDepositRequest {
             btc_address: request.btc_address,
             out_point: request.out_point,
-            rune_id: request.musig_id.get_rune_id(),
+            rune_id: request.user_unique_id.rune_id,
             rune_amount: request.amount,
             callback_url,
         })

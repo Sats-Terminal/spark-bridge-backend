@@ -3,6 +3,7 @@ use crate::init::AppState;
 use axum::{Json, extract::State};
 use gateway_flow_processor::flow_sender::TypedMessageSender;
 use gateway_flow_processor::types::IssueSparkDepositAddressRequest;
+use gateway_local_db_store::schemas::musig_id::MusigId;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use tracing::{debug, instrument};
@@ -29,7 +30,7 @@ pub async fn handle(
     let response = state
         .flow_sender
         .send(IssueSparkDepositAddressRequest {
-            musig_id: frost::types::MusigId::User {
+            musig_id: MusigId::User {
                 rune_id: request.rune_id,
                 user_public_key: bitcoin::secp256k1::PublicKey::from_str(&request.user_public_key)
                     .map_err(|e| GatewayError::InvalidData(format!("Failed to parse user public key: {e}")))?,
@@ -39,7 +40,7 @@ pub async fn handle(
         .await
         .map_err(|e| GatewayError::FlowProcessorError(format!("Failed to issue deposit address for bridging: {e}")))?;
 
-    return Ok(Json(GetSparkDepositAddressResponse {
+    Ok(Json(GetSparkDepositAddressResponse {
         address: response.addr_to_replenish,
-    }));
+    }))
 }

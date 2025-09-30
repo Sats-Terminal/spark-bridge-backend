@@ -5,7 +5,7 @@ use frost::traits::AggregatorDkgShareStorage;
 use frost::utils::generate_issuer_public_key;
 use gateway_local_db_store::schemas::deposit_address::{DepositAddressStorage, InnerAddress};
 use gateway_local_db_store::schemas::dkg_share::DkgShareGenerate;
-use gateway_local_db_store::schemas::user_identifier::{UserIdentifier, UserIdentifierStorage, UserIds};
+use gateway_local_db_store::schemas::user_identifier::{UserIdentifier, UserIdentifierStorage, UserIds, UserUniqueId};
 use gateway_spark_service::types::SparkTransactionType;
 use gateway_spark_service::utils::{convert_network_to_spark_network, create_wrunes_metadata};
 use global_utils::common_types::get_uuid;
@@ -31,7 +31,10 @@ pub async fn handle(
         ))?;
     let user_info = flow_processor
         .storage
-        .get_row_by_user_unique_id(&deposit_addr_info.user_uuid)
+        .get_row_by_user_unique_id(&UserUniqueId {
+            uuid: deposit_addr_info.user_uuid,
+            rune_id: deposit_addr_info.rune_id,
+        })
         .await
         .map_err(FlowProcessorError::DbError)?
         .ok_or(FlowProcessorError::InvalidDataError("User info not found".to_string()))?;
@@ -65,7 +68,7 @@ pub async fn handle(
             flow_processor
                 .spark_service
                 .send_spark_transaction(
-                    user_identifier.clone(),
+                    user_identifier.dkg_share_id,
                     None,
                     wrunes_metadata.token_identifier,
                     SparkTransactionType::Create {
@@ -82,6 +85,7 @@ pub async fn handle(
             UserIds {
                 user_uuid,
                 dkg_share_id,
+                rune_id: rune_id.clone(),
             }
         }
     };
@@ -98,7 +102,10 @@ pub async fn handle(
         ))?;
     let user_identifier = flow_processor
         .storage
-        .get_row_by_user_unique_id(&deposit_addr_info.user_uuid)
+        .get_row_by_user_unique_id(&UserUniqueId {
+            uuid: deposit_addr_info.user_uuid,
+            rune_id,
+        })
         .await
         .map_err(FlowProcessorError::DbError)?
         .ok_or(FlowProcessorError::InvalidDataError("User info not found".to_string()))?;
@@ -115,7 +122,7 @@ pub async fn handle(
     flow_processor
         .spark_service
         .send_spark_transaction(
-            issuer_user_ids.clone(),
+            user_identifier.dkg_share_id,
             None,
             wrunes_metadata.token_identifier,
             SparkTransactionType::Mint {

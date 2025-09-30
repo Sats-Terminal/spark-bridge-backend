@@ -32,8 +32,8 @@ mod tests {
 
         let server_config = ServerConfig::init_config(GATEWAY_CONFIG_PATH.to_string());
         let local_repo = LocalDbStorage {
-            postgres_repo: PostgresRepo { pool: db },
-            // postgres_repo: PostgresRepo::from_config(PostgresDbCredentials::from_db_url()?).await?,
+            // postgres_repo: PostgresRepo { pool: db },
+            postgres_repo: PostgresRepo::from_config(PostgresDbCredentials::from_db_url()?).await?,
             btc_network: server_config.network.network,
         };
         let shared_local_repo = Arc::new(local_repo);
@@ -64,14 +64,14 @@ mod tests {
             shared_local_repo
                 .get_row_by_user_unique_id(&UserUniqueId {
                     uuid: user_identifier.user_uuid,
-                    rune_id: user_identifier.rune_id
+                    rune_id: user_identifier.rune_id.clone()
                 })
                 .await?
         );
 
         let deposit_addr_info = DepositAddrInfo {
             user_uuid: user_identifier.user_uuid,
-            rune_id: todo!(),
+            rune_id: user_identifier.rune_id,
             nonce: generate_nonce(),
             deposit_address: InnerAddress::BitcoinAddress(
                 bitcoin::Address::from_str("bc1ph50zvqvgdexjrwn33gy2ej659uvlm02ak9xwqwg7ll7dtvjelj0srp48n8")?
@@ -91,7 +91,13 @@ mod tests {
         assert_eq!(
             Some(deposit_addr_info.clone()),
             shared_local_repo
-                .get_deposit_addr_info(&deposit_addr_info.user_uuid, deposit_addr_info.nonce.clone())
+                .get_deposit_addr_info(
+                    &UserUniqueId {
+                        uuid: deposit_addr_info.user_uuid,
+                        rune_id: deposit_addr_info.deposit_address.to_string()
+                    },
+                    deposit_addr_info.nonce.clone()
+                )
                 .await?
         );
 

@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use frost::traits::AggregatorDkgShareStorage;
 use frost::types::DkgShareId;
 use persistent_storage::error::DbError;
+use serde::{Deserialize, Serialize};
 use sqlx::types::Json;
 use std::fmt::Debug;
 use std::str::FromStr;
@@ -12,7 +13,7 @@ use uuid::Uuid;
 
 pub type UserUuid = Uuid;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserUniqueId {
     pub uuid: UserUuid,
     pub rune_id: String,
@@ -94,7 +95,6 @@ impl UserIdentifierStorage for LocalDbStorage {
             .fetch_optional(&self.get_conn().await?)
             .await
             .map_err(|e| DbError::BadRequest(e.to_string()))?;
-        info!("result: {result:?}");
         Ok(result.map(
             |(user_uuid, dkg_share_id, public_key, rune_id, is_issuer)| UserIdentifier {
                 user_uuid,

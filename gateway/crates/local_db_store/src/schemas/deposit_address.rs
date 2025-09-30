@@ -10,6 +10,7 @@ use sqlx::types::Json;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::str::FromStr;
+use tracing::{Instrument, info, instrument};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum InnerAddress {
@@ -192,6 +193,7 @@ pub trait DepositAddressStorage: Send + Sync + Debug {
 
 #[async_trait]
 impl DepositAddressStorage for LocalDbStorage {
+    #[instrument(skip(self), ret)]
     async fn get_deposit_addr_info(
         &self,
         user_unique_id: &UserUniqueId,
@@ -200,7 +202,7 @@ impl DepositAddressStorage for LocalDbStorage {
         let result: Option<(String, Option<String>, bool, i64, Json<VerifiersResponses>)> = sqlx::query_as(
             "SELECT deposit_address, bridge_address, is_btc, amount, confirmation_status
             FROM gateway.deposit_address
-            WHERE user_uuid = $1 AND nonce_tweak = $2",
+            WHERE user_uuid = $1 AND rune_id = $2 AND nonce_tweak = $3;",
         )
         .bind(user_unique_id.uuid)
         .bind(&user_unique_id.rune_id)
@@ -208,7 +210,6 @@ impl DepositAddressStorage for LocalDbStorage {
         .fetch_optional(&self.get_conn().await?)
         .await
         .map_err(|e| DbError::BadRequest(e.to_string()))?;
-
         match result {
             Some((deposit_address_str, bridge_address_str, is_btc, amount, confirmation_status)) => {
                 let db_info = DbDepositAddrInfo {
@@ -234,7 +235,7 @@ impl DepositAddressStorage for LocalDbStorage {
         let _ = sqlx::query(
             "INSERT INTO gateway.deposit_address (nonce_tweak, user_uuid, rune_id, deposit_address, bridge_address, is_btc, amount, confirmation_status)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            ON CONFLICT (nonce_tweak, user_uuid) DO UPDATE SET confirmation_status = $7",
+            ON CONFLICT (nonce_tweak, user_uuid) DO UPDATE SET confirmation_status = $8",
         )
             .bind(deposit_addr_info.nonce)
             .bind(deposit_addr_info.user_uuid)

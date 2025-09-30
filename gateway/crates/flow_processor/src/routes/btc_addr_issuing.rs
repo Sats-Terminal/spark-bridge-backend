@@ -24,7 +24,8 @@ pub async fn handle(
 ) -> Result<Address, FlowProcessorError> {
     let local_db_storage = flow_processor.storage.clone();
 
-    let (public_key_package, user_uuid) = match local_db_storage.get_ids_by_musig_id(&request.musig_id).await? {
+    let (public_key_package, user_uuid, rune_id) = match local_db_storage.get_ids_by_musig_id(&request.musig_id).await?
+    {
         None => {
             tracing::debug!("[{LOG_PATH}] Missing DkgShareId, running dkg from the beginning ...");
             let dkg_share_id: DkgShareId = local_db_storage.get_random_unused_dkg_share().await?;
@@ -106,6 +107,7 @@ pub async fn handle(
     local_db_storage
         .set_deposit_addr_info(DepositAddrInfo {
             user_uuid,
+            rune_id,
             nonce,
             deposit_address: InnerAddress::BitcoinAddress(address.clone()),
             bridge_address: None,

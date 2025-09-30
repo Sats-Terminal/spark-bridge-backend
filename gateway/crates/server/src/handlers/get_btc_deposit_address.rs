@@ -3,6 +3,7 @@ use crate::init::AppState;
 use axum::{Json, extract::State};
 use gateway_flow_processor::flow_sender::TypedMessageSender;
 use gateway_flow_processor::types::IssueBtcDepositAddressRequest;
+use gateway_local_db_store::schemas::musig_id::MusigId;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use tracing::{debug, instrument};
@@ -29,7 +30,7 @@ pub async fn handle(
     let possible_response = state
         .flow_sender
         .send(IssueBtcDepositAddressRequest {
-            musig_id: frost::types::MusigId::User {
+            musig_id: MusigId::User {
                 rune_id: request.rune_id,
                 user_public_key: bitcoin::secp256k1::PublicKey::from_str(&request.user_public_key)?,
             },

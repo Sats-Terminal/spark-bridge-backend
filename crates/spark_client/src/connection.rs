@@ -74,7 +74,7 @@ impl SparkTlsConnection {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::config::{CaCertificate, CertificateConfig, SparkOperatorConfig};
+    use crate::common::config::{CertificateConfig, SparkOperatorConfig};
     use global_utils::common_types::{Url, UrlWrapped};
     use global_utils::logger::{LoggerGuard, init_logger};
     use std::sync::LazyLock;
@@ -96,9 +96,9 @@ mod tests {
                 running_authority: "".to_string(),
                 is_coordinator: Some(true),
             }],
-            certificate: CertificateConfig {
+            certificates: vec![CertificateConfig {
                 path: PATH_TO_CA_PEM.to_string(),
-            },
+            }],
         };
         let connection = SparkTlsConnection::new(spark_config).unwrap();
         connection.create_clients().await?;

@@ -9,7 +9,7 @@ use gateway_local_db_store::schemas::deposit_address::{
     DepositAddrInfo, DepositAddressStorage, InnerAddress, VerifiersResponses,
 };
 use gateway_local_db_store::schemas::paying_utxo::PayingUtxoStorage;
-use gateway_local_db_store::schemas::user_identifier::UserIdentifierStorage;
+use gateway_local_db_store::schemas::user_identifier::{UserIdentifierStorage, UserUniqueId};
 use gateway_local_db_store::schemas::utxo_storage::{Utxo, UtxoStatus, UtxoStorage};
 use gateway_rune_transfer::transfer::RuneTransferOutput;
 use gateway_rune_transfer::transfer::{
@@ -39,7 +39,10 @@ pub async fn handle(
         )))?;
     let user_info = flow_router
         .storage
-        .get_row_by_user_unique_id(&deposit_addr_info.user_uuid)
+        .get_row_by_user_unique_id(&UserUniqueId {
+            uuid: deposit_addr_info.user_uuid,
+            rune_id: deposit_addr_info.rune_id.clone(),
+        })
         .await?
         .ok_or(FlowProcessorError::DbError(DbError::NotFound(
             "User identifier info not found".to_string(),
@@ -70,7 +73,7 @@ pub async fn handle(
     let total_amount = utxos.iter().map(|utxo| utxo.rune_amount).sum::<u64>();
     let exit_amount = deposit_addr_info.amount;
 
-    let user_utxo = flow_router
+    let _user_utxo = flow_router
         .storage
         .get_utxo_by_btc_address(exit_address.to_string())
         .await?
@@ -101,7 +104,8 @@ pub async fn handle(
         flow_router
             .storage
             .set_deposit_addr_info(DepositAddrInfo {
-                user_uuid: user_info.user_uuid,
+                user_uuid: deposit_addr_info.user_uuid,
+                rune_id: deposit_addr_info.rune_id,
                 nonce: new_nonce,
                 deposit_address: InnerAddress::BitcoinAddress(deposit_address.clone()),
                 bridge_address: None,

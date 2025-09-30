@@ -73,6 +73,10 @@ pub async fn create_app(
             post(handlers::get_spark_deposit_address::handle),
         )
         .route(
+            GatewayApi::GET_TOKENS_BRIDGE_STATUS_ENDPOINT,
+            post(handlers::get_token_bridge_status::handle),
+        )
+        .route(
             GatewayApi::EXIT_SPARK_ADDRESS_ENDPOINT,
             post(handlers::exit_spark::handle),
         )

@@ -1,7 +1,6 @@
 use crate::client::VerifierClient;
 use async_trait::async_trait;
 use bitcoin::OutPoint;
-use frost::types::MusigId;
 use frost::types::Nonce;
 use gateway_deposit_verification::error::DepositVerificationError;
 use gateway_deposit_verification::traits::VerificationClient;
@@ -9,6 +8,7 @@ use gateway_deposit_verification::types::{
     WatchRunesDepositRequest, WatchRunesDepositResponse, WatchSparkDepositRequest, WatchSparkDepositResponse,
 };
 use gateway_local_db_store::schemas::deposit_address::DepositStatus;
+use gateway_local_db_store::schemas::user_identifier::UserUniqueId;
 use serde::{Deserialize, Serialize};
 
 const WATCH_RUNES_DEPOSIT_PATH: &str = "/api/gateway/watch-runes-deposit";
@@ -16,7 +16,7 @@ const WATCH_SPARK_DEPOSIT_PATH: &str = "/api/gateway/watch-spark-deposit";
 
 #[derive(Serialize, Debug)]
 pub struct VerifierWatchRunesDepositRequest {
-    pub musig_id: MusigId,
+    pub user_unique_id: UserUniqueId,
     pub nonce: Nonce,
     pub amount: u64,
     pub btc_address: String,
@@ -27,7 +27,7 @@ pub struct VerifierWatchRunesDepositRequest {
 impl From<WatchRunesDepositRequest> for VerifierWatchRunesDepositRequest {
     fn from(request: WatchRunesDepositRequest) -> Self {
         Self {
-            musig_id: request.musig_id,
+            user_unique_id: request.user_unique_id,
             nonce: request.nonce,
             amount: request.amount,
             btc_address: request.btc_address.to_string(),
@@ -48,7 +48,7 @@ impl Into<WatchRunesDepositResponse> for VerifierWatchRunesDepositResponse {
 
 #[derive(Debug, Serialize)]
 pub struct VerifierWatchSparkDepositRequest {
-    pub musig_id: MusigId,
+    pub user_unique_id: UserUniqueId,
     pub nonce: Nonce,
     pub exit_address: String,
     pub amount: u64,
@@ -58,7 +58,7 @@ pub struct VerifierWatchSparkDepositRequest {
 impl From<WatchSparkDepositRequest> for VerifierWatchSparkDepositRequest {
     fn from(request: WatchSparkDepositRequest) -> Self {
         Self {
-            musig_id: request.musig_id,
+            user_unique_id: request.user_unique_id,
             nonce: request.nonce,
             exit_address: request.exit_address.to_string(),
             amount: request.amount,
