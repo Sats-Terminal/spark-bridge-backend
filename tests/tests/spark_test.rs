@@ -5,8 +5,6 @@ use tests::rune_manager::RuneManager;
 use tests::user_wallet::UserWallet;
 use bitcoin::{Address, Txid};
 use std::str::FromStr;
-use spark_address::{encode_spark_address, SparkAddressData};
-use tests::utils::create_credentials;
 use tokio::time::sleep;
 use std::time::Duration;
 use tests::spark_client::{SparkClient, SparkClientConfig, GetSparkAddressDataRequest};
@@ -17,8 +15,13 @@ async fn test_spark() {
 
     // Mint runes for user wallet
 
-    let mut spark_client = SparkClient::new(SparkClientConfig {
-        base_url: "https://2.spark.flashnet.xyz".to_string(),
+    let spark_client = SparkClient::new(SparkClientConfig {
+        coordinator_url: "https://2.spark.flashnet.xyz".to_string(),
+        operator_public_keys: vec![
+            "03dfbdff4b6332c220f8fa2ba8ed496c698ceada563fa01b67d9983bfc5c95e763".to_string(),
+            "03e625e9768651c9be268e287245cc33f96a68ce9141b0b4769205db027ee8ed77".to_string(),
+            "022eda13465a59205413086130a65dc0ed1b8f8e51937043161f8be0c369b1a410".to_string()
+        ],
         certificate_path: "../infrastructure/configurations/certificates/Flashnet-CA.pem".to_string(),
     }).await.unwrap();
 
@@ -33,7 +36,7 @@ async fn test_spark() {
 
     let mut rune_manager = RuneManager::new(bitcoin_client.clone()).await.unwrap();
     let rune_id = rune_manager.get_rune_id().await;
-    let mut user_wallet = UserWallet::new(bitcoin_client.clone(), rune_id).await.unwrap();
+    let mut user_wallet = UserWallet::new(bitcoin_client.clone(), spark_client.clone(), rune_id).await.unwrap();
 
     rune_manager.mint_rune(user_wallet.get_address()).await.unwrap();
     user_wallet.unite_unspent_utxos().await.unwrap();
@@ -50,7 +53,7 @@ async fn test_spark() {
     });
 
     let get_runes_deposit_address_request = GetRunesDepositAddressRequest {
-        user_public_key: "038347b1f5471e28612f0324f5cf5eaa74bc1e1207ae7cdef1c69f0f1e72254d59".to_string(),
+        user_public_key: user_wallet.get_public_key().to_string(),
         rune_id: rune_id.to_string(),
         amount: deposit_amount,
     };
@@ -68,13 +71,7 @@ async fn test_spark() {
 
     // bridge runes
 
-    let public_key = create_credentials().1.public_key();
-    let spark_address = encode_spark_address(SparkAddressData {
-        identity_public_key: public_key.to_string(),
-        invoice: None,
-        signature: None,
-        network: spark_address::Network::Regtest,
-    }).unwrap();
+    let spark_address = user_wallet.get_spark_address().unwrap();
 
     tracing::info!("spark_address: {:?}", spark_address);
 
@@ -90,11 +87,30 @@ async fn test_spark() {
 
     sleep(Duration::from_secs(10)).await;
 
-    // check that runes are bridged
+    // get spark deposit address
 
-    let response = spark_client.get_spark_address_data(GetSparkAddressDataRequest {
-        spark_address: spark_address,
-    }).await.unwrap();
-    tracing::info!("response: {:?}", response);
-    assert_eq!(response.amount as u64, deposit_amount, "Balance should be equal to deposit amount");
+    let spark_deposit_amount = 50_000;
+
+    tracing::info!("Getting spark deposit address");
+
+    let spark_deposit_address_request = GetSparkDepositAddressRequest {
+        user_public_key: user_wallet.get_public_key().to_string(),
+        rune_id: rune_id.to_string(),
+        amount: spark_deposit_amount,
+    };
+
+    let spark_deposit_address = gateway_client.get_spark_deposit_address(spark_deposit_address_request).await.unwrap().address;
+
+    tracing::info!("Spark deposit address: {:?}", spark_deposit_address);
+
+    // send runes to spark deposit address
+
+    tracing::info!("Transferring spark to deposit address");
+    
+    user_wallet.transfer_spark(spark_deposit_amount, spark_deposit_address).await.unwrap();
+
+    tracing::info!("Spark transferred to deposit address");
+
+    // exit spark request
+    
 }

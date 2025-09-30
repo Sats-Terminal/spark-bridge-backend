@@ -1,4 +1,4 @@
-use bitcoin::{Address, key::Keypair, secp256k1::Secp256k1, Network, key::UntweakedPublicKey};
+use bitcoin::{Address, secp256k1::{Secp256k1, Keypair}, Network, key::UntweakedPublicKey};
 use rand_core::OsRng;
 use bitcoin::sighash::{SighashCache, Prevouts, TapSighashType};
 use bitcoin::secp256k1::Message;

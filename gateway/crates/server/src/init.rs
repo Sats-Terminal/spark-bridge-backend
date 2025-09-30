@@ -39,6 +39,5 @@ pub async fn create_app(
             post(handlers::notify_runes_deposit::handle),
         )
         .route("/api/user/bridge-runes", post(handlers::bridge_runes::handle))
-        .route("/api/test/test-spark", post(handlers::test_spark::handle))
         .with_state(state)
 }

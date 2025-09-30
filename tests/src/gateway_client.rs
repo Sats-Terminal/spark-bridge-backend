@@ -30,15 +30,19 @@ pub struct GetRunesDepositAddressResponse {
     pub address: String,
 }
 
-const TEST_SPARK_PATH: &str = "/api/test/test-spark";
+const GET_SPARK_DEPOSIT_ADDRESS_PATH: &str = "/api/user/get-spark-deposit-address";
 
 #[derive(Serialize, Debug)]
-pub struct TestSparkRequest {
-    pub btc_address: String,
+pub struct GetSparkDepositAddressRequest {
+    pub user_public_key: String,
+    pub rune_id: String,
+    pub amount: u64,
 }
 
 #[derive(Deserialize, Debug)]
-pub struct TestSparkResponse {}
+pub struct GetSparkDepositAddressResponse {
+    pub address: String,
+}
 
 const BRIDGE_RUNES_PATH: &str = "/api/user/bridge-runes";
 
@@ -77,11 +81,11 @@ impl GatewayClient {
         self.send_request(GET_RUNES_DEPOSIT_ADDRESS_PATH, request).await
     }
 
-    pub async fn test_spark(&self, request: TestSparkRequest) -> Result<TestSparkResponse, GatewayClientError> {
-        self.send_request(TEST_SPARK_PATH, request).await
-    }
-
     pub async fn bridge_runes(&self, request: BridgeRunesSparkRequest) -> Result<BridgeRunesSparkResponse, GatewayClientError> {
         self.send_request(BRIDGE_RUNES_PATH, request).await
+    }
+
+    pub async fn get_spark_deposit_address(&self, request: GetSparkDepositAddressRequest) -> Result<GetSparkDepositAddressResponse, GatewayClientError> {
+        self.send_request(GET_SPARK_DEPOSIT_ADDRESS_PATH, request).await
     }
 }

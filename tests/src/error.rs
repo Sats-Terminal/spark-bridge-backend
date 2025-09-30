@@ -1,4 +1,6 @@
 use thiserror::Error;
+use spark_address::SparkAddressError;
+use token_identifier::TokenIdentifierParseError;
 
 #[derive(Error, Debug)]
 pub enum RuneError {
@@ -16,6 +18,16 @@ pub enum RuneError {
     InsufficientBalanceError(String),
     #[error("Failed to transfer runes")]
     TransferRunesError(String),
+    #[error("Failed to transfer spark")]
+    SparkAddressError(#[from] SparkAddressError),
+    #[error("Spark client error: {0}")]
+    SparkClientError(#[from] SparkClientError),
+    #[error("Token identifier mismatch")]
+    TokenIdentifierMismatch,
+    #[error("Invalid data: {0}")]
+    InvalidData(String),
+    #[error("Failed to hash transaction: {0}")]
+    HashError(String),
 }
 
 #[derive(Error, Debug)]
@@ -50,4 +62,8 @@ pub enum SparkClientError {
     TonicRequestError(#[from] tonic::Status),
     #[error("Decode error: {0}")]
     DecodeError(String),
+    #[error("Token identifier error: {0}")]
+    TokenIdentifierError(#[from] TokenIdentifierParseError),
+    #[error("Session token not found")]
+    SessionTokenNotFound(String),
 }
