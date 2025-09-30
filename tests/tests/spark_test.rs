@@ -76,6 +76,8 @@ async fn test_spark() {
         network: spark_address::Network::Regtest,
     }).unwrap();
 
+    tracing::info!("spark_address: {:?}", spark_address);
+
     let bridge_runes_request = BridgeRunesSparkRequest {
         btc_address: get_runes_deposit_address_response.address,
         bridge_address: spark_address.clone(),

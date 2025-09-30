@@ -138,9 +138,9 @@ impl SparkService {
 
         self.authenticate(musig_id.clone(), nonce_tweak).await?;
 
-        tracing::debug!("Network: {:?}", network);
-
         let identity_public_key = self.get_musig_public_key(musig_id.clone(), nonce_tweak).await?;
+
+        tracing::debug!("Transaction identity public key: {:?}", identity_public_key.to_string());
 
         // ----- Start the transaction -----
 

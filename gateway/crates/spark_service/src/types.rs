@@ -101,7 +101,7 @@ fn create_partial_token_leaf_output(
     token_amount: u128,
 ) -> TokenLeafOutput {
     TokenLeafOutput {
-        owner_public_key: sender_identity_public_key,
+        owner_public_key: receiver_identity_public_key,
         revocation_public_key: receiver_identity_public_key,
         token_amount,
         token_identifier,
