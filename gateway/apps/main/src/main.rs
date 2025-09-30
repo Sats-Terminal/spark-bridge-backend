@@ -22,7 +22,7 @@ use tracing::instrument;
 #[instrument(level = "trace", ret)]
 #[tokio::main]
 async fn main() {
-    let _ = dotenv::dotenv();
+    let _ = dotenvy::dotenv();
     let _logger_guard = init_logger();
 
     // Create Config

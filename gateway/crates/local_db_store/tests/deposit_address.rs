@@ -32,8 +32,8 @@ mod tests {
 
         let server_config = ServerConfig::init_config(GATEWAY_CONFIG_PATH.to_string());
         let local_repo = LocalDbStorage {
-            // postgres_repo: PostgresRepo { pool: db },
-            postgres_repo: PostgresRepo::from_config(PostgresDbCredentials::from_db_url()?).await?,
+            postgres_repo: PostgresRepo { pool: db },
+            // postgres_repo: PostgresRepo::from_config(PostgresDbCredentials::from_db_url()?).await?,
             btc_network: server_config.network.network,
         };
         let shared_local_repo = Arc::new(local_repo);
@@ -94,7 +94,7 @@ mod tests {
                 .get_deposit_addr_info(
                     &UserUniqueId {
                         uuid: deposit_addr_info.user_uuid,
-                        rune_id: deposit_addr_info.deposit_address.to_string()
+                        rune_id: deposit_addr_info.rune_id.to_string()
                     },
                     deposit_addr_info.nonce.clone()
                 )

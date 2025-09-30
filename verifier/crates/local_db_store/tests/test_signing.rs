@@ -29,7 +29,6 @@ mod tests {
 
         let local_repo = LocalDbStorage {
             postgres_repo: PostgresRepo { pool: db },
-            // postgres_repo: PostgresRepo::from_config(PostgresDbCredentials::from_db_url()?).await?,
         };
         let shared_local_repo = Arc::new(local_repo);
         let msg_hash = b"hello_world!";

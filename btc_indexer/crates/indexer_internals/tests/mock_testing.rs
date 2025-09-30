@@ -41,7 +41,7 @@ mod mock_testing {
     #[ignore]
     #[tokio::test]
     async fn init_btc_indexer() -> anyhow::Result<()> {
-        dotenv::dotenv()?;
+        dotenvy::dotenv()?;
         let _logger_guard = &*TEST_LOGGER;
         let btc_rpc_creds = BtcRpcCredentials::new()?;
         let db_pool = LocalDbStorage::from_config(PostgresDbCredentials::from_envs()?).await?;
@@ -63,7 +63,7 @@ mod mock_testing {
         let tx_id = Txid::from_str("f74516e3b24af90fc2da8251d2c1e3763252b15c7aec3c1a42dde7116138caee")?;
         let uuid = get_uuid();
 
-        dotenv::dotenv()?;
+        dotenvy::dotenv()?;
         let _logger_guard = &*TEST_LOGGER;
         let btc_rpc_creds = BtcRpcCredentials::new()?;
         let db_pool = LocalDbStorage {

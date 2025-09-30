@@ -11,7 +11,7 @@ mod init_tests {
 
     #[tokio::test]
     pub async fn pg_conn_health_check() -> anyhow::Result<()> {
-        let _ = dotenv::dotenv();
+        let _ = dotenvy::dotenv();
         let _ = *TEST_LOGGER;
         let db_entity = PostgresRepo::from_config(PostgresDbCredentials::from_db_url()?).await?;
         let mut conn = db_entity.pool.acquire().await?;

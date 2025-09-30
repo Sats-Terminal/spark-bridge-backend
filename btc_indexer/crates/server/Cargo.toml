@@ -39,7 +39,7 @@ anyhow = { workspace = true }
 async-trait = { workspace = true }
 axum-test = { workspace = true }
 bitcoincore-rpc = { workspace = true }
-dotenv = { workspace = true }
+dotenvy = { workspace = true }
 global_utils = { workspace = true }
 mockall = { workspace = true }
 titan-types = { workspace = true }

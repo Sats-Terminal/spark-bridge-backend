@@ -94,9 +94,9 @@ impl ServerConfig {
             format!("{folder_path}{config_folder_name}/{}.toml", filename)
         };
         if config_variant != ConfigVariant::Production {
-            let _ = dotenv::dotenv().ok();
+            let _ = dotenvy::dotenv().ok();
         }
-        let _ = dotenv::dotenv().ok();
+        let _ = dotenvy::dotenv().ok();
         let config = match &config_variant {
             ConfigVariant::Production
             | ConfigVariant::Local
