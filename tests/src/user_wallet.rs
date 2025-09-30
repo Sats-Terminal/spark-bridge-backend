@@ -168,8 +168,39 @@ impl UserWallet {
 
     pub async fn unite_unspent_utxos(&mut self) -> Result<Txid, TestError> {
         tracing::info!("Uniting unspent UTXOs");
+        tracing::info!("Wallet address: {}", self.p2tr_address);
 
-        let address_data = self.bitcoin_client.get_address_data(self.p2tr_address.clone()).await?;
+        sleep(Duration::from_secs(10)).await;
+
+        let address_data = {
+            let mut retry_count = 0;
+            let max_retries = 5;
+
+            loop {
+                let data = self.bitcoin_client.get_address_data(self.p2tr_address.clone()).await?;
+
+                let mut found_runes = std::collections::HashSet::new();
+                for output in data.outputs.iter() {
+                    if let SpentStatus::Unspent = output.spent {
+                        for rune in output.runes.iter() {
+                            if let Ok(rune_id) = RuneId::from_str(&rune.rune_id.to_string()) {
+                                found_runes.insert(rune_id);
+                            }
+                        }
+                    }
+                }
+
+                tracing::debug!("Found {} unique runes in unspent outputs", found_runes.len());
+
+                if !found_runes.is_empty() || retry_count >= max_retries {
+                    break data;
+                }
+
+                tracing::debug!("No runes found yet (attempt {}/{}), waiting...", retry_count + 1, max_retries);
+                sleep(Duration::from_secs(2)).await;
+                retry_count += 1;
+            }
+        };
 
         let mut total_btc = 0;
         let mut rune_totals: HashMap<RuneId, u128> = HashMap::new();
@@ -180,10 +211,11 @@ impl UserWallet {
             if let SpentStatus::Unspent = output.spent {
                 if output.value > 0 {
                     total_btc += output.value;
-
+                    tracing::debug!("UTXO {:?}:{} has {} runes", output.txid, output.vout, output.runes.len());
                     for runes in output.runes.iter() {
                         let rune_id = RuneId::from_str(&runes.rune_id.to_string())
                             .map_err(|e| TestError::UniteUnspentUtxosError(format!("Failed to parse RuneId: {}", e)))?;
+                        tracing::debug!("Found rune {:?} with amount {}", rune_id, runes.amount);
                         *rune_totals.entry(rune_id).or_insert(0) += runes.amount;
                     }
 
@@ -205,9 +237,12 @@ impl UserWallet {
             return Err(TestError::UniteUnspentUtxosError("No unspent UTXOs to unite".to_string()));
         }
 
+        tracing::info!("Total unique runes found: {}", rune_totals.len());
+
         let mut edicts = vec![];
         for (rune_id, total_amount) in rune_totals.iter() {
             if *total_amount > 0 {
+                tracing::info!("Creating edict for rune {:?}: amount {}", rune_id, total_amount);
                 edicts.push(Edict {
                     id: *rune_id,
                     amount: *total_amount,
@@ -215,6 +250,8 @@ impl UserWallet {
                 });
             }
         }
+
+        tracing::info!("Total edicts created: {}", edicts.len());
 
         let runestone = Runestone {
             edicts,

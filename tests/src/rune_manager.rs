@@ -4,7 +4,7 @@ use bitcoin::key::Keypair;
 use rand_core::{OsRng, RngCore};
 use crate::utils::create_credentials;
 use crate::error::TestError;
-use ordinals::{RuneId, Runestone};
+use ordinals::{Edict, RuneId, Runestone};
 use crate::rune_etching::{EtchRuneParams, etch_rune};
 use bitcoin::{TxIn, OutPoint, Sequence, Witness, TxOut, Amount, ScriptBuf, Transaction, Txid};
 use bitcoin::transaction::Version;
@@ -106,7 +106,7 @@ impl RuneManager {
 
         let _ = self.unite_unspent_utxos().await?;
         self.bitcoin_client.generate_blocks(6, None)?;
-        sleep(Duration::from_secs(1)).await;
+        sleep(Duration::from_secs(10)).await;
 
         Ok(rune_id)
     }
@@ -135,6 +135,7 @@ impl RuneManager {
         let mut total_amount = 0;
         let mut prev_input_amounts = vec![];
         let mut txins = vec![];
+        let mut rune_totals: HashMap<RuneId, u128> = HashMap::new();
 
         for utxo in address_data.outputs.iter() {
             if !utxo.status.confirmed {
@@ -143,6 +144,12 @@ impl RuneManager {
             if let SpentStatus::Unspent = utxo.spent {
                 total_amount += utxo.value;
                 prev_input_amounts.push(utxo.value);
+
+                for rune in utxo.runes.iter() {
+                    let rune_id = RuneId::from_str(&rune.rune_id.to_string())
+                        .map_err(|e| TestError::UniteUnspentUtxosError(format!("Failed to parse RuneId: {}", e)))?;
+                    *rune_totals.entry(rune_id).or_insert(0) += rune.amount;
+                }
 
                 txins.push(TxIn {
                     previous_output: OutPoint {
@@ -156,16 +163,42 @@ impl RuneManager {
             }
         }
 
-        let txout = TxOut {
+        let mut edicts = vec![];
+        for (rune_id, total) in rune_totals.iter() {
+            if *total > 0 {
+                edicts.push(Edict {
+                    id: *rune_id,
+                    amount: *total,
+                    output: 1,
+                });
+            }
+        }
+
+        let mut outputs = vec![];
+
+        if !edicts.is_empty() {
+            let runestone = Runestone {
+                edicts,
+                etching: None,
+                mint: None,
+                pointer: None,
+            };
+            outputs.push(TxOut {
+                value: Amount::from_sat(0),
+                script_pubkey: runestone.encipher(),
+            });
+        }
+
+        outputs.push(TxOut {
             value: Amount::from_sat(total_amount - DEFAULT_FEE_AMOUNT),
             script_pubkey: self.p2tr_address.script_pubkey(),
-        };
+        });
 
         let mut transaction = Transaction {
             version: Version::TWO,
             lock_time: bitcoin::absolute::LockTime::ZERO,
             input: txins,
-            output: vec![txout],
+            output: outputs,
         };
 
         sign_transaction(&mut transaction, prev_input_amounts, self.p2tr_address.clone(), self.keypair)?;
@@ -247,8 +280,9 @@ impl RuneManager {
 
         let txid = transaction.compute_txid();
         self.bitcoin_client.broadcast_transaction(transaction)?;
+        tracing::info!("MINT TRANSACTION TXID: {}", txid);
         self.bitcoin_client.generate_blocks(6, None)?;
-        sleep(Duration::from_secs(1)).await;
+        sleep(Duration::from_secs(5)).await;
 
         Ok(txid)
     }

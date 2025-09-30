@@ -57,14 +57,14 @@ async fn test_multiple_runes_manager() {
 
     tracing::info!("Creating first rune...");
     let rune_id_1 = rune_manager.etch_new_rune(
-        Some("TESTRUNE1".to_string()),
+        Some("TESTRUNEONE".to_string()),
         1000,
         1_000_000
     ).await.unwrap();
 
     tracing::info!("Creating second rune...");
     let rune_id_2 = rune_manager.etch_new_rune(
-        Some("TESTRUNE2".to_string()),
+        Some("TESTRUNETWO".to_string()),
         500,
         500_000
     ).await.unwrap();
@@ -99,7 +99,7 @@ async fn test_multiple_runes_manager() {
 
     let all_balances = user_wallet.get_all_balances().await.unwrap();
     tracing::info!("All balances: {:?}", all_balances);
-
+    println!("======================================={}", all_balances.len());
     assert!(all_balances.len() >= 3, "Should have at least 3 runes");
 
     for rune_id in &rune_ids {

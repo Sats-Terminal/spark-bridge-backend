@@ -2,7 +2,7 @@ use crate::error::TestError;
 use ord::Inscription;
 use bitcoin::{key::Keypair, XOnlyPublicKey, key::UntweakedPublicKey};
 use bitcoin::secp256k1::Secp256k1;
-use ordinals::{Etching, Terms, Rune, Runestone};
+use ordinals::{Etching, Terms, Rune, Runestone, Edict};
 use rand_core::{OsRng, RngCore};
 use bitcoin::script::{PushBytesBuf, ScriptBuf};
 use bitcoin::script::Builder;
@@ -201,9 +201,15 @@ pub async fn etch_rune(
 
     tracing::info!("Creating rune etching transaction");
 
+    let edict = Edict {
+        id: RuneId::default(),
+        amount: params.amount as u128,
+        output: 1,
+    };
+
     let runestone = Runestone {
         etching: Some(etching),
-        edicts: vec![],
+        edicts: vec![edict],
         mint: None,
         pointer: Some(1),
     };
@@ -291,15 +297,22 @@ pub async fn etch_rune(
 
     tracing::info!("Checking rune etching transaction");
 
-    sleep(Duration::from_secs(1)).await;
-    
+    // sleep(Duration::from_secs(1)).await;
+    //
+    // let rune_id = bitcoin_client.get_rune_id(&etching_tx.compute_txid()).await
+    //     .map_err(|e| TestError::EtchRuneError(format!("Failed to get rune id: {}", e)))?;
+    // tracing::info!("rune_id: {:?}", rune_id);
+    //
+    // let rune = bitcoin_client.get_rune(rune_id.to_string()).await
+    //     .map_err(|e| TestError::EtchRuneError(format!("Failed to get rune: {}", e)))?;
+    // tracing::info!("rune: {:?}", rune);
+    //
+    // Ok(rune_id)
+
+
     let rune_id = bitcoin_client.get_rune_id(&etching_tx.compute_txid()).await
         .map_err(|e| TestError::EtchRuneError(format!("Failed to get rune id: {}", e)))?;
     tracing::info!("rune_id: {:?}", rune_id);
-
-    let rune = bitcoin_client.get_rune(rune_id.to_string()).await
-        .map_err(|e| TestError::EtchRuneError(format!("Failed to get rune: {}", e)))?;
-    tracing::info!("rune: {:?}", rune);
 
     Ok(rune_id)
 }

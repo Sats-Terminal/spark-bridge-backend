@@ -65,14 +65,26 @@ impl BitcoinClient {
     fn init_bitcoin_faucet_wallet(&mut self) -> Result<(), BitcoinClientError> {
         tracing::info!("Initializing bitcoin faucet wallet");
         let wallets = self.bitcoin_client.list_wallets()?;
-        if !wallets.contains(&"faucet_wallet".to_string()) {
-            tracing::info!("Creating faucet wallet");
-            self.bitcoin_client.create_wallet("faucet_wallet", None, None, None, None)?;
-            let address = self.get_funding_address()?;
-            self.generate_blocks(100, Some(address))?;
-            self.generate_blocks(121, None)?;
+
+        if wallets.contains(&"faucet_wallet".to_string()) {
+            tracing::info!("Faucet wallet already loaded");
+            return Ok(());
         }
-        Ok(())
+
+        match self.bitcoin_client.load_wallet("faucet_wallet") {
+            Ok(_) => {
+                tracing::info!("Loaded existing faucet wallet");
+                Ok(())
+            }
+            Err(_) => {
+                tracing::info!("Creating faucet wallet");
+                self.bitcoin_client.create_wallet("faucet_wallet", None, None, None, None)?;
+                let address = self.get_funding_address()?;
+                self.generate_blocks(100, Some(address))?;
+                self.generate_blocks(121, None)?;
+                Ok(())
+            }
+        }
     }
 
     fn get_funding_address(&mut self) -> Result<Address, BitcoinClientError> {
@@ -119,8 +131,23 @@ impl BitcoinClient {
     }
 
     pub async fn get_rune_id(&self, txid: &Txid) -> Result<RuneId, BitcoinClientError> {
-        let response = self.titan_client.get_transaction(txid).await
-            .map_err(BitcoinClientError::TitanRpcError)?;
+        let mut retry_count = 0;
+        let max_retries = 10;
+
+        let response = loop {
+            match self.titan_client.get_transaction(txid).await {
+                Ok(response) => break response,
+                Err(e) if retry_count < max_retries => {
+                    tracing::debug!("Transaction not indexed yet (attempt {}/{}), waiting...", retry_count + 1, max_retries);
+                    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+                    retry_count += 1;
+                }
+                Err(e) => return Err(BitcoinClientError::TitanRpcError(e)),
+            }
+        };
+
+        // let response = self.titan_client.get_transaction(txid).await
+        //     .map_err(BitcoinClientError::TitanRpcError)?;
         let block_height = response.status.block_height
             .ok_or(BitcoinClientError::DecodeError("Block height not found".to_string()))?;
         let block = self.titan_client.get_block(&Block::Height(block_height)).await
