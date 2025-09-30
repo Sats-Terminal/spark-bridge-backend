@@ -2,7 +2,7 @@ use crate::utils::create_credentials;
 use bitcoin::Address;
 use bitcoin::key::Keypair;
 use crate::bitcoin_client::BitcoinClient;
-use crate::error::TestError;
+use crate::error::RuneError;
 use tokio::time::sleep;
 use std::time::Duration;
 use ordinals::RuneId;
@@ -28,7 +28,7 @@ pub struct UserWallet {
 }
 
 impl UserWallet {
-    pub async fn new(mut bitcoin_client: BitcoinClient, rune_ids: Vec<RuneId>) -> Result<Self, TestError> {
+    pub async fn new(mut bitcoin_client: BitcoinClient, rune_ids: Vec<RuneId>) -> Result<Self, RuneError> {
         tracing::info!("Creating user wallet with {} runes", rune_ids.len());
         let (p2tr_address, keypair) = create_credentials();
 
@@ -46,7 +46,7 @@ impl UserWallet {
         self.rune_ids.clone()
     }
 
-    pub async fn get_rune_balance(&self, rune_id: &RuneId) -> Result<u64, TestError> {
+    pub async fn get_rune_balance(&self, rune_id: &RuneId) -> Result<u64, RuneError> {
         let address_data = self.bitcoin_client.get_address_data(self.p2tr_address.clone()).await?;
         let mut total_balance = 0;
         for output in address_data.outputs.iter() {
@@ -61,7 +61,7 @@ impl UserWallet {
         Ok(total_balance as u64)
     }
 
-    pub async fn get_all_balances(&self) -> Result<HashMap<RuneId, u64>, TestError> {
+    pub async fn get_all_balances(&self) -> Result<HashMap<RuneId, u64>, RuneError> {
         let address_data = self.bitcoin_client.get_address_data(self.p2tr_address.clone()).await?;
         let mut balances: HashMap<RuneId, u64> = HashMap::new();
 
@@ -69,7 +69,7 @@ impl UserWallet {
             if let SpentStatus::Unspent = output.spent {
                 for runes in output.runes.iter() {
                     let rune_id = RuneId::from_str(&runes.rune_id.to_string())
-                        .map_err(|e| TestError::GetRuneBalanceError(format!("Failed to parse RuneId: {}", e)))?;
+                        .map_err(|e| RuneError::GetRuneBalanceError(format!("Failed to parse RuneId: {}", e)))?;
                     *balances.entry(rune_id).or_insert(0) += runes.amount as u64;
                 }
             }
@@ -78,7 +78,7 @@ impl UserWallet {
         Ok(balances)
     }
 
-    pub async fn get_funded_outpoint_data(&self, rune_id: &RuneId) -> Result<(OutPoint, u64), TestError> {
+    pub async fn get_funded_outpoint_data(&self, rune_id: &RuneId) -> Result<(OutPoint, u64), RuneError> {
         let address_data = self.bitcoin_client.get_address_data(self.p2tr_address.clone()).await?;
         for output in address_data.outputs.iter() {
             if let SpentStatus::Unspent = output.spent {
@@ -92,15 +92,15 @@ impl UserWallet {
                 }
             }
         }
-        Err(TestError::GetFundedOutpointError(format!("Failed to get funded outpoint for rune {:?}", rune_id)))
+        Err(RuneError::GetFundedOutpointError(format!("Failed to get funded outpoint for rune {:?}", rune_id)))
     }
 
-    pub async fn transfer_runes(&mut self, rune_id: RuneId, amount: u64, transfer_address: Address) -> Result<Txid, TestError> {
+    pub async fn transfer_runes(&mut self, rune_id: RuneId, amount: u64, transfer_address: Address) -> Result<Txid, RuneError> {
         tracing::info!("Transferring {} of rune {:?}", amount, rune_id);
 
         let balance = self.get_rune_balance(&rune_id).await?;
         if balance < amount {
-            return Err(TestError::TransferRunesError(format!("Insufficient balance for rune {:?}. Have: {}, Need: {}", rune_id, balance, amount)));
+            return Err(RuneError::TransferRunesError(format!("Insufficient balance for rune {:?}. Have: {}, Need: {}", rune_id, balance, amount)));
         }
 
         let (outpoint, value) = self.get_funded_outpoint_data(&rune_id).await?;
@@ -166,7 +166,7 @@ impl UserWallet {
         Ok(txid)
     }
 
-    pub async fn unite_unspent_utxos(&mut self) -> Result<Txid, TestError> {
+    pub async fn unite_unspent_utxos(&mut self) -> Result<Txid, RuneError> {
         tracing::info!("Uniting unspent UTXOs");
         tracing::info!("Wallet address: {}", self.p2tr_address);
 
@@ -174,7 +174,7 @@ impl UserWallet {
 
         let address_data = {
             let mut retry_count = 0;
-            let max_retries = 5;
+            let max_retries = 30;
 
             loop {
                 let data = self.bitcoin_client.get_address_data(self.p2tr_address.clone()).await?;
@@ -214,7 +214,7 @@ impl UserWallet {
                     tracing::debug!("UTXO {:?}:{} has {} runes", output.txid, output.vout, output.runes.len());
                     for runes in output.runes.iter() {
                         let rune_id = RuneId::from_str(&runes.rune_id.to_string())
-                            .map_err(|e| TestError::UniteUnspentUtxosError(format!("Failed to parse RuneId: {}", e)))?;
+                            .map_err(|e| RuneError::UniteUnspentUtxosError(format!("Failed to parse RuneId: {}", e)))?;
                         tracing::debug!("Found rune {:?} with amount {}", rune_id, runes.amount);
                         *rune_totals.entry(rune_id).or_insert(0) += runes.amount;
                     }
@@ -234,7 +234,7 @@ impl UserWallet {
         }
 
         if txins.is_empty() {
-            return Err(TestError::UniteUnspentUtxosError("No unspent UTXOs to unite".to_string()));
+            return Err(RuneError::UniteUnspentUtxosError("No unspent UTXOs to unite".to_string()));
         }
 
         tracing::info!("Total unique runes found: {}", rune_totals.len());

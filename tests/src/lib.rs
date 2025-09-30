@@ -5,3 +5,4 @@ pub mod user_wallet;
 pub mod rune_etching;
 pub mod utils;
 pub mod error;
+mod constants;

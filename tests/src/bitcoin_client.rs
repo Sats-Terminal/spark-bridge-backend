@@ -130,6 +130,12 @@ impl BitcoinClient {
             .map_err(BitcoinClientError::TitanRpcError)
     }
 
+    pub async fn get_rune_by_id(&self, rune_id: RuneId) -> Result<RuneResponse, BitcoinClientError> {
+        let rune_id_str = format!("{}:{}", rune_id.block, rune_id.tx);
+
+        self.get_rune(rune_id_str).await
+    }
+
     pub async fn get_rune_id(&self, txid: &Txid) -> Result<RuneId, BitcoinClientError> {
         let mut retry_count = 0;
         let max_retries = 10;
@@ -160,9 +166,29 @@ impl BitcoinClient {
     }
 
     pub async fn get_rune(&self, rune_id: String) -> Result<RuneResponse, BitcoinClientError> {
-        let rune = Rune::from_str(&rune_id).map_err(|e| BitcoinClientError::DecodeError(e.to_string()))?;
-        let response = self.titan_client.get_rune(&rune).await
-            .map_err(BitcoinClientError::TitanRpcError)?;
+        let rune = Rune::from_str(&rune_id)
+            .map_err(|e| BitcoinClientError::DecodeError(e.to_string()))?;
+
+        let mut retry_count = 0;
+        let max_retries = 15;
+
+        let response = loop {
+            match self.titan_client.get_rune(&rune).await {
+                Ok(response) => break response,
+                Err(e) if retry_count < max_retries => {
+                    tracing::debug!(
+                    "Rune {} not indexed yet (attempt {}/{}), waiting...",
+                    rune_id,
+                    retry_count + 1,
+                    max_retries
+                );
+                    tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
+                    retry_count += 1;
+                }
+                Err(e) => return Err(BitcoinClientError::TitanRpcError(e)),
+            }
+        };
+
         Ok(response)
     }
 }
