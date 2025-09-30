@@ -8,8 +8,10 @@ use lrc20::token_transaction::TokenTransaction;
 use lrc20::token_transaction::TokenTransactionCreateInput;
 use lrc20::token_transaction::TokenTransactionInput;
 use lrc20::token_transaction::TokenTransactionMintInput;
+use lrc20::token_transaction::TokenTransactionTransferInput;
 use lrc20::token_transaction::TokenTransactionVersion;
 use spark_address::decode_spark_address;
+use lrc20::token_leaf::TokenLeafToSpend;
 use std::str::FromStr;
 use token_identifier::TokenIdentifier;
 
@@ -27,6 +29,13 @@ pub enum SparkTransactionType {
         token_name: String,
         token_ticker: String,
     },
+    Transfer {
+        sender_spark_address: String,
+        receiver_spark_address: String,
+        transfer_amount: u64,
+        change_amount: u64,
+        token_leaves_to_spend: Vec<TokenLeafToSpend>,
+    }
 }
 
 pub fn create_partial_token_transaction(
@@ -42,8 +51,7 @@ pub fn create_partial_token_transaction(
             token_amount,
         } => {
             let spark_address_data = decode_spark_address(&receiver_spark_address)?;
-            let receiver_identity_public_key = PublicKey::from_str(&spark_address_data.identity_public_key)
-                .map_err(|e| SparkServiceError::InvalidData(format!("Failed to parse receiver identity public key: {}", e)))?;
+            let receiver_identity_public_key = PublicKey::from_str(&spark_address_data.identity_public_key)?;
 
             let token_transaction = TokenTransaction {
                 version: TokenTransactionVersion::V4,
@@ -53,12 +61,13 @@ pub fn create_partial_token_transaction(
                     issuer_signature: None,
                     issuer_provided_timestamp: None,
                 }),
-                leaves_to_create: vec![create_partial_token_leaf_output(
-                    issuer_public_key,
-                    receiver_identity_public_key,
-                    token_identifier,
-                    token_amount as u128,
-                )],
+                leaves_to_create: vec![
+                    create_partial_token_leaf_output(
+                        receiver_identity_public_key,
+                        token_identifier,
+                        token_amount as u128,
+                    )
+                ],
                 spark_operator_identity_public_keys,
                 expiry_time: 0,
                 network: Some(network),
@@ -91,11 +100,53 @@ pub fn create_partial_token_transaction(
             };
             Ok(token_transaction)
         }
+        SparkTransactionType::Transfer {
+            sender_spark_address,
+            receiver_spark_address,
+            transfer_amount,
+            change_amount,
+            token_leaves_to_spend,
+        } => {
+            let receiver_spark_address_data = decode_spark_address(&receiver_spark_address)?;
+            let receiver_identity_public_key = PublicKey::from_str(&receiver_spark_address_data.identity_public_key)?;
+
+            let mut leaves_to_create = vec![
+                create_partial_token_leaf_output(
+                    receiver_identity_public_key,
+                    token_identifier,
+                    transfer_amount as u128,
+                ),
+            ];
+            if change_amount > 0 {
+                let sender_spark_address_data = decode_spark_address(&sender_spark_address)?;
+                let sender_identity_public_key = PublicKey::from_str(&sender_spark_address_data.identity_public_key)?;
+                leaves_to_create.push(
+                    create_partial_token_leaf_output(
+                        sender_identity_public_key,
+                        token_identifier,
+                        change_amount as u128,
+                    )
+                );
+            }
+
+            let token_transaction = TokenTransaction {
+                version: TokenTransactionVersion::V4,
+                input: TokenTransactionInput::Transfer(TokenTransactionTransferInput {
+                    leaves_to_spend: token_leaves_to_spend,
+                }),
+                leaves_to_create,
+                spark_operator_identity_public_keys,
+                expiry_time: 0,
+                network: Some(network),
+                client_created_timestamp: chrono::Utc::now().timestamp_millis() as u64,
+                invoice_attachments: Default::default(),
+            };
+            Ok(token_transaction)
+        }
     }
 }
 
 fn create_partial_token_leaf_output(
-    sender_identity_public_key: PublicKey,
     receiver_identity_public_key: PublicKey,
     token_identifier: TokenIdentifier,
     token_amount: u128,
@@ -134,6 +185,12 @@ pub fn create_signing_metadata(
             token_transaction: token_transaction_proto,
         },
         (SparkTransactionType::Create { .. }, false) => SigningMetadata::FinalCreateToken {
+            token_transaction: token_transaction_proto,
+        },
+        (SparkTransactionType::Transfer { .. }, true) => SigningMetadata::PartialTransferToken {
+            token_transaction: token_transaction_proto,
+        },
+        (SparkTransactionType::Transfer { .. }, false) => SigningMetadata::FinalTransferToken {
             token_transaction: token_transaction_proto,
         },
     };

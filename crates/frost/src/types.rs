@@ -175,6 +175,8 @@ pub enum SigningMetadata {
     FinalCreateToken { token_transaction: TokenTransaction },
     PartialMintToken { token_transaction: TokenTransaction },
     FinalMintToken { token_transaction: TokenTransaction },
+    PartialTransferToken { token_transaction: TokenTransaction },
+    FinalTransferToken { token_transaction: TokenTransaction },
     Authorization,
     BtcTransactionMetadata {},
 }
