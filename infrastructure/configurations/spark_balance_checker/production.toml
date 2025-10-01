@@ -6,7 +6,11 @@ http_server_port = 8070
 network = "regtest"
 
 [spark_config]
-certificate = { path = "./configuration_spark_balance_checker/ca.pem" }
+certificates = [
+    { path = "./configuration_spark_balance_checker/Amazon-Root-CA.pem" },
+    { path = "./configuration_spark_balance_checker/Flashnet-CA.pem" },
+]
+
 
 [[spark_config.operators]]
 id = 1
