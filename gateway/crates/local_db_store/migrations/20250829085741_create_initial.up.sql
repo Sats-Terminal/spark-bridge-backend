@@ -108,5 +108,31 @@ CREATE TABLE IF NOT EXISTS gateway.paying_utxo
     PRIMARY KEY (txid, vout)
 );
 
+-- Indexes
+
+CREATE INDEX IF NOT EXISTS dkg_share_index
+    ON gateway.dkg_share (dkg_share_id)
+    INCLUDE (dkg_aggregator_state);
+CREATE INDEX IF NOT EXISTS dkg_share_2_index
+    ON gateway.dkg_share (dkg_aggregator_state, dkg_share_id);
+
+CREATE INDEX IF NOT EXISTS user_identifier_index
+    ON gateway.user_identifier (dkg_share_id)
+    INCLUDE (user_uuid, public_key, rune_id, is_issuer);
+CREATE INDEX IF NOT EXISTS user_identifier_2_index
+    ON gateway.user_identifier (user_uuid, rune_id)
+    INCLUDE (dkg_share_id, public_key, is_issuer);
+
+CREATE INDEX IF NOT EXISTS sign_session_index
+    ON gateway.sign_session (session_id)
+    INCLUDE (dkg_share_id, tweak, message_hash, aggregator_metadata, sign_state);
+
+CREATE INDEX IF NOT EXISTS deposit_address_index
+    ON gateway.deposit_address (user_uuid, rune_id, nonce_tweak)
+    INCLUDE (deposit_address, bridge_address, is_btc, amount, confirmation_status);
+CREATE INDEX IF NOT EXISTS deposit_address_2_index
+    ON gateway.deposit_address (deposit_address)
+    INCLUDE (user_uuid, rune_id, nonce_tweak, bridge_address, is_btc, amount, confirmation_status);
+
 COMMIT;
 

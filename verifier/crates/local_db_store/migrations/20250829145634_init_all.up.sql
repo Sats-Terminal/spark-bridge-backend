@@ -56,4 +56,22 @@ CREATE TABLE IF NOT EXISTS verifier.deposit_address
     FOREIGN KEY (user_uuid, rune_id) REFERENCES verifier.user_identifier (user_uuid, rune_id)
 );
 
+CREATE INDEX IF NOT EXISTS user_identifier_index
+    ON verifier.user_identifier (dkg_share_id)
+    INCLUDE (user_uuid, public_key, rune_id, is_issuer);
+CREATE INDEX IF NOT EXISTS user_identifier_2_index
+    ON verifier.user_identifier (user_uuid, rune_id)
+    INCLUDE (dkg_share_id, public_key, is_issuer);
+
+CREATE INDEX IF NOT EXISTS sign_session_index
+    ON verifier.sign_session (session_id)
+    INCLUDE (dkg_share_id, tweak, message_hash, metadata, sign_state);
+
+CREATE INDEX IF NOT EXISTS deposit_address_index
+    ON verifier.deposit_address (user_uuid, rune_id, nonce_tweak)
+    INCLUDE (deposit_address, bridge_address, is_btc, deposit_amount, confirmation_status, sats_fee_amount, out_point);
+CREATE INDEX IF NOT EXISTS deposit_address_2_index
+    ON verifier.deposit_address (deposit_address)
+    INCLUDE (user_uuid, rune_id, nonce_tweak, bridge_address, is_btc, deposit_amount, confirmation_status, sats_fee_amount, out_point);
+
 COMMIT;
