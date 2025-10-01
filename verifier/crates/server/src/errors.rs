@@ -45,9 +45,7 @@ impl IntoResponse for VerifierError {
             VerifierError::GatewayClientError(error) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()).into_response()
             }
-            VerifierError::ValidationError(message) => {
-                (StatusCode::BAD_REQUEST, message).into_response()
-            }
+            VerifierError::ValidationError(message) => (StatusCode::BAD_REQUEST, message).into_response(),
         }
     }
 }

@@ -1,5 +1,5 @@
-use thiserror::Error;
 use persistent_storage::error::DbError;
+use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum DepositVerificationError {

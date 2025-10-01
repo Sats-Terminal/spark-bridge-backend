@@ -2,11 +2,11 @@ use crate::error::GatewayError;
 use crate::init::AppState;
 use axum::Json;
 use axum::extract::State;
-use gateway_deposit_verification::types::NotifyRunesDepositRequest;
-use tracing::instrument;
 use bitcoin::OutPoint;
+use gateway_deposit_verification::types::NotifyRunesDepositRequest;
 use gateway_local_db_store::schemas::deposit_address::DepositStatus;
 use serde::Deserialize;
+use tracing::instrument;
 
 #[derive(Deserialize, Debug)]
 pub struct VerifierNotifyRunesDepositRequest {

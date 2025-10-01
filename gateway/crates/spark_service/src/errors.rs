@@ -1,6 +1,6 @@
-use thiserror::Error;
-use spark_address::SparkAddressError;
 use bitcoin::secp256k1;
+use spark_address::SparkAddressError;
+use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum SparkServiceError {

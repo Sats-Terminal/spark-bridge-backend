@@ -2,22 +2,24 @@ use crate::error::DepositVerificationError;
 use crate::traits::VerificationClient;
 use crate::types::*;
 use crate::types::{NotifyRunesDepositRequest, VerifyRunesDepositRequest, VerifySparkDepositRequest};
-use futures::future::join_all;
-use gateway_flow_processor::flow_sender::{FlowSender, TypedMessageSender};
-use gateway_flow_processor::types::{BridgeRunesRequest, ExitSparkRequest};
-use gateway_local_db_store::schemas::deposit_address::{DepositAddressStorage, DepositStatus, VerifiersResponses, InnerAddress};
-use gateway_local_db_store::schemas::paying_utxo::PayingUtxoStorage;
-use gateway_local_db_store::schemas::utxo_storage::{Utxo, UtxoStatus, UtxoStorage};
+use bitcoin::Network;
+use bitcoin::secp256k1::PublicKey;
 use frost::traits::AggregatorMusigIdStorage;
 use frost::types::AggregatorDkgState;
 use frost::types::AggregatorMusigIdData;
+use futures::future::join_all;
+use gateway_flow_processor::flow_sender::{FlowSender, TypedMessageSender};
+use gateway_flow_processor::types::{BridgeRunesRequest, ExitSparkRequest};
+use gateway_local_db_store::schemas::deposit_address::{
+    DepositAddressStorage, DepositStatus, InnerAddress, VerifiersResponses,
+};
+use gateway_local_db_store::schemas::paying_utxo::PayingUtxoStorage;
+use gateway_local_db_store::schemas::utxo_storage::{Utxo, UtxoStatus, UtxoStorage};
 use gateway_local_db_store::storage::LocalDbStorage;
+use gateway_spark_service::utils::create_wrunes_metadata;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tracing;
-use bitcoin::secp256k1::PublicKey;
-use bitcoin::Network;
-use gateway_spark_service::utils::create_wrunes_metadata;
 
 #[derive(Clone, Debug)]
 pub struct DepositVerificationAggregator {
@@ -49,7 +51,10 @@ impl DepositVerificationAggregator {
         tracing::info!("Verifying runes deposit for address: {}", request.btc_address);
 
         self.storage
-            .update_bridge_address_by_deposit_address(InnerAddress::BitcoinAddress(request.btc_address.clone()), InnerAddress::SparkAddress(request.bridge_address.clone()))
+            .update_bridge_address_by_deposit_address(
+                InnerAddress::BitcoinAddress(request.btc_address.clone()),
+                InnerAddress::SparkAddress(request.bridge_address.clone()),
+            )
             .await?;
 
         let deposit_addr_info = self
@@ -90,7 +95,10 @@ impl DepositVerificationAggregator {
         let verifiers_responses = VerifiersResponses::new(DepositStatus::WaitingForConfirmation, ids);
 
         self.storage
-            .set_confirmation_status_by_deposit_address(InnerAddress::BitcoinAddress(request.btc_address.clone()), verifiers_responses)
+            .set_confirmation_status_by_deposit_address(
+                InnerAddress::BitcoinAddress(request.btc_address.clone()),
+                verifiers_responses,
+            )
             .await?;
 
         let utxo = Utxo {
@@ -103,7 +111,10 @@ impl DepositVerificationAggregator {
         };
         self.storage.insert_utxo(utxo).await?;
 
-        tracing::info!("Runes deposit verification sent for address: {}", request.btc_address.to_string());
+        tracing::info!(
+            "Runes deposit verification sent for address: {}",
+            request.btc_address.to_string()
+        );
 
         Ok(())
     }
@@ -131,7 +142,11 @@ impl DepositVerificationAggregator {
         let btc_address = utxo.btc_address;
 
         self.storage
-            .update_confirmation_status_by_deposit_address(InnerAddress::BitcoinAddress(btc_address.clone()), request.verifier_id, request.status)
+            .update_confirmation_status_by_deposit_address(
+                InnerAddress::BitcoinAddress(btc_address.clone()),
+                request.verifier_id,
+                request.status,
+            )
             .await?;
 
         let confirmation_status_info = self
@@ -176,7 +191,10 @@ impl DepositVerificationAggregator {
     ) -> Result<(), DepositVerificationError> {
         tracing::info!("Verifying spark deposit for spark address: {}", request.spark_address);
         self.storage
-            .update_bridge_address_by_deposit_address(InnerAddress::SparkAddress(request.spark_address.clone()), InnerAddress::BitcoinAddress(request.exit_address.clone()))
+            .update_bridge_address_by_deposit_address(
+                InnerAddress::SparkAddress(request.spark_address.clone()),
+                InnerAddress::BitcoinAddress(request.exit_address.clone()),
+            )
             .await?;
         self.storage.insert_paying_utxo(request.paying_input).await?;
 
@@ -187,22 +205,40 @@ impl DepositVerificationAggregator {
             .ok_or(DepositVerificationError::NotFound(
                 "Deposit address info not found".to_string(),
             ))?;
-        
+
         let dkg_state = self.storage.get_musig_id_data(&deposit_addr_info.musig_id).await?;
         let token_identifier = match dkg_state {
             Some(AggregatorMusigIdData {
                 dkg_state: AggregatorDkgState::DkgFinalized { public_key_package },
             }) => {
-                let musig_public_key_bytes = public_key_package.verifying_key().serialize()
-                    .map_err(|e| DepositVerificationError::InvalidDataError(format!("Failed to serialize issuer musig public key: {}", e)))?;
-                let musig_public_key = PublicKey::from_slice(&musig_public_key_bytes)
-                    .map_err(|e| DepositVerificationError::InvalidDataError(format!("Failed to deserialize issuer musig public key: {}", e)))?;
+                let musig_public_key_bytes = public_key_package.verifying_key().serialize().map_err(|e| {
+                    DepositVerificationError::InvalidDataError(format!(
+                        "Failed to serialize issuer musig public key: {}",
+                        e
+                    ))
+                })?;
+                let musig_public_key = PublicKey::from_slice(&musig_public_key_bytes).map_err(|e| {
+                    DepositVerificationError::InvalidDataError(format!(
+                        "Failed to deserialize issuer musig public key: {}",
+                        e
+                    ))
+                })?;
 
-                let wrunes_metadata = create_wrunes_metadata(deposit_addr_info.musig_id.get_rune_id(), musig_public_key, self.network)
-                    .map_err(|e| DepositVerificationError::InvalidDataError(format!("Failed to create wrunes metadata: {}", e)))?;
+                let wrunes_metadata =
+                    create_wrunes_metadata(deposit_addr_info.musig_id.get_rune_id(), musig_public_key, self.network)
+                        .map_err(|e| {
+                            DepositVerificationError::InvalidDataError(format!(
+                                "Failed to create wrunes metadata: {}",
+                                e
+                            ))
+                        })?;
                 wrunes_metadata.token_identifier
-            },
-            _ => return Err(DepositVerificationError::NotFound("Token identifier not found".to_string())),
+            }
+            _ => {
+                return Err(DepositVerificationError::NotFound(
+                    "Token identifier not found".to_string(),
+                ));
+            }
         };
 
         let watch_spark_deposit_request = WatchSparkDepositRequest {
@@ -240,7 +276,10 @@ impl DepositVerificationAggregator {
         let all_verifiers_confirmed = verifiers_responses.check_all_verifiers_confirmed();
 
         self.storage
-            .set_confirmation_status_by_deposit_address(InnerAddress::SparkAddress(request.spark_address.clone()), verifiers_responses)
+            .set_confirmation_status_by_deposit_address(
+                InnerAddress::SparkAddress(request.spark_address.clone()),
+                verifiers_responses,
+            )
             .await?;
 
         if all_verifiers_confirmed {

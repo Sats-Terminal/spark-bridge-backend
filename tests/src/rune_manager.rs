@@ -1,20 +1,23 @@
 use crate::bitcoin_client::BitcoinClient;
+use crate::constants::{
+    BLOCKS_TO_GENERATE, DEFAULT_DUST_AMOUNT, DEFAULT_FAUCET_AMOUNT, DEFAULT_FEE_AMOUNT, DEFAULT_RUNE_AMOUNT,
+    DEFAULT_RUNE_CAP,
+};
+use crate::error::RuneError;
+use crate::rune_etching::{EtchRuneParams, etch_rune};
+use crate::utils::create_credentials;
+use crate::utils::sign_transaction;
 use bitcoin::Address;
 use bitcoin::key::Keypair;
-use rand_core::{OsRng, RngCore};
-use crate::utils::create_credentials;
-use crate::error::RuneError;
-use ordinals::RuneId;
-use crate::rune_etching::{EtchRuneParams, etch_rune};
-use bitcoin::{TxIn, OutPoint, Sequence, Witness, TxOut, Amount, ScriptBuf, Transaction, Txid};
 use bitcoin::transaction::Version;
-use tokio::time::sleep;
+use bitcoin::{Amount, OutPoint, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Txid, Witness};
+use ordinals::RuneId;
+use ordinals::Runestone;
+use rand_core::{OsRng, RngCore};
+use std::str::FromStr;
 use std::time::Duration;
 use titan_client::SpentStatus;
-use ordinals::Runestone;
-use std::str::FromStr;
-use crate::utils::sign_transaction;
-use crate::constants::{BLOCKS_TO_GENERATE, DEFAULT_FEE_AMOUNT, DEFAULT_DUST_AMOUNT, DEFAULT_RUNE_AMOUNT, DEFAULT_RUNE_CAP, DEFAULT_FAUCET_AMOUNT};
+use tokio::time::sleep;
 
 pub struct RuneManager {
     bitcoin_client: BitcoinClient,
@@ -30,15 +33,24 @@ impl RuneManager {
         bitcoin_client.faucet(p2tr_address.clone(), DEFAULT_FAUCET_AMOUNT)?;
         sleep(Duration::from_secs(1)).await;
 
-        let rune_id = etch_rune(EtchRuneParams {
-            rune_name: random_rune_name(),
-            cap: DEFAULT_RUNE_CAP,
-            amount: DEFAULT_RUNE_AMOUNT,
-            key_pair: keypair,
-            faucet_address: p2tr_address.clone(),
-        }, bitcoin_client.clone()).await?;
+        let rune_id = etch_rune(
+            EtchRuneParams {
+                rune_name: random_rune_name(),
+                cap: DEFAULT_RUNE_CAP,
+                amount: DEFAULT_RUNE_AMOUNT,
+                key_pair: keypair,
+                faucet_address: p2tr_address.clone(),
+            },
+            bitcoin_client.clone(),
+        )
+        .await?;
 
-        let mut rune_manager = Self { bitcoin_client, p2tr_address, keypair, rune_id };
+        let mut rune_manager = Self {
+            bitcoin_client,
+            p2tr_address,
+            keypair,
+            rune_id,
+        };
         let _ = rune_manager.unite_unspent_utxos().await?;
         rune_manager.bitcoin_client.generate_blocks(BLOCKS_TO_GENERATE, None)?;
         sleep(Duration::from_secs(1)).await;
@@ -54,14 +66,16 @@ impl RuneManager {
         tracing::info!("Uniting unspent utxos");
 
         let address_data = self.bitcoin_client.get_address_data(self.p2tr_address.clone()).await?;
-        
+
         let mut total_amount = 0;
         let mut prev_input_amounts = vec![];
         let mut txins = vec![];
 
         for utxo in address_data.outputs.iter() {
             if !utxo.status.confirmed {
-                return Err(RuneError::UniteUnspentUtxosError("Unspent utxo is not confirmed".to_string()));
+                return Err(RuneError::UniteUnspentUtxosError(
+                    "Unspent utxo is not confirmed".to_string(),
+                ));
             }
             if let SpentStatus::Unspent = utxo.spent {
                 total_amount += utxo.value;
@@ -83,7 +97,7 @@ impl RuneManager {
             value: Amount::from_sat(total_amount - DEFAULT_FEE_AMOUNT),
             script_pubkey: self.p2tr_address.script_pubkey(),
         };
-        
+
         let mut transaction = Transaction {
             version: Version::TWO,
             lock_time: bitcoin::absolute::LockTime::ZERO,
@@ -91,7 +105,12 @@ impl RuneManager {
             output: vec![txout],
         };
 
-        sign_transaction(&mut transaction, prev_input_amounts, self.p2tr_address.clone(), self.keypair)?;
+        sign_transaction(
+            &mut transaction,
+            prev_input_amounts,
+            self.p2tr_address.clone(),
+            self.keypair,
+        )?;
 
         let txid = transaction.compute_txid();
         self.bitcoin_client.broadcast_transaction(transaction)?;
@@ -107,15 +126,20 @@ impl RuneManager {
         for output in address_data.outputs.iter() {
             if output.value >= 100_000 {
                 if let SpentStatus::Unspent = output.spent {
-                    return Ok((OutPoint {
-                        txid: Txid::from_str(&output.txid.to_string()).unwrap(),
-                        vout: output.vout,
-                    }, output.value));
+                    return Ok((
+                        OutPoint {
+                            txid: Txid::from_str(&output.txid.to_string()).unwrap(),
+                            vout: output.vout,
+                        },
+                        output.value,
+                    ));
                 }
             }
         }
 
-        Err(RuneError::GetFundedOutpointError("Failed to get funded outpoint".to_string()))
+        Err(RuneError::GetFundedOutpointError(
+            "Failed to get funded outpoint".to_string(),
+        ))
     }
 
     pub async fn mint_rune(&mut self, address: Address) -> Result<Txid, RuneError> {
@@ -169,7 +193,6 @@ impl RuneManager {
 
         Ok(txid)
     }
-
 }
 
 pub fn random_rune_name() -> String {
@@ -178,7 +201,10 @@ pub fn random_rune_name() -> String {
     let mut rng = OsRng;
     for _ in 0..15 {
         let random_num = rng.next_u32() as usize % letters.len();
-        let new_char = letters.chars().nth(random_num).expect("should be able to generate a random rune name");
+        let new_char = letters
+            .chars()
+            .nth(random_num)
+            .expect("should be able to generate a random rune name");
         result.push(new_char);
     }
     result

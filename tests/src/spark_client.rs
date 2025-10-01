@@ -1,27 +1,29 @@
+use crate::error::SparkClientError;
+use bitcoin::hashes::{Hash, sha256};
+use bitcoin::secp256k1::PublicKey;
+use bitcoin::secp256k1::{Keypair, Message as BitcoinMessage, Secp256k1};
+use hex;
+use rand_core::OsRng;
+use rustls;
+use spark_address::decode_spark_address;
+use spark_protos::prost::Message;
+use spark_protos::spark::QueryTokenOutputsRequest;
 use spark_protos::spark::spark_service_client::SparkServiceClient;
 use spark_protos::spark_authn::spark_authn_service_client::SparkAuthnServiceClient;
+use spark_protos::spark_authn::{GetChallengeRequest, VerifyChallengeRequest};
 use spark_protos::spark_token::spark_token_service_client::SparkTokenServiceClient;
-use spark_protos::spark_token::{StartTransactionRequest, StartTransactionResponse, CommitTransactionRequest, CommitTransactionResponse};
-use spark_protos::spark_authn::{VerifyChallengeRequest, GetChallengeRequest};
-use tonic::transport::{Channel, ClientTlsConfig, Uri, Certificate};
-use crate::error::SparkClientError;
+use spark_protos::spark_token::{
+    CommitTransactionRequest, CommitTransactionResponse, StartTransactionRequest, StartTransactionResponse,
+};
+use std::collections::HashMap;
 use std::str::FromStr;
-use spark_protos::spark::QueryTokenOutputsRequest;
-use spark_address::{decode_spark_address};
-use tracing;
-use hex;
-use token_identifier::TokenIdentifier;
 use std::sync::Once;
-use rustls;
 use std::time::{SystemTime, UNIX_EPOCH};
-use bitcoin::secp256k1::{Secp256k1, Message as BitcoinMessage, Keypair};
-use bitcoin::hashes::{sha256, Hash};
-use rand_core::OsRng;
-use spark_protos::prost::Message;
+use token_identifier::TokenIdentifier;
 use tonic::Request;
 use tonic::metadata::MetadataValue;
-use bitcoin::secp256k1::PublicKey;
-use std::collections::HashMap;
+use tonic::transport::{Certificate, Channel, ClientTlsConfig, Uri};
+use tracing;
 
 pub fn current_epoch_time_in_seconds() -> u64 {
     let now = SystemTime::now();
@@ -83,12 +85,16 @@ impl SparkClient {
     pub async fn new(config: SparkClientConfig) -> Result<Self, SparkClientError> {
         install_rustls_provider();
         let channel = create_tls_channel(config.clone()).await?;
-        let operator_public_keys = config.operator_public_keys.iter().map(|key| PublicKey::from_str(key)).collect::<Result<Vec<PublicKey>, _>>()
+        let operator_public_keys = config
+            .operator_public_keys
+            .iter()
+            .map(|key| PublicKey::from_str(key))
+            .collect::<Result<Vec<PublicKey>, _>>()
             .map_err(|e| SparkClientError::DecodeError(format!("Failed to decode operator public key: {}", e)))?;
         let token_client = SparkTokenServiceClient::new(channel.clone());
-        Ok(Self { 
-            client: SparkServiceClient::new(channel.clone()), 
-            authn_client: SparkAuthnServiceClient::new(channel.clone()), 
+        Ok(Self {
+            client: SparkServiceClient::new(channel.clone()),
+            authn_client: SparkAuthnServiceClient::new(channel.clone()),
             token_client,
             session_tokens: HashMap::new(),
             keypair: Keypair::new(&Secp256k1::new(), &mut OsRng),
@@ -113,9 +119,13 @@ impl SparkClient {
         };
 
         if need_to_authenticate {
-            let response = self.authn_client.get_challenge(GetChallengeRequest {
-                public_key: keypair.public_key().serialize().to_vec(),
-            }).await?.into_inner();
+            let response = self
+                .authn_client
+                .get_challenge(GetChallengeRequest {
+                    public_key: keypair.public_key().serialize().to_vec(),
+                })
+                .await?
+                .into_inner();
 
             let protected_challenge = response.protected_challenge;
             let challenge = protected_challenge
@@ -126,26 +136,42 @@ impl SparkClient {
 
             let message_hash = sha256::Hash::hash(challenge.encode_to_vec().as_slice());
             let message = BitcoinMessage::from_digest(message_hash.as_byte_array().clone());
-        
+
             let secp = Secp256k1::new();
             let signature = secp.sign_schnorr_no_aux_rand(&message, &keypair);
 
-            let response = self.authn_client.verify_challenge(VerifyChallengeRequest {
-                protected_challenge,
-                signature: signature.serialize().to_vec(),
-                public_key: keypair.public_key().serialize().to_vec(),
-            }).await?.into_inner();
+            let response = self
+                .authn_client
+                .verify_challenge(VerifyChallengeRequest {
+                    protected_challenge,
+                    signature: signature.serialize().to_vec(),
+                    public_key: keypair.public_key().serialize().to_vec(),
+                })
+                .await?
+                .into_inner();
 
-            self.session_tokens.insert(keypair.public_key(), SparkAuthSession {
-                session_token: response.session_token,
-                expiration_time: response.expiration_timestamp as u64,
-            });
+            self.session_tokens.insert(
+                keypair.public_key(),
+                SparkAuthSession {
+                    session_token: response.session_token,
+                    expiration_time: response.expiration_timestamp as u64,
+                },
+            );
         }
 
-        self.session_tokens.get(&keypair.public_key()).cloned().ok_or(SparkClientError::SessionTokenNotFound(format!("Session token not found for public key: {}", keypair.public_key())))
+        self.session_tokens
+            .get(&keypair.public_key())
+            .cloned()
+            .ok_or(SparkClientError::SessionTokenNotFound(format!(
+                "Session token not found for public key: {}",
+                keypair.public_key()
+            )))
     }
 
-    pub async fn get_spark_address_data(&mut self, request: GetSparkAddressDataRequest) -> Result<GetSparkAddressDataResponse, SparkClientError> {
+    pub async fn get_spark_address_data(
+        &mut self,
+        request: GetSparkAddressDataRequest,
+    ) -> Result<GetSparkAddressDataResponse, SparkClientError> {
         tracing::debug!("Getting spark address data for {}", request.spark_address);
 
         let session_token = self.authenticate(self.keypair.clone()).await?;
@@ -163,29 +189,45 @@ impl SparkClient {
         let mut request = Request::new(request);
         create_request(&mut request, self.keypair.public_key(), session_token)?;
 
-        let response = self.client.query_token_outputs(
-            request
-        ).await?.into_inner();
+        let response = self.client.query_token_outputs(request).await?.into_inner();
 
         let mut token_outputs = vec![];
         for output in response.outputs_with_previous_transaction_data {
-            let inner_output = output.output.ok_or(SparkClientError::DecodeError("Output is not found".to_string()))?;
+            let inner_output = output
+                .output
+                .ok_or(SparkClientError::DecodeError("Output is not found".to_string()))?;
 
             let new_token_output = SparkTokenOutput {
-                token_identifier: TokenIdentifier::from_bytes(inner_output.token_identifier.as_ref().ok_or(SparkClientError::DecodeError("Token identifier is not found".to_string()))?.as_slice())?,
-                amount: u128::from_be_bytes(inner_output.token_amount.clone().try_into().map_err(|_| SparkClientError::DecodeError(format!("Failed to decode token amount")))?),
+                token_identifier: TokenIdentifier::from_bytes(
+                    inner_output
+                        .token_identifier
+                        .as_ref()
+                        .ok_or(SparkClientError::DecodeError(
+                            "Token identifier is not found".to_string(),
+                        ))?
+                        .as_slice(),
+                )?,
+                amount: u128::from_be_bytes(
+                    inner_output
+                        .token_amount
+                        .clone()
+                        .try_into()
+                        .map_err(|_| SparkClientError::DecodeError(format!("Failed to decode token amount")))?,
+                ),
                 prev_token_transaction_hash: output.previous_transaction_hash,
                 prev_token_transaction_vout: output.previous_transaction_vout,
             };
             token_outputs.push(new_token_output);
         }
 
-        Ok(GetSparkAddressDataResponse {
-            token_outputs,
-        })
+        Ok(GetSparkAddressDataResponse { token_outputs })
     }
 
-    pub async fn start_spark_transaction(&mut self, request: StartTransactionRequest, keypair: Keypair) -> Result<StartTransactionResponse, SparkClientError> {
+    pub async fn start_spark_transaction(
+        &mut self,
+        request: StartTransactionRequest,
+        keypair: Keypair,
+    ) -> Result<StartTransactionResponse, SparkClientError> {
         let session_token = self.authenticate(keypair).await?;
 
         let mut request = Request::new(request);
@@ -196,7 +238,11 @@ impl SparkClient {
         Ok(response)
     }
 
-    pub async fn commit_spark_transaction(&mut self, request: CommitTransactionRequest, keypair: Keypair) -> Result<CommitTransactionResponse, SparkClientError> {
+    pub async fn commit_spark_transaction(
+        &mut self,
+        request: CommitTransactionRequest,
+        keypair: Keypair,
+    ) -> Result<CommitTransactionResponse, SparkClientError> {
         let session_token = self.authenticate(keypair).await?;
 
         let mut request = Request::new(request);
@@ -236,9 +282,7 @@ pub fn create_request<T>(
 ) -> Result<(), SparkClientError> {
     let identity_public_key_str = hex::encode(user_public_key.serialize());
     let id_meta = MetadataValue::try_from(identity_public_key_str).unwrap(); // TODO: handle error
-    request
-        .metadata_mut()
-        .insert("x-identity-public-key", id_meta);
+    request.metadata_mut().insert("x-identity-public-key", id_meta);
 
     let session_token = MetadataValue::try_from(spark_session.session_token)
         .map_err(|e| SparkClientError::DecodeError(format!("Failed to decode session token: {}", e)))?;

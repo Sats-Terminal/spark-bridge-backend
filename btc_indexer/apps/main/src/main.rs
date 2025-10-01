@@ -17,7 +17,7 @@ async fn main() -> anyhow::Result<()> {
     // Init configs
     let config_path = ConfigPath::from_env()?;
     let app_config = ServerConfig::init_config(ConfigVariant::OnlyOneFilepath(config_path.path))?;
-    
+
     let btc_creds = BtcRpcCredentials {
         url: app_config.bitcoin_rpc_config.url,
         network: app_config.network_config.network,

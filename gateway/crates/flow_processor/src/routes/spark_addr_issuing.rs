@@ -6,7 +6,7 @@ use frost::types::AggregatorDkgState;
 use frost::utils::convert_public_key_package;
 use frost::utils::generate_nonce;
 use gateway_local_db_store::schemas::deposit_address::{
-    DepositAddrInfo, DepositAddressStorage, DepositStatus, VerifiersResponses, InnerAddress,
+    DepositAddrInfo, DepositAddressStorage, DepositStatus, InnerAddress, VerifiersResponses,
 };
 use gateway_spark_service::utils::convert_network_to_spark_network;
 use spark_address::{SparkAddressData, encode_spark_address};

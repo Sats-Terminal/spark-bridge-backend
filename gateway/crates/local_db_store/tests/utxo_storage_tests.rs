@@ -1,6 +1,6 @@
 mod tests {
     use chrono::Utc;
-    use gateway_local_db_store::storage::{make_repo_with_config, LocalDbStorage};
+    use gateway_local_db_store::storage::{LocalDbStorage, make_repo_with_config};
     // use gateway_runes_utxo_manager::traits::{CoinSelector, Utxo, UtxoManager, UtxoStatus, UtxoStorage};
     // use gateway_runes_utxo_manager::utxo_manager::GreedySelector;
     use gateway_local_db_store::schemas::utxo_storage::Utxo;

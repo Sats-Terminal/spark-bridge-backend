@@ -1,10 +1,10 @@
 use global_utils::config_path::ConfigPath;
 use global_utils::logger::init_logger;
+use rustls;
 use spark_balance_checker_config_parser::config::ServerConfig;
 use spark_balance_checker_server::init::create_app;
-use tokio::{self, net::TcpListener};
 use std::sync::Once;
-use rustls;
+use tokio::{self, net::TcpListener};
 
 fn install_rustls_provider() {
     static ONCE: Once = Once::new();
@@ -32,13 +32,5 @@ async fn main() {
     let listener = TcpListener::bind(addr_to_listen.clone()).await.unwrap();
 
     tracing::info!("Listening on {:?}", addr_to_listen);
-    #[cfg(feature = "swagger")]
-    {
-        tracing::info!(
-            "Swagger UI available at {}/swagger-ui/",
-            config.app_config.ip,
-            config.app_config.port
-        );
-    }
     axum::serve(listener, app).await.unwrap();
 }

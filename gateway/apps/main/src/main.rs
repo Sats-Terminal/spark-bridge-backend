@@ -15,10 +15,9 @@ use persistent_storage::config::PostgresDbCredentials;
 use persistent_storage::init::PostgresRepo;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
+use std::sync::Once;
 use tokio::net::TcpListener;
 use tracing::instrument;
-use std::sync::Once;
-
 
 fn install_rustls_provider() {
     static ONCE: Once = Once::new();
@@ -28,7 +27,6 @@ fn install_rustls_provider() {
             .expect("install rustls crypto provider");
     });
 }
-
 
 #[instrument(level = "trace", ret)]
 #[tokio::main]
@@ -49,7 +47,7 @@ async fn main() {
     };
     let db_pool = LocalDbStorage {
         postgres_repo: PostgresRepo::from_config(postgres_creds).await.unwrap(),
-        network: server_config.network.network
+        network: server_config.network.network,
     };
     let shared_db_pool = Arc::new(db_pool);
 
@@ -81,8 +79,12 @@ async fn main() {
         let verifier_client = VerifierClient::new(verifier.clone());
         verifier_clients_hash_map.insert(verifier.id, Arc::new(verifier_client));
     }
-    let deposit_verification_aggregator =
-        DepositVerificationAggregator::new(flow_sender.clone(), verifier_clients_hash_map, shared_db_pool.clone(), server_config.network.network);
+    let deposit_verification_aggregator = DepositVerificationAggregator::new(
+        flow_sender.clone(),
+        verifier_clients_hash_map,
+        shared_db_pool.clone(),
+        server_config.network.network,
+    );
 
     // Create App
     let app = create_app(

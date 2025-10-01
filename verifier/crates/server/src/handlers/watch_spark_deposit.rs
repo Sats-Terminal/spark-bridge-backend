@@ -5,11 +5,11 @@ use axum::extract::State;
 use frost::types::MusigId;
 use frost::types::Nonce;
 use serde::{Deserialize, Serialize};
-use verifier_local_db_store::schemas::deposit_address::DepositAddressStorage;
-use verifier_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositStatus, TxRejectReason, InnerAddress};
-use verifier_spark_balance_checker_client::client::GetBalanceRequest;
-use tracing;
 use token_identifier::TokenIdentifier;
+use tracing;
+use verifier_local_db_store::schemas::deposit_address::DepositAddressStorage;
+use verifier_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositStatus, InnerAddress, TxRejectReason};
+use verifier_spark_balance_checker_client::client::GetBalanceRequest;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WatchSparkDepositRequest {
@@ -44,7 +44,7 @@ pub async fn handle(
             out_point: None,
             deposit_address: deposit_address.clone(),
             bridge_address,
-            is_btc: false, 
+            is_btc: false,
             deposit_amount: request.amount,
             sats_fee_amount: None,
             confirmation_status: DepositStatus::WaitingForConfirmation,

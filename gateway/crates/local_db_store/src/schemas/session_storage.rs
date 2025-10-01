@@ -106,9 +106,9 @@ impl SessionStorage for LocalDbStorage {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::storage::make_repo_with_config;
     use persistent_storage::error::DbError as DatabaseError;
     use std::sync::Arc;
-    use crate::storage::{make_repo_with_config};
 
     pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
 

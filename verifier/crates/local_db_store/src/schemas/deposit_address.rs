@@ -94,20 +94,10 @@ impl DepositAddrInfo {
         }
     }
 
-    fn from_db_format(
-        musig_id: MusigId,
-        nonce: Nonce,
-        db_info: DbDepositAddrInfo,
-    ) -> Result<Self, String> {
-        let deposit_address = InnerAddress::from_string_and_type(
-            db_info.deposit_address,
-            db_info.is_btc
-        )?;
+    fn from_db_format(musig_id: MusigId, nonce: Nonce, db_info: DbDepositAddrInfo) -> Result<Self, String> {
+        let deposit_address = InnerAddress::from_string_and_type(db_info.deposit_address, db_info.is_btc)?;
 
-        let bridge_address = InnerAddress::from_string_and_type(
-            db_info.bridge_address,
-            !db_info.is_btc
-        )?;
+        let bridge_address = InnerAddress::from_string_and_type(db_info.bridge_address, !db_info.is_btc)?;
 
         Ok(DepositAddrInfo {
             musig_id,
@@ -126,7 +116,7 @@ impl DepositAddrInfo {
 #[async_trait]
 pub trait DepositAddressStorage: Send + Sync + Debug {
     async fn get_deposit_addr_info(&self, musig_id: &MusigId, tweak: Nonce)
-                                   -> Result<Option<DepositAddrInfo>, DbError>;
+    -> Result<Option<DepositAddrInfo>, DbError>;
     async fn set_deposit_addr_info(&self, deposit_addr_info: DepositAddrInfo) -> Result<(), DbError>;
     async fn set_confirmation_status_by_out_point(
         &self,
@@ -165,14 +155,14 @@ impl DepositAddressStorage for LocalDbStorage {
 
         match result {
             Some((
-                     deposit_address_str,
-                     bridge_address_str,
-                     is_btc,
-                     deposit_amount,
-                     sats_fee_amount,
-                     out_point_str,
-                     confirmation_status,
-                 )) => {
+                deposit_address_str,
+                bridge_address_str,
+                is_btc,
+                deposit_amount,
+                sats_fee_amount,
+                out_point_str,
+                confirmation_status,
+            )) => {
                 let out_point = match out_point_str {
                     Some(out_point_str) => Some(
                         OutPoint::from_str(&out_point_str)
