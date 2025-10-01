@@ -193,20 +193,39 @@ impl UserWallet {
             witness: Witness::new(),
         };
 
-        let txouts = vec![
+        let mut txouts = vec![
             TxOut {
                 value: Amount::from_sat(0),
                 script_pubkey: op_return_script,
             },
-            TxOut {
-                value: Amount::from_sat(DEFAULT_DUST_AMOUNT),
-                script_pubkey: transfer_address.script_pubkey(),
-            },
-            TxOut {
-                value: Amount::from_sat(value - DEFAULT_FEE_AMOUNT - DEFAULT_DUST_AMOUNT),
-                script_pubkey: self.p2tr_address.script_pubkey(),
-            },
         ];
+
+        match transfer_type {
+            TransferType::RuneTransfer { rune_amount: _ } => {
+                txouts.extend(vec![
+                    TxOut {
+                        value: Amount::from_sat(DEFAULT_DUST_AMOUNT),
+                        script_pubkey: transfer_address.script_pubkey(),
+                    },
+                    TxOut {
+                        value: Amount::from_sat(value - DEFAULT_FEE_AMOUNT - DEFAULT_DUST_AMOUNT),
+                        script_pubkey: self.p2tr_address.script_pubkey(),
+                    },
+                ]);
+            }
+            TransferType::BtcTransfer { sats_amount } => {
+                txouts.extend(vec![
+                    TxOut {
+                        value: Amount::from_sat(sats_amount),
+                        script_pubkey: transfer_address.script_pubkey(),
+                    },
+                    TxOut {
+                        value: Amount::from_sat(value - DEFAULT_FEE_AMOUNT - sats_amount),
+                        script_pubkey: self.p2tr_address.script_pubkey(),
+                    },
+                ]);
+            }
+        }
 
         let mut transaction = Transaction {
             version: Version::TWO,
@@ -506,7 +525,7 @@ impl UserWallet {
 
         let paying_input = UserPayingTransferInput {
             txid: txid.to_string(),
-            vout: 0,
+            vout: 1,
             btc_exit_address: self.p2tr_address.clone().to_string(),
             sats_amount: PAYING_INPUT_SATS_AMOUNT,
             none_anyone_can_pay_signature: signature,
