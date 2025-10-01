@@ -1,4 +1,5 @@
 use bitcoin::Network;
+use frost::aggregator::FrostAggregator;
 use gateway_config_parser::config::ServerConfig;
 use global_utils::config_path::ConfigPath;
 pub use persistent_storage::error::DbError;
@@ -25,6 +26,10 @@ impl LocalDbStorage {
 
     pub async fn get_conn(&self) -> Result<PostgresPool, DbError> {
         Ok(self.postgres_repo.pool.clone())
+    }
+
+    pub fn into_shared(self) -> Arc<Self> {
+        Arc::new(self)
     }
 }
 

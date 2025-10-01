@@ -32,6 +32,10 @@ impl FrostAggregator {
         }
     }
 
+    pub fn into_shared(self) -> Arc<Self> {
+        Arc::new(self)
+    }
+
     #[instrument]
     async fn dkg_round_1(&self, dkg_share_id: &DkgShareId) -> Result<(), AggregatorError> {
         let dkg_share_data = self.dkg_share_storage.get_dkg_share_agg_data(dkg_share_id).await?;

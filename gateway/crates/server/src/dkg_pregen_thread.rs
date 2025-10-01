@@ -3,7 +3,9 @@ use gateway_config_parser::config::DkgPregenConfig;
 use gateway_deposit_verification::aggregator::DepositVerificationAggregator;
 use gateway_local_db_store::schemas::dkg_share::DkgShareGenerate;
 use gateway_local_db_store::storage::LocalDbStorage;
+use global_utils::common_types::get_uuid;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
@@ -12,16 +14,13 @@ use tracing::{debug, error, instrument, trace};
 
 const LOG_PATH: &str = "dkg_pregen_thread";
 
+static EPOCH: AtomicU64 = AtomicU64::new(0);
+
 pub struct DkgPregenThread {}
 
 struct UpdatePossibility {
     dkg_available: u64,
     finalized_dkg_available: u64,
-}
-
-struct UpdateDecision {
-    dkg_available: u64,
-    amount_to_generate: u64,
 }
 
 type Storage = Arc<LocalDbStorage>;
@@ -97,18 +96,19 @@ impl DkgPregenThread {
     /// Pregenerates shares for dkg state
     async fn pregenerate_shares(local_db: Storage, dkg_aggregator: Aggreagator, amount: u64) -> anyhow::Result<()> {
         let mut join_set = JoinSet::new();
+        trace!("[{LOG_PATH}] Pregenerating epoch {}", EPOCH.load(Ordering::SeqCst));
         for _ in 0..amount {
             join_set.spawn({
                 let (local_db, aggregator) = (local_db.clone(), dkg_aggregator.clone());
                 async move { Self::pregenerate_share(local_db, aggregator).await }
             });
         }
-        // TODO: add error handling and logs | maybe set atomic variable for generations and some uuid as task id
-        let _results = join_set.join_all().await;
+        let _ = join_set.join_all().await;
+        EPOCH.fetch_add(1, Ordering::SeqCst);
         Ok(())
     }
 
-    #[instrument(level = "trace", skip(local_db, aggregator), ret)]
+    #[instrument(level = "trace", skip(local_db, aggregator), fields(epoch=EPOCH.load(Ordering::SeqCst)), err)]
     async fn pregenerate_share(local_db: Storage, aggregator: Aggreagator) -> anyhow::Result<()> {
         let initialized_entity = local_db.generate_dkg_share_entity().await?;
         aggregator.run_dkg_flow(&initialized_entity).await?;

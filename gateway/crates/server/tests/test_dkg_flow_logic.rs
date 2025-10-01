@@ -1,6 +1,6 @@
 mod utils;
 mod tests {
-    use crate::utils::common::{CONFIG_PATH, MIGRATOR, TEST_LOGGER};
+    use crate::utils::common::{CONFIG_PATH, TEST_LOGGER};
     use frost::aggregator::FrostAggregator;
     use frost::mocks::{MockSignerClient, MockSignerDkgShareIdStorage, MockSignerSignSessionStorage};
     use frost::signer::FrostSigner;
@@ -14,11 +14,93 @@ mod tests {
     use persistent_storage::init::{PostgresPool, PostgresRepo};
     use std::collections::BTreeMap;
     use std::sync::Arc;
+    use std::time::Duration;
+    use tokio_util::sync::CancellationToken;
+    use tokio_util::task::TaskTracker;
 
-    #[sqlx::test(migrator = "MIGRATOR")]
+    #[sqlx::test(migrator = "crate::utils::common::MIGRATOR")]
     async fn test_dkg_flow_logic(db: PostgresPool) -> anyhow::Result<()> {
         let _logger_guard = &*TEST_LOGGER;
         _test_dkg_flow_logic(db).await
+    }
+
+    #[sqlx::test(migrator = "crate::utils::common::MIGRATOR")]
+    async fn test_dkg_flow_thread(db: PostgresPool) -> anyhow::Result<()> {
+        let _logger_guard = &*TEST_LOGGER;
+        _test_dkg_flow_logic(db).await
+    }
+
+    async fn _test_dkg_flow_thread(db: sqlx::PgPool) -> anyhow::Result<()> {
+        let mut server_config = ServerConfig::init_config(CONFIG_PATH.to_string());
+        let local_repo = LocalDbStorage {
+            postgres_repo: PostgresRepo { pool: db },
+            btc_network: server_config.network.network,
+        }
+        .into_shared();
+        server_config.dkg_pregen_config.min_threshold = 15;
+        let verifiers_map = create_verifiers_map().await;
+        let aggregator = FrostAggregator::new(verifiers_map, local_repo.clone(), local_repo.clone()).into_shared();
+        let cancellation_token = CancellationToken::new();
+        let mut task_tracker = TaskTracker::new();
+
+        DkgPregenThread::spawn_thread(
+            &mut task_tracker,
+            local_repo.clone(),
+            server_config.dkg_pregen_config,
+            aggregator,
+            cancellation_token.clone(),
+        )
+        .await;
+
+        // Wait for filling dkg pregens
+        tokio::time::sleep(Duration::from_millis(
+            server_config.dkg_pregen_config.update_interval_millis * 3,
+        ))
+        .await;
+        assert_eq!(
+            local_repo.count_unused_dkg_shares().await?,
+            server_config.dkg_pregen_config.min_threshold
+        );
+        assert_eq!(
+            local_repo.count_unused_finalized_dkg_shares().await?,
+            server_config.dkg_pregen_config.min_threshold
+        );
+
+        // Use 1 dkg share and wait for filling it
+        use_one_dkg_share(&local_repo).await?;
+        tokio::time::sleep(Duration::from_millis(
+            server_config.dkg_pregen_config.update_interval_millis,
+        ))
+        .await;
+        assert_eq!(
+            local_repo.count_unused_dkg_shares().await?,
+            server_config.dkg_pregen_config.min_threshold
+        );
+        assert_eq!(
+            local_repo.count_unused_finalized_dkg_shares().await?,
+            server_config.dkg_pregen_config.min_threshold
+        );
+
+        // Use 10 dkg shares and wait for filling it
+        for _ in 0..10 {
+            use_one_dkg_share(&local_repo).await?;
+        }
+        tokio::time::sleep(Duration::from_millis(
+            server_config.dkg_pregen_config.update_interval_millis * 2,
+        ))
+        .await;
+        assert_eq!(
+            local_repo.count_unused_dkg_shares().await?,
+            server_config.dkg_pregen_config.min_threshold
+        );
+        assert_eq!(
+            local_repo.count_unused_finalized_dkg_shares().await?,
+            server_config.dkg_pregen_config.min_threshold
+        );
+
+        // Close thread
+        cancellation_token.cancel();
+        Ok(())
     }
 
     async fn _test_dkg_flow_logic(db: sqlx::PgPool) -> anyhow::Result<()> {
@@ -52,13 +134,7 @@ mod tests {
         }
         // emulate using of dkgs
         for _ in 0..finished_used_dkgs_num {
-            let _ = local_repo
-                .get_random_unused_dkg_share(UserIdentifierData {
-                    public_key: "some pubkey".to_string(),
-                    rune_id: "1:124000".to_string(),
-                    is_issuer: false,
-                })
-                .await?;
+            use_one_dkg_share(&local_repo).await?;
         }
         assert_eq!(
             local_repo.count_unused_dkg_shares().await?,
@@ -81,6 +157,17 @@ mod tests {
             server_config.dkg_pregen_config.min_threshold
         );
 
+        Ok(())
+    }
+
+    async fn use_one_dkg_share(local_repo: &Arc<LocalDbStorage>) -> anyhow::Result<()> {
+        let _ = local_repo
+            .get_random_unused_dkg_share(UserIdentifierData {
+                public_key: "some pubkey".to_string(),
+                rune_id: "1:124000".to_string(),
+                is_issuer: false,
+            })
+            .await?;
         Ok(())
     }
 
