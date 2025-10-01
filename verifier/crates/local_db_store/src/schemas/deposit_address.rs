@@ -2,7 +2,7 @@ use crate::schemas::user_identifier::{UserUniqueId, UserUuid};
 use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
 use bitcoin::OutPoint;
-use frost::types::Nonce;
+use frost::types::TweakBytes;
 use persistent_storage::error::DbError;
 use serde::{Deserialize, Serialize};
 use sqlx::types::Json;
@@ -31,7 +31,7 @@ pub enum TxRejectReason {
 pub struct DepositAddrInfo {
     pub user_uuid: UserUuid,
     pub rune_id: String,
-    pub nonce: Nonce,
+    pub nonce: TweakBytes,
     pub deposit_address: String,
     pub bridge_address: String,
     pub is_btc: bool,
@@ -46,7 +46,7 @@ pub trait DepositAddressStorage {
     async fn get_deposit_addr_info(
         &self,
         user_unique_id: &UserUniqueId,
-        tweak: Nonce,
+        tweak: TweakBytes,
     ) -> Result<Option<DepositAddrInfo>, DbError>;
     async fn set_deposit_addr_info(&self, deposit_addr_info: DepositAddrInfo) -> Result<(), DbError>;
     async fn set_confirmation_status_by_out_point(
@@ -67,7 +67,7 @@ impl DepositAddressStorage for LocalDbStorage {
     async fn get_deposit_addr_info(
         &self,
         user_unique_id: &UserUniqueId,
-        tweak: Nonce,
+        tweak: TweakBytes,
     ) -> Result<Option<DepositAddrInfo>, DbError> {
         let result: Option<(UserUuid, String, String, String, bool, i64, Option<i64>, Option<String>, Json<DepositStatus>)> = sqlx::query_as(
             "SELECT user_uuid, rune_id, deposit_address, bridge_address, is_btc, deposit_amount, sats_fee_amount, out_point, confirmation_status

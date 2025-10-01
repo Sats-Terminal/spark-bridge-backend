@@ -5,8 +5,8 @@ mod tests {
     use frost::aggregator::FrostAggregator;
     use frost::mocks::MockSignerClient;
     use frost::traits::SignerClient;
-    use frost::types::Nonce;
-    use frost::utils::generate_nonce;
+    use frost::types::TweakBytes;
+    use frost::utils::generate_tweak_bytes;
     use frost_secp256k1_tr::Identifier;
     use gateway_config_parser::config::ServerConfig;
     use gateway_local_db_store::schemas::deposit_address::{
@@ -72,7 +72,7 @@ mod tests {
         let deposit_addr_info = DepositAddrInfo {
             user_uuid: user_identifier.user_uuid,
             rune_id: user_identifier.rune_id,
-            nonce: generate_nonce(),
+            nonce: generate_tweak_bytes(),
             deposit_address: InnerAddress::BitcoinAddress(
                 bitcoin::Address::from_str("bc1ph50zvqvgdexjrwn33gy2ej659uvlm02ak9xwqwg7ll7dtvjelj0srp48n8")?
                     .assume_checked(),

@@ -1,6 +1,6 @@
 use bitcoin::Address;
 use bitcoin::OutPoint;
-use frost::types::Nonce;
+use frost::types::TweakBytes;
 use gateway_local_db_store::schemas::deposit_address::DepositStatus;
 use gateway_local_db_store::schemas::user_identifier::{UserIdentifier, UserUniqueId};
 use gateway_rune_transfer::transfer::PayingTransferInput;
@@ -8,7 +8,7 @@ use gateway_rune_transfer::transfer::PayingTransferInput;
 #[derive(Clone, Debug)]
 pub struct WatchSparkDepositRequest {
     pub user_unique_id: UserUniqueId,
-    pub nonce: Nonce,
+    pub nonce: TweakBytes,
     pub exit_address: Address,
     pub amount: u64,
     pub spark_address: String,
@@ -22,7 +22,7 @@ pub struct WatchSparkDepositResponse {
 #[derive(Clone, Debug)]
 pub struct WatchRunesDepositRequest {
     pub user_unique_id: UserUniqueId,
-    pub nonce: Nonce,
+    pub nonce: TweakBytes,
     pub amount: u64,
     pub btc_address: Address,
     pub bridge_address: String,

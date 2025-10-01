@@ -4,7 +4,7 @@ use crate::types::ExitSparkRequest;
 use bitcoin::OutPoint;
 use bitcoin::secp256k1::schnorr::Signature;
 use frost::types::SigningMetadata;
-use frost::utils::{convert_public_key_package, generate_nonce, get_address};
+use frost::utils::{convert_public_key_package, generate_tweak_bytes, get_tweaked_p2tr_address};
 use gateway_local_db_store::schemas::deposit_address::{
     DepositAddrInfo, DepositAddressStorage, InnerAddress, VerifiersResponses,
 };
@@ -90,7 +90,7 @@ pub async fn handle(
     }];
 
     if total_amount > exit_amount {
-        let new_nonce = generate_nonce();
+        let new_nonce = generate_tweak_bytes();
         let public_key_package = flow_router
             .frost_aggregator
             .get_public_key_package(user_info.dkg_share_id, Some(new_nonce))
@@ -98,7 +98,7 @@ pub async fn handle(
             .map_err(|e| FlowProcessorError::FrostAggregatorError(format!("Failed to get public key package: {e}")))?;
         let public_key = convert_public_key_package(&public_key_package)
             .map_err(|e| FlowProcessorError::InvalidDataError(format!("Failed to convert public key package: {e}")))?;
-        let deposit_address = get_address(public_key, new_nonce, flow_router.network)
+        let deposit_address = get_tweaked_p2tr_address(public_key, new_nonce, flow_router.network)
             .map_err(|e| FlowProcessorError::InvalidDataError(format!("Failed to create address: {e}")))?;
 
         flow_router

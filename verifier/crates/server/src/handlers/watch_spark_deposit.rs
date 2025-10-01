@@ -2,7 +2,7 @@ use crate::errors::VerifierError;
 use crate::init::AppState;
 use axum::Json;
 use axum::extract::State;
-use frost::types::Nonce;
+use frost::types::TweakBytes;
 use serde::{Deserialize, Serialize};
 use verifier_local_db_store::schemas::deposit_address::DepositAddressStorage;
 use verifier_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositStatus, TxRejectReason};
@@ -12,7 +12,7 @@ use verifier_spark_balance_checker_client::client::GetBalanceRequest;
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WatchSparkDepositRequest {
     pub user_unique_id: UserUniqueId,
-    pub nonce: Nonce,
+    pub nonce: TweakBytes,
     pub spark_address: String,
     pub exit_address: String,
     pub amount: u64,

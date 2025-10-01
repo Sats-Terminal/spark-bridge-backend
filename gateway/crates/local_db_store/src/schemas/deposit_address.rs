@@ -2,7 +2,7 @@ use crate::schemas::user_identifier::{UserUniqueId, UserUuid};
 use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
 use bitcoin::Address;
-use frost::types::Nonce;
+use frost::types::TweakBytes;
 use persistent_storage::error::DbError;
 use serde::{Deserialize, Serialize};
 use sqlx::types::Json;
@@ -123,7 +123,7 @@ impl VerifiersResponses {
 pub struct DepositAddrInfo {
     pub user_uuid: UserUuid,
     pub rune_id: String,
-    pub nonce: Nonce,
+    pub nonce: TweakBytes,
     pub deposit_address: InnerAddress,
     pub bridge_address: Option<InnerAddress>,
     pub is_btc: bool,
@@ -142,7 +142,7 @@ impl DepositAddrInfo {
         }
     }
 
-    fn from_db_format(user_uuid: &UserUniqueId, nonce: Nonce, db_info: DbDepositAddrInfo) -> Result<Self, String> {
+    fn from_db_format(user_uuid: &UserUniqueId, nonce: TweakBytes, db_info: DbDepositAddrInfo) -> Result<Self, String> {
         let deposit_address = InnerAddress::from_string_and_type(db_info.deposit_address, db_info.is_btc)?;
 
         let bridge_address = match db_info.bridge_address {
@@ -168,7 +168,7 @@ pub trait DepositAddressStorage: Send + Sync + Debug {
     async fn get_deposit_addr_info(
         &self,
         user_unique_id: &UserUniqueId,
-        tweak: Nonce,
+        tweak: TweakBytes,
     ) -> Result<Option<DepositAddrInfo>, DbError>;
     async fn set_deposit_addr_info(&self, deposit_addr_info: DepositAddrInfo) -> Result<(), DbError>;
     async fn set_confirmation_status_by_deposit_address(
@@ -196,7 +196,7 @@ impl DepositAddressStorage for LocalDbStorage {
     async fn get_deposit_addr_info(
         &self,
         user_unique_id: &UserUniqueId,
-        tweak: Nonce,
+        tweak: TweakBytes,
     ) -> Result<Option<DepositAddrInfo>, DbError> {
         let result: Option<(String, Option<String>, bool, i64, Json<VerifiersResponses>)> = sqlx::query_as(
             "SELECT deposit_address, bridge_address, is_btc, amount, confirmation_status
@@ -275,7 +275,7 @@ impl DepositAddressStorage for LocalDbStorage {
 
         let result: Option<(
             UserUuid,
-            Nonce,
+            TweakBytes,
             String,
             Option<String>,
             bool,
@@ -302,7 +302,7 @@ impl DepositAddressStorage for LocalDbStorage {
                 confirmation_status,
                 rune_id,
             )) => {
-                let nonce = Nonce::from(nonce_tweak);
+                let nonce = TweakBytes::from(nonce_tweak);
 
                 let db_info = DbDepositAddrInfo {
                     deposit_address: deposit_address_str,

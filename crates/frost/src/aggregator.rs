@@ -1,4 +1,4 @@
-use crate::types::Nonce;
+use crate::types::TweakBytes;
 use crate::{errors::AggregatorError, traits::*, types::*};
 use frost_secp256k1_tr::{Identifier, Signature, SigningPackage, keys, keys::Tweak};
 use futures::future::join_all;
@@ -275,7 +275,7 @@ impl FrostAggregator {
         session_id: Uuid,
         message_hash: &[u8],
         metadata: SigningMetadata,
-        tweak: Option<Nonce>,
+        tweak: Option<TweakBytes>,
     ) -> Result<(), AggregatorError> {
         let dkg_share_data = self.dkg_share_storage.get_dkg_share_agg_data(dkg_share_id).await?;
 
@@ -410,7 +410,7 @@ impl FrostAggregator {
         dkg_share_id: DkgShareId,
         message_hash: &[u8],
         metadata: SigningMetadata,
-        tweak: Option<Nonce>,
+        tweak: Option<TweakBytes>,
     ) -> Result<Signature, AggregatorError> {
         let session_id = global_utils::common_types::get_uuid();
 
@@ -439,7 +439,7 @@ impl FrostAggregator {
     pub async fn get_public_key_package(
         &self,
         dkg_share_id: DkgShareId,
-        tweak: Option<Nonce>,
+        tweak: Option<TweakBytes>,
     ) -> Result<keys::PublicKeyPackage, AggregatorError> {
         let dkg_share_data = self.dkg_share_storage.get_dkg_share_agg_data(&dkg_share_id).await?;
 
@@ -448,6 +448,7 @@ impl FrostAggregator {
                 dkg_state: AggregatorDkgState::DkgFinalized { public_key_package },
             }) => {
                 let tweaked_public_key_package = match tweak {
+                    //todo: maybe use utils
                     Some(tweak) => public_key_package.clone().tweak(Some(tweak.to_vec())),
                     None => public_key_package.clone(),
                 };

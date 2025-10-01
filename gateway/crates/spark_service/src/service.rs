@@ -7,7 +7,7 @@ use bitcoin::hashes::{Hash, HashEngine, sha256};
 use bitcoin::secp256k1::PublicKey;
 use frost::aggregator::FrostAggregator;
 use frost::types::SigningMetadata;
-use frost::types::{DkgShareId, Nonce};
+use frost::types::{DkgShareId, TweakBytes};
 use futures::future::join_all;
 use lrc20::marshal::marshal_token_transaction;
 use lrc20::marshal::unmarshal_token_transaction;
@@ -51,7 +51,7 @@ impl SparkService {
     async fn get_musig_public_key(
         &self,
         issuer_dkg_share_id: DkgShareId,
-        nonce_tweak: Option<Nonce>,
+        nonce_tweak: Option<TweakBytes>,
     ) -> Result<PublicKey, SparkServiceError> {
         let public_key_package = self
             .frost_aggregator
@@ -73,7 +73,7 @@ impl SparkService {
     async fn authenticate(
         &self,
         issuer_dkg_share_id: DkgShareId,
-        nonce_tweak: Option<Nonce>,
+        nonce_tweak: Option<TweakBytes>,
     ) -> Result<(), SparkServiceError> {
         tracing::debug!(
             "Authenticating with issuer_dkg_share_id: {:?}, nonce tweak: {:?}",
@@ -137,7 +137,7 @@ impl SparkService {
     pub async fn send_spark_transaction(
         &self,
         issuer_dkg_share_id: DkgShareId,
-        nonce_tweak: Option<Nonce>,
+        nonce_tweak: Option<TweakBytes>,
         token_identifier: TokenIdentifier,
         transaction_type: SparkTransactionType,
         network: Network,

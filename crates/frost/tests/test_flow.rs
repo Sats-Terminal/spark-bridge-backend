@@ -3,8 +3,8 @@ mod tests {
     use bitcoin::key::UntweakedPublicKey;
     use bitcoin::secp256k1::{PublicKey, Secp256k1};
     use frost::traits::AggregatorDkgShareStorage;
-    use frost::types::{AggregatorDkgShareData, AggregatorDkgState, DkgShareId, Nonce, SigningMetadata};
-    use frost::utils::generate_nonce;
+    use frost::types::{AggregatorDkgShareData, AggregatorDkgState, DkgShareId, SigningMetadata, TweakBytes};
+    use frost::utils::generate_tweak_bytes;
     use frost::{aggregator::FrostAggregator, mocks::*, signer::FrostSigner, traits::SignerClient};
     use frost_secp256k1_tr::{Identifier, keys::Tweak};
     use global_utils::common_types::get_uuid;
@@ -21,7 +21,7 @@ mod tests {
     #[tokio::test]
     async fn test_aggregator_signer_integration_tweaked() -> anyhow::Result<()> {
         let msg_hash = b"test_message";
-        let tweak = generate_nonce();
+        let tweak = generate_tweak_bytes();
         _test_aggregator_signer_integration(msg_hash, Some(tweak)).await?;
         Ok(())
     }
@@ -37,7 +37,7 @@ mod tests {
     async fn test_parallel_signing_sessions_via_aggregator_tweaked() -> anyhow::Result<()> {
         let msg_a = b"parallel message A".to_vec();
         let msg_b = b"parallel message B".to_vec();
-        let tweak = generate_nonce();
+        let tweak = generate_tweak_bytes();
         _test_parallel_signing_sessions_via_aggregator(&msg_a, &msg_b, Some(tweak)).await?;
         Ok(())
     }
@@ -56,7 +56,7 @@ mod tests {
     async fn _test_parallel_signing_sessions_via_aggregator(
         msg_hash_a: &[u8],
         msg_hash_b: &[u8],
-        tweak: Option<Nonce>,
+        tweak: Option<TweakBytes>,
     ) -> anyhow::Result<()> {
         let verifiers_map = create_verifiers_map_easy();
 
@@ -108,7 +108,7 @@ mod tests {
         Ok(())
     }
 
-    async fn _test_aggregator_signer_integration(msg_hash: &[u8], tweak: Option<Nonce>) -> anyhow::Result<()> {
+    async fn _test_aggregator_signer_integration(msg_hash: &[u8], tweak: Option<TweakBytes>) -> anyhow::Result<()> {
         let verifiers_map = create_verifiers_map_easy();
 
         let dkg_share_id: DkgShareId = get_uuid();

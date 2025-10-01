@@ -3,7 +3,7 @@ use crate::init::AppState;
 use axum::Json;
 use axum::extract::State;
 use bitcoin::OutPoint;
-use frost::types::Nonce;
+use frost::types::TweakBytes;
 use serde::{Deserialize, Serialize};
 use verifier_btc_indexer_client::client::WatchRunesDepositRequest as IndexerWatchRunesDepositRequest;
 use verifier_config_parser::config::construct_hardcoded_callback_url;
@@ -13,7 +13,7 @@ use verifier_local_db_store::schemas::user_identifier::UserUniqueId;
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WatchRunesDepositRequest {
     pub user_unique_id: UserUniqueId,
-    pub nonce: Nonce,
+    pub nonce: TweakBytes,
     pub amount: u64,
     pub btc_address: String,
     pub bridge_address: String,

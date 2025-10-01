@@ -10,9 +10,10 @@ use frost_secp256k1_tr::{
 use serde::{Deserialize, Serialize};
 use spark_protos::spark_token::TokenTransaction;
 use std::collections::BTreeMap;
+use std::fmt::{Debug, Formatter};
 use uuid::Uuid;
 
-pub type Nonce = [u8; 32];
+pub type TweakBytes = [u8; 32];
 pub type RuneId = String;
 
 pub type DkgShareId = Uuid;
@@ -143,7 +144,7 @@ pub struct SignerSignData {
     pub sign_state: SignerSignState,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub enum SigningMetadata {
     PartialCreateToken { token_transaction: TokenTransaction },
     FinalCreateToken { token_transaction: TokenTransaction },
@@ -151,4 +152,17 @@ pub enum SigningMetadata {
     FinalMintToken { token_transaction: TokenTransaction },
     Authorization,
     BtcTransactionMetadata {},
+}
+
+impl Debug for SigningMetadata {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SigningMetadata::PartialCreateToken { .. } => writeln!(f, "SigningMetadata::PartialCreateToken"),
+            SigningMetadata::FinalCreateToken { .. } => writeln!(f, "SigningMetadata::FinalCreateToken"),
+            SigningMetadata::PartialMintToken { .. } => writeln!(f, "SigningMetadata::PartialMintToken"),
+            SigningMetadata::FinalMintToken { .. } => writeln!(f, "SigningMetadata::FinalMintToken"),
+            SigningMetadata::Authorization => writeln!(f, "SigningMetadata::Authorization"),
+            SigningMetadata::BtcTransactionMetadata { .. } => writeln!(f, "SigningMetadata::BtcTransactionMetadata"),
+        }
+    }
 }

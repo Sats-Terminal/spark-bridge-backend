@@ -8,8 +8,8 @@ mod tests {
     use frost::mocks::{MockSignerClient, MockSignerDkgShareIdStorage, MockSignerSignSessionStorage};
     use frost::signer::FrostSigner;
     use frost::traits::SignerClient;
-    use frost::types::{Nonce, SigningMetadata};
-    use frost::utils::generate_nonce;
+    use frost::types::{SigningMetadata, TweakBytes};
+    use frost::utils::generate_tweak_bytes;
     use frost_secp256k1_tr::Identifier;
     use frost_secp256k1_tr::keys::Tweak;
     use gateway_config_parser::config::{ServerConfig, VerifierConfig};
@@ -71,14 +71,14 @@ mod tests {
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_aggregator_signer_integration_tweaked(db: PostgresPool) -> anyhow::Result<()> {
         let _logger_guard = &*TEST_LOGGER;
-        let tweak = Some(generate_nonce());
+        let tweak = Some(generate_tweak_bytes());
         _test_aggregator_signer_integration(db, tweak).await
     }
 
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_dkg_share_flow_creation(db: PostgresPool) -> anyhow::Result<()> {
         let _logger_guard = &*TEST_LOGGER;
-        let tweak = Some(generate_nonce());
+        let tweak = Some(generate_tweak_bytes());
         _test_dkg_pregen_draft_flow(db).await
     }
 
@@ -139,7 +139,7 @@ mod tests {
         Ok(())
     }
 
-    async fn _test_aggregator_signer_integration(db: sqlx::PgPool, tweak: Option<Nonce>) -> anyhow::Result<()> {
+    async fn _test_aggregator_signer_integration(db: sqlx::PgPool, tweak: Option<TweakBytes>) -> anyhow::Result<()> {
         let server_config = ServerConfig::init_config(GATEWAY_CONFIG_PATH.to_string());
         let local_repo = Arc::new(LocalDbStorage {
             postgres_repo: PostgresRepo { pool: db },

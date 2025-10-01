@@ -11,8 +11,8 @@ mod tests {
     use frost::traits::SignerDkgShareStorage;
     use frost::traits::SignerSignSessionStorage;
     use frost::traits::{AggregatorDkgShareStorage, SignerClient};
-    use frost::types::{AggregatorDkgShareData, AggregatorDkgState, Nonce, SigningMetadata};
-    use frost::utils::generate_nonce;
+    use frost::types::{AggregatorDkgShareData, AggregatorDkgState, SigningMetadata, TweakBytes};
+    use frost::utils::generate_tweak_bytes;
     use frost_secp256k1_tr::Identifier;
     use frost_secp256k1_tr::keys::Tweak;
     use global_utils::common_types::get_uuid;
@@ -48,7 +48,7 @@ mod tests {
         };
         let shared_local_repo = Arc::new(local_repo);
         let msg_hash = b"hello_world!";
-        let tweak = Some(generate_nonce());
+        let tweak = Some(generate_tweak_bytes());
         _test_aggregator_signer_integration(msg_hash, tweak, shared_local_repo).await?;
         Ok(())
     }
@@ -117,7 +117,7 @@ mod tests {
     #[instrument]
     async fn _test_aggregator_signer_integration(
         msg_hash: &[u8],
-        tweak: Option<Nonce>,
+        tweak: Option<TweakBytes>,
         local_db_storage: Arc<LocalDbStorage>,
     ) -> anyhow::Result<()> {
         let dkg_share_id = get_uuid();
