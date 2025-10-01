@@ -3,7 +3,7 @@ mod utils;
 mod mocked_tx_tracking {
     use std::str::FromStr;
 
-    use crate::utils::comparing_utils::btc_indexer_callback_response_eq;
+    use crate::utils::comparing_utils::btc_indexer_meta_eq;
     use crate::utils::init::MIGRATOR;
     use crate::utils::mock::generate_mock_tx_arbiter;
     use crate::utils::{
@@ -23,6 +23,7 @@ mod mocked_tx_tracking {
     use persistent_storage::init::PostgresPool;
     use tracing::{info, instrument};
 
+    #[instrument(skip(pool))]
     pub async fn init_mocked_tx_tracking_test_server(pool: PostgresPool) -> anyhow::Result<TestServer> {
         Ok(crate::utils::mock::init_mocked_test_server(
             || generate_mock_titan_indexer_tx_tracking(),
@@ -58,14 +59,12 @@ mod mocked_tx_tracking {
 
         let result = oneshot_chan.await?;
         info!("Callback response: {:?}", result);
-        assert!(btc_indexer_callback_response_eq(
+        assert!(btc_indexer_meta_eq(
             &result,
-            &BtcIndexerCallbackResponse::Ok {
-                meta: ResponseMeta {
-                    outpoint: out_point,
-                    status: BtcTxReview::Success,
-                    sats_fee_amount: 0,
-                }
+            &ResponseMeta {
+                outpoint: out_point,
+                status: BtcTxReview::Success,
+                sats_fee_amount: 0,
             }
         ));
         Ok(())

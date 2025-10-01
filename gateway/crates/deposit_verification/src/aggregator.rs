@@ -12,7 +12,6 @@ use gateway_local_db_store::schemas::paying_utxo::PayingUtxoStorage;
 use gateway_local_db_store::schemas::utxo_storage::{Utxo, UtxoStatus, UtxoStorage};
 use gateway_local_db_store::storage::LocalDbStorage;
 use std::collections::HashMap;
-use std::str::FromStr;
 use std::sync::Arc;
 use tracing;
 

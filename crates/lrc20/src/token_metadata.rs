@@ -134,7 +134,7 @@ impl TokenMetadata {
         // #[cfg(test)]
         println!(
             "Step 2 - Issuer key: input={}, hash={}",
-            hex::encode(&issuer_key_bytes),
+            hex::encode(issuer_key_bytes),
             hex::encode(issuer_public_key_hash.as_byte_array())
         );
         all_hashes.extend_from_slice(issuer_public_key_hash.as_byte_array());
@@ -172,7 +172,7 @@ impl TokenMetadata {
         // #[cfg(test)]
         println!(
             "Step 5 - Decimal: input={}, hash={}",
-            hex::encode(&decimal_bytes),
+            hex::encode(decimal_bytes),
             hex::encode(decimal_hash.as_byte_array())
         );
         all_hashes.extend_from_slice(decimal_hash.as_byte_array());
@@ -201,7 +201,7 @@ impl TokenMetadata {
         // #[cfg(test)]
         println!(
             "Step 7 - Freezable: input={}, hash={}",
-            hex::encode(&_freezable_input),
+            hex::encode(_freezable_input),
             hex::encode(is_freezable_hash.as_byte_array())
         );
         all_hashes.extend_from_slice(is_freezable_hash.as_byte_array());
@@ -215,7 +215,7 @@ impl TokenMetadata {
         // #[cfg(test)]
         println!(
             "Step 8 - Network: input={}, hash={}",
-            hex::encode(&be_magic),
+            hex::encode(be_magic),
             hex::encode(network_hash.as_byte_array())
         );
         all_hashes.extend_from_slice(network_hash.as_byte_array());
@@ -241,7 +241,7 @@ impl TokenMetadata {
             // #[cfg(test)]
             println!(
                 "Step 9 - Creation entity (L1): input={}, hash={}",
-                hex::encode(&bytes),
+                hex::encode(bytes),
                 hex::encode(hash.as_byte_array())
             );
             hash

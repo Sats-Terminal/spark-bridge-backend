@@ -1,14 +1,14 @@
 use bitcoin::Address;
 use bitcoin::OutPoint;
 use frost::types::MusigId;
-use frost::types::Nonce;
+use frost::types::TweakBytes;
 use gateway_local_db_store::schemas::deposit_address::DepositStatus;
 use gateway_rune_transfer::transfer::PayingTransferInput;
 
 #[derive(Clone, Debug)]
 pub struct WatchSparkDepositRequest {
     pub musig_id: MusigId,
-    pub nonce: Nonce,
+    pub nonce: TweakBytes,
     pub exit_address: Address,
     pub amount: u64,
     pub spark_address: String,
@@ -22,7 +22,7 @@ pub struct WatchSparkDepositResponse {
 #[derive(Clone, Debug)]
 pub struct WatchRunesDepositRequest {
     pub musig_id: MusigId,
-    pub nonce: Nonce,
+    pub nonce: TweakBytes,
     pub amount: u64,
     pub btc_address: Address,
     pub bridge_address: String,

@@ -66,27 +66,9 @@ fn track_tx_request_eq(a: &btc_indexer_api::api::TrackTxRequest, b: &btc_indexer
         && a.rune_amount == b.rune_amount
 }
 
-pub fn btc_indexer_callback_response_eq(
-    a: &btc_indexer_api::api::BtcIndexerCallbackResponse,
-    b: &btc_indexer_api::api::BtcIndexerCallbackResponse,
+pub fn btc_indexer_meta_eq(
+    meta_a: &btc_indexer_api::api::ResponseMeta,
+    meta_b: &btc_indexer_api::api::ResponseMeta,
 ) -> bool {
-    use btc_indexer_api::api::BtcIndexerCallbackResponse;
-    match (a, b) {
-        (BtcIndexerCallbackResponse::Ok { meta: meta_a }, BtcIndexerCallbackResponse::Ok { meta: meta_b }) => {
-            meta_a.outpoint == meta_b.outpoint && btc_tx_review_eq(&meta_a.status, &meta_b.status)
-        }
-        (
-            BtcIndexerCallbackResponse::Err {
-                code: code_a,
-                msg: msg_a,
-                req_meta: req_a,
-            },
-            BtcIndexerCallbackResponse::Err {
-                code: code_b,
-                msg: msg_b,
-                req_meta: req_b,
-            },
-        ) => code_a == code_b && msg_a == msg_b && track_tx_request_eq(req_a, req_b),
-        _ => false,
-    }
+    meta_a.outpoint == meta_b.outpoint && btc_tx_review_eq(&meta_a.status, &meta_b.status)
 }

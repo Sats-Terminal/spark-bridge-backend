@@ -11,7 +11,6 @@ use bitcoincore_rpc::{Auth::UserPass, Client, RpcApi};
 use ordinals::RuneId;
 use std::str::FromStr;
 use std::sync::Arc;
-use thiserror::Error;
 use titan_client::Transaction as TitanTransaction;
 use titan_client::{AddressData, TitanApi, TitanClient};
 use titan_client::{RuneResponse, query::Block, query::Rune};

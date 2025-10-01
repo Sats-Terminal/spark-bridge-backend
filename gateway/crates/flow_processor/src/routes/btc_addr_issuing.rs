@@ -5,7 +5,7 @@ use bitcoin::Address;
 use frost::traits::AggregatorMusigIdStorage;
 use frost::types::AggregatorDkgState;
 use frost::utils::convert_public_key_package;
-use frost::utils::{generate_nonce, get_address};
+use frost::utils::{generate_tweak_bytes, get_tweaked_p2tr_address};
 use gateway_local_db_store::schemas::deposit_address::{
     DepositAddrInfo, DepositAddressStorage, DepositStatus, InnerAddress, VerifiersResponses,
 };
@@ -51,10 +51,10 @@ pub async fn handle(
         }
     };
 
-    let nonce = generate_nonce();
+    let nonce = generate_tweak_bytes();
     let public_key = convert_public_key_package(&public_key_package)
         .map_err(|e| FlowProcessorError::InvalidDataError(format!("Failed to convert public key package: {}", e)))?;
-    let address = get_address(public_key, nonce, flow_processor.network)
+    let address = get_tweaked_p2tr_address(public_key, nonce, flow_processor.network)
         .map_err(|e| FlowProcessorError::InvalidDataError(format!("Failed to create address: {}", e)))?;
 
     let verifiers_responses = VerifiersResponses::new(

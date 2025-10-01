@@ -2,7 +2,7 @@ use crate::client::VerifierClient;
 use async_trait::async_trait;
 use bitcoin::OutPoint;
 use frost::types::MusigId;
-use frost::types::Nonce;
+use frost::types::TweakBytes;
 use gateway_deposit_verification::error::DepositVerificationError;
 use gateway_deposit_verification::traits::VerificationClient;
 use gateway_deposit_verification::types::{
@@ -17,7 +17,7 @@ const WATCH_SPARK_DEPOSIT_PATH: &str = "/api/gateway/watch-spark-deposit";
 #[derive(Serialize, Debug)]
 pub struct VerifierWatchRunesDepositRequest {
     pub musig_id: MusigId,
-    pub nonce: Nonce,
+    pub nonce: TweakBytes,
     pub amount: u64,
     pub btc_address: String,
     pub bridge_address: String,
@@ -49,7 +49,7 @@ impl Into<WatchRunesDepositResponse> for VerifierWatchRunesDepositResponse {
 #[derive(Debug, Serialize)]
 pub struct VerifierWatchSparkDepositRequest {
     pub musig_id: MusigId,
-    pub nonce: Nonce,
+    pub nonce: TweakBytes,
     pub exit_address: String,
     pub amount: u64,
     pub spark_address: String,

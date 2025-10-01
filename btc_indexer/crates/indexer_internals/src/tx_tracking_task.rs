@@ -1,6 +1,6 @@
 use crate::tx_arbiter::{TxArbiterResponse, TxArbiterTrait};
 
-use btc_indexer_api::api::{BtcIndexerCallbackResponse, ResponseMeta};
+use btc_indexer_api::api::ResponseMeta;
 use config_parser::config::BtcIndexerParams;
 use local_db_store_indexer::init::IndexerDbBounds;
 use local_db_store_indexer::schemas::track_tx_requests_storage::{TrackedReqStatus, TxTrackingRequestsToSendResponse};

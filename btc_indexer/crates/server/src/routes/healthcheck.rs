@@ -6,7 +6,6 @@ use btc_indexer_api::api::TrackTxResponse;
 use btc_indexer_internals::api::BtcIndexerApi;
 use btc_indexer_internals::tx_arbiter::TxArbiterTrait;
 use global_utils::common_resp::Empty;
-use global_utils::common_types::get_uuid;
 use local_db_store_indexer::init::IndexerDbBounds;
 use tracing::{info, instrument};
 

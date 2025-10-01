@@ -20,12 +20,13 @@ use crate::utils::mock::MockTitanIndexer;
 mod mock_testing {
     use super::*;
     use crate::utils::common::TEST_LOGGER;
-    use crate::utils::comparing_utils::btc_indexer_callback_response_eq;
+    use crate::utils::comparing_utils::btc_indexer_response_meta_eq;
     use crate::utils::mock::MockTxArbiter;
     use crate::utils::test_notifier::{obtain_random_localhost_socket_addr, spawn_notify_server_track_tx};
     use bitcoin::OutPoint;
     use btc_indexer_api::api::{BtcIndexerCallbackResponse, BtcTxReview, ResponseMeta, TrackTxRequest};
     use btc_indexer_internals::tx_arbiter::TxArbiterResponse;
+    use config_parser::config::TitanConfig;
     use global_utils::common_types::UrlWrapped;
     use global_utils::config_variant::ConfigVariant;
     use local_db_store_indexer::init::LocalDbStorage;
@@ -34,38 +35,21 @@ mod mock_testing {
     use std::env;
     use std::sync::Arc;
     use tracing::info;
+    use url::Url;
 
     const CONFIG_FILEPATH: &str = "../../../infrastructure/configurations/btc_indexer/dev.toml";
-
-    // Test requires to run Postgres & Docker files (bitcoind + titan)
-    #[ignore]
-    #[tokio::test]
-    async fn init_btc_indexer() -> anyhow::Result<()> {
-        dotenv::dotenv()?;
-        let _logger_guard = &*TEST_LOGGER;
-        let btc_rpc_creds = BtcRpcCredentials::new()?;
-        let db_pool = LocalDbStorage::from_config(PostgresDbCredentials::from_envs()?).await?;
-        info!("Btc rpc creds: {:?}", btc_rpc_creds);
-        let app_config = ServerConfig::init_config(ConfigVariant::OnlyOneFilepath(CONFIG_FILEPATH.to_string()))?;
-        let indexer = BtcIndexer::with_api(IndexerParams {
-            titan_config: app_config.titan_config,
-            btc_rpc_creds,
-            db_pool,
-            btc_indexer_params: app_config.btc_indexer_config,
-        })?;
-        info!("Blockchain info: {:?}", indexer.get_blockchain_info()?);
-        Ok(())
-    }
+    const TITAN_URL: &str = "http://localhost:3030";
 
     pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("../local_db_store/migrations");
 
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_retrieving_of_finalized_tx(mut pool: PostgresPool) -> anyhow::Result<()> {
+        dotenv::dotenv()?;
+        let _logger_guard = &*TEST_LOGGER;
+
         let tx_id = Txid::from_str("f74516e3b24af90fc2da8251d2c1e3763252b15c7aec3c1a42dde7116138caee")?;
         let uuid = get_uuid();
 
-        dotenv::dotenv()?;
-        let _logger_guard = &*TEST_LOGGER;
         let btc_rpc_creds = BtcRpcCredentials::new()?;
         let db_pool = LocalDbStorage {
             postgres_repo: persistent_storage::init::PostgresRepo { pool }.into_shared(),
@@ -94,14 +78,12 @@ mod mock_testing {
             )
             .await?;
         let result = oneshot_chan.await?;
-        assert!(btc_indexer_callback_response_eq(
+        assert!(btc_indexer_response_meta_eq(
             &result,
-            &BtcIndexerCallbackResponse::Ok {
-                meta: ResponseMeta {
-                    outpoint: out_point,
-                    status: BtcTxReview::Success,
-                    sats_fee_amount: 0,
-                }
+            &ResponseMeta {
+                outpoint: out_point,
+                status: BtcTxReview::Success,
+                sats_fee_amount: 0,
             }
         ));
         Ok(())
@@ -210,7 +192,9 @@ mod mock_testing {
         debug!("Building BtcIndexer...");
         let indexer = BtcIndexer::new(IndexerParamsWithApi {
             indexer_params: IndexerParams {
-                titan_config: app_config.titan_config,
+                titan_config: TitanConfig {
+                    url: Url::from_str(TITAN_URL)?,
+                },
                 btc_rpc_creds,
                 db_pool,
                 btc_indexer_params: app_config.btc_indexer_config,

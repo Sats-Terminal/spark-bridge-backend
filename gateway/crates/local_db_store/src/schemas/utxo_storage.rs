@@ -95,7 +95,7 @@ impl UtxoStorage for LocalDbStorage {
         .bind(utxo.rune_amount as i64)
         .bind(&utxo.rune_id)
         .bind(utxo.status)
-        .bind(&utxo.btc_address.to_string())
+        .bind(utxo.btc_address.to_string())
         .bind(utxo.sats_fee_amount as i64)
         .fetch_one(&self.postgres_repo.pool)
         .await

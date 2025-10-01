@@ -3,7 +3,7 @@ use crate::init::AppState;
 use axum::Json;
 use axum::extract::State;
 use frost::types::MusigId;
-use frost::types::Nonce;
+use frost::types::TweakBytes;
 use serde::{Deserialize, Serialize};
 use tracing;
 use verifier_local_db_store::schemas::deposit_address::DepositAddressStorage;
@@ -13,7 +13,7 @@ use verifier_spark_balance_checker_client::client::GetBalanceRequest;
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WatchSparkDepositRequest {
     pub musig_id: MusigId,
-    pub nonce: Nonce,
+    pub nonce: TweakBytes,
     pub spark_address: String,
     pub exit_address: String,
     pub amount: u64,

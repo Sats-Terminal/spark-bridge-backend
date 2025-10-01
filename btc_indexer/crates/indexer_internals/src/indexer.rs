@@ -47,7 +47,7 @@ pub struct IndexerParams<Db> {
 impl BtcIndexer<TitanClient, LocalDbStorage, TxArbiter> {
     #[instrument(skip(params))]
     pub fn with_api(params: IndexerParams<LocalDbStorage>) -> crate::error::Result<Self> {
-        let titan_api_client = TitanClient::new(&params.titan_config.url.to_string());
+        let titan_api_client = TitanClient::new(params.titan_config.url.as_ref());
         Self::new(IndexerParamsWithApi {
             indexer_params: params,
             titan_api_client: Arc::new(titan_api_client),

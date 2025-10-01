@@ -1,5 +1,5 @@
 use bitcoin::secp256k1::{PublicKey, Secp256k1, SecretKey};
-use frost::types::{MusigId, SigningMetadata, TokenTransactionMetadata};
+use frost::types::{MusigId, SigningMetadata};
 use frost::{aggregator::FrostAggregator, mocks::*, signer::FrostSigner, traits::SignerClient};
 use frost_secp256k1_tr::{Identifier, keys::Tweak};
 use lrc20::token_transaction::{

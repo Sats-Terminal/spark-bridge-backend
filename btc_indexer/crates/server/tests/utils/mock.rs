@@ -4,7 +4,7 @@ use std::{
     sync::{Arc, LazyLock},
 };
 
-use crate::utils::init::TEST_LOGGER;
+use crate::utils::init::{DRAFT_TITAN_URL, TEST_LOGGER};
 use async_trait::async_trait;
 use axum::{Router, routing::post};
 use axum_test::TestServer;
@@ -16,7 +16,7 @@ use btc_indexer_internals::tx_arbiter::TxArbiter;
 use btc_indexer_internals::tx_arbiter::TxArbiterTrait;
 use btc_indexer_internals::tx_arbiter::{TxArbiterError, TxArbiterResponse};
 use btc_indexer_server::AppState;
-use config_parser::config::{BtcRpcCredentials, ServerConfig};
+use config_parser::config::{BtcRpcCredentials, ServerConfig, TitanConfig};
 use global_utils::config_variant::ConfigVariant;
 use global_utils::logger::{LoggerGuard, init_logger};
 use local_db_store_indexer::schemas::tx_tracking_storage::TxToUpdateStatus;
@@ -30,6 +30,7 @@ use titan_types::{
     RuneResponse, SpentStatus, Status, Subscription, Transaction, TransactionStatus, TxOut, query,
 };
 use tracing::{debug, info, instrument};
+use url::Url;
 use utoipa_swagger_ui::SwaggerUi;
 
 mock! {
@@ -105,7 +106,7 @@ const CONFIG_FILEPATH: &str = "../../../infrastructure/configurations/btc_indexe
 
 #[instrument(
     level = "debug",
-    skip(generate_mocked_titan_indexer, generate_mocked_tx_arbiter),
+    skip(generate_mocked_titan_indexer, generate_mocked_tx_arbiter, pool),
     ret
 )]
 pub async fn init_mocked_test_server(
@@ -114,9 +115,8 @@ pub async fn init_mocked_test_server(
     pool: PostgresPool,
 ) -> anyhow::Result<TestServer> {
     let _logger_guard = &*TEST_LOGGER;
-    let (btc_creds, postgres_creds, config_variant) = (
+    let (btc_creds, config_variant) = (
         BtcRpcCredentials::new()?,
-        PostgresDbCredentials::from_envs()?,
         ConfigVariant::OnlyOneFilepath(CONFIG_FILEPATH.to_string()),
     );
     let app_config = ServerConfig::init_config(config_variant)?;
@@ -127,7 +127,9 @@ pub async fn init_mocked_test_server(
     let mocked_tx_arbiter = generate_mocked_tx_arbiter();
     let btc_indexer = BtcIndexer::new(IndexerParamsWithApi {
         indexer_params: IndexerParams {
-            titan_config: app_config.titan_config,
+            titan_config: TitanConfig {
+                url: Url::from_str(DRAFT_TITAN_URL)?,
+            },
             btc_rpc_creds: btc_creds,
             db_pool: db_pool.clone(),
             btc_indexer_params: app_config.btc_indexer_config,
@@ -142,6 +144,7 @@ pub async fn init_mocked_test_server(
     Ok(test_server)
 }
 
+#[instrument(level = "trace")]
 pub fn generate_mock_titan_indexer_tx_tracking() -> MockTitanIndexer {
     let generate_transaction = |tx_id: &Txid, index: u64| Transaction {
         txid: tx_id.clone(),
@@ -182,6 +185,7 @@ pub fn generate_mock_titan_indexer_tx_tracking() -> MockTitanIndexer {
     mocked_indexer
 }
 
+#[instrument(level = "trace")]
 pub fn generate_mock_tx_arbiter() -> MockTxArbiter {
     let generate_tx_arbiter_mocking_invocations = |tx_arbiter: &mut MockTxArbiter| {
         tx_arbiter.expect_check_tx().returning(
@@ -238,6 +242,7 @@ pub fn generate_mock_tx_arbiter() -> MockTxArbiter {
     arbiter
 }
 
+#[instrument(level = "trace")]
 pub fn generate_mock_titan_indexer_wallet_tracking() -> MockTitanIndexer {
     const TX_VALUE: u64 = 100;
 
@@ -300,13 +305,13 @@ pub fn generate_mock_titan_indexer_wallet_tracking() -> MockTitanIndexer {
         });
     };
 
-    debug!("Initializing mocked indexer");
+    debug!("Initializing mocked indexer [generate_mock_titan_indexer_wallet_tracking]");
     let mut mocked_indexer = MockTitanIndexer::new();
     generate_mocking_invocations(&mut mocked_indexer);
     mocked_indexer
 }
 
-#[instrument(skip(db_pool, btc_indexer))]
+#[instrument(skip(db_pool, btc_indexer), level = "trace")]
 pub async fn create_app_mocked(
     db_pool: LocalDbStorage,
     btc_indexer: BtcIndexer<MockTitanIndexer, LocalDbStorage, MockTxArbiter>,

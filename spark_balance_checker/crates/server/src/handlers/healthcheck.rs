@@ -4,7 +4,6 @@ use axum::Json;
 use axum::extract::State;
 use bech32;
 use global_utils::common_resp::Empty;
-use utoipa::ToSchema;
 
 #[utoipa::path(
     post,

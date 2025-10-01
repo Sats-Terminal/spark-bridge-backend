@@ -9,8 +9,7 @@ use bitcoin::secp256k1::schnorr::Signature;
 use bitcoin::sighash::{Prevouts, SighashCache, TapSighashType};
 use bitcoin::taproot::Signature as TaprootSignature;
 use bitcoin::transaction::Version;
-use bitcoin::{Address, Amount, Network, OutPoint, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Txid, Witness};
-use global_utils::conversion::decode_address;
+use bitcoin::{Address, Amount, OutPoint, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Txid, Witness};
 use ordinals::{Edict, RuneId, Runestone};
 use std::str::FromStr;
 

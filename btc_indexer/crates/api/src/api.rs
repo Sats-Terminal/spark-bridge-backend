@@ -52,20 +52,8 @@ impl utoipa::ToSchema for TrackTxRequest {
 }
 
 pub type TrackTxResponse = Json<Empty>;
-pub type BtcIndexerCallbackResponse = IndexerCallbackResponse;
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
-#[serde(rename_all = "snake_case")]
-pub enum IndexerCallbackResponse {
-    Ok {
-        meta: ResponseMeta,
-    },
-    Err {
-        code: u16,
-        msg: String,
-        req_meta: TrackTxRequest,
-    },
-}
+pub type BtcIndexerCallbackResponse = ResponseMeta;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct ResponseMeta {

@@ -2,7 +2,7 @@ use std::{fmt::Debug, net::SocketAddr, str::FromStr, sync::Arc};
 
 use axum::{Json, Router, extract::State, routing::post};
 use axum_test::TestServer;
-use btc_indexer_api::api::BtcIndexerCallbackResponse;
+use btc_indexer_api::api::{BtcIndexerCallbackResponse, ResponseMeta};
 use btc_indexer_internals::api::AccountReplenishmentEvent;
 use btc_indexer_server::{AppState, error::ServerError};
 use global_utils::common_resp::Empty;

@@ -79,7 +79,13 @@ run_services() {
         --log $SPARK_BALANCE_CHECKER_LOG_PATH 
 
     CONFIG_PATH=$BTC_INDEXER_CONFIG_PATH \
-    DATABASE_URL=postgres://postgres:postgres@localhost:5474/btc_indexer \
+      DATABASE_URL=postgres://postgres:postgres@localhost:5474/btc_indexer \
+      BITCOIN_NETWORK=regtest \
+      BITCOIN_RPC_HOST=http://localhost \
+      BITCOIN_RPC_PORT=18443 \
+      BITCOIN_RPC_USERNAME=bitcoin \
+      BITCOIN_RPC_PASSWORD=bitcoinpass \
+      TITAN_URL=http://127.0.0.1:3030 \
       pm2 start ./target/debug/btc_indexer_main \
         --name btc_indexer \
         --log $BTC_INDEXER_LOG_PATH 

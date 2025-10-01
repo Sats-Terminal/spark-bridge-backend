@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 pub use persistent_storage::error::DbError;
-use persistent_storage::init::{PersistentRepoTrait, StorageHealthcheck};
+use persistent_storage::init::StorageHealthcheck;
 use persistent_storage::{config::*, init::PostgresPool, init::PostgresRepo};
 
 #[derive(Clone, Debug)]

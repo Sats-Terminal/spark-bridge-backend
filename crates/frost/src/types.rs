@@ -13,7 +13,7 @@ use spark_protos::spark_token::TokenTransaction;
 use std::collections::BTreeMap;
 use uuid::Uuid;
 
-pub type Nonce = [u8; 32];
+pub type TweakBytes = [u8; 32];
 pub type RuneId = String;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]

@@ -1,4 +1,4 @@
-use crate::types::Nonce;
+use crate::types::TweakBytes;
 use crate::{errors::AggregatorError, traits::*, types::*};
 use frost_secp256k1_tr::{Identifier, Signature, SigningPackage, keys, keys::Tweak};
 use futures::future::join_all;
@@ -225,11 +225,11 @@ impl FrostAggregator {
     }
 
     pub async fn run_dkg_flow(&self, musig_id: &MusigId) -> Result<keys::PublicKeyPackage, AggregatorError> {
-        self.lock_musig_id(&musig_id).await?;
+        self.lock_musig_id(musig_id).await?;
 
-        let musig_id_data = self.musig_id_storage.get_musig_id_data(&musig_id).await?;
+        let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id).await?;
         if let Some(_) = musig_id_data {
-            self.unlock_musig_id(&musig_id).await?;
+            self.unlock_musig_id(musig_id).await?;
             return Err(AggregatorError::MusigAlreadyExists(format!(
                 "Musig id already exists: {:?}",
                 musig_id
@@ -260,7 +260,7 @@ impl FrostAggregator {
         session_id: Uuid,
         message_hash: &[u8],
         metadata: SigningMetadata,
-        tweak: Option<Nonce>,
+        tweak: Option<TweakBytes>,
     ) -> Result<(), AggregatorError> {
         debug!(musig_id = ?musig_id, session_id = %session_id, "Starting signing round 1");
         let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id).await?;
@@ -397,7 +397,7 @@ impl FrostAggregator {
         musig_id: MusigId,
         message_hash: &[u8],
         metadata: SigningMetadata,
-        tweak: Option<Nonce>,
+        tweak: Option<TweakBytes>,
     ) -> Result<Signature, AggregatorError> {
         let session_id = global_utils::common_types::get_uuid();
 
@@ -423,7 +423,7 @@ impl FrostAggregator {
     pub async fn get_public_key_package(
         &self,
         musig_id: MusigId,
-        tweak: Option<Nonce>,
+        tweak: Option<TweakBytes>,
     ) -> Result<keys::PublicKeyPackage, AggregatorError> {
         let musig_id_data = self.musig_id_storage.get_musig_id_data(&musig_id).await?;
 

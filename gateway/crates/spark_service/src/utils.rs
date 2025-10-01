@@ -1,6 +1,4 @@
 use crate::types::{DEFAULT_DECIMALS, DEFAULT_IS_FREEZABLE, DEFAULT_MAX_SUPPLY};
-use bitcoin::hashes::Hash;
-use bitcoin::hashes::sha256::Hash as Sha256Hash;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::{Network, secp256k1};
 use lrc20::token_metadata::{SPARK_CREATION_ENTITY_PUBLIC_KEY, TokenMetadata};

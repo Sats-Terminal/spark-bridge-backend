@@ -1,5 +1,5 @@
 use crate::error::SparkClientError;
-use bitcoin::hashes::{Hash, sha256};
+use bitcoin::hashes::{Hash, sha256, sha512};
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::{Keypair, Message as BitcoinMessage, Secp256k1};
 use hex;
@@ -134,8 +134,8 @@ impl SparkClient {
                 .challenge
                 .ok_or(SparkClientError::DecodeError("Challenge is not found".to_string()))?;
 
-            let message_hash = sha256::Hash::hash(challenge.encode_to_vec().as_slice());
-            let message = BitcoinMessage::from_digest(message_hash.as_byte_array().clone());
+            let message_hash = sha512::Hash::hash(challenge.encode_to_vec().as_slice());
+            let message = BitcoinMessage::from_digest(message_hash.clone());
 
             let secp = Secp256k1::new();
             let signature = secp.sign_schnorr_no_aux_rand(&message, &keypair);

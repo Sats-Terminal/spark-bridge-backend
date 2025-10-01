@@ -6,7 +6,7 @@ use std::{
 
 use axum_test::TestServer;
 use btc_indexer_internals::indexer::{BtcIndexer, IndexerParams};
-use config_parser::config::{BtcRpcCredentials, ServerConfig};
+use config_parser::config::{BtcRpcCredentials, ServerConfig, TitanConfig};
 use global_utils::config_variant::ConfigVariant;
 use global_utils::logger::{LoggerGuard, init_logger};
 use local_db_store_indexer::{PostgresDbCredentials, init::LocalDbStorage};
@@ -15,6 +15,7 @@ use url::Url;
 
 pub static TEST_LOGGER: LazyLock<LoggerGuard> = LazyLock::new(|| init_logger());
 pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("../local_db_store/migrations");
+pub const DRAFT_TITAN_URL: &str = "http://127.0.0.1:3030";
 
 /// Init test server with real docker
 #[instrument(level = "debug", ret)]
@@ -28,7 +29,9 @@ pub async fn init_test_server() -> anyhow::Result<TestServer> {
     let app_config = ServerConfig::init_config(config_variant)?;
     let db_pool = LocalDbStorage::from_config(postgres_creds).await?;
     let btc_indexer = BtcIndexer::with_api(IndexerParams {
-        titan_config: app_config.titan_config,
+        titan_config: TitanConfig {
+            url: Url::from_str(DRAFT_TITAN_URL)?,
+        },
         btc_rpc_creds: btc_creds,
         db_pool: db_pool.clone(),
         btc_indexer_params: app_config.btc_indexer_config,
