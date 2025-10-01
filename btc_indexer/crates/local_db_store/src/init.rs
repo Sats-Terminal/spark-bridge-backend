@@ -1,5 +1,7 @@
 use std::fmt::{Debug, Formatter};
 
+use crate::schemas::track_tx_requests_storage::TxRequestsTrackingStorageTrait;
+use crate::schemas::tx_tracking_storage::TxTrackingStorageTrait;
 use async_trait::async_trait;
 use persistent_storage::{
     config::PostgresDbCredentials,
@@ -10,21 +12,27 @@ use tracing::instrument;
 
 /// Has to be understood as "LocalDb - Indexer"
 #[derive(Clone)]
-pub struct LocalDbIndexer {
+pub struct LocalDbStorage {
     pub postgres_repo: PersistentRepoShared,
 }
 
-impl Debug for LocalDbIndexer {
+pub trait IndexerDbBounds:
+    PersistentRepoTrait + Clone + TxTrackingStorageTrait + TxRequestsTrackingStorageTrait + 'static
+{
+}
+
+impl IndexerDbBounds for LocalDbStorage {}
+
+impl Debug for LocalDbStorage {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "Postgres DB")
     }
 }
 
-impl LocalDbIndexer {
+impl LocalDbStorage {
     #[instrument(level = "trace", ret)]
     pub async fn from_config(creds: PostgresDbCredentials) -> Result<Self, DbError> {
         let pool = PostgresRepo::from_config(creds).await?;
-        sqlx::migrate!().run(&pool.pool).await?;
         Ok(Self {
             postgres_repo: pool.into_shared(),
         })
@@ -32,7 +40,7 @@ impl LocalDbIndexer {
 }
 
 #[async_trait]
-impl PersistentRepoTrait for LocalDbIndexer {
+impl PersistentRepoTrait for LocalDbStorage {
     async fn get_conn(&self) -> Result<PersistentDbConn, DbError> {
         self.postgres_repo.get_conn().await
     }

@@ -20,6 +20,9 @@ impl From<SparkClientError> for ServerError {
             SparkClientError::ConfigError(message) => {
                 ServerError::InvalidData(format!("Spark client config error: {}", message))
             }
+            SparkClientError::NoAuthSessionFound(message) => {
+                ServerError::InvalidData(format!("Spark client no auth session found error: {}", message))
+            }
         }
     }
 }

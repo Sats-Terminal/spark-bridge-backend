@@ -1,44 +1,64 @@
-use crate::errors::FlowProcessorError;
-use bitcoin::secp256k1::PublicKey;
+use crate::error::FlowProcessorError;
+use bitcoin::Address;
 use frost::types::MusigId;
 use tokio::sync::oneshot;
-use uuid::Uuid;
 
 pub type OneshotFlowProcessorSender = oneshot::Sender<Result<FlowProcessorResponse, FlowProcessorError>>;
 pub type OneshotFlowProcessorReceiver = oneshot::Receiver<Result<FlowProcessorResponse, FlowProcessorError>>;
 
 pub enum FlowProcessorMessage {
-    RunDkgFlow(DkgFlowRequest),
+    IssueBtcDepositAddress(IssueBtcDepositAddressRequest),
+    IssueSparkDepositAddress(IssueSparkDepositAddressRequest),
     BridgeRunes(BridgeRunesRequest),
     ExitSpark(ExitSparkRequest),
 }
 
+#[derive(Debug)]
 pub enum FlowProcessorResponse {
-    RunDkgFlow(DkgFlowResponse),
+    IssueDepositAddress(IssueBtcDepositAddressResponse),
+    IssueSparkDepositAddress(IssueSparkDepositAddressResponse),
     BridgeRunes(BridgeRunesResponse),
     ExitSpark(ExitSparkResponse),
 }
 
-pub struct DkgFlowRequest {
+#[derive(Debug)]
+pub struct IssueBtcDepositAddressRequest {
     pub musig_id: MusigId,
+    pub amount: u64,
 }
 
-pub struct DkgFlowResponse {
-    pub public_key: PublicKey,
+#[derive(Debug)]
+pub struct IssueBtcDepositAddressResponse {
+    pub addr_to_replenish: Address,
 }
 
+#[derive(Debug)]
+pub struct IssueSparkDepositAddressRequest {
+    pub musig_id: MusigId,
+    pub amount: u64,
+}
+
+#[derive(Debug)]
+pub struct IssueSparkDepositAddressResponse {
+    pub addr_to_replenish: String,
+}
+
+#[derive(Debug)]
 pub struct BridgeRunesRequest {
-    pub request_id: Uuid,
+    pub btc_address: Address,
 }
 
+#[derive(Debug)]
 pub struct BridgeRunesResponse {
     pub message: String,
 }
 
+#[derive(Debug)]
 pub struct ExitSparkRequest {
-    pub request_id: Uuid,
+    pub spark_address: String,
 }
 
+#[derive(Debug)]
 pub struct ExitSparkResponse {
     pub message: String,
 }

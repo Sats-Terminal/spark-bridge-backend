@@ -1,0 +1,29 @@
+erDiagram
+    
+    SIGNING_SESSION ||--|| MUSIG_IDENTIFIER : _
+    DEPOSIT_ADDRESS ||--|| MUSIG_IDENTIFIER : _
+
+    MUSIG_IDENTIFIER {
+        PublicKey public_key PK
+        String rune_id PK
+        Bool is_issuer 
+        Json dkg_state
+    }
+    SIGNING_SESSION {
+        UUID session_id PK
+        PublicKey user_public_key FK
+        String rune_id FK
+        Json sign_state 
+        ByteA tweak
+        ByteA message_hash
+        Json metadata
+    }
+    DEPOSIT_ADDRESS {
+        ByteA nonce_tweak PK
+        PublicKey user_public_key FK
+        String rune_id FK
+        String address 
+        bool is_btc
+        u64 amount
+        Json confirmation_status
+    }

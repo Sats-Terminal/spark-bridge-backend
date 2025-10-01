@@ -5,6 +5,7 @@ edition = "2024"
 [dependencies]
 anyhow = { workspace = true }
 axum = { workspace = true }
+dotenv = { workspace = true }
 global_utils = { workspace = true }
 persistent_storage = { workspace = true }
 tokio = { workspace = true }
@@ -12,4 +13,4 @@ tracing = { workspace = true }
 verifier_config_parser = { workspace = true }
 verifier_local_db_store = { workspace = true }
 verifier_server = { workspace = true }
-verifier_utils = { workspace = true }
+frost = { workspace = true }

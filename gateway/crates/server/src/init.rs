@@ -1,24 +1,43 @@
 use crate::handlers;
-use crate::state::AppState;
 use axum::Router;
 use axum::routing::post;
+use bitcoin::Network;
+use gateway_deposit_verification::aggregator::DepositVerificationAggregator;
 use gateway_flow_processor::flow_sender::FlowSender;
 use tracing::instrument;
 
+#[derive(Clone)]
+pub struct AppState {
+    pub flow_sender: FlowSender,
+    pub deposit_verification_aggregator: DepositVerificationAggregator,
+    pub network: Network,
+}
+
 #[instrument(level = "debug", skip(flow_sender), ret)]
-pub async fn create_app(flow_sender: FlowSender) -> anyhow::Result<Router> {
-    let state = AppState { flow_sender };
-    Ok(Router::new()
-        .route("/api/user/runes-address", post(handlers::get_runes_address::handle))
-        .route("/api/user/bridge-runes", post(handlers::bridge_runes::handle))
+pub async fn create_app(
+    flow_sender: FlowSender,
+    deposit_verification_aggregator: DepositVerificationAggregator,
+    network: Network,
+) -> Router {
+    let state = AppState {
+        network,
+        flow_sender,
+        deposit_verification_aggregator,
+    };
+    Router::new()
+        .route(
+            "/api/user/get-btc-deposit-address",
+            post(handlers::get_btc_deposit_address::handle),
+        )
+        .route(
+            "/api/user/get-spark-deposit-address",
+            post(handlers::get_spark_deposit_address::handle),
+        )
         .route("/api/user/exit-spark", post(handlers::exit_spark::handle))
         .route(
-            "/api/verifier/notify-runes-address",
-            post(handlers::notify_runes_address::handle),
+            "/api/verifier/notify-runes-deposit",
+            post(handlers::notify_runes_deposit::handle),
         )
-        .route(
-            "/api/verifier/notify-spark-address",
-            post(handlers::notify_spark_address::handle),
-        )
-        .with_state(state))
+        .route("/api/user/bridge-runes", post(handlers::bridge_runes::handle))
+        .with_state(state)
 }

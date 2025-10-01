@@ -13,8 +13,10 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 frost = { workspace = true }
 bitcoin = { workspace = true }
+global_utils = { workspace = true }
 
 [dev-dependencies]
+anyhow = { workspace = true }
 tokio = { workspace = true }
 frost-secp256k1-tr = { workspace = true }
 lrc20 = { workspace = true }

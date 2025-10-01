@@ -1,0 +1,14 @@
+[package]
+name = "token-identifier"
+edition = "2024"
+
+[dependencies]
+bitcoin.workspace = true
+bech32.workspace = true
+serde.workspace = true
+eyre.workspace = true
+thiserror.workspace = true
+hex.workspace = true
+
+[dev-dependencies]
+once_cell.workspace = true

@@ -1,4 +1,4 @@
-use crate::errors::FlowProcessorError;
+use crate::error::FlowProcessorError;
 use crate::types::*;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
@@ -12,7 +12,7 @@ pub trait TypedMessageSender<S, R> {
 
 // This is helper struct that sends messages to the flow processor and waits for the response
 // This struct implements the TypedMessageSender trait for each type of message
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FlowSender {
     tx_sender: mpsc::Sender<(FlowProcessorMessage, OneshotFlowProcessorSender)>,
     cancellation_token: CancellationToken,
@@ -50,17 +50,37 @@ impl FlowSender {
 }
 
 #[async_trait::async_trait]
-
-impl TypedMessageSender<DkgFlowRequest, DkgFlowResponse> for FlowSender {
-    async fn send(&self, dkg_message: DkgFlowRequest) -> Result<DkgFlowResponse, FlowProcessorError> {
+impl TypedMessageSender<IssueBtcDepositAddressRequest, IssueBtcDepositAddressResponse> for FlowSender {
+    async fn send(
+        &self,
+        dkg_message: IssueBtcDepositAddressRequest,
+    ) -> Result<IssueBtcDepositAddressResponse, FlowProcessorError> {
         let response = self
-            .send_messsage(FlowProcessorMessage::RunDkgFlow(dkg_message))
+            .send_messsage(FlowProcessorMessage::IssueBtcDepositAddress(dkg_message))
             .await?;
         match response {
-            FlowProcessorResponse::RunDkgFlow(response) => Ok(response),
-            _ => Err(FlowProcessorError::InvalidResponseType(
-                "Invalid response type".to_string(),
-            )),
+            FlowProcessorResponse::IssueDepositAddress(response) => Ok(response),
+            x => Err(FlowProcessorError::InvalidResponseType(format!(
+                "Invalid response type, obtain: {x:?}, expected: [FlowProcessorResponse::RunDkgFlow]"
+            ))),
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl TypedMessageSender<IssueSparkDepositAddressRequest, IssueSparkDepositAddressResponse> for FlowSender {
+    async fn send(
+        &self,
+        dkg_message: IssueSparkDepositAddressRequest,
+    ) -> Result<IssueSparkDepositAddressResponse, FlowProcessorError> {
+        let response = self
+            .send_messsage(FlowProcessorMessage::IssueSparkDepositAddress(dkg_message))
+            .await?;
+        match response {
+            FlowProcessorResponse::IssueSparkDepositAddress(response) => Ok(response),
+            x => Err(FlowProcessorError::InvalidResponseType(format!(
+                "Invalid response type, obtain: {x:?}, expected: [FlowProcessorResponse::IssueSparkDepositAddress]"
+            ))),
         }
     }
 }
@@ -73,9 +93,9 @@ impl TypedMessageSender<BridgeRunesRequest, BridgeRunesResponse> for FlowSender 
             .await?;
         match response {
             FlowProcessorResponse::BridgeRunes(response) => Ok(response),
-            _ => Err(FlowProcessorError::InvalidResponseType(
-                "Invalid response type".to_string(),
-            )),
+            x => Err(FlowProcessorError::InvalidResponseType(format!(
+                "Invalid response type, obtain: {x:?}, expected: [FlowProcessorResponse::BridgeRunes]"
+            ))),
         }
     }
 }
@@ -88,9 +108,9 @@ impl TypedMessageSender<ExitSparkRequest, ExitSparkResponse> for FlowSender {
             .await?;
         match response {
             FlowProcessorResponse::ExitSpark(response) => Ok(response),
-            _ => Err(FlowProcessorError::InvalidResponseType(
-                "Invalid response type".to_string(),
-            )),
+            x => Err(FlowProcessorError::InvalidResponseType(format!(
+                "Invalid response type, obtain: {x:?}, expected: [FlowProcessorMessage::ExitSpark]"
+            ))),
         }
     }
 }

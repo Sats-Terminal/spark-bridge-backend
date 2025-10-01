@@ -4,9 +4,20 @@ edition = "2024"
 
 [dependencies]
 axum = { workspace = true }
-anyhow = { workspace = true }
+bitcoin = { workspace = true }
+frost = { workspace = true }
+gateway_flow_processor = { workspace = true }
+global_utils = { workspace = true }
+persistent_storage = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
-persistent_storage = { workspace = true }
+titan-client = { workspace = true }
 tracing = { workspace = true }
-gateway_flow_processor = { workspace = true }
+url = { workspace = true }
+uuid = { workspace = true }
+gateway_deposit_verification = { workspace = true }
+gateway_local_db_store = { workspace = true }
+gateway_rune_transfer = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

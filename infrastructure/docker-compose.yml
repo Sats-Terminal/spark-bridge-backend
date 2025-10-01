@@ -26,11 +26,14 @@ services:
     networks:
       all-network:
     environment:
+      - ${BITCOIN_NETWORK:-regtest}
       - RUST_LOG=trace
       - CONFIG_PATH=/config.toml
+      - CA_PEM_PATH=/configuration_gateway/ca.pem
       - DATABASE_URL=postgres://${POSTGRES_USER:-admin_manager}:${POSTGRES_PASSWORD:-password}@persistent-db-storage_gateway:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-production_db_name}
     ports:
       - "8070:8060"
+      - "8069:8061"
     entrypoint: sh -c "sqlx migrate run && gateway_main"
 #    entrypoint: tail -f /dev/null
     depends_on:
@@ -40,6 +43,7 @@ services:
       - verifier3-service
     volumes:
       - ./configurations/gateway/production.toml:/config.toml
+      - ./configurations/common/ca.pem:/configuration_gateway/ca.pem
 
   # ====== Verifier 1 ======
   persistent-db-storage_verifier_1:
@@ -161,7 +165,7 @@ services:
     restart: always
     environment:
       - RUST_LOG=trace
-      - APP_ENVIRONMENT=production
+      - CONFIG_PATH=/configuration_indexer/production.toml
       - BITCOIN_NETWORK=${BITCOIN_NETWORK:-regtest}
       - BITCOIN_RPC_HOST=bitcoind
       - BITCOIN_RPC_PORT=${BITCOIN_RPC_PORT:-18443}
@@ -266,7 +270,8 @@ services:
     restart: always
     environment:
       - RUST_LOG=trace
-      - APP_ENVIRONMENT=production
+      - CA_PEM_PATH=/configuration_spark_balance_checker/ca.pem
+      - CONFIG_PATH=/configuration_spark_balance_checker/production.toml
     networks:
       all-network:
     ports:
@@ -275,7 +280,7 @@ services:
     #    entrypoint: tail -f /dev/null
     volumes:
       - ./configurations/spark_balance_checker/production.toml:/configuration_spark_balance_checker/production.toml
-      - ./configurations/spark_balance_checker/ca.pem:/configuration_spark_balance_checker/ca.pem
+      - ./configurations/common/ca.pem:/configuration_spark_balance_checker/ca.pem
 
 
 networks:

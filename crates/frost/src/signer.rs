@@ -1,15 +1,18 @@
 use crate::{errors::SignerError, traits::*, types::*};
 use frost_secp256k1_tr::{Identifier, keys::Tweak};
 use rand_core::OsRng;
-use std::sync::Arc;
+use std::{collections::BTreeSet, sync::Arc};
+use tokio::sync::Mutex;
+use tracing::debug;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FrostSigner {
     musig_id_storage: Arc<dyn SignerMusigIdStorage>, // TODO: implement signer storage
     identifier: Identifier,
     sign_session_storage: Arc<dyn SignerSignSessionStorage>,
     total_participants: u16,
     threshold: u16,
+    locked_musig_ids: Arc<Mutex<BTreeSet<MusigId>>>,
 }
 
 impl FrostSigner {
@@ -26,12 +29,40 @@ impl FrostSigner {
             identifier: identifier.try_into().unwrap(),
             total_participants,
             threshold,
+            locked_musig_ids: Arc::new(Mutex::new(BTreeSet::new())),
         }
     }
 
+    pub async fn lock_musig_id(&self, musig_id: &MusigId) -> Result<(), SignerError> {
+        let mut locked_musig_ids = self.locked_musig_ids.lock().await;
+        if locked_musig_ids.contains(musig_id) {
+            return Err(SignerError::MusigAlreadyExists(format!(
+                "Musig id already exists: {:?}",
+                musig_id
+            )));
+        }
+        locked_musig_ids.insert(musig_id.clone());
+        Ok(())
+    }
+
+    pub async fn unlock_musig_id(&self, musig_id: &MusigId) -> Result<(), SignerError> {
+        let mut locked_musig_ids = self.locked_musig_ids.lock().await;
+        let removed = locked_musig_ids.remove(musig_id);
+        if !removed {
+            return Err(SignerError::MusigNotFound(format!(
+                "Something bad went wrong: {:?}",
+                musig_id
+            )));
+        }
+        Ok(())
+    }
+
     pub async fn dkg_round_1(&self, request: DkgRound1Request) -> Result<DkgRound1Response, SignerError> {
+        debug!(musig_id = ?request.musig_id, identifier = ?self.identifier, "Started DKG round 1");
+        self.lock_musig_id(&request.musig_id).await?;
+
         let musig_id = request.musig_id;
-        let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id.clone()).await?;
+        let musig_id_data = self.musig_id_storage.get_musig_id_data(&musig_id).await?;
 
         match musig_id_data {
             None => {
@@ -39,13 +70,13 @@ impl FrostSigner {
                     self.identifier,
                     self.total_participants,
                     self.threshold,
-                    &mut OsRng,
+                    OsRng,
                 )
                 .map_err(|e| SignerError::Internal(format!("DKG round1 failed: {e}")))?;
 
                 self.musig_id_storage
                     .set_musig_id_data(
-                        musig_id.clone(),
+                        &musig_id,
                         SignerMusigIdData {
                             dkg_state: SignerDkgState::DkgRound1 {
                                 round1_secret_package: secret_package,
@@ -54,17 +85,25 @@ impl FrostSigner {
                     )
                     .await?;
 
+                debug!(musig_id = ?musig_id, identifier = ?self.identifier, "DKG round 1 completed");
                 Ok(DkgRound1Response {
                     round1_package: package,
                 })
             }
-            _ => Err(SignerError::InvalidUserState("User key state is not Null".to_string())),
+            _ => {
+                self.unlock_musig_id(&musig_id).await?;
+                Err(SignerError::MusigAlreadyExists(format!(
+                    "Musig id already exists: {:?}",
+                    musig_id
+                )))
+            }
         }
     }
 
     pub async fn dkg_round_2(&self, request: DkgRound2Request) -> Result<DkgRound2Response, SignerError> {
         let musig_id = request.musig_id;
-        let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id.clone()).await?;
+        debug!(musig_id = ?musig_id, identifier = ?self.identifier, "Started DKG 2 round");
+        let musig_id_data = self.musig_id_storage.get_musig_id_data(&musig_id).await?;
 
         match musig_id_data {
             Some(SignerMusigIdData {
@@ -76,7 +115,7 @@ impl FrostSigner {
 
                 self.musig_id_storage
                     .set_musig_id_data(
-                        musig_id.clone(),
+                        &musig_id,
                         SignerMusigIdData {
                             dkg_state: SignerDkgState::DkgRound2 {
                                 round2_secret_package: secret_package,
@@ -86,6 +125,7 @@ impl FrostSigner {
                     )
                     .await?;
 
+                debug!(musig_id = ?musig_id, identifier = ?self.identifier, "DKG 2 round completed");
                 Ok(DkgRound2Response {
                     round2_packages: packages,
                 })
@@ -98,7 +138,8 @@ impl FrostSigner {
 
     pub async fn dkg_finalize(&self, request: DkgFinalizeRequest) -> Result<DkgFinalizeResponse, SignerError> {
         let musig_id = request.musig_id;
-        let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id.clone()).await?;
+        debug!(musig_id = ?musig_id, identifier = ?self.identifier, "Started DKG finalize round");
+        let musig_id_data = self.musig_id_storage.get_musig_id_data(&musig_id).await?;
 
         match musig_id_data {
             Some(SignerMusigIdData {
@@ -117,12 +158,16 @@ impl FrostSigner {
 
                 self.musig_id_storage
                     .set_musig_id_data(
-                        musig_id.clone(),
+                        &musig_id,
                         SignerMusigIdData {
                             dkg_state: SignerDkgState::DkgFinalized { key_package },
                         },
                     )
                     .await?;
+
+                self.unlock_musig_id(&musig_id).await?;
+
+                debug!(musig_id = ?musig_id, identifier = ?self.identifier, "DKG finalize completed");
                 Ok(DkgFinalizeResponse { public_key_package })
             }
             _ => Err(SignerError::InvalidUserState(
@@ -133,12 +178,14 @@ impl FrostSigner {
 
     pub async fn sign_round_1(&self, request: SignRound1Request) -> Result<SignRound1Response, SignerError> {
         let musig_id = request.musig_id;
-        let session_id = request.session_id.clone();
+        let session_id = request.session_id;
         let tweak = request.tweak;
         let message_hash = request.message_hash;
         let metadata = request.metadata;
 
-        let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id.clone()).await?;
+        debug!(musig_id = ?musig_id, session_id = %session_id, "Starting signing round 1");
+
+        let musig_id_data = self.musig_id_storage.get_musig_id_data(&musig_id).await?;
 
         match musig_id_data {
             Some(SignerMusigIdData {
@@ -153,8 +200,8 @@ impl FrostSigner {
 
                 self.sign_session_storage
                     .set_sign_data(
-                        musig_id.clone(),
-                        session_id.clone(),
+                        &musig_id,
+                        session_id,
                         SignerSignData {
                             tweak,
                             message_hash,
@@ -163,6 +210,8 @@ impl FrostSigner {
                         },
                     )
                     .await?;
+
+                debug!(musig_id = ?musig_id, session_id = %session_id, "Signing round 1 completed");
                 Ok(SignRound1Response { commitments })
             }
             _ => Err(SignerError::InvalidUserState(
@@ -173,9 +222,11 @@ impl FrostSigner {
 
     pub async fn sign_round_2(&self, request: SignRound2Request) -> Result<SignRound2Response, SignerError> {
         let musig_id = request.musig_id;
-        let session_id = request.session_id.clone();
+        let session_id = request.session_id;
 
-        let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id.clone()).await?;
+        debug!(musig_id = ?musig_id, session_id = %session_id, "Starting signing round 2");
+
+        let musig_id_data = self.musig_id_storage.get_musig_id_data(&musig_id).await?;
 
         let key_package = match musig_id_data {
             Some(SignerMusigIdData {
@@ -190,7 +241,7 @@ impl FrostSigner {
 
         let mut sign_data = self
             .sign_session_storage
-            .get_sign_data(musig_id.clone(), session_id.clone())
+            .get_sign_data(&musig_id, session_id)
             .await?
             .ok_or(SignerError::InvalidUserState(
                 "Session state is not SigningRound1".to_string(),
@@ -211,8 +262,10 @@ impl FrostSigner {
                 sign_data.sign_state = SignerSignState::SigningRound2 { signature_share };
 
                 self.sign_session_storage
-                    .set_sign_data(musig_id.clone(), session_id.clone(), sign_data)
+                    .set_sign_data(&musig_id, session_id, sign_data)
                     .await?;
+
+                debug!(musig_id = ?musig_id, session_id = %session_id, "Signing round 2 finished");
 
                 Ok(SignRound2Response { signature_share })
             }

@@ -1,4 +1,4 @@
-FROM rust:1.89.0-bullseye AS builder
+FROM rust:1.90.0-bullseye AS builder
 
 # Create a workspace directory
 WORKDIR /usr/src/runes-spark-bridge
@@ -6,6 +6,7 @@ WORKDIR /usr/src/runes-spark-bridge
 # Copy the entire workspace
 COPY ./ ./
 
+# Installing proto
 ENV PROTOC_VERSION=32.0
 RUN apt update && apt upgrade -y
 

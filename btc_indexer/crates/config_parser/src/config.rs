@@ -1,19 +1,19 @@
 use std::{fmt::Debug, net::SocketAddr, str::FromStr};
 
 use crate::error::ConfigParserError;
-use bitcoincore_rpc::Auth;
+use bitcoin::Network;
+use bitcoincore_rpc::{Auth, bitcoin};
 use config::{Config, Environment};
 use global_utils::config_variant::ConfigVariant;
-use global_utils::{env_parser, env_parser::lookup_ip_addr};
+use global_utils::env_parser;
+use global_utils::network::NetworkConfig;
 use serde::{Deserialize, Serialize};
-use spark_client::utils::spark_address::Network;
 use tracing::{debug, instrument, trace};
 
 const CONFIG_FOLDER_NAME: &str = "../../infrastructure/configuration";
 const PRODUCTION_CONFIG_FOLDER_NAME: &str = "configuration_indexer";
 const CARGO_MANIFEST_DIR: &str = "CARGO_MANIFEST_DIR";
 const DEFAULT_APP_LOCAL_BASE_FILENAME: &str = "base";
-pub const BITCOIN_NETWORK: &str = "BITCOIN_NETWORK";
 pub const BITCOIN_RPC_HOST: &str = "BITCOIN_RPC_HOST";
 pub const BITCOIN_RPC_PORT: &str = "BITCOIN_RPC_PORT";
 pub const BITCOIN_RPC_USERNAME: &str = "BITCOIN_RPC_USERNAME";
@@ -39,6 +39,21 @@ pub struct ServerConfig {
     pub app_config: AppConfig,
     #[serde(rename(deserialize = "btc_indexer"))]
     pub btc_indexer_config: BtcIndexerParams,
+    #[serde(rename(deserialize = "database"))]
+    pub database_config: DatabaseConfig,
+    #[serde(rename(deserialize = "network"))]
+    pub network_config: NetworkConfig,
+    #[serde(rename(deserialize = "titan"))]
+    pub titan_config: TitanConfig,
+    #[serde(rename(deserialize = "bitcoin_rpc"))]
+    pub bitcoin_rpc_config: BtcRpcConfig,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct BtcRpcConfig {
+    pub url: String,
+    pub name: String,
+    pub password: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -49,13 +64,18 @@ pub struct AppConfig {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BtcRpcCredentials {
-    pub url: SocketAddr,
+    pub url: String,
     pub network: Network,
     pub name: String,
     pub password: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct DatabaseConfig {
+    pub url: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct BtcIndexerParams {
     pub update_interval_millis: u64,
 }
@@ -68,6 +88,11 @@ impl AppConfig {
             self.http_server_ip, self.http_server_port
         ))?)
     }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct TitanConfig {
+    pub url: String,
 }
 
 impl ServerConfig {
@@ -131,7 +156,7 @@ impl ServerConfig {
             ConfigVariant::OnlyOneFilepath(filepath) => {
                 debug!(onepath = %filepath);
                 Config::builder()
-                    .add_source(config::File::with_name(&filepath))
+                    .add_source(config::File::with_name(filepath))
                     .add_source(Environment::with_prefix("config").separator("_").keep_prefix(false))
                     .build()?
                     .try_deserialize::<ServerConfig>()?
@@ -157,17 +182,10 @@ impl BtcRpcCredentials {
     #[instrument(level = "trace", ret)]
     pub fn new() -> crate::error::Result<Self> {
         Ok(Self {
-            url: SocketAddr::new(
-                lookup_ip_addr(&env_parser::obtain_env_value(BITCOIN_RPC_HOST)?)?,
-                u16::from_str(&env_parser::obtain_env_value(BITCOIN_RPC_PORT)?).map_err(|e| {
-                    ConfigParserError::ParseIntError {
-                        var_name: BITCOIN_RPC_PORT.to_string(),
-                        err: e,
-                    }
-                })?,
-            ),
-            network: Network::from_str(&env_parser::obtain_env_value(BITCOIN_NETWORK)?)
-                .map_err(|e| ConfigParserError::ParseNetworkError(e.to_string()))?,
+            url: env_parser::obtain_env_value(BITCOIN_RPC_HOST)?,
+            network: NetworkConfig::from_env()
+                .map_err(|e| ConfigParserError::ParseNetworkError(e.to_string()))?
+                .network,
             name: env_parser::obtain_env_value(BITCOIN_RPC_USERNAME)?,
             password: env_parser::obtain_env_value(BITCOIN_RPC_PASSWORD)?,
         })

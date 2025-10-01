@@ -9,9 +9,11 @@ swagger = ["spark_balance_checker_server/swagger"]
 [dependencies]
 anyhow = { workspace = true }
 axum = { workspace = true }
+dotenv = { workspace = true }
 global_utils = { workspace = true }
 spark_balance_checker_config_parser = { workspace = true }
 spark_balance_checker_server = { workspace = true }
 spark_client = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
+rustls = { workspace = true }

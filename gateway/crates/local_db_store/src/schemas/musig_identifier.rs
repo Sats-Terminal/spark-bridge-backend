@@ -1,21 +1,25 @@
 use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
+use bitcoin::secp256k1::PublicKey;
 use frost::traits::AggregatorMusigIdStorage;
 use frost::types::AggregatorDkgState;
 use frost::types::AggregatorMusigIdData;
 use frost::types::MusigId;
 use persistent_storage::error::DbError;
 use sqlx::types::Json;
+use std::str::FromStr;
+use tracing::instrument;
 
 #[async_trait]
 impl AggregatorMusigIdStorage for LocalDbStorage {
-    async fn get_musig_id_data(&self, musig_id: MusigId) -> Result<Option<AggregatorMusigIdData>, DbError> {
+    #[instrument(level = "trace", skip(self), ret)]
+    async fn get_musig_id_data(&self, musig_id: &MusigId) -> Result<Option<AggregatorMusigIdData>, DbError> {
         let public_key = musig_id.get_public_key();
         let rune_id = musig_id.get_rune_id();
 
         let result: Option<(Json<AggregatorDkgState>,)> = sqlx::query_as(
             "SELECT dkg_state 
-            FROM gateway.musig_identifier
+            FROM gateway.musig_identifier 
             WHERE public_key = $1 AND rune_id = $2",
         )
         .bind(public_key.to_string())
@@ -29,14 +33,15 @@ impl AggregatorMusigIdStorage for LocalDbStorage {
         }))
     }
 
-    async fn set_musig_id_data(&self, musig_id: MusigId, user_state: AggregatorMusigIdData) -> Result<(), DbError> {
+    #[instrument(level = "trace", skip(self), ret)]
+    async fn set_musig_id_data(&self, musig_id: &MusigId, user_state: AggregatorMusigIdData) -> Result<(), DbError> {
         let dkg_state = Json(user_state.dkg_state);
         let public_key = musig_id.get_public_key();
         let rune_id = musig_id.get_rune_id();
         let is_issuer = matches!(musig_id, MusigId::Issuer { .. });
 
         let _ = sqlx::query(
-            "INSERT INTO gateway.musig_identifier (public_key, rune_id, is_issuer, dkg_state)
+            "INSERT INTO gateway.musig_identifier (public_key, rune_id, is_issuer, dkg_state) 
             VALUES ($1, $2, $3, $4) 
             ON CONFLICT (public_key, rune_id) DO UPDATE SET dkg_state = $4",
         )
@@ -49,6 +54,26 @@ impl AggregatorMusigIdStorage for LocalDbStorage {
         .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
         Ok(())
+    }
+
+    async fn get_issuer_musig_id(&self, rune_id: String) -> Result<Option<MusigId>, DbError> {
+        let result: Option<(String, String)> = sqlx::query_as(
+            "SELECT public_key, rune_id 
+            FROM gateway.musig_identifier 
+            WHERE is_issuer = true AND rune_id = $1",
+        )
+        .bind(rune_id)
+        .fetch_optional(&self.get_conn().await?)
+        .await
+        .map_err(|e| DbError::BadRequest(e.to_string()))?;
+
+        match result {
+            Some((public_key, rune_id)) => Ok(Some(MusigId::Issuer {
+                issuer_public_key: PublicKey::from_str(&public_key).map_err(|e| DbError::BadRequest(e.to_string()))?,
+                rune_id,
+            })),
+            None => Ok(None),
+        }
     }
 }
 
@@ -68,14 +93,18 @@ mod tests {
     use lrc20::token_transaction::{
         TokenTransaction, TokenTransactionCreateInput, TokenTransactionInput, TokenTransactionVersion,
     };
+    use persistent_storage::init::{PostgresPool, PostgresRepo};
     use std::collections::BTreeMap;
     use std::sync::Arc;
+    use crate::storage::{make_repo_with_config};
+
+    pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
 
     async fn create_signer(identifier: u16) -> FrostSigner {
         FrostSigner::new(
             identifier,
             Arc::new(MockSignerMusigIdStorage::new()),
-            Arc::new(MockSignerSignSessionStorage::new()),
+            Arc::new(MockSignerSignSessionStorage::default()),
             3,
             2,
         )
@@ -130,20 +159,15 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_aggregator_signer_integration() {
+    #[sqlx::test(migrator = "MIGRATOR")]
+    async fn test_aggregator_signer_integration(db: PostgresPool) -> anyhow::Result<()> {
+        let storage = make_repo_with_config(db).await;
+
         let verifiers_map = create_verifiers_map_easy().await;
-
-        let storage = Arc::new(
-            LocalDbStorage::new("postgres://admin_manager:password@localhost:5470/production_db_name".to_string())
-                .await
-                .unwrap(),
-        );
-
         let aggregator = FrostAggregator::new(verifiers_map, storage.clone(), storage);
 
         let secp = Secp256k1::new();
-        let secret_key = SecretKey::from_slice(&[4u8; 32]).unwrap();
+        let secret_key = SecretKey::from_slice(&[4u8; 32])?;
         let user_id = MusigId::User {
             user_public_key: PublicKey::from_secret_key(&secp, &secret_key),
             rune_id: "test_rune_id".to_string(),
@@ -152,7 +176,7 @@ mod tests {
         //let user_id = "test_user";
         let message_hash = b"test_message";
 
-        let public_key_package = aggregator.run_dkg_flow(user_id.clone()).await.unwrap();
+        let public_key_package = aggregator.run_dkg_flow(&user_id).await?;
 
         let tweak = Some(b"test_tweak".as_slice());
         // let tweak = None;
@@ -160,8 +184,7 @@ mod tests {
 
         let signature = aggregator
             .run_signing_flow(user_id, message_hash, metadata, tweak)
-            .await
-            .unwrap();
+            .await?;
 
         let tweaked_public_key_package = match tweak.clone() {
             Some(tweak) => public_key_package.clone().tweak(Some(tweak.to_vec())),
@@ -169,7 +192,8 @@ mod tests {
         };
         tweaked_public_key_package
             .verifying_key()
-            .verify(message_hash, &signature)
-            .unwrap();
+            .verify(message_hash, &signature)?;
+
+        Ok(())
     }
 }

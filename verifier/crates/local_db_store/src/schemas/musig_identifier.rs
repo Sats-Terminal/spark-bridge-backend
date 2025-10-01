@@ -1,6 +1,5 @@
-use crate::storage::Storage;
+use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
-use bitcoin::secp256k1::PublicKey;
 use frost::traits::SignerMusigIdStorage;
 use frost::types::MusigId;
 use frost::types::SignerDkgState;
@@ -9,14 +8,14 @@ use persistent_storage::error::DbError;
 use sqlx::types::Json;
 
 #[async_trait]
-impl SignerMusigIdStorage for Storage {
-    async fn get_musig_id_data(&self, musig_id: MusigId) -> Result<Option<SignerMusigIdData>, DbError> {
+impl SignerMusigIdStorage for LocalDbStorage {
+    async fn get_musig_id_data(&self, musig_id: &MusigId) -> Result<Option<SignerMusigIdData>, DbError> {
         let public_key = musig_id.get_public_key();
         let rune_id = musig_id.get_rune_id();
 
         let result: Option<(Json<SignerDkgState>,)> = sqlx::query_as(
             "SELECT dkg_state 
-            FROM musig_identifier 
+            FROM verifier.musig_identifier 
             WHERE public_key = $1 AND rune_id = $2",
         )
         .bind(public_key.to_string())
@@ -30,14 +29,14 @@ impl SignerMusigIdStorage for Storage {
         }))
     }
 
-    async fn set_musig_id_data(&self, musig_id: MusigId, musig_id_data: SignerMusigIdData) -> Result<(), DbError> {
+    async fn set_musig_id_data(&self, musig_id: &MusigId, musig_id_data: SignerMusigIdData) -> Result<(), DbError> {
         let dkg_state = Json(musig_id_data.dkg_state);
         let public_key = musig_id.get_public_key();
         let rune_id = musig_id.get_rune_id();
         let is_issuer = matches!(musig_id, MusigId::Issuer { .. });
 
         let _ = sqlx::query(
-            "INSERT INTO musig_identifier (public_key, rune_id, is_issuer, dkg_state) 
+            "INSERT INTO verifier.musig_identifier (public_key, rune_id, is_issuer, dkg_state) 
             VALUES ($1, $2, $3, $4) 
             ON CONFLICT (public_key, rune_id) DO UPDATE SET dkg_state = $4",
         )
@@ -74,9 +73,10 @@ mod tests {
     use std::sync::Arc;
 
     async fn create_signer(identifier: u16, is_mock_key_storage: bool, is_mock_session_storage: bool) -> FrostSigner {
-        let storage = Storage::new("postgres://admin_manager:password@localhost:5471/production_db_name".to_string())
-            .await
-            .unwrap();
+        let storage =
+            LocalDbStorage::new("postgres://admin_manager:password@localhost:5471/production_db_name".to_string())
+                .await
+                .unwrap();
         let arc_storage = Arc::new(storage);
 
         let user_key_storage: Arc<dyn SignerMusigIdStorage> = if is_mock_key_storage {
@@ -86,7 +86,7 @@ mod tests {
         };
 
         let user_session_storage: Arc<dyn SignerSignSessionStorage> = if is_mock_session_storage {
-            Arc::new(MockSignerSignSessionStorage::new())
+            Arc::new(MockSignerSignSessionStorage::default())
         } else {
             arc_storage
         };
@@ -163,7 +163,7 @@ mod tests {
         //let user_id = "test_user";
         let message_hash = b"test_message";
 
-        let public_key_package = aggregator.run_dkg_flow(user_id.clone()).await.unwrap();
+        let public_key_package = aggregator.run_dkg_flow(&user_id).await.unwrap();
 
         let tweak = Some(b"test_tweak".as_slice());
         // let tweak = None;

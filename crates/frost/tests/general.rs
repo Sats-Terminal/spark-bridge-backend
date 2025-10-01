@@ -11,7 +11,7 @@ fn create_signer(identifier: u16) -> FrostSigner {
     FrostSigner::new(
         identifier,
         Arc::new(MockSignerMusigIdStorage::new()),
-        Arc::new(MockSignerSignSessionStorage::new()),
+        Arc::new(MockSignerSignSessionStorage::default()),
         3,
         2,
     )
@@ -88,7 +88,7 @@ async fn test_aggregator_signer_integration() {
     // let tweak = Some(b"test_tweak".as_slice());
     let tweak = None;
 
-    let public_key_package = aggregator.run_dkg_flow(musig_id.clone()).await.unwrap();
+    let public_key_package = aggregator.run_dkg_flow(&musig_id).await.unwrap();
     let metadata = create_signing_metadata();
 
     let signature = aggregator
@@ -127,7 +127,7 @@ async fn test_parallel_signing_sessions_via_aggregator() {
     let msg_b = b"parallel message B".to_vec();
     let tweak = None::<&[u8]>;
 
-    let public_key_package = aggregator.run_dkg_flow(user_id.clone()).await.unwrap();
+    let public_key_package = aggregator.run_dkg_flow(&user_id).await.unwrap();
     let metadata = create_signing_metadata();
 
     let (sig_res_a, sig_res_b) = tokio::join!(
@@ -151,4 +151,19 @@ async fn test_parallel_signing_sessions_via_aggregator() {
         signature_a, signature_b,
         "signatures for different messages should differ"
     );
+}
+
+use bitcoin::key::TapTweak;
+use bitcoin::key::UntweakedPublicKey;
+use std::str::FromStr;
+
+#[test]
+fn test_get_tweaked_public_key() {
+    let ctx = Secp256k1::new();
+
+    let our_public_key =
+        PublicKey::from_str("038144ac71b61ab0e0a56967696a4f31a0cdd492cd3753d59aa978e0c8eaa5a60e").unwrap();
+
+    let untweaked_public_key: UntweakedPublicKey = our_public_key.into();
+    let (tweaked_public_key, _) = untweaked_public_key.tap_tweak(&ctx, None);
 }

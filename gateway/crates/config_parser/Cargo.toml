@@ -9,6 +9,7 @@ serde = { workspace = true }
 config = { workspace = true }
 tracing = { workspace = true }
 thiserror = { workspace = true }
+bitcoin = { workspace = true }
 spark_client = { workspace = true }
 
 [dev-dependencies]

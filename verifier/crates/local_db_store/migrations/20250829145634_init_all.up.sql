@@ -1,25 +1,49 @@
 BEGIN TRANSACTION;
 
-CREATE TABLE IF NOT EXISTS musig_identifier
+CREATE SCHEMA verifier;
+
+----------- MUSIG_IDENTIFIER -----------
+
+CREATE TABLE IF NOT EXISTS verifier.musig_identifier
 (
-    public_key VARCHAR(255) NOT NULL,
-    rune_id VARCHAR(255) NOT NULL,
-    is_issuer BOOLEAN NOT NULL,
-    dkg_state JSON NOT NULL,
+    public_key TEXT    NOT NULL,
+    rune_id    TEXT    NOT NULL,
+    is_issuer  BOOLEAN NOT NULL,
+    dkg_state  JSON    NOT NULL,
     PRIMARY KEY (public_key, rune_id)
 );
 
-CREATE TABLE IF NOT EXISTS sign_session
+----------- SIGN_SESSION -----------
+
+CREATE TABLE IF NOT EXISTS verifier.sign_session
 (
-    public_key VARCHAR(255) NOT NULL,
-    rune_id VARCHAR(255) NOT NULL,
-    session_id VARCHAR(255) NOT NULL,
-    tweak BYTEA NOT NULL,
+    public_key   TEXT  NOT NULL,
+    rune_id      TEXT  NOT NULL,
+    session_id   TEXT  NOT NULL,
+    tweak        BYTEA,
     message_hash BYTEA NOT NULL,
-    metadata JSON NOT NULL,
-    sign_state JSON NOT NULL,
+    metadata     JSON  NOT NULL,
+    sign_state   JSON  NOT NULL,
     PRIMARY KEY (session_id),
-    FOREIGN KEY (public_key, rune_id) REFERENCES musig_identifier(public_key, rune_id)
+    FOREIGN KEY (public_key, rune_id) REFERENCES verifier.musig_identifier (public_key, rune_id)
+);
+
+------------ DEPOSIT_ADDRESS -----------
+
+CREATE TABLE IF NOT EXISTS verifier.deposit_address
+(
+    nonce_tweak BYTEA NOT NULL,
+    public_key TEXT NOT NULL,
+    rune_id TEXT NOT NULL,
+    deposit_address TEXT NOT NULL,
+    bridge_address TEXT NOT NULL,
+    is_btc BOOLEAN NOT NULL,
+    deposit_amount BIGINT NOT NULL,
+    confirmation_status JSON NOT NULL,
+    sats_fee_amount BIGINT,
+    out_point TEXT,
+    PRIMARY KEY (public_key, rune_id, nonce_tweak),
+    FOREIGN KEY (public_key, rune_id) REFERENCES verifier.musig_identifier(public_key, rune_id)
 );
 
 COMMIT;

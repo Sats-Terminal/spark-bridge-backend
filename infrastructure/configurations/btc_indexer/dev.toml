@@ -1,0 +1,20 @@
+[application]
+http_server_ip = "0.0.0.0"
+http_server_port = 8070
+
+[btc_indexer]
+update_interval_millis = 500
+
+[database]
+url = "postgres://postgres:postgres@localhost:5474/btc_indexer"
+
+[network]
+network = "regtest"
+
+[titan]
+url = "http://127.0.0.1:3030"
+
+[bitcoin_rpc]
+url = "http://127.0.0.1:18443"
+name = "bitcoin"
+password = "bitcoinpass"

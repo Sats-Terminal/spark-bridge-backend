@@ -15,6 +15,8 @@ pub enum DbError {
     UnableToRetrieveConnection(#[from] sqlx::Error),
     #[error("Bad request error: {0}")]
     BadRequest(String),
+    #[error("Bad response error: {0}")]
+    BadResponse(String),
     #[error("Invalid data error: {0}")]
     InvalidData(String),
     #[error("Signer error: {0}")]
@@ -23,4 +25,6 @@ pub enum DbError {
     AggregatorError(String),
     #[error("Database not found: {0}")]
     NotFound(String),
+    #[error("Decode error: {0}")]
+    DecodeError(String),
 }

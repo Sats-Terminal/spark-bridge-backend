@@ -1,6 +1,5 @@
 use std::{net::AddrParseError, num::ParseIntError};
 
-use bitcoincore_rpc::bitcoin::network::ParseNetworkError;
 use config::ConfigError;
 use global_utils::env_parser::EnvParserError;
 use thiserror::Error;

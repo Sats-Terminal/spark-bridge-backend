@@ -1,5 +1,5 @@
 use crate::errors::VerifierError;
-use crate::state::AppState;
+use crate::init::AppState;
 use axum::Json;
 use axum::extract::State;
 use frost::types::{DkgFinalizeRequest, DkgFinalizeResponse};
@@ -11,7 +11,6 @@ pub async fn handle(
     Json(request): Json<DkgFinalizeRequest>,
 ) -> Result<Json<DkgFinalizeResponse>, VerifierError> {
     let response = state.frost_signer.dkg_finalize(request).await?;
-    tracing::debug!("DKG finalize response: {:?}", response);
-
+    tracing::debug!("[verifier] DKG finalize response: {:?}", response);
     Ok(Json(response))
 }

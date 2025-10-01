@@ -1,29 +1,38 @@
+use std::{
+    array::TryFromSliceError,
+    collections::HashMap,
+    fmt::{Display, Formatter},
+};
+
 use bitcoin::{
     hashes::{FromSliceError, sha256::Hash},
     secp256k1::{Error as Secp256k1Error, PublicKey},
 };
-use serde::{Deserialize, Serialize};
-use std::{
-    array::TryFromSliceError,
-    fmt::{Display, Formatter},
-};
+use spark_address::SparkAddressError;
 use thiserror::Error;
+use token_identifier::TokenIdentifier;
+use uuid::Uuid;
 
 use crate::{
     spark_hash::SparkHash,
     spark_signature::SparkSignature,
-    token_identifier::TokenIdentifier,
     token_leaf::{TokenLeafOutput, TokenLeafToSpend},
 };
 
 /// Represents a version of a token transaction
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TokenTransactionVersion {
     /// Token transfers V1
     V1,
 
     /// Token transfers V2
     V2,
+
+    /// Token transfers V3
+    V3,
+
+    /// Token transfers V4
+    V4,
 }
 
 impl TokenTransactionVersion {
@@ -32,6 +41,18 @@ impl TokenTransactionVersion {
         match self {
             TokenTransactionVersion::V1 => 0u32.to_be_bytes(),
             TokenTransactionVersion::V2 => 1u32.to_be_bytes(),
+            TokenTransactionVersion::V3 => 2u32.to_be_bytes(),
+            TokenTransactionVersion::V4 => 3u32.to_be_bytes(),
+        }
+    }
+
+    /// Converts the token transaction version to u32
+    pub fn as_u32(&self) -> u32 {
+        match self {
+            TokenTransactionVersion::V1 => 0u32,
+            TokenTransactionVersion::V2 => 1u32,
+            TokenTransactionVersion::V3 => 2u32,
+            TokenTransactionVersion::V4 => 3u32,
         }
     }
 }
@@ -41,6 +62,8 @@ impl Display for TokenTransactionVersion {
         match self {
             TokenTransactionVersion::V1 => write!(f, "V1"),
             TokenTransactionVersion::V2 => write!(f, "V2"),
+            TokenTransactionVersion::V3 => write!(f, "V3"),
+            TokenTransactionVersion::V4 => write!(f, "V4"),
         }
     }
 }
@@ -50,7 +73,7 @@ impl Display for TokenTransactionVersion {
 /// This struct contains the input and output information for a token transaction.
 /// It includes the input type (Mint, Transfer, etc.), the leaves to create,
 /// the operator identity public keys, and the network information.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TokenTransaction {
     /// The version (should always be V2)
     pub version: TokenTransactionVersion,
@@ -72,6 +95,9 @@ pub struct TokenTransaction {
 
     /// The timestamp of when the client created the transaction.
     pub client_created_timestamp: u64,
+
+    /// The Spark Invoices
+    pub invoice_attachments: HashMap<Uuid, String>,
 }
 
 impl TokenTransaction {
@@ -83,7 +109,7 @@ impl TokenTransaction {
     /// # Returns
     /// A `SparkHash` representing the hash of the token transaction.
     pub fn hash(&self) -> Result<SparkHash, TokenTransactionError> {
-        self.try_into().map_err(|err| TokenTransactionError::HashError(err))
+        self.try_into().map_err(TokenTransactionError::HashError)
     }
 }
 
@@ -100,7 +126,7 @@ impl TryFrom<&TokenTransaction> for Hash {
 ///
 /// This enum defines the different types of token transactions that can be created.
 /// It includes minting, transferring, and other possible transaction types.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TokenTransactionInput {
     /// Represents an LRC20 mint transaction.
     Mint(TokenTransactionMintInput),
@@ -113,7 +139,7 @@ pub enum TokenTransactionInput {
 }
 
 /// Represents an LRC20 mint transaction.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TokenTransactionMintInput {
     /// The public key of the issuer of the token.
     pub issuer_public_key: PublicKey,
@@ -129,14 +155,14 @@ pub struct TokenTransactionMintInput {
 }
 
 /// Represents an LRC20 transfer transaction.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TokenTransactionTransferInput {
     /// The leaves to spend in the transfer transaction.
     pub leaves_to_spend: Vec<TokenLeafToSpend>,
 }
 
 /// Represents an LRC20 create transaction.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TokenTransactionCreateInput {
     /// The issuer public key
     pub issuer_public_key: PublicKey,
@@ -163,7 +189,7 @@ pub struct TokenTransactionCreateInput {
 /// Represents the operator specific signature data for a token transaction.
 ///
 /// This struct contains the identity public key and the signature of the operator.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct OperatorSpecificSignatureData {
     /// The public key of the operator.
     pub identity_public_key: Option<PublicKey>,
@@ -217,5 +243,13 @@ pub enum TokenTransactionError {
 
     /// Failed to parse token identifier
     #[error("Token identifier parse error: {0}")]
-    TokenIdentifierParse(#[from] crate::token_identifier::TokenIdentifierParseError),
+    TokenIdentifierParse(#[from] token_identifier::TokenIdentifierParseError),
+
+    /// Failed to parse Spark Invoice
+    #[error("Spark Invoice parse error: {0}")]
+    InvoiceParse(#[from] SparkAddressError),
+
+    /// Invoice data is missing.
+    #[error("Invoice data is missing")]
+    InvoiceDataMissing,
 }

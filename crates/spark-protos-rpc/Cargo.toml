@@ -16,6 +16,8 @@ tonic = { workspace = true }
 prost = { workspace = true }
 prost-wkt-types = { workspace = true }
 prost-wkt = { workspace = true }
+prost-reflect = { workspace = true }
+thiserror = { workspace = true }
 
 [build-dependencies]
 prost-wkt-build = { workspace = true }

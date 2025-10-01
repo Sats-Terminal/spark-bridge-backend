@@ -1,15 +1,21 @@
 [application]
 http_server_ip = "0.0.0.0"
 http_server_port = 8073
-network = "Regtest"
+network = "regtest"
 
 [btc_indexer_url_config]
-address="localhost:8079"
+address="http://localhost:8070"
 
 [spark_balance_checker_url_config]
-address="localhost:8078"
+address="http://localhost:8090"
 
-[frost_signer]
+[frost_signer_config]
 identifier = 3
 threshold = 2
 total_participants = 3
+
+[gateway_config]
+address = "http://localhost:8060"
+
+[database_config]
+url = "postgres://postgres:postgres@localhost:5473/verifier"

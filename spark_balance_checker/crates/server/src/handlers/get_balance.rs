@@ -4,7 +4,7 @@ use axum::Json;
 use axum::extract::State;
 use bech32;
 use serde::{Deserialize, Serialize};
-use spark_client::utils::spark_address::decode_spark_address;
+use spark_address::decode_spark_address;
 use spark_protos::spark::QueryTokenOutputsRequest;
 use utoipa::ToSchema;
 
@@ -15,7 +15,7 @@ use utoipa::ToSchema;
 }))]
 pub struct GetBalanceRequest {
     spark_address: String,
-    rune_id: String,
+    token_identifier: String,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -35,10 +35,11 @@ pub struct GetBalanceResponse {
     ),
 )]
 pub async fn handle(
-    State(mut state): State<AppState>,
+    State(state): State<AppState>,
     Json(payload): Json<GetBalanceRequest>,
 ) -> Result<Json<GetBalanceResponse>, ServerError> {
-    let address_data = decode_spark_address(payload.spark_address)?;
+    let address_data = decode_spark_address(&payload.spark_address)
+        .map_err(|e| ServerError::InvalidData(format!("Failed to decode spark address: {}", e)))?;
     let identity_public_key = hex::decode(address_data.identity_public_key)
         .map_err(|e| ServerError::InvalidData(format!("Failed to decode identity public key: {}", e)))?;
     let network = address_data.network;
@@ -48,7 +49,7 @@ pub async fn handle(
         .get_token_outputs(QueryTokenOutputsRequest {
             owner_public_keys: vec![identity_public_key],
             token_identifiers: vec![
-                bech32::decode(&payload.rune_id)
+                bech32::decode(&payload.token_identifier)
                     .map_err(|e| ServerError::InvalidData(format!("Failed to decode token identifier: {}", e)))?
                     .1,
             ],

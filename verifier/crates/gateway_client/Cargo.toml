@@ -1,0 +1,13 @@
+[package]
+name = "verifier_gateway_client"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+thiserror = { workspace = true }
+tracing = { workspace = true }
+reqwest = { workspace = true }
+verifier_config_parser = { workspace = true }
+bitcoin = { workspace = true }
+verifier_local_db_store = { workspace = true }
+serde = { workspace = true }

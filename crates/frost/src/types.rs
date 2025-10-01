@@ -8,28 +8,31 @@ use frost_secp256k1_tr::{
     round1::{SigningCommitments, SigningNonces},
     round2::SignatureShare,
 };
-use lrc20::token_transaction::TokenTransaction;
 use serde::{Deserialize, Serialize};
+use spark_protos::spark_token::TokenTransaction;
 use std::collections::BTreeMap;
 use uuid::Uuid;
+
+pub type Nonce = [u8; 32];
+pub type RuneId = String;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub enum MusigId {
     User {
         user_public_key: PublicKey,
-        rune_id: String,
+        rune_id: RuneId,
     },
     Issuer {
         issuer_public_key: PublicKey,
-        rune_id: String,
+        rune_id: RuneId,
     },
 }
 
 impl MusigId {
     pub fn get_public_key(&self) -> PublicKey {
         match self {
-            MusigId::User { user_public_key, .. } => user_public_key.clone(),
-            MusigId::Issuer { issuer_public_key, .. } => issuer_public_key.clone(),
+            MusigId::User { user_public_key, .. } => *user_public_key,
+            MusigId::Issuer { issuer_public_key, .. } => *issuer_public_key,
         }
     }
 
@@ -167,15 +170,13 @@ pub struct SignerSignData {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SigningMetadata {
-    pub token_transaction_metadata: TokenTransactionMetadata,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum TokenTransactionMetadata {
+pub enum SigningMetadata {
     PartialCreateToken { token_transaction: TokenTransaction },
     FinalCreateToken { token_transaction: TokenTransaction },
     PartialMintToken { token_transaction: TokenTransaction },
     FinalMintToken { token_transaction: TokenTransaction },
+    PartialTransferToken { token_transaction: TokenTransaction },
+    FinalTransferToken { token_transaction: TokenTransaction },
     Authorization,
+    BtcTransactionMetadata {},
 }
