@@ -21,6 +21,8 @@ pub enum VerifierError {
     SparkBalanceCheckerClientError(String),
     #[error("Gateway client error: {0}")]
     GatewayClientError(String),
+    #[error("Validation was incorrect: {0}")]
+    ValidationError(String),
     #[error("Healthcheck error: [{0}]")]
     HealthcheckError(String),
 }
@@ -46,6 +48,7 @@ impl IntoResponse for VerifierError {
             VerifierError::HealthcheckError(error) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()).into_response()
             }
+            VerifierError::ValidationError(message) => (StatusCode::BAD_REQUEST, message).into_response(),
         }
     }
 }

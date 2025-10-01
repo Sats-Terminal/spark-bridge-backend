@@ -1,6 +1,7 @@
 use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
 use bitcoin::OutPoint;
+use global_utils::conversion::decode_address;
 use persistent_storage::error::DbError;
 use serde::{Deserialize, Serialize};
 use sqlx::{Postgres, Transaction};
@@ -16,6 +17,23 @@ pub struct Utxo {
     pub sats_fee_amount: u64,
 }
 
+impl Utxo {
+    fn from_row(row: UtxoRow, network: bitcoin::Network) -> Result<Self, DbError> {
+        Ok(Self {
+            out_point: row
+                .out_point
+                .parse()
+                .map_err(|e| DbError::DecodeError(format!("Failed to parse out point: {}", e)))?,
+            btc_address: decode_address(&row.btc_address, network)
+                .map_err(|e| DbError::DecodeError(format!("Failed to decode btc address: {}", e)))?,
+            rune_amount: row.rune_amount as u64,
+            rune_id: row.rune_id,
+            status: row.status,
+            sats_fee_amount: row.sats_fee_amount as u64,
+        })
+    }
+}
+
 #[derive(Debug, Clone, sqlx::FromRow)]
 struct UtxoRow {
     pub out_point: String,
@@ -24,22 +42,6 @@ struct UtxoRow {
     pub rune_id: String,
     pub status: UtxoStatus,
     pub sats_fee_amount: i64,
-}
-
-impl From<UtxoRow> for Utxo {
-    fn from(row: UtxoRow) -> Self {
-        Self {
-            out_point: row.out_point.parse().unwrap(),
-            btc_address: bitcoin::Address::from_str(&row.btc_address)
-                .unwrap()
-                .require_network(bitcoin::Network::Bitcoin)
-                .unwrap(),
-            rune_amount: row.rune_amount as u64,
-            rune_id: row.rune_id,
-            status: row.status,
-            sats_fee_amount: row.sats_fee_amount as u64,
-        }
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, Copy, Eq, PartialEq, Hash)]
@@ -79,7 +81,7 @@ impl UtxoStorage for LocalDbStorage {
             r#"
             INSERT INTO gateway.utxo
                 (out_point, rune_amount, rune_id, status, btc_address, sats_fee_amount)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            VALUES ($1, $2, $3, $4, $5, $6)
             ON CONFLICT (out_point) DO UPDATE
             SET rune_amount = EXCLUDED.rune_amount,
                 rune_id = EXCLUDED.rune_id,
@@ -99,7 +101,7 @@ impl UtxoStorage for LocalDbStorage {
         .await
         .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
-        Ok(rec.into())
+        Ok(Utxo::from_row(rec, self.network)?)
     }
 
     async fn update_status(&self, out_point: OutPoint, new_status: UtxoStatus) -> Result<(), DbError> {
@@ -140,7 +142,10 @@ impl UtxoStorage for LocalDbStorage {
         .await
         .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
-        Ok(rows.into_iter().map(|row| row.into()).collect())
+        Ok(rows
+            .into_iter()
+            .map(|row| Utxo::from_row(row, self.network))
+            .collect::<Result<Vec<Utxo>, DbError>>()?)
     }
 
     async fn select_utxos_for_amount(&self, rune_id: String, target_amount: u64) -> Result<Vec<Utxo>, DbError> {
@@ -151,7 +156,7 @@ impl UtxoStorage for LocalDbStorage {
             .await
             .map_err(|e| DbError::BadRequest(format!("Failed to begin transaction: {}", e)))?;
 
-        let candidates = get_candidate_utxos_for_update(rune_id, &mut tx).await?;
+        let candidates = get_candidate_utxos_for_update(rune_id, &mut tx, self.network).await?;
 
         let mut selected = Vec::new();
         let mut total = 0u64;
@@ -171,7 +176,7 @@ impl UtxoStorage for LocalDbStorage {
 
         let utxo_refs: Vec<String> = selected.iter().map(|u| u.out_point.to_string()).collect();
 
-        let updated_utxos = mark_utxos_as_spent(&utxo_refs, &mut tx).await?;
+        let updated_utxos = mark_utxos_as_spent(&utxo_refs, &mut tx, self.network).await?;
 
         tx.commit()
             .await
@@ -193,7 +198,10 @@ impl UtxoStorage for LocalDbStorage {
         .await
         .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
-        Ok(utxo.map(|row| row.into()))
+        match utxo {
+            Some(row) => Ok(Some(Utxo::from_row(row, self.network)?)),
+            None => Ok(None),
+        }
     }
 
     async fn delete_utxo(&self, out_point: OutPoint) -> Result<(), DbError> {
@@ -251,13 +259,17 @@ impl UtxoStorage for LocalDbStorage {
         .await
         .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
-        Ok(utxo.map(|row| row.into()))
+        match utxo {
+            Some(row) => Ok(Some(Utxo::from_row(row, self.network)?)),
+            None => Ok(None),
+        }
     }
 }
 
 async fn get_candidate_utxos_for_update(
     rune_id: String,
     tx: &mut Transaction<'_, Postgres>,
+    network: bitcoin::Network,
 ) -> Result<Vec<Utxo>, DbError> {
     let candidates = sqlx::query_as::<_, UtxoRow>(
         r#"
@@ -273,10 +285,17 @@ async fn get_candidate_utxos_for_update(
     .await
     .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
-    Ok(candidates.into_iter().map(|row| row.into()).collect())
+    Ok(candidates
+        .into_iter()
+        .map(|row| Utxo::from_row(row, network))
+        .collect::<Result<Vec<Utxo>, DbError>>()?)
 }
 
-async fn mark_utxos_as_spent(utxo_refs: &[String], tx: &mut Transaction<'_, Postgres>) -> Result<Vec<Utxo>, DbError> {
+async fn mark_utxos_as_spent(
+    utxo_refs: &[String],
+    tx: &mut Transaction<'_, Postgres>,
+    network: bitcoin::Network,
+) -> Result<Vec<Utxo>, DbError> {
     if utxo_refs.is_empty() {
         return Ok(Vec::new());
     }
@@ -310,7 +329,10 @@ async fn mark_utxos_as_spent(utxo_refs: &[String], tx: &mut Transaction<'_, Post
         .await
         .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
-    Ok(updated_utxos.into_iter().map(|row| row.into()).collect())
+    Ok(updated_utxos
+        .into_iter()
+        .map(|row| Utxo::from_row(row, network))
+        .collect::<Result<Vec<Utxo>, DbError>>()?)
 }
 
 // #[cfg(test)]

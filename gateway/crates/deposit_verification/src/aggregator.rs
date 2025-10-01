@@ -2,13 +2,13 @@ use crate::error::DepositVerificationError;
 use crate::traits::VerificationClient;
 use crate::types::*;
 use crate::types::{NotifyRunesDepositRequest, VerifyRunesDepositRequest, VerifySparkDepositRequest};
-use bitcoin::Address;
 use futures::future::join_all;
 use gateway_flow_processor::flow_sender::{FlowSender, TypedMessageSender};
 use gateway_flow_processor::types::{BridgeRunesRequest, ExitSparkRequest};
 use gateway_local_db_store::schemas::deposit_address::{
     DepositAddressStorage, DepositStatus, InnerAddress, VerifiersResponses,
 };
+use gateway_local_db_store::schemas::paying_utxo::PayingUtxoStorage;
 use gateway_local_db_store::schemas::utxo_storage::{Utxo, UtxoStatus, UtxoStorage};
 use gateway_local_db_store::storage::LocalDbStorage;
 use std::collections::HashMap;
@@ -47,17 +47,13 @@ impl DepositVerificationAggregator {
                 InnerAddress::BitcoinAddress(request.btc_address.clone()),
                 InnerAddress::SparkAddress(request.bridge_address.clone()),
             )
-            .await
-            .map_err(|e| DepositVerificationError::StorageError(format!("Error updating bridge address: {:?}", e)))?;
+            .await?;
 
         let deposit_addr_info = self
             .storage
             .get_row_by_deposit_address(InnerAddress::BitcoinAddress(request.btc_address.clone()))
-            .await
-            .map_err(|e| {
-                DepositVerificationError::StorageError(format!("Error getting deposit address info: {:?}", e))
-            })?
-            .ok_or(DepositVerificationError::StorageError(
+            .await?
+            .ok_or(DepositVerificationError::NotFound(
                 "Deposit address info not found".to_string(),
             ))?;
 
@@ -95,10 +91,7 @@ impl DepositVerificationAggregator {
                 InnerAddress::BitcoinAddress(request.btc_address.clone()),
                 verifiers_responses,
             )
-            .await
-            .map_err(|e| {
-                DepositVerificationError::StorageError(format!("Error updating confirmation status: {:?}", e))
-            })?;
+            .await?;
 
         let utxo = Utxo {
             out_point: request.out_point,
@@ -108,10 +101,7 @@ impl DepositVerificationAggregator {
             status: UtxoStatus::Pending,
             sats_fee_amount: 0,
         };
-        self.storage
-            .insert_utxo(utxo)
-            .await
-            .map_err(|e| DepositVerificationError::StorageError(format!("Error inserting utxo: {:?}", e)))?;
+        self.storage.insert_utxo(utxo).await?;
 
         tracing::info!(
             "Runes deposit verification sent for address: {}",
@@ -133,17 +123,13 @@ impl DepositVerificationAggregator {
 
         self.storage
             .update_sats_fee_amount(request.out_point, request.sats_fee_amount)
-            .await
-            .map_err(|e| DepositVerificationError::StorageError(format!("Error updating sats fee amount: {:?}", e)))?;
+            .await?;
 
         let utxo = self
             .storage
             .get_utxo(request.out_point)
-            .await
-            .map_err(|e| {
-                DepositVerificationError::StorageError(format!("Error getting address by out point: {:?}", e))
-            })?
-            .ok_or(DepositVerificationError::StorageError("Address not found".to_string()))?;
+            .await?
+            .ok_or(DepositVerificationError::NotFound("Address not found".to_string()))?;
 
         let btc_address = utxo.btc_address;
 
@@ -153,17 +139,13 @@ impl DepositVerificationAggregator {
                 request.verifier_id,
                 request.status,
             )
-            .await
-            .map_err(|e| {
-                DepositVerificationError::StorageError(format!("Error updating confirmation status: {:?}", e))
-            })?;
+            .await?;
 
         let confirmation_status_info = self
             .storage
             .get_row_by_deposit_address(InnerAddress::BitcoinAddress(btc_address.clone()))
-            .await
-            .map_err(|e| DepositVerificationError::StorageError(format!("Error getting confirmation status: {:?}", e)))?
-            .ok_or(DepositVerificationError::StorageError(
+            .await?
+            .ok_or(DepositVerificationError::NotFound(
                 "Confirmation status not found".to_string(),
             ))?
             .confirmation_status;
@@ -173,8 +155,7 @@ impl DepositVerificationAggregator {
         if all_verifiers_confirmed {
             self.storage
                 .update_status(request.out_point, UtxoStatus::Confirmed)
-                .await
-                .map_err(|e| DepositVerificationError::StorageError(format!("Error updating utxo status: {:?}", e)))?;
+                .await?;
 
             self.flow_sender
                 .send(BridgeRunesRequest {
@@ -205,17 +186,14 @@ impl DepositVerificationAggregator {
                 InnerAddress::SparkAddress(request.spark_address.clone()),
                 InnerAddress::BitcoinAddress(request.exit_address.clone()),
             )
-            .await
-            .map_err(|e| DepositVerificationError::StorageError(format!("Error updating bridge address: {:?}", e)))?;
+            .await?;
+        self.storage.insert_paying_utxo(request.paying_input).await?;
 
         let deposit_addr_info = self
             .storage
             .get_row_by_deposit_address(InnerAddress::SparkAddress(request.spark_address.clone()))
-            .await
-            .map_err(|e| {
-                DepositVerificationError::StorageError(format!("Error getting deposit address info: {:?}", e))
-            })?
-            .ok_or(DepositVerificationError::StorageError(
+            .await?
+            .ok_or(DepositVerificationError::NotFound(
                 "Deposit address info not found".to_string(),
             ))?;
 
@@ -257,10 +235,7 @@ impl DepositVerificationAggregator {
                 InnerAddress::SparkAddress(request.spark_address.clone()),
                 verifiers_responses,
             )
-            .await
-            .map_err(|e| {
-                DepositVerificationError::StorageError(format!("Error updating confirmation status: {:?}", e))
-            })?;
+            .await?;
 
         if all_verifiers_confirmed {
             self.flow_sender

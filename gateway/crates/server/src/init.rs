@@ -26,7 +26,6 @@ impl GatewayApi {
     pub const EXIT_SPARK_ADDRESS_ENDPOINT: &'static str = "/api/user/exit-spark";
     pub const NOTIFY_RUNES_DEPOSIT_ADDRESS_ENDPOINT: &'static str = "/api/verifier/notify-runes-deposit";
     pub const BRIDGE_RUNES_ADDRESS_ENDPOINT: &'static str = "/api/user/bridge-runes";
-    pub const TEST_SPARK_ADDRESS_ENDPOINT: &'static str = "/api/test/test-spark";
     pub const HEALTHCHECK_ENDPOINT: &'static str = "/healthcheck";
 }
 
@@ -63,10 +62,6 @@ pub async fn create_app(
         .route(
             GatewayApi::BRIDGE_RUNES_ADDRESS_ENDPOINT,
             post(handlers::bridge_runes::handle),
-        )
-        .route(
-            GatewayApi::TEST_SPARK_ADDRESS_ENDPOINT,
-            post(handlers::test_spark::handle),
         )
         .route(GatewayApi::HEALTHCHECK_ENDPOINT, post(handlers::healthcheck::handle))
         .with_state(state)

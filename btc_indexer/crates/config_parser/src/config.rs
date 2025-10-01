@@ -4,6 +4,7 @@ use crate::error::ConfigParserError;
 use bitcoin::Network;
 use bitcoincore_rpc::{Auth, bitcoin};
 use config::{Config, Environment};
+use global_utils::common_types::Url;
 use global_utils::config_variant::ConfigVariant;
 use global_utils::env_parser;
 use global_utils::network::NetworkConfig;
@@ -39,12 +40,19 @@ pub struct ServerConfig {
     pub app_config: AppConfig,
     #[serde(rename(deserialize = "btc_indexer"))]
     pub btc_indexer_config: BtcIndexerParams,
-    #[serde(rename(deserialize = "database"))]
-    pub database_config: DatabaseConfig,
     #[serde(rename(deserialize = "network"))]
     pub network_config: NetworkConfig,
     #[serde(rename(deserialize = "titan"))]
     pub titan_config: TitanConfig,
+    #[serde(rename(deserialize = "bitcoin_rpc"))]
+    pub bitcoin_rpc_config: BtcRpcConfig,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct BtcRpcConfig {
+    pub url: String,
+    pub name: String,
+    pub password: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -59,11 +67,6 @@ pub struct BtcRpcCredentials {
     pub network: Network,
     pub name: String,
     pub password: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct DatabaseConfig {
-    pub url: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
@@ -83,7 +86,7 @@ impl AppConfig {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TitanConfig {
-    pub url: String,
+    pub url: Url,
 }
 
 impl ServerConfig {

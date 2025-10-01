@@ -15,14 +15,26 @@ use persistent_storage::config::PostgresDbCredentials;
 use persistent_storage::init::PostgresRepo;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
+use std::sync::Once;
 use tokio::net::TcpListener;
 use tracing::instrument;
+
+fn install_rustls_provider() {
+    static ONCE: Once = Once::new();
+    ONCE.call_once(|| {
+        rustls::crypto::ring::default_provider()
+            .install_default()
+            .expect("install rustls crypto provider");
+    });
+}
 
 #[instrument(level = "trace", ret)]
 #[tokio::main]
 async fn main() {
     let _ = dotenv::dotenv();
     let _logger_guard = init_logger();
+
+    install_rustls_provider();
 
     // Create Config
     let config_path = ConfigPath::from_env().unwrap();
@@ -35,7 +47,7 @@ async fn main() {
     };
     let db_pool = LocalDbStorage {
         postgres_repo: PostgresRepo::from_config(postgres_creds).await.unwrap(),
-        btc_network: server_config.network.network,
+        network: server_config.network.network,
     };
     let shared_db_pool = Arc::new(db_pool);
 

@@ -16,3 +16,4 @@ spark_balance_checker_server = { workspace = true }
 spark_client = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
+rustls = { workspace = true }

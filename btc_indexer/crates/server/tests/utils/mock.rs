@@ -127,6 +127,7 @@ pub async fn init_mocked_test_server(
     let mocked_tx_arbiter = generate_mocked_tx_arbiter();
     let btc_indexer = BtcIndexer::new(IndexerParamsWithApi {
         indexer_params: IndexerParams {
+            titan_config: app_config.titan_config,
             btc_rpc_creds: btc_creds,
             db_pool: db_pool.clone(),
             btc_indexer_params: app_config.btc_indexer_config,

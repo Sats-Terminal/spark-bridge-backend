@@ -27,4 +27,6 @@ pub enum FlowProcessorError {
     RuneTransferError(String),
     #[error("Spark address error: {0}")]
     SparkAddressError(#[from] SparkAddressError),
+    #[error("SO Coordinator is missing")]
+    CoordinatorNotFound,
 }

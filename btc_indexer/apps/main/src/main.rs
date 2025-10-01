@@ -17,11 +17,22 @@ async fn main() -> anyhow::Result<()> {
     // Init configs
     let config_path = ConfigPath::from_env()?;
     let app_config = ServerConfig::init_config(ConfigVariant::OnlyOneFilepath(config_path.path))?;
-    let (btc_creds, postgres_creds) = (BtcRpcCredentials::new()?, PostgresDbCredentials::from_db_url()?);
+
+    let (btc_creds, postgres_creds) = (
+        // TODO: move to env vars
+        BtcRpcCredentials {
+            url: app_config.bitcoin_rpc_config.url,
+            network: app_config.network_config.network,
+            name: app_config.bitcoin_rpc_config.name,
+            password: app_config.bitcoin_rpc_config.password,
+        },
+        PostgresDbCredentials::from_db_url()?,
+    );
 
     // Init App
     let db_pool = LocalDbStorage::from_config(postgres_creds).await?;
     let btc_indexer = BtcIndexer::with_api(IndexerParams {
+        titan_config: app_config.titan_config,
         btc_rpc_creds: btc_creds,
         db_pool: db_pool.clone(),
         btc_indexer_params: app_config.btc_indexer_config,

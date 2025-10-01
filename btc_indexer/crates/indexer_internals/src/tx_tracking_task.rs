@@ -126,15 +126,15 @@ fn _inner_response_task_spawn<Db: IndexerDbBounds>(
     client: Arc<Client>,
     local_db: Db,
 ) -> impl Future<Output = ()> {
+    tracing::debug!("Sending response to recipient to url: {}", data.callback_url.0);
     async move {
-        let resp = BtcIndexerCallbackResponse::Ok {
-            meta: ResponseMeta {
-                outpoint: data.out_point,
-                status: data.review,
-                sats_fee_amount: data.transaction.fee_paid_sat().unwrap_or_default(),
-            },
+        let resp = ResponseMeta {
+            outpoint: data.out_point,
+            status: data.review,
+            sats_fee_amount: data.transaction.fee_paid_sat().unwrap_or_default(),
         };
         let client_resp = client.post(data.callback_url.0).json(&resp).send().await;
+        tracing::debug!("Client response: {:?}", client_resp);
         match client_resp {
             Ok(client_resp) => {
                 let status = TrackedReqStatus::Finished;
@@ -203,7 +203,7 @@ fn _inner_update_task_spawn<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArb
         debug!("[{UPDATE_TXS_INFO_LOG_PATH}] Starting task with tx_id: {:?}", tx_id);
         match titan_client.get_transaction(&tx_id.tx_id.0).await {
             Ok(tx_to_check) => {
-                trace!("[{UPDATE_TXS_INFO_LOG_PATH}] Get transaction info: {:?}", tx_to_check);
+                debug!("[{UPDATE_TXS_INFO_LOG_PATH}] Get transaction info: {:?}", tx_to_check);
                 let r = check_obtained_transaction(titan_client, tx_validator, &tx_to_check, &tx_id)
                     .await
                     .inspect_err(|e| {
@@ -212,9 +212,11 @@ fn _inner_update_task_spawn<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArb
                             tx_to_check.txid
                         )
                     });
+                debug!("Review finihsed: {:?}", r);
                 if let Ok(res) = r
                     && let TxArbiterResponse::ReviewFormed(review, out_point) = res
                 {
+                    debug!("[{UPDATE_TXS_INFO_LOG_PATH}] Review for txid formed: {:?}", review);
                     let _ = local_db
                         .insert_tx_tracking_report(out_point, &review, &tx_to_check)
                         .await;

@@ -89,7 +89,7 @@ impl TxArbiterTrait for TxArbiter {
         }
 
         let obtained_block_height = tx_to_check.status.block_height.unwrap();
-        if current_tip.height.saturating_sub(obtained_block_height) <= BTC_BLOCK_CONFIRMATION_HEIGHT {
+        if current_tip.height.saturating_sub(obtained_block_height) < BTC_BLOCK_CONFIRMATION_HEIGHT {
             return Ok(TxArbiterResponse::Rejected(RejectReason::NotEnoughConfirmations {
                 current_block_height: current_tip.height,
                 got: obtained_block_height,
@@ -107,27 +107,13 @@ impl TxArbiterTrait for TxArbiter {
             ));
         }
 
-        let desired_satoshi_fee_amount = Self::calculate_desired_satoshi_fee_amount(tx_to_check);
-        let fees_payed = fees_payed.unwrap();
-        if desired_satoshi_fee_amount < fees_payed {
-            return Ok(TxArbiterResponse::ReviewFormed(
-                BtcTxReview::Failure {
-                    reason: TxRejectReason::TooFewSatoshiPaidAsFee {
-                        got: fees_payed,
-                        at_least_expected: desired_satoshi_fee_amount,
-                    },
-                },
-                out_point,
-            ));
-        }
-
         let v_out = tx_info.v_out as usize;
         if tx_to_check.output.len() <= v_out {
             return Ok(TxArbiterResponse::ReviewFormed(
                 BtcTxReview::Failure {
                     reason: TxRejectReason::NoExpectedVOutInOutputs {
-                        got: fees_payed,
-                        expected: desired_satoshi_fee_amount,
+                        got: tx_to_check.output.len() as u64,
+                        expected: v_out as u64,
                     },
                 },
                 out_point,

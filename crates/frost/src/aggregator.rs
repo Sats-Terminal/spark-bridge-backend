@@ -7,6 +7,7 @@ use std::{
     sync::Arc,
 };
 use tokio::sync::Mutex;
+use tracing::debug;
 use uuid::Uuid;
 
 #[derive(Clone, Debug)]
@@ -32,6 +33,7 @@ impl FrostAggregator {
     }
 
     async fn dkg_round_1(&self, musig_id: &MusigId) -> Result<(), AggregatorError> {
+        debug!(musig_id = ?musig_id, "Starting DKG Round 1");
         let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id).await?;
 
         match musig_id_data {
@@ -72,12 +74,14 @@ impl FrostAggregator {
                     )
                     .await?;
 
+                debug!(musig_id = ?musig_id, verifiers_count = self.verifiers.len(), "DKG Round 1 completed");
                 Ok(())
             }
         }
     }
 
     async fn dkg_round_2(&self, musig_id: &MusigId) -> Result<(), AggregatorError> {
+        debug!(musig_id = ?musig_id, "Starting DKG Round 2");
         let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id).await?;
 
         match musig_id_data {
@@ -120,6 +124,8 @@ impl FrostAggregator {
                         },
                     )
                     .await?;
+
+                debug!(musig_id = ?musig_id, verifiers_count = self.verifiers.len(), "DKG Round 2 completed");
                 Ok(())
             }
             _ => Err(AggregatorError::InvalidUserState(
@@ -129,6 +135,7 @@ impl FrostAggregator {
     }
 
     async fn dkg_finalize(&self, musig_id: &MusigId) -> Result<(), AggregatorError> {
+        debug!(musig_id = ?musig_id, "Starting DKG flow");
         let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id).await?;
 
         match musig_id_data {
@@ -184,6 +191,7 @@ impl FrostAggregator {
                     )
                     .await?;
 
+                debug!(musig_id = ?musig_id, "DKG flow completed successfully");
                 Ok(())
             }
             _ => Err(AggregatorError::InvalidUserState(
@@ -254,6 +262,7 @@ impl FrostAggregator {
         metadata: SigningMetadata,
         tweak: Option<Nonce>,
     ) -> Result<(), AggregatorError> {
+        debug!(musig_id = ?musig_id, session_id = %session_id, "Starting signing round 1");
         let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id).await?;
 
         match musig_id_data {
@@ -296,6 +305,7 @@ impl FrostAggregator {
                     )
                     .await?;
 
+                debug!(musig_id = ?musig_id, session_id = %session_id, "Signing round 1 completed");
                 Ok(())
             }
             _ => Err(AggregatorError::InvalidUserState(
@@ -305,6 +315,7 @@ impl FrostAggregator {
     }
 
     async fn sign_round_2(&self, musig_id: &MusigId, session_id: Uuid) -> Result<(), AggregatorError> {
+        debug!(musig_id = ?musig_id, session_id = %session_id, "Starting signing round 2");
         let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id).await?;
         let mut sign_data = self
             .sign_session_storage
@@ -372,6 +383,7 @@ impl FrostAggregator {
                     .set_sign_data(musig_id, session_id, sign_data)
                     .await?;
 
+                debug!(musig_id = ?musig_id, session_id = %session_id, "Signing round 2 completed");
                 Ok(())
             }
             _ => Err(AggregatorError::InvalidUserState(

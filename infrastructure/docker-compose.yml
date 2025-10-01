@@ -40,7 +40,7 @@ services:
       retries: 5
       start_period: 10s
     entrypoint: sh -c "sqlx migrate run && gateway_main"
-#    entrypoint: tail -f /dev/null
+    #    entrypoint: tail -f /dev/null
     depends_on:
       - persistent-db-storage_gateway
       - verifier1-service
@@ -48,7 +48,8 @@ services:
       - verifier3-service
     volumes:
       - ./configurations/gateway/production.toml:/config.toml
-      - ./configurations/common/ca.pem:/configuration_gateway/ca.pem
+      - ./configurations/certificates/Amazon-Root-CA.pem:/configuration_gateway/Amazon-Root-CA.pem
+      - ./configurations/certificates/Flashnet-CA.pem:/configuration_gateway/Flashnet-CA.pem
 
   # ====== Verifier 1 ======
   persistent-db-storage_verifier_1:
@@ -136,7 +137,7 @@ services:
     volumes:
       - ./configurations/verifier_2/production.toml:/config.toml
 
-# ====== Verifier 3 ======
+  # ====== Verifier 3 ======
   persistent-db-storage_verifier_3:
     image: postgres:17.5-alpine3.22
     restart: always
@@ -179,7 +180,7 @@ services:
     volumes:
       - ./configurations/verifier_3/production.toml:/config.toml
 
-# ===== Btc indexer =====
+  # ===== Btc indexer =====
 
   btc-indexer-service:
     build:
@@ -197,7 +198,7 @@ services:
       - DATABASE_URL=postgres://${POSTGRES_USER:-admin_manager}:${POSTGRES_PASSWORD:-password}@persistent-db-storage_btc_indexer:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-production_db_name}
     networks:
       all-network:
-    entrypoint:  sh -c "sqlx migrate run && btc_indexer"
+    entrypoint: sh -c "sqlx migrate run && btc_indexer"
     ports:
       - "8060:8070"
     healthcheck:
@@ -311,8 +312,8 @@ services:
     #    entrypoint: tail -f /dev/null
     volumes:
       - ./configurations/spark_balance_checker/production.toml:/configuration_spark_balance_checker/production.toml
-      - ./configurations/common/ca.pem:/configuration_spark_balance_checker/ca.pem
-
+      - ./configurations/certificates/Amazon-Root-CA.pem:/configuration_spark_balance_checker/Amazon-Root-CA.pem
+      - ./configurations/certificates/Flashnet-CA.pem:/configuration_spark_balance_checker/Flashnet-CA.pem
 
 networks:
   all-network:

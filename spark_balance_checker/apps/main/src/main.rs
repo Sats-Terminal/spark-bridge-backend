@@ -1,14 +1,26 @@
 use global_utils::config_path::ConfigPath;
 use global_utils::logger::init_logger;
+use rustls;
 use spark_balance_checker_config_parser::config::ServerConfig;
 use spark_balance_checker_server::init::create_app;
+use std::sync::Once;
 use tokio::{self, net::TcpListener};
+
+fn install_rustls_provider() {
+    static ONCE: Once = Once::new();
+    ONCE.call_once(|| {
+        rustls::crypto::ring::default_provider()
+            .install_default()
+            .expect("install rustls crypto provider");
+    });
+}
 
 #[tracing::instrument(level = "debug", ret)]
 #[tokio::main]
 async fn main() {
     let _ = dotenv::dotenv();
     let _logger_guard = init_logger();
+    install_rustls_provider();
 
     // Init configs
     let config_path = ConfigPath::from_env().unwrap();

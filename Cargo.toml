@@ -51,6 +51,7 @@ log = { version = "0.4.27" }
 mockall = { version = "0.13.1" }
 once_cell = { version = "1.21.3" }
 ordinals = { version = "0.0.15" }
+ord = { version = "0.23.3" }
 ord-rs = { version = "0.3.0", features = ["rune"] }
 prost = "0.13.5"
 prost-reflect = { version = "0.16.1", features = ["serde"] }
@@ -79,6 +80,8 @@ url = { version = "2.5.6", features = ["serde"] }
 utoipa = { version = "5.4.0" }
 utoipa-swagger-ui = { version = "9.0.2" }
 uuid = { version = "1.18.0", features = ["serde", "v4", "v7"] }
+
+rustls = { version = "0.23.32", default-features = false, features = ["ring"] }
 
 
 ####### Global Crates #######
@@ -109,7 +112,6 @@ verifier_main = { path = "verifier/apps/main" }
 
 ####### Gateway #######
 # Gateway crates
-sha3 = { version = "0.10.8" }
 gateway_config_parser = { path = "gateway/crates/config_parser" }
 gateway_flow_processor = { path = "gateway/crates/flow_processor" }
 gateway_local_db_store = { path = "gateway/crates/local_db_store" }

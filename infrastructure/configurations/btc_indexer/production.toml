@@ -13,3 +13,9 @@ network = "regtest"
 
 [titan]
 url = "http://titan:3030"
+
+
+[bitcoin_rpc]
+url = "http://bitcoind:18443"
+name = "bitcoin"
+password = "bitcoinpass"

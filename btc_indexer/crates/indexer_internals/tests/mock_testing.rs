@@ -48,6 +48,7 @@ mod mock_testing {
         info!("Btc rpc creds: {:?}", btc_rpc_creds);
         let app_config = ServerConfig::init_config(ConfigVariant::OnlyOneFilepath(CONFIG_FILEPATH.to_string()))?;
         let indexer = BtcIndexer::with_api(IndexerParams {
+            titan_config: app_config.titan_config,
             btc_rpc_creds,
             db_pool,
             btc_indexer_params: app_config.btc_indexer_config,
@@ -209,6 +210,7 @@ mod mock_testing {
         debug!("Building BtcIndexer...");
         let indexer = BtcIndexer::new(IndexerParamsWithApi {
             indexer_params: IndexerParams {
+                titan_config: app_config.titan_config,
                 btc_rpc_creds,
                 db_pool,
                 btc_indexer_params: app_config.btc_indexer_config,
