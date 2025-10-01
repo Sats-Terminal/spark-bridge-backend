@@ -40,14 +40,6 @@ pub fn create_rune_partial_transaction(
         .map_err(|e| RuneTransferError::InvalidData(format!("Failed to parse rune id: {}", e)))?;
 
     let mut inputs = Vec::new();
-    for output in outputs_to_spend {
-        inputs.push(TxIn {
-            previous_output: OutPoint::new(output.txid, output.vout),
-            script_sig: ScriptBuf::new(),
-            sequence: Sequence::ENABLE_RBF_NO_LOCKTIME,
-            witness: Witness::new(),
-        });
-    }
 
     let paying_input = TxIn {
         previous_output: OutPoint::new(paying_input.txid, paying_input.vout),
@@ -59,6 +51,15 @@ pub fn create_rune_partial_transaction(
         }),
     };
     inputs.push(paying_input);
+    
+    for output in outputs_to_spend {
+        inputs.push(TxIn {
+            previous_output: OutPoint::new(output.txid, output.vout),
+            script_sig: ScriptBuf::new(),
+            sequence: Sequence::ENABLE_RBF_NO_LOCKTIME,
+            witness: Witness::new(),
+        });
+    }
 
     let mut edicts = Vec::new();
 
