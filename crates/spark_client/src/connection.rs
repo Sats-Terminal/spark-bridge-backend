@@ -32,7 +32,12 @@ impl SparkTlsConnection {
 
     async fn create_tls_channel(&self) -> Result<Channel, SparkClientError> {
         let base_url = self.spark_config.operators[self.coordinator_operator].base_url.clone();
-        tracing::debug!("Spark operator identity public key: {}", self.spark_config.operators[self.coordinator_operator].identity_public_key.clone());
+        tracing::debug!(
+            "Spark operator identity public key: {}",
+            self.spark_config.operators[self.coordinator_operator]
+                .identity_public_key
+                .clone()
+        );
         let uri = Uri::from_str(base_url.0.as_ref())
             .map_err(|e| SparkClientError::ConnectionError(format!("Failed to create URI: {}", e)))?;
         let mut tls = ClientTlsConfig::new();

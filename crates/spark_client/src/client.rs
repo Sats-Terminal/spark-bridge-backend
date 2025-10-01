@@ -94,24 +94,27 @@ impl SparkRpcClient {
         user_public_key: PublicKey,
     ) -> Result<StartTransactionResponse, SparkClientError> {
         tracing::debug!("Client sending start transaction");
-        let spark_session = self.get_auth_session(user_public_key).await
-            .ok_or_else(|| SparkClientError::NoAuthSessionFound(format!("No auth session found for user public key: {}", user_public_key)))?;
+        let spark_session = self.get_auth_session(user_public_key).await.ok_or_else(|| {
+            SparkClientError::NoAuthSessionFound(format!(
+                "No auth session found for user public key: {}",
+                user_public_key
+            ))
+        })?;
         let request = StartTransactionRequestWithAuth {
             request,
             user_public_key,
             spark_session,
         };
 
-        let query_fn = |mut clients: SparkServicesClients, request: StartTransactionRequestWithAuth| async move {
-            let mut tonic_request = tonic::Request::new(request.request);
-            create_request(&mut tonic_request, request.user_public_key, request.spark_session)?;
+        let query_fn =
+            |mut clients: SparkServicesClients, request: StartTransactionRequestWithAuth| async move {
+                let mut tonic_request = tonic::Request::new(request.request);
+                create_request(&mut tonic_request, request.user_public_key, request.spark_session)?;
 
-            clients
-                .spark_token
-                .start_transaction(tonic_request)
-                .await
-                .map_err(|e| SparkClientError::ConnectionError(format!("Failed to start transaction: {}", e.message())))
-        };
+                clients.spark_token.start_transaction(tonic_request).await.map_err(|e| {
+                    SparkClientError::ConnectionError(format!("Failed to start transaction: {}", e.message()))
+                })
+            };
 
         self.retry_query(query_fn, request).await.map(|r| r.into_inner())
     }
@@ -122,8 +125,12 @@ impl SparkRpcClient {
         user_public_key: PublicKey,
     ) -> Result<CommitTransactionResponse, SparkClientError> {
         tracing::debug!("Client sending commit transaction");
-        let spark_session = self.get_auth_session(user_public_key).await
-            .ok_or_else(|| SparkClientError::NoAuthSessionFound(format!("No auth session found for user public key: {}", user_public_key)))?;
+        let spark_session = self.get_auth_session(user_public_key).await.ok_or_else(|| {
+            SparkClientError::NoAuthSessionFound(format!(
+                "No auth session found for user public key: {}",
+                user_public_key
+            ))
+        })?;
         let request = CommitTransactionRequestWithAuth {
             request,
             user_public_key,
@@ -134,12 +141,13 @@ impl SparkRpcClient {
             let mut tonic_request = tonic::Request::new(request.request);
             create_request(&mut tonic_request, request.user_public_key, request.spark_session)?;
 
-
             clients
                 .spark_token
                 .commit_transaction(tonic_request)
                 .await
-                .map_err(|e| SparkClientError::ConnectionError(format!("Failed to commit transaction: {}", e.message())))
+                .map_err(|e| {
+                    SparkClientError::ConnectionError(format!("Failed to commit transaction: {}", e.message()))
+                })
         };
 
         self.retry_query(query_fn, request).await.map(|r| r.into_inner())
@@ -212,9 +220,7 @@ pub fn create_request<T>(
 ) -> Result<(), SparkClientError> {
     let identity_public_key_str = hex::encode(user_public_key.serialize());
     let id_meta = MetadataValue::try_from(identity_public_key_str).unwrap(); // TODO: handle error
-    request
-        .metadata_mut()
-        .insert("x-identity-public-key", id_meta);
+    request.metadata_mut().insert("x-identity-public-key", id_meta);
 
     let session_token = MetadataValue::try_from(spark_session.session_token)
         .map_err(|e| SparkClientError::DecodeError(format!("Failed to decode session token: {}", e)))?;

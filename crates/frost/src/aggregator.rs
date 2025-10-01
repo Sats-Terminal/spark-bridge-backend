@@ -7,8 +7,8 @@ use std::{
     sync::Arc,
 };
 use tokio::sync::Mutex;
-use uuid::Uuid;
 use tracing::debug;
+use uuid::Uuid;
 
 #[derive(Clone, Debug)]
 pub struct FrostAggregator {

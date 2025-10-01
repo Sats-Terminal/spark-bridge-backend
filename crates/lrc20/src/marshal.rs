@@ -263,7 +263,9 @@ fn into_token_input_v2(
                     decimals: create_input.decimals,
                     max_supply: create_input.max_supply.to_be_bytes().to_vec(),
                     is_freezable: create_input.is_freezable,
-                    creation_entity_public_key: create_input.creation_entity_public_key.map(|public_key| public_key.serialize().to_vec()),
+                    creation_entity_public_key: create_input
+                        .creation_entity_public_key
+                        .map(|public_key| public_key.serialize().to_vec()),
                 },
             )
         }

@@ -1,5 +1,5 @@
-use thiserror::Error;
 use spark_address::SparkAddressError;
+use thiserror::Error;
 use token_identifier::TokenIdentifierParseError;
 
 #[derive(Error, Debug)]

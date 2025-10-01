@@ -1,24 +1,24 @@
-use ord::Inscription;
-use bitcoin::{key::Keypair, XOnlyPublicKey, key::UntweakedPublicKey};
-use bitcoin::secp256k1::Secp256k1;
-use ordinals::{Etching, Terms, Rune, Runestone};
-use rand_core::{OsRng, RngCore};
-use bitcoin::script::{PushBytesBuf, ScriptBuf};
-use bitcoin::script::Builder;
 use bitcoin::blockdata::opcodes::all::OP_CHECKSIG;
-use bitcoin::taproot::{TaprootBuilder, Signature as TaprootSignature, TapLeafHash, LeafVersion};
-use bitcoin::key::TapTweak;
-use bitcoin::{Network, Address, TxIn, TxOut, Witness, OutPoint, Amount, Txid, Transaction};
-use bitcoin::transaction::Version;
-use bitcoin::secp256k1::Message;
-use bitcoin::sighash::{SighashCache, Prevouts, TapSighashType};
 use bitcoin::hashes::Hash;
-use std::str::FromStr;
-use tokio::time::sleep;
-use std::time::Duration;
-use tracing;
-use tests::bitcoin_client::{BitcoinClient, BitcoinClientConfig};
+use bitcoin::key::TapTweak;
+use bitcoin::script::Builder;
+use bitcoin::script::{PushBytesBuf, ScriptBuf};
+use bitcoin::secp256k1::Message;
+use bitcoin::secp256k1::Secp256k1;
+use bitcoin::sighash::{Prevouts, SighashCache, TapSighashType};
+use bitcoin::taproot::{LeafVersion, Signature as TaprootSignature, TapLeafHash, TaprootBuilder};
+use bitcoin::transaction::Version;
+use bitcoin::{Address, Amount, Network, OutPoint, Transaction, TxIn, TxOut, Txid, Witness};
+use bitcoin::{XOnlyPublicKey, key::Keypair, key::UntweakedPublicKey};
 use global_utils::logger::init_logger;
+use ord::Inscription;
+use ordinals::{Etching, Rune, Runestone, Terms};
+use rand_core::{OsRng, RngCore};
+use std::str::FromStr;
+use std::time::Duration;
+use tests::bitcoin_client::{BitcoinClient, BitcoinClientConfig};
+use tokio::time::sleep;
+use tracing;
 
 pub fn random_rune_name() -> String {
     let letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -26,7 +26,10 @@ pub fn random_rune_name() -> String {
     let mut rng = OsRng;
     for _ in 0..15 {
         let random_num = rng.next_u32() as usize % letters.len();
-        let new_char = letters.chars().nth(random_num).expect("should be able to generate a random rune name");
+        let new_char = letters
+            .chars()
+            .nth(random_num)
+            .expect("should be able to generate a random rune name");
         result.push(new_char);
     }
     result
@@ -46,16 +49,15 @@ async fn test_etch() {
     let untweaked_public_key = UntweakedPublicKey::from_keypair(&keypair).0;
     let default_address = Address::p2tr(&secp, untweaked_public_key, None, network);
 
-    let mut bitcoin_client = BitcoinClient::new(
-        BitcoinClientConfig {
-            bitcoin_url: "http://127.0.0.1:18443".to_string(),
-            titan_url: "http://127.0.0.1:3030".to_string(),
-            bitcoin_username: "bitcoin".to_string(),
-            bitcoin_password: "bitcoinpass".to_string(),
-        }
-    ).expect("bitcoin client should work");
+    let mut bitcoin_client = BitcoinClient::new(BitcoinClientConfig {
+        bitcoin_url: "http://127.0.0.1:18443".to_string(),
+        titan_url: "http://127.0.0.1:3030".to_string(),
+        bitcoin_username: "bitcoin".to_string(),
+        bitcoin_password: "bitcoinpass".to_string(),
+    })
+    .expect("bitcoin client should work");
 
-    // Funding 
+    // Funding
 
     tracing::info!("Funding default address");
 
@@ -64,16 +66,21 @@ async fn test_etch() {
     let dust_amount = 546;
     let fee_amount = 5_000;
 
-    bitcoin_client.faucet(default_address.clone(), faucet_sats).expect("faucet should work");
+    bitcoin_client
+        .faucet(default_address.clone(), faucet_sats)
+        .expect("faucet should work");
 
     sleep(Duration::from_secs(1)).await;
 
-    let address_data = bitcoin_client.get_address_data(default_address.clone()).await.expect("address data should work");
+    let address_data = bitcoin_client
+        .get_address_data(default_address.clone())
+        .await
+        .expect("address data should work");
 
     tracing::info!("address_data: {:?}", address_data);
 
     assert!(address_data.outputs.len() > 0, "should have more than output");
-    
+
     let mut funded_outpoint = None;
     for output in address_data.outputs.iter() {
         assert!(output.status.confirmed, "All outputs should be confirmed");
@@ -175,14 +182,16 @@ async fn test_etch() {
     tracing::info!("Signing inscription transaction");
 
     let mut sighash_cache = SighashCache::new(inscription_tx.clone());
-    let sighash = sighash_cache.taproot_key_spend_signature_hash(
-        0, 
-        &Prevouts::All(&[TxOut {
-            value: Amount::from_sat(faucet_sats),
-            script_pubkey: default_address.script_pubkey(),
-        }]), 
-        TapSighashType::All
-    ).expect("sighash cache should work");
+    let sighash = sighash_cache
+        .taproot_key_spend_signature_hash(
+            0,
+            &Prevouts::All(&[TxOut {
+                value: Amount::from_sat(faucet_sats),
+                script_pubkey: default_address.script_pubkey(),
+            }]),
+            TapSighashType::All,
+        )
+        .expect("sighash cache should work");
 
     let msg = Message::from_digest(sighash.to_byte_array());
 
@@ -202,8 +211,12 @@ async fn test_etch() {
 
     tracing::info!("Broadcasting inscription transaction");
 
-    bitcoin_client.broadcast_transaction(inscription_tx.clone()).expect("broadcast transaction should work");
-    bitcoin_client.generate_blocks(6, None).expect("generate blocks should work");
+    bitcoin_client
+        .broadcast_transaction(inscription_tx.clone())
+        .expect("broadcast transaction should work");
+    bitcoin_client
+        .generate_blocks(6, None)
+        .expect("generate blocks should work");
 
     tracing::info!("Inscription transaction broadcasted");
 
@@ -262,12 +275,14 @@ async fn test_etch() {
     let prevouts = Prevouts::All(&prevouts_array);
 
     let mut sighash_cache = SighashCache::new(etching_tx.clone());
-    let sighash_sig = sighash_cache.taproot_script_spend_signature_hash(
-        0,
-        &prevouts,
-        TapLeafHash::from_script(&redeem_script, LeafVersion::TapScript),
-        TapSighashType::Default,
-    ).expect("sighash cache should work");
+    let sighash_sig = sighash_cache
+        .taproot_script_spend_signature_hash(
+            0,
+            &prevouts,
+            TapLeafHash::from_script(&redeem_script, LeafVersion::TapScript),
+            TapSighashType::Default,
+        )
+        .expect("sighash cache should work");
 
     let msg = Message::from_digest(sighash_sig.to_byte_array());
 
@@ -278,7 +293,12 @@ async fn test_etch() {
     let mut witness = Witness::new();
     witness.push(signature.to_vec());
     witness.push(redeem_script.as_bytes());
-    witness.push(taproot_spend_info.control_block(&(redeem_script.clone(), LeafVersion::TapScript)).unwrap().serialize());
+    witness.push(
+        taproot_spend_info
+            .control_block(&(redeem_script.clone(), LeafVersion::TapScript))
+            .unwrap()
+            .serialize(),
+    );
     etching_tx.input[0].witness = witness;
 
     let etching_txid = etching_tx.compute_txid();
@@ -290,8 +310,12 @@ async fn test_etch() {
 
     tracing::info!("Broadcasting rune etching transaction");
 
-    bitcoin_client.broadcast_transaction(etching_tx.clone()).expect("broadcast transaction should work");
-    bitcoin_client.generate_blocks(6, None).expect("generate blocks should work");
+    bitcoin_client
+        .broadcast_transaction(etching_tx.clone())
+        .expect("broadcast transaction should work");
+    bitcoin_client
+        .generate_blocks(6, None)
+        .expect("generate blocks should work");
 
     tracing::info!("Rune etching transaction broadcasted");
 
@@ -300,10 +324,16 @@ async fn test_etch() {
     tracing::info!("Checking rune etching transaction");
 
     sleep(Duration::from_secs(1)).await;
-    
-    let rune_id = bitcoin_client.get_rune_id(&etching_tx.compute_txid()).await.expect("get rune id should work");
+
+    let rune_id = bitcoin_client
+        .get_rune_id(&etching_tx.compute_txid())
+        .await
+        .expect("get rune id should work");
     tracing::info!("rune_id: {:?}", rune_id);
 
-    let rune = bitcoin_client.get_rune(rune_id.to_string()).await.expect("get rune should work");
+    let rune = bitcoin_client
+        .get_rune(rune_id.to_string())
+        .await
+        .expect("get rune should work");
     tracing::info!("rune: {:?}", rune);
 }

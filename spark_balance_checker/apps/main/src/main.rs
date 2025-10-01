@@ -1,10 +1,10 @@
 use global_utils::config_path::ConfigPath;
 use global_utils::logger::init_logger;
+use rustls;
 use spark_balance_checker_config_parser::config::ServerConfig;
 use spark_balance_checker_server::init::create_app;
-use tokio::{self, net::TcpListener};
 use std::sync::Once;
-use rustls;
+use tokio::{self, net::TcpListener};
 
 fn install_rustls_provider() {
     static ONCE: Once = Once::new();
