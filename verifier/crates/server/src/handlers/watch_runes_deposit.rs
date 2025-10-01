@@ -6,10 +6,12 @@ use bitcoin::OutPoint;
 use frost::types::MusigId;
 use frost::types::Nonce;
 use serde::{Deserialize, Serialize};
+use tracing;
 use verifier_btc_indexer_client::client::WatchRunesDepositRequest as IndexerWatchRunesDepositRequest;
 use verifier_config_parser::config::construct_hardcoded_callback_url;
-use verifier_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositAddressStorage, DepositStatus, InnerAddress};
-use tracing;
+use verifier_local_db_store::schemas::deposit_address::{
+    DepositAddrInfo, DepositAddressStorage, DepositStatus, InnerAddress,
+};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WatchRunesDepositRequest {

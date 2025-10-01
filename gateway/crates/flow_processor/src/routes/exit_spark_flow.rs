@@ -5,7 +5,9 @@ use bitcoin::OutPoint;
 use bitcoin::secp256k1::schnorr::Signature;
 use frost::types::SigningMetadata;
 use frost::utils::{convert_public_key_package, generate_nonce, get_address};
-use gateway_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositAddressStorage, VerifiersResponses, InnerAddress};
+use gateway_local_db_store::schemas::deposit_address::{
+    DepositAddrInfo, DepositAddressStorage, InnerAddress, VerifiersResponses,
+};
 use gateway_local_db_store::schemas::paying_utxo::PayingUtxoStorage;
 use gateway_local_db_store::schemas::utxo_storage::{Utxo, UtxoStatus, UtxoStorage};
 use gateway_rune_transfer::transfer::RuneTransferOutput;

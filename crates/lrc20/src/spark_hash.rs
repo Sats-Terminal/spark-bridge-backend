@@ -11,8 +11,8 @@ use proto_hasher::errors::ProtoHasherError;
 use spark_protos::reflect::{SparkProtoReflectError, ToDynamicMessage};
 use spark_protos::spark_token::token_transaction::TokenInputs;
 use thiserror::Error;
-use uuid::Uuid;
 use tracing::debug;
+use uuid::Uuid;
 
 /// A hash of the LRC20 receipt data that uniquely identifies a receipt (coin).
 ///

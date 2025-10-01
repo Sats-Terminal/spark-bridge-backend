@@ -2,12 +2,12 @@ use crate::error::GatewayError;
 use crate::init::AppState;
 use axum::Json;
 use axum::extract::State;
+use bitcoin::{Network, Txid, secp256k1::schnorr::Signature};
 use gateway_deposit_verification::types::VerifySparkDepositRequest;
 use gateway_rune_transfer::transfer::PayingTransferInput;
-use serde::{Deserialize};
-use std::str::FromStr;
-use bitcoin::{Txid, secp256k1::schnorr::Signature, Network};
 use global_utils::conversion::decode_address;
+use serde::Deserialize;
+use std::str::FromStr;
 
 #[derive(Deserialize)]
 pub struct UserPayingTransferInput {
@@ -28,7 +28,9 @@ impl UserPayingTransferInput {
                 .map_err(|e| GatewayError::InvalidData(format!("Failed to parse address: {e}")))?,
             sats_amount: self.sats_amount,
             none_anyone_can_pay_signature: Signature::from_slice(&self.none_anyone_can_pay_signature.serialize())
-                .map_err(|e| GatewayError::InvalidData(format!("Failed to parse none anyone can pay signature: {e}")))?,
+                .map_err(|e| {
+                    GatewayError::InvalidData(format!("Failed to parse none anyone can pay signature: {e}"))
+                })?,
         })
     }
 }

@@ -1,5 +1,8 @@
 use crate::client::VerifierClient;
 use async_trait::async_trait;
+use bitcoin::OutPoint;
+use frost::types::MusigId;
+use frost::types::Nonce;
 use gateway_deposit_verification::error::DepositVerificationError;
 use gateway_deposit_verification::traits::VerificationClient;
 use gateway_deposit_verification::types::{
@@ -7,9 +10,6 @@ use gateway_deposit_verification::types::{
 };
 use gateway_local_db_store::schemas::deposit_address::DepositStatus;
 use serde::{Deserialize, Serialize};
-use bitcoin::OutPoint;
-use frost::types::MusigId;
-use frost::types::Nonce;
 
 const WATCH_RUNES_DEPOSIT_PATH: &str = "/api/gateway/watch-runes-deposit";
 const WATCH_SPARK_DEPOSIT_PATH: &str = "/api/gateway/watch-spark-deposit";

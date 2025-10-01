@@ -80,6 +80,7 @@ impl AggregatorMusigIdStorage for LocalDbStorage {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::storage::make_repo_with_config;
     use bitcoin::secp256k1::{PublicKey, Secp256k1, SecretKey};
     use frost::aggregator::FrostAggregator;
     use frost::mocks::*;
@@ -96,7 +97,6 @@ mod tests {
     use persistent_storage::init::{PostgresPool, PostgresRepo};
     use std::collections::BTreeMap;
     use std::sync::Arc;
-    use crate::storage::{make_repo_with_config};
 
     pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
 

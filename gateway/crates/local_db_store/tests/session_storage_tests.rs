@@ -1,5 +1,6 @@
 mod tests {
-    use gateway_local_db_store::storage::{make_repo_with_config, LocalDbStorage};
+    use gateway_local_db_store::schemas::session_storage::SessionStorage;
+    use gateway_local_db_store::storage::{LocalDbStorage, make_repo_with_config};
     use gateway_session_storage::tracker::SessionTracker;
     use gateway_session_storage::traits::{RequestType, SessionStatus, SessionStorage};
     use global_utils::common_types::get_uuid;
@@ -7,7 +8,6 @@ mod tests {
     use persistent_storage::init::{PostgresPool, PostgresRepo};
     use serde_json::json;
     use std::sync::Arc;
-    use gateway_local_db_store::schemas::session_storage::SessionStorage;
 
     async fn cleanup_sessions(repo: Arc<LocalDbStorage>) {
         sqlx::query("TRUNCATE gateway.session_requests")

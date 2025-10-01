@@ -7,7 +7,7 @@ use frost::types::AggregatorDkgState;
 use frost::utils::convert_public_key_package;
 use frost::utils::{generate_nonce, get_address};
 use gateway_local_db_store::schemas::deposit_address::{
-    DepositAddrInfo, DepositAddressStorage, DepositStatus, VerifiersResponses, InnerAddress,
+    DepositAddrInfo, DepositAddressStorage, DepositStatus, InnerAddress, VerifiersResponses,
 };
 use tracing;
 

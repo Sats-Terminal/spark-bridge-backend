@@ -1,8 +1,8 @@
-use reqwest::Client;
-use url::Url;
-use bitcoin::secp256k1::schnorr::Signature;
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use crate::error::GatewayClientError;
+use bitcoin::secp256k1::schnorr::Signature;
+use reqwest::Client;
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use url::Url;
 
 #[derive(Clone, Debug)]
 pub struct GatewayClient {
@@ -75,7 +75,6 @@ pub struct UserPayingTransferInput {
 
 pub type ExitSparkResponse = ();
 
-
 impl GatewayClient {
     pub fn new(config: GatewayConfig) -> Self {
         Self {
@@ -84,7 +83,11 @@ impl GatewayClient {
         }
     }
 
-    pub async fn send_request<T: Serialize, U: DeserializeOwned>(&self, address_path: &str, request: T) -> Result<U, GatewayClientError> {
+    pub async fn send_request<T: Serialize, U: DeserializeOwned>(
+        &self,
+        address_path: &str,
+        request: T,
+    ) -> Result<U, GatewayClientError> {
         let url = self.config.address.join(address_path)?;
 
         let response = self.client.post(url).json(&request).send().await?;
@@ -93,19 +96,31 @@ impl GatewayClient {
             let response: U = response.json().await?;
             Ok(response)
         } else {
-            Err(GatewayClientError::ErrorResponse(format!("Error response with status: {}", response.status())))
+            Err(GatewayClientError::ErrorResponse(format!(
+                "Error response with status: {}",
+                response.status()
+            )))
         }
     }
 
-    pub async fn get_runes_deposit_address(&self, request: GetRunesDepositAddressRequest) -> Result<GetRunesDepositAddressResponse, GatewayClientError> {
+    pub async fn get_runes_deposit_address(
+        &self,
+        request: GetRunesDepositAddressRequest,
+    ) -> Result<GetRunesDepositAddressResponse, GatewayClientError> {
         self.send_request(GET_RUNES_DEPOSIT_ADDRESS_PATH, request).await
     }
 
-    pub async fn bridge_runes(&self, request: BridgeRunesSparkRequest) -> Result<BridgeRunesSparkResponse, GatewayClientError> {
+    pub async fn bridge_runes(
+        &self,
+        request: BridgeRunesSparkRequest,
+    ) -> Result<BridgeRunesSparkResponse, GatewayClientError> {
         self.send_request(BRIDGE_RUNES_PATH, request).await
     }
 
-    pub async fn get_spark_deposit_address(&self, request: GetSparkDepositAddressRequest) -> Result<GetSparkDepositAddressResponse, GatewayClientError> {
+    pub async fn get_spark_deposit_address(
+        &self,
+        request: GetSparkDepositAddressRequest,
+    ) -> Result<GetSparkDepositAddressResponse, GatewayClientError> {
         self.send_request(GET_SPARK_DEPOSIT_ADDRESS_PATH, request).await
     }
 

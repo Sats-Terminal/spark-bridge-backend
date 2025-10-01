@@ -1,12 +1,12 @@
-use std::sync::Arc;
 use bitcoin::Network;
+use gateway_config_parser::config::ServerConfig;
 use global_utils::config_path::ConfigPath;
 pub use persistent_storage::error::DbError;
 pub(crate) use persistent_storage::{
     config::*,
     init::{PostgresPool, PostgresRepo},
 };
-use gateway_config_parser::config::ServerConfig;
+use std::sync::Arc;
 
 #[derive(Clone, Debug)]
 pub struct LocalDbStorage {
@@ -17,10 +17,7 @@ pub struct LocalDbStorage {
 impl LocalDbStorage {
     pub async fn new(database_url: String, network: Network) -> Result<Self, DbError> {
         let postgres_repo = PostgresRepo::from_config(PostgresDbCredentials { url: database_url }).await?;
-        Ok(Self {
-            postgres_repo,
-            network
-        })
+        Ok(Self { postgres_repo, network })
     }
 
     pub async fn get_conn(&self) -> Result<PostgresPool, DbError> {
@@ -34,6 +31,6 @@ pub async fn make_repo_with_config(db: sqlx::PgPool) -> Arc<LocalDbStorage> {
 
     Arc::new(LocalDbStorage {
         postgres_repo: PostgresRepo { pool: db },
-        network: server_config.network.network
+        network: server_config.network.network,
     })
 }

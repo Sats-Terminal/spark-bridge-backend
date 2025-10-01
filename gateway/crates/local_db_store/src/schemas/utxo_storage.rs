@@ -1,7 +1,7 @@
-use global_utils::conversion::decode_address;
 use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
 use bitcoin::OutPoint;
+use global_utils::conversion::decode_address;
 use persistent_storage::error::DbError;
 use serde::{Deserialize, Serialize};
 use sqlx::{Postgres, Transaction};
@@ -19,7 +19,9 @@ pub struct Utxo {
 impl Utxo {
     fn from_row(row: UtxoRow, network: bitcoin::Network) -> Result<Self, DbError> {
         Ok(Self {
-            out_point: row.out_point.parse()
+            out_point: row
+                .out_point
+                .parse()
                 .map_err(|e| DbError::DecodeError(format!("Failed to parse out point: {}", e)))?,
             btc_address: decode_address(&row.btc_address, network)
                 .map_err(|e| DbError::DecodeError(format!("Failed to decode btc address: {}", e)))?,
@@ -139,7 +141,10 @@ impl UtxoStorage for LocalDbStorage {
         .await
         .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
-        Ok(rows.into_iter().map(|row| Utxo::from_row(row, self.network)).collect::<Result<Vec<Utxo>, DbError>>()?)
+        Ok(rows
+            .into_iter()
+            .map(|row| Utxo::from_row(row, self.network))
+            .collect::<Result<Vec<Utxo>, DbError>>()?)
     }
 
     async fn select_utxos_for_amount(&self, rune_id: String, target_amount: u64) -> Result<Vec<Utxo>, DbError> {
@@ -279,7 +284,10 @@ async fn get_candidate_utxos_for_update(
     .await
     .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
-    Ok(candidates.into_iter().map(|row| Utxo::from_row(row, network)).collect::<Result<Vec<Utxo>, DbError>>()?)
+    Ok(candidates
+        .into_iter()
+        .map(|row| Utxo::from_row(row, network))
+        .collect::<Result<Vec<Utxo>, DbError>>()?)
 }
 
 async fn mark_utxos_as_spent(
@@ -320,7 +328,10 @@ async fn mark_utxos_as_spent(
         .await
         .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
-    Ok(updated_utxos.into_iter().map(|row| Utxo::from_row(row, network)).collect::<Result<Vec<Utxo>, DbError>>()?)
+    Ok(updated_utxos
+        .into_iter()
+        .map(|row| Utxo::from_row(row, network))
+        .collect::<Result<Vec<Utxo>, DbError>>()?)
 }
 
 // #[cfg(test)]

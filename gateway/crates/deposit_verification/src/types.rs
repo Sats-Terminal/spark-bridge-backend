@@ -1,9 +1,9 @@
+use bitcoin::Address;
 use bitcoin::OutPoint;
 use frost::types::MusigId;
 use frost::types::Nonce;
 use gateway_local_db_store::schemas::deposit_address::DepositStatus;
 use gateway_rune_transfer::transfer::PayingTransferInput;
-use bitcoin::Address;
 
 #[derive(Clone, Debug)]
 pub struct WatchSparkDepositRequest {
