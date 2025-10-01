@@ -17,7 +17,7 @@ pub async fn create_flow_processor(
     server_config: ServerConfig,
     storage: Arc<LocalDbStorage>,
     cancellation_retries: u64,
-    frost_aggregator: FrostAggregator,
+    frost_aggregator: Arc<FrostAggregator>,
     network: Network,
 ) -> (FlowProcessor, FlowSender) {
     let (tx_sender, tx_receiver) = mpsc::channel(1000);

@@ -1,9 +1,10 @@
-use crate::utils::common::{CERT_PATH, CONFIG_PATH, obtain_random_localhost_socket_addr};
+use crate::utils::common::{CERT_1_PATH, CERT_2_PATH, CERT_PATH, CONFIG_PATH, obtain_random_localhost_socket_addr};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::post;
 use axum::{Json, Router, debug_handler};
 use axum_test::TestServer;
+use bitcoin::Network;
 use frost::aggregator::FrostAggregator;
 use frost::signer::FrostSigner;
 use frost::traits::SignerClient;
@@ -38,11 +39,13 @@ pub async fn init_mocked_test_server(pool: PostgresPool) -> anyhow::Result<TestS
     let mut server_config = ServerConfig::init_config(config_path.path);
     tracing::debug!("App config: {:?}", server_config);
 
-    server_config.spark.certificate.path = CERT_PATH.to_string();
+    server_config.spark.certificates[0].path = CERT_1_PATH.to_string();
+    server_config.spark.certificates[1].path = CERT_2_PATH.to_string();
 
     // Create DB Pool
     let db_pool = Arc::new(LocalDbStorage {
         postgres_repo: PostgresRepo { pool },
+        btc_network: Network::Regtest,
     });
 
     // Spawn mocked verifiers
@@ -65,14 +68,14 @@ pub async fn init_mocked_test_server(pool: PostgresPool) -> anyhow::Result<TestS
         let verifier_client = VerifierClient::new(verifier);
         verifiers_map.insert(identifier, Arc::new(verifier_client));
     }
-    let frost_aggregator = FrostAggregator::new(verifiers_map, db_pool.clone(), db_pool.clone());
+    let frost_aggregator = Arc::new(FrostAggregator::new(verifiers_map, db_pool.clone(), db_pool.clone()));
 
     // Create Flow Processor
     let (mut flow_processor, flow_sender) = create_flow_processor(
         server_config.clone(),
         db_pool.clone(),
         server_config.flow_processor.cancellation_retries,
-        frost_aggregator,
+        frost_aggregator.clone(),
         server_config.network.network,
     )
     .await;
@@ -94,7 +97,9 @@ pub async fn init_mocked_test_server(pool: PostgresPool) -> anyhow::Result<TestS
         server_config.network.network,
         typed_verifier_clients_hash_map,
         db_pool,
+        frost_aggregator,
         task_tracker,
+        server_config.dkg_pregen_config,
     )
     .await;
 

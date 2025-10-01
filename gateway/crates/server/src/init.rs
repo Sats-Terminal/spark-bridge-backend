@@ -2,6 +2,7 @@ use crate::handlers;
 use axum::Router;
 use axum::routing::post;
 use bitcoin::Network;
+use frost::aggregator::FrostAggregator;
 use gateway_config_parser::config::DkgPregenConfig;
 use gateway_deposit_verification::aggregator::DepositVerificationAggregator;
 use gateway_flow_processor::flow_sender::FlowSender;
@@ -16,7 +17,7 @@ use tracing::instrument;
 #[derive(Clone)]
 pub struct AppState {
     pub flow_sender: FlowSender,
-    pub deposit_verification_aggregator: DepositVerificationAggregator,
+    pub deposit_verification_aggregator: Arc<DepositVerificationAggregator>,
     pub network: Network,
     pub typed_verifiers_clients: HashMap<u16, Arc<VerifierClient>>,
     pub thread: TaskTracker,
@@ -44,14 +45,17 @@ pub async fn create_app(
     network: Network,
     typed_verifiers_clients: HashMap<u16, Arc<VerifierClient>>,
     local_db: Arc<LocalDbStorage>,
+    frost_aggregator: Arc<FrostAggregator>,
     mut task_tracker: TaskTracker,
     dkg_pregen_config: DkgPregenConfig,
 ) -> Router {
     let cancellation_token = CancellationToken::new();
+    let deposit_verification_aggregator = Arc::new(deposit_verification_aggregator);
     crate::dkg_pregen_thread::DkgPregenThread::spawn_thread(
         &mut task_tracker,
         local_db,
         dkg_pregen_config,
+        frost_aggregator,
         cancellation_token.clone(),
     )
     .await;

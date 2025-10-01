@@ -1,4 +1,5 @@
 use bitcoin::secp256k1;
+use gateway_local_db_store::schemas::dkg_share::DkgShareGenerateError;
 use persistent_storage::error::DbError;
 use spark_address::SparkAddressError;
 use thiserror::Error;
@@ -27,4 +28,6 @@ pub enum FlowProcessorError {
     RuneTransferError(String),
     #[error("Spark address error: {0}")]
     SparkAddressError(#[from] SparkAddressError),
+    #[error("Spark address error: {0}")]
+    DkgShareGenerateError(#[from] DkgShareGenerateError),
 }

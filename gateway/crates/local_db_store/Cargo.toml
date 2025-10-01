@@ -26,3 +26,4 @@ lrc20 = { workspace = true }
 frost-secp256k1-tr = { workspace = true }
 futures = { workspace = true }
 frost = { workspace = true }
+dotenvy = { workspace = true }

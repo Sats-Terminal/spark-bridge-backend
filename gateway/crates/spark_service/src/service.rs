@@ -23,13 +23,14 @@ use spark_protos::spark_token::CommitTransactionRequest;
 use spark_protos::spark_token::InputTtxoSignaturesPerOperator;
 use spark_protos::spark_token::SignatureWithIndex;
 use spark_protos::spark_token::StartTransactionRequest;
+use std::sync::Arc;
 use token_identifier::TokenIdentifier;
 
 const DEFAULT_VALIDITY_DURATION_SECONDS: u64 = 300;
 
 pub struct SparkService {
     spark_client: SparkRpcClient,
-    frost_aggregator: FrostAggregator,
+    frost_aggregator: Arc<FrostAggregator>,
     proto_hasher: ProtoHasher,
     spark_operator_identity_public_keys: Vec<PublicKey>,
 }
@@ -37,7 +38,7 @@ pub struct SparkService {
 impl SparkService {
     pub fn new(
         spark_client: SparkRpcClient,
-        frost_aggregator: FrostAggregator,
+        frost_aggregator: Arc<FrostAggregator>,
         spark_operator_identity_public_keys: Vec<PublicKey>,
     ) -> Self {
         Self {

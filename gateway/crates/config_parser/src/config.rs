@@ -57,8 +57,8 @@ pub struct BitcoinClientConfig {
 #[serde(rename_all = "snake_case")]
 pub struct DkgPregenConfig {
     pub update_interval_millis: u64,
-    pub min_threshold: u32,
-    pub max_cached: u32,
+    pub min_threshold: u64,
+    pub max_cached: u64,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

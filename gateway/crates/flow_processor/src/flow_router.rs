@@ -23,7 +23,7 @@ pub struct FlowProcessorRouter {
     pub flow_id: Uuid,
     pub response_sender: OneshotFlowProcessorSender,
     pub task_sender: mpsc::Sender<Uuid>,
-    pub frost_aggregator: FrostAggregator,
+    pub frost_aggregator: Arc<FrostAggregator>,
     pub spark_service: Arc<SparkService>,
     pub spark_client: Arc<SparkRpcClient>,
     pub network: Network,

@@ -13,11 +13,15 @@ mod tests {
     use frost_secp256k1_tr::Identifier;
     use frost_secp256k1_tr::keys::Tweak;
     use gateway_config_parser::config::{ServerConfig, VerifierConfig};
-    use gateway_local_db_store::schemas::dkg_share::DkgShareGenerate;
+    use gateway_local_db_store::schemas::dkg_share::{DkgShareGenerate, DkgShareGenerateError};
+    use gateway_local_db_store::schemas::user_identifier::{
+        UserIdentifier, UserIdentifierData, UserIdentifierStorage, UserIds, UserUniqueId,
+    };
     use gateway_local_db_store::storage::LocalDbStorage;
     use global_utils::common_types::get_uuid;
     use global_utils::config_path::ConfigPath;
     use global_utils::logger::{LoggerGuard, init_logger};
+    use persistent_storage::config::PostgresDbCredentials;
     use persistent_storage::error::DbError;
     use persistent_storage::init::{PostgresPool, PostgresRepo};
     use serde_json::json;
@@ -71,6 +75,13 @@ mod tests {
         _test_aggregator_signer_integration(db, tweak).await
     }
 
+    #[sqlx::test(migrator = "MIGRATOR")]
+    async fn test_dkg_share_flow_creation(db: PostgresPool) -> anyhow::Result<()> {
+        let _logger_guard = &*TEST_LOGGER;
+        let tweak = Some(generate_nonce());
+        _test_dkg_pregen_draft_flow(db).await
+    }
+
     async fn create_signer(identifier: u16) -> FrostSigner {
         FrostSigner::new(
             identifier,
@@ -79,6 +90,53 @@ mod tests {
             3,
             2,
         )
+    }
+
+    async fn _test_dkg_pregen_draft_flow(db: sqlx::PgPool) -> anyhow::Result<()> {
+        let server_config = ServerConfig::init_config(GATEWAY_CONFIG_PATH.to_string());
+        let local_repo = Arc::new(LocalDbStorage {
+            postgres_repo: PostgresRepo { pool: db },
+            btc_network: server_config.network.network,
+        });
+
+        let user_id = local_repo.generate_dkg_share_entity().await?;
+
+        let verifiers_map = create_verifiers_map().await;
+        let aggregator = FrostAggregator::new(verifiers_map, local_repo.clone(), local_repo.clone());
+
+        let _public_key_package = aggregator.run_dkg_flow(&user_id).await?;
+
+        let user_id_data = UserIdentifierData {
+            public_key: "some pubkey".to_string(),
+            rune_id: "1:18000".to_string(),
+            is_issuer: false,
+        };
+        assert_eq!(local_repo.count_unused_dkg_shares().await?, 1);
+        let user_ids = local_repo.get_random_unused_dkg_share(user_id_data.clone()).await?;
+        assert_eq!(
+            Some(UserIdentifier {
+                user_uuid: user_ids.user_uuid,
+                dkg_share_id: user_ids.dkg_share_id,
+                public_key: user_id_data.public_key.clone(),
+                rune_id: user_id_data.rune_id.clone(),
+                is_issuer: user_id_data.is_issuer,
+            }),
+            local_repo
+                .get_row_by_user_unique_id(&UserUniqueId {
+                    uuid: user_ids.user_uuid,
+                    rune_id: user_id_data.rune_id.clone()
+                })
+                .await?
+        );
+
+        assert_eq!(local_repo.count_unused_dkg_shares().await?, 0);
+        let obtained_value = local_repo.get_random_unused_dkg_share(user_id_data).await;
+        assert!(matches!(
+            Err::<UserIds, DkgShareGenerateError>(DkgShareGenerateError::DkgPregenFailed),
+            obtained_value
+        ));
+
+        Ok(())
     }
 
     async fn _test_aggregator_signer_integration(db: sqlx::PgPool, tweak: Option<Nonce>) -> anyhow::Result<()> {
@@ -96,7 +154,6 @@ mod tests {
         let secp = Secp256k1::new();
         let secret_key = SecretKey::from_slice(&[4u8; 32])?;
 
-        //let user_id = "test_user";
         let message_hash = b"test_message";
 
         let public_key_package = aggregator.run_dkg_flow(&user_id).await?;

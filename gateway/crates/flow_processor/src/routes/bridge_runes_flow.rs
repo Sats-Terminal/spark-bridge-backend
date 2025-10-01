@@ -5,7 +5,9 @@ use frost::traits::AggregatorDkgShareStorage;
 use frost::utils::generate_issuer_public_key;
 use gateway_local_db_store::schemas::deposit_address::{DepositAddressStorage, InnerAddress};
 use gateway_local_db_store::schemas::dkg_share::DkgShareGenerate;
-use gateway_local_db_store::schemas::user_identifier::{UserIdentifier, UserIdentifierStorage, UserIds, UserUniqueId};
+use gateway_local_db_store::schemas::user_identifier::{
+    UserIdentifier, UserIdentifierData, UserIdentifierStorage, UserIds, UserUniqueId,
+};
 use gateway_spark_service::types::SparkTransactionType;
 use gateway_spark_service::utils::{convert_network_to_spark_network, create_wrunes_metadata};
 use global_utils::common_types::get_uuid;
@@ -51,15 +53,14 @@ pub async fn handle(
         None => {
             let issuer_public_key = generate_issuer_public_key();
 
-            let dkg_share_id = flow_processor.storage.get_random_unused_dkg_share().await?;
-            let user_uuid = get_uuid();
-            let user_identifier = UserIdentifier {
-                user_uuid,
-                dkg_share_id,
-                rune_id: rune_id.clone(),
-                public_key: issuer_public_key.to_string(),
-                is_issuer: true,
-            };
+            let issuer_ids = flow_processor
+                .storage
+                .get_random_unused_dkg_share(UserIdentifierData {
+                    rune_id: rune_id.clone(),
+                    public_key: issuer_public_key.to_string(),
+                    is_issuer: true,
+                })
+                .await?;
 
             // Dkg flow has to be already completed
 
@@ -68,7 +69,7 @@ pub async fn handle(
             flow_processor
                 .spark_service
                 .send_spark_transaction(
-                    user_identifier.dkg_share_id,
+                    issuer_ids.dkg_share_id,
                     None,
                     wrunes_metadata.token_identifier,
                     SparkTransactionType::Create {
@@ -83,8 +84,8 @@ pub async fn handle(
                 })?;
 
             UserIds {
-                user_uuid,
-                dkg_share_id,
+                user_uuid: issuer_ids.user_uuid,
+                dkg_share_id: issuer_ids.dkg_share_id,
                 rune_id: rune_id.clone(),
             }
         }
@@ -122,7 +123,7 @@ pub async fn handle(
     flow_processor
         .spark_service
         .send_spark_transaction(
-            user_identifier.dkg_share_id,
+            issuer_user_ids.dkg_share_id,
             None,
             wrunes_metadata.token_identifier,
             SparkTransactionType::Mint {

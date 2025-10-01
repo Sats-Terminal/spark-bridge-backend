@@ -28,28 +28,21 @@ pub async fn handle(
     {
         None => {
             tracing::debug!("[{LOG_PATH}] Missing DkgShareId, running dkg from the beginning ...");
-            let dkg_share_id: DkgShareId = local_db_storage.get_random_unused_dkg_share().await?;
-
-            // Assign to user some uuid | Add to `gateway.user_identifier` table | but we don't return this value, waiting for next invocation
-            let user_uuid = get_uuid();
-            let rune_id = request.musig_id.get_rune_id();
-            let _ = local_db_storage.set_user_identifier_data(
-                &user_uuid,
-                &dkg_share_id,
-                UserIdentifierData {
+            let user_ids = local_db_storage
+                .get_random_unused_dkg_share(UserIdentifierData {
                     public_key: request.musig_id.get_public_key().to_string(),
-                    rune_id: rune_id.clone(),
+                    rune_id: request.musig_id.get_rune_id(),
                     is_issuer: false,
-                },
-            );
+                })
+                .await?;
 
             let pubkey_package = flow_processor
                 .frost_aggregator
-                .run_dkg_flow(&dkg_share_id)
+                .run_dkg_flow(&user_ids.dkg_share_id)
                 .await
                 .map_err(|e| FlowProcessorError::FrostAggregatorError(format!("Failed to run DKG flow: {}", e)))?;
             tracing::debug!("[{LOG_PATH}] DKG processing was successfully completed");
-            (pubkey_package, user_uuid, rune_id)
+            (pubkey_package, user_ids.user_uuid, user_ids.rune_id)
         }
         Some(ids) => {
             tracing::debug!("DkgShareId exists, obtaining dkg pubkey ...");

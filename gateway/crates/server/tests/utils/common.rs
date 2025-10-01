@@ -25,6 +25,8 @@ pub static MIGRATOR: Migrator = sqlx::migrate!("../local_db_store/migrations");
 
 pub const CONFIG_PATH: &str = "../../../infrastructure/configurations/gateway/dev.toml";
 pub const CERT_PATH: &str = "../../../infrastructure/configurations/common/ca.pem";
+pub const CERT_1_PATH: &str = "../../../infrastructure/configurations/certificates/Amazon-Root-CA.pem";
+pub const CERT_2_PATH: &str = "../../../infrastructure/configurations/certificates/Flashnet-CA.pem";
 
 pub fn obtain_random_localhost_socket_addr() -> anyhow::Result<SocketAddr> {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");

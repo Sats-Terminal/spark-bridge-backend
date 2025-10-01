@@ -47,14 +47,18 @@ async fn main() {
         let verifier_client = VerifierClient::new(verifier);
         verifiers_map.insert(identifier, Arc::new(verifier_client));
     }
-    let frost_aggregator = FrostAggregator::new(verifiers_map, shared_db_pool.clone(), shared_db_pool.clone());
+    let frost_aggregator = Arc::new(FrostAggregator::new(
+        verifiers_map,
+        shared_db_pool.clone(),
+        shared_db_pool.clone(),
+    ));
 
     // Create Flow Processor
     let (mut flow_processor, flow_sender) = create_flow_processor(
         server_config.clone(),
         shared_db_pool.clone(),
         server_config.flow_processor.cancellation_retries,
-        frost_aggregator,
+        frost_aggregator.clone(),
         server_config.network.network,
     )
     .await;
@@ -76,6 +80,7 @@ async fn main() {
         server_config.network.network,
         typed_verifier_clients_hash_map,
         shared_db_pool,
+        frost_aggregator,
         task_tracker,
         server_config.dkg_pregen_config,
     )
