@@ -38,6 +38,16 @@ use spark_protos::spark_token::StartTransactionRequest;
 use spark_protos::spark_token::SignatureWithIndex;
 use spark_protos::spark_token::InputTtxoSignaturesPerOperator;
 use spark_protos::spark_token::CommitTransactionRequest;
+use crate::gateway_client::UserPayingTransferInput;
+
+pub enum TransferType {
+    RuneTransfer {
+        rune_amount: u64,
+    },
+    BtcTransfer {
+        sats_amount: u64,
+    }
+}
 
 pub struct UserWallet {
     p2tr_address: Address,
@@ -112,28 +122,46 @@ impl UserWallet {
         Err(RuneError::GetFundedOutpointError("Failed to get funded outpoint".to_string()))
     }
 
-    pub async fn transfer_runes(&mut self, amount: u64, transfer_address: Address) -> Result<Txid, RuneError> {
+    pub async fn transfer(&mut self, transfer_type: TransferType, transfer_address: Address) -> Result<Txid, RuneError> {
         tracing::info!("Transferring runes");
-        let balance = self.get_rune_balance().await?;
-        if balance < amount {
-            return Err(RuneError::TransferRunesError("Insufficient balance".to_string()));
-        }
+        let rune_balance = self.get_rune_balance().await?;
+        
+        let edicts = match transfer_type {
+            TransferType::RuneTransfer { rune_amount } => {
+                if rune_amount > rune_balance {
+                    return Err(RuneError::InsufficientBalanceError("Insufficient balance".to_string()));
+                }
+                let mut edicts = vec![
+                    Edict {
+                        id: self.rune_id,
+                        amount: rune_amount as u128,
+                        output: 1,
+                    },
+                ];
+                if rune_amount < rune_balance {
+                    edicts.push(Edict {
+                        id: self.rune_id,
+                        amount: (rune_balance - rune_amount) as u128,
+                        output: 2,
+                    });
+                }
+                edicts
+            },
+            TransferType::BtcTransfer { sats_amount: _ } => {
+                vec![
+                    Edict {
+                        id: self.rune_id,
+                        amount: rune_balance as u128,
+                        output: 2,
+                    },
+                ]
+            },
+        };
 
         let (outpoint, value) = self.get_funded_outpoint_data().await?;
 
         let runestone = Runestone {
-            edicts: vec![
-                Edict {
-                    id: self.rune_id,
-                    amount: amount as u128,
-                    output: 1,
-                },
-                Edict {
-                    id: self.rune_id,
-                    amount: (balance - amount) as u128,
-                    output: 2,
-                },
-            ],
+            edicts,
             etching: None,
             mint: None,
             pointer: None,
@@ -383,6 +411,10 @@ impl UserWallet {
     
         Ok(())
     }
+
+    // pub async fn create_user_paying_transfer_input(&self,) -> Result<UserPayingTransferInput, RuneError> {
+        
+    // }
 }
 
 fn create_partial_token_leaf_output(

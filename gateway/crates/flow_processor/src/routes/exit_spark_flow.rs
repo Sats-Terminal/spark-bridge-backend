@@ -60,14 +60,6 @@ pub async fn handle(
     let total_amount = utxos.iter().map(|utxo| utxo.rune_amount).sum::<u64>();
     let exit_amount = deposit_addr_info.amount;
 
-    let user_utxo = flow_router
-        .storage
-        .get_utxo_by_btc_address(exit_address.to_string())
-        .await?
-        .ok_or(FlowProcessorError::DbError(DbError::NotFound(
-            "User UTXO not found".to_string(),
-        )))?;
-
     let outputs_to_spend = utxos.iter().map(|utxo| utxo.out_point).collect::<Vec<OutPoint>>();
 
     let mut rune_transfer_outputs = vec![RuneTransferOutput {

@@ -8,6 +8,7 @@ use std::str::FromStr;
 use tokio::time::sleep;
 use std::time::Duration;
 use tests::spark_client::{SparkClient, SparkClientConfig, GetSparkAddressDataRequest};
+use tests::user_wallet::TransferType;
 
 #[tokio::test]
 async fn test_spark() {
@@ -66,7 +67,7 @@ async fn test_spark() {
 
     let deposit_address = Address::from_str(&get_runes_deposit_address_response.address).unwrap()
         .assume_checked();
-    let txid = user_wallet.transfer_runes(deposit_amount, deposit_address).await.unwrap();
+    let txid = user_wallet.transfer(TransferType::RuneTransfer { rune_amount: deposit_amount }, deposit_address).await.unwrap();
     tracing::info!("txid: {:?}", txid);
 
     // bridge runes

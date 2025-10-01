@@ -1,7 +1,6 @@
 use reqwest::Client;
 use url::Url;
-use thiserror::Error;
-use bitcoin::Address;
+use bitcoin::secp256k1::schnorr::Signature;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use crate::error::GatewayClientError;
 
@@ -56,6 +55,27 @@ pub struct BridgeRunesSparkRequest {
 
 pub type BridgeRunesSparkResponse = ();
 
+const EXIT_SPARK_PATH: &str = "/api/user/exit-spark";
+
+#[derive(Serialize, Debug)]
+pub struct ExitSparkRequest {
+    pub spark_address: String,
+    pub exit_address: String,
+    pub paying_input: UserPayingTransferInput,
+}
+
+#[derive(Serialize, Debug)]
+pub struct UserPayingTransferInput {
+    pub txid: String,
+    pub vout: u32,
+    pub address: String,
+    pub sats_amount: u64,
+    pub none_anyone_can_pay_signature: Signature,
+}
+
+pub type ExitSparkResponse = ();
+
+
 impl GatewayClient {
     pub fn new(config: GatewayConfig) -> Self {
         Self {
@@ -87,5 +107,9 @@ impl GatewayClient {
 
     pub async fn get_spark_deposit_address(&self, request: GetSparkDepositAddressRequest) -> Result<GetSparkDepositAddressResponse, GatewayClientError> {
         self.send_request(GET_SPARK_DEPOSIT_ADDRESS_PATH, request).await
+    }
+
+    pub async fn exit_spark(&self, request: ExitSparkRequest) -> Result<ExitSparkResponse, GatewayClientError> {
+        self.send_request(EXIT_SPARK_PATH, request).await
     }
 }
