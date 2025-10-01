@@ -52,6 +52,5 @@ pub struct VerifyRunesDepositRequest {
 #[derive(Clone, Debug)]
 pub struct VerifySparkDepositRequest {
     pub spark_address: String,
-    pub exit_address: Address,
     pub paying_input: PayingTransferInput,
 }

@@ -16,3 +16,4 @@ hex = { workspace = true }
 spark-protos = { workspace = true }
 spark-address = { workspace = true }
 token-identifier = { workspace = true }
+bitcoin = { workspace = true }

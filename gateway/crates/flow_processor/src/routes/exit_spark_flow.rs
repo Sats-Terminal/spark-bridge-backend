@@ -38,8 +38,7 @@ pub async fn handle(
         )))?;
 
     let exit_address = match deposit_addr_info.bridge_address {
-        Some(address) => decode_address(&address.to_spark_address()?, flow_router.network)
-            .map_err(|e| FlowProcessorError::InvalidDataError(format!("Failed to parse exit address: {e}")))?,
+        Some(address) => &address.to_bitcoin_address()?,
         None => {
             return Err(FlowProcessorError::InvalidDataError(
                 "Bridge address not found".to_string(),
@@ -49,7 +48,7 @@ pub async fn handle(
 
     let paying_utxo = flow_router
         .storage
-        .get_paying_utxo_by_spark_deposit_address(request.spark_address)
+        .get_paying_utxo_by_btc_exit_address(exit_address.clone())
         .await?
         .ok_or(FlowProcessorError::DbError(DbError::NotFound(
             "Paying UTXO not found".to_string(),

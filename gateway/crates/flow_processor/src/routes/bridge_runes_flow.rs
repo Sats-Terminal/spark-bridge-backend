@@ -8,8 +8,6 @@ use frost::utils::generate_issuer_public_key;
 use gateway_local_db_store::schemas::deposit_address::{DepositAddressStorage, InnerAddress};
 use gateway_spark_service::types::SparkTransactionType;
 use gateway_spark_service::utils::{convert_network_to_spark_network, create_wrunes_metadata};
-use spark_address::{SparkAddressData, encode_spark_address};
-use std::thread::sleep;
 use tracing::{info, instrument};
 
 const LOG_PATH: &str = "flow_processor:routes:bridge_runes_flow";
@@ -98,6 +96,10 @@ pub async fn handle(
     let issuer_musig_public_key = PublicKey::from_slice(&issuer_musig_public_key_bytes)?;
 
     let wrunes_metadata = create_wrunes_metadata(rune_id.clone(), issuer_musig_public_key, flow_processor.network)?;
+
+    tracing::debug!("Data for token identifier issuer. musig: {:?}, public key: {:?}", issuer_musig_id, issuer_musig_public_key);
+
+    tracing::debug!("Token identifier: {:?}", wrunes_metadata.token_identifier.encode_bech32m(flow_processor.network));
 
     let deposit_addr_info = flow_processor
         .storage

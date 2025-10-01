@@ -152,7 +152,6 @@ async fn test_spark() {
 
     let exit_spark_request = ExitSparkRequest {
         spark_address: spark_deposit_address.clone(),
-        exit_address: user_wallet.get_address().to_string(),
         paying_input: paying_input,
     };
 

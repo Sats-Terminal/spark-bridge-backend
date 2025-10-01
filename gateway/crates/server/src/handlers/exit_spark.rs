@@ -14,7 +14,7 @@ use tracing;
 pub struct UserPayingTransferInput {
     pub txid: String,
     pub vout: u32,
-    pub address: String,
+    pub btc_exit_address: String,
     pub sats_amount: u64,
     pub none_anyone_can_pay_signature: Signature,
 }
@@ -25,7 +25,7 @@ impl UserPayingTransferInput {
             txid: Txid::from_str(&self.txid)
                 .map_err(|e| GatewayError::InvalidData(format!("Failed to parse txid: {e}")))?,
             vout: self.vout,
-            address: decode_address(&self.address, network)
+            btc_exit_address: decode_address(&self.btc_exit_address, network)
                 .map_err(|e| GatewayError::InvalidData(format!("Failed to parse address: {e}")))?,
             sats_amount: self.sats_amount,
             none_anyone_can_pay_signature: Signature::from_slice(&self.none_anyone_can_pay_signature.serialize())
@@ -39,7 +39,6 @@ impl UserPayingTransferInput {
 #[derive(Deserialize)]
 pub struct ExitSparkRequest {
     pub spark_address: String,
-    pub exit_address: String,
     pub paying_input: UserPayingTransferInput,
 }
 
@@ -50,8 +49,6 @@ pub async fn handle(
     tracing::debug!("Exit spark request for spark address: {:?}", request.spark_address);
     let verify_spark_deposit_request = VerifySparkDepositRequest {
         spark_address: request.spark_address,
-        exit_address: decode_address(&request.exit_address, state.network)
-            .map_err(|e| GatewayError::InvalidData(format!("Failed to parse exit address: {e}")))?,
         paying_input: request.paying_input.try_into(state.network)?,
     };
 

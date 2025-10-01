@@ -193,10 +193,10 @@ impl DepositVerificationAggregator {
         self.storage
             .update_bridge_address_by_deposit_address(
                 InnerAddress::SparkAddress(request.spark_address.clone()),
-                InnerAddress::BitcoinAddress(request.exit_address.clone()),
+                InnerAddress::BitcoinAddress(request.paying_input.btc_exit_address.clone()),
             )
             .await?;
-        self.storage.insert_paying_utxo(request.paying_input).await?;
+        self.storage.insert_paying_utxo(request.paying_input.clone()).await?;
 
         let deposit_addr_info = self
             .storage
@@ -206,7 +206,12 @@ impl DepositVerificationAggregator {
                 "Deposit address info not found".to_string(),
             ))?;
 
-        let dkg_state = self.storage.get_musig_id_data(&deposit_addr_info.musig_id).await?;
+        let issuer_musig_id = self.storage.get_issuer_musig_id(deposit_addr_info.musig_id.get_rune_id()).await?
+            .ok_or(DepositVerificationError::NotFound(
+                "Issuer musig id not found".to_string(),
+            ))?;
+        let dkg_state = self.storage.get_musig_id_data(&issuer_musig_id).await?;
+        
         let token_identifier = match dkg_state {
             Some(AggregatorMusigIdData {
                 dkg_state: AggregatorDkgState::DkgFinalized { public_key_package },
@@ -241,12 +246,14 @@ impl DepositVerificationAggregator {
             }
         };
 
+        tracing::debug!("Token identifier: {:?}", token_identifier.encode_bech32m(self.network));
+
         let watch_spark_deposit_request = WatchSparkDepositRequest {
             musig_id: deposit_addr_info.musig_id.clone(),
             nonce: deposit_addr_info.nonce,
             spark_address: request.spark_address.clone(),
             amount: deposit_addr_info.amount,
-            exit_address: request.exit_address.clone(),
+            exit_address: request.paying_input.btc_exit_address.clone(),
             token_identifier,
         };
 

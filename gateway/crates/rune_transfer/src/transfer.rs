@@ -18,7 +18,7 @@ use std::str::FromStr;
 pub struct PayingTransferInput {
     pub txid: Txid,
     pub vout: u32,
-    pub address: Address,
+    pub btc_exit_address: Address,
     pub sats_amount: u64,
     pub none_anyone_can_pay_signature: Signature,
 }

@@ -361,6 +361,9 @@ impl UserWallet {
             transfer_amount as u128,
         )];
 
+        tracing::debug!("Token identifier: {:?}", token_identifier.encode_bech32m(bitcoin::Network::Regtest));
+        tracing::debug!("Spark address: {:?}", receiver_spark_address);
+
         if (transfer_amount as u128) < total_amount {
             let changed_leaf_output = create_partial_token_leaf_output(
                 self.keypair.public_key(),
@@ -504,7 +507,7 @@ impl UserWallet {
         let paying_input = UserPayingTransferInput {
             txid: txid.to_string(),
             vout: 0,
-            address: self.p2tr_address.to_string(),
+            btc_exit_address: self.p2tr_address.clone().to_string(),
             sats_amount: PAYING_INPUT_SATS_AMOUNT,
             none_anyone_can_pay_signature: signature,
         };
