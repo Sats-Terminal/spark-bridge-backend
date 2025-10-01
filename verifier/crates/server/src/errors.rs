@@ -4,6 +4,7 @@ use axum::{
 };
 use frost::errors::SignerError;
 use thiserror::Error;
+use tracing;
 
 #[derive(Error, Debug)]
 pub enum VerifierError {
@@ -27,6 +28,7 @@ pub enum VerifierError {
 
 impl IntoResponse for VerifierError {
     fn into_response(self) -> Response {
+        tracing::error!("Verifier error: {:?}", self);
         match self {
             VerifierError::BadRequest(message) => (StatusCode::BAD_REQUEST, message).into_response(),
             VerifierError::DkgError(error) => (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()).into_response(),

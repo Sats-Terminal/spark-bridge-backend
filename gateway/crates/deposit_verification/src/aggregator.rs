@@ -8,16 +8,23 @@ use gateway_flow_processor::types::{BridgeRunesRequest, ExitSparkRequest};
 use gateway_local_db_store::schemas::deposit_address::{DepositAddressStorage, DepositStatus, VerifiersResponses, InnerAddress};
 use gateway_local_db_store::schemas::paying_utxo::PayingUtxoStorage;
 use gateway_local_db_store::schemas::utxo_storage::{Utxo, UtxoStatus, UtxoStorage};
+use frost::traits::AggregatorMusigIdStorage;
+use frost::types::AggregatorDkgState;
+use frost::types::AggregatorMusigIdData;
 use gateway_local_db_store::storage::LocalDbStorage;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tracing;
+use bitcoin::secp256k1::PublicKey;
+use bitcoin::Network;
+use gateway_spark_service::utils::create_wrunes_metadata;
 
 #[derive(Clone, Debug)]
 pub struct DepositVerificationAggregator {
     flow_sender: FlowSender,
     verifiers: HashMap<u16, Arc<dyn VerificationClient>>,
     storage: Arc<LocalDbStorage>,
+    network: Network,
 }
 
 impl DepositVerificationAggregator {
@@ -25,11 +32,13 @@ impl DepositVerificationAggregator {
         flow_sender: FlowSender,
         verifiers: HashMap<u16, Arc<dyn VerificationClient>>,
         storage: Arc<LocalDbStorage>,
+        network: Network,
     ) -> Self {
         Self {
             flow_sender,
             verifiers,
             storage,
+            network,
         }
     }
 
@@ -165,6 +174,7 @@ impl DepositVerificationAggregator {
         &self,
         request: VerifySparkDepositRequest,
     ) -> Result<(), DepositVerificationError> {
+        tracing::info!("Verifying spark deposit for spark address: {}", request.spark_address);
         self.storage
             .update_bridge_address_by_deposit_address(InnerAddress::SparkAddress(request.spark_address.clone()), InnerAddress::BitcoinAddress(request.exit_address.clone()))
             .await?;
@@ -177,6 +187,23 @@ impl DepositVerificationAggregator {
             .ok_or(DepositVerificationError::NotFound(
                 "Deposit address info not found".to_string(),
             ))?;
+        
+        let dkg_state = self.storage.get_musig_id_data(&deposit_addr_info.musig_id).await?;
+        let token_identifier = match dkg_state {
+            Some(AggregatorMusigIdData {
+                dkg_state: AggregatorDkgState::DkgFinalized { public_key_package },
+            }) => {
+                let musig_public_key_bytes = public_key_package.verifying_key().serialize()
+                    .map_err(|e| DepositVerificationError::InvalidDataError(format!("Failed to serialize issuer musig public key: {}", e)))?;
+                let musig_public_key = PublicKey::from_slice(&musig_public_key_bytes)
+                    .map_err(|e| DepositVerificationError::InvalidDataError(format!("Failed to deserialize issuer musig public key: {}", e)))?;
+
+                let wrunes_metadata = create_wrunes_metadata(deposit_addr_info.musig_id.get_rune_id(), musig_public_key, self.network)
+                    .map_err(|e| DepositVerificationError::InvalidDataError(format!("Failed to create wrunes metadata: {}", e)))?;
+                wrunes_metadata.token_identifier
+            },
+            _ => return Err(DepositVerificationError::NotFound("Token identifier not found".to_string())),
+        };
 
         let watch_spark_deposit_request = WatchSparkDepositRequest {
             musig_id: deposit_addr_info.musig_id.clone(),
@@ -184,6 +211,7 @@ impl DepositVerificationAggregator {
             spark_address: request.spark_address.clone(),
             amount: deposit_addr_info.amount,
             exit_address: request.exit_address.clone(),
+            token_identifier,
         };
 
         let mut futures = vec![];
@@ -216,6 +244,7 @@ impl DepositVerificationAggregator {
             .await?;
 
         if all_verifiers_confirmed {
+            tracing::info!("All verifiers confirmed for spark address: {}", request.spark_address);
             self.flow_sender
                 .send(ExitSparkRequest {
                     spark_address: request.spark_address.clone(),

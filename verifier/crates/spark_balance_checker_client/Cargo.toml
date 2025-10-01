@@ -9,3 +9,4 @@ serde = { workspace = true }
 tokio = { workspace = true }
 verifier_config_parser = { workspace = true }
 reqwest = { workspace = true }
+token-identifier = { workspace = true }

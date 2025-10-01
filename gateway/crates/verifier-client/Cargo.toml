@@ -14,3 +14,4 @@ gateway_deposit_verification = { workspace = true }
 bitcoin = { workspace = true }
 url = { workspace = true }
 gateway_local_db_store = { workspace = true }
+token-identifier = { workspace = true }

@@ -13,4 +13,6 @@ pub enum DepositVerificationError {
     DbError(#[from] DbError),
     #[error("Not found: {0}")]
     NotFound(String),
+    #[error("Invalid data: {0}")]
+    InvalidDataError(String),
 }

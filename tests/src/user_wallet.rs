@@ -15,7 +15,7 @@ use bitcoin::Txid;
 use crate::spark_client::SparkClient;
 use spark_address::{decode_spark_address, encode_spark_address, SparkAddressData};
 use tracing;
-use crate::constants::{DEFAULT_FEE_AMOUNT, DEFAULT_DUST_AMOUNT, DEFAULT_FAUCET_AMOUNT, BLOCKS_TO_GENERATE};
+use crate::constants::{DEFAULT_FEE_AMOUNT, DEFAULT_DUST_AMOUNT, DEFAULT_FAUCET_AMOUNT, BLOCKS_TO_GENERATE, PAYING_INPUT_SATS_AMOUNT};
 use lrc20::token_leaf::TokenLeafOutput;
 use lrc20::token_transaction::TokenTransaction;
 use lrc20::token_transaction::TokenTransactionInput;
@@ -39,6 +39,7 @@ use spark_protos::spark_token::SignatureWithIndex;
 use spark_protos::spark_token::InputTtxoSignaturesPerOperator;
 use spark_protos::spark_token::CommitTransactionRequest;
 use crate::gateway_client::UserPayingTransferInput;
+use bitcoin::sighash::{Prevouts, SighashCache, TapSighashType};
 
 pub enum TransferType {
     RuneTransfer {
@@ -412,9 +413,50 @@ impl UserWallet {
         Ok(())
     }
 
-    // pub async fn create_user_paying_transfer_input(&self,) -> Result<UserPayingTransferInput, RuneError> {
-        
-    // }
+    pub async fn create_user_paying_transfer_input(&mut self) -> Result<UserPayingTransferInput, RuneError> {        
+        let txid = self.transfer(TransferType::BtcTransfer { sats_amount: PAYING_INPUT_SATS_AMOUNT }, self.p2tr_address.clone()).await?;
+
+        let previous_output = OutPoint {
+            txid: txid,
+            vout: 1,
+        };
+        let txin = TxIn {
+            previous_output,
+            script_sig: ScriptBuf::new(),
+            sequence: Sequence::ENABLE_RBF_NO_LOCKTIME,
+            witness: Witness::new(),
+        };
+
+        let transaction = Transaction {
+            version: Version::TWO,
+            lock_time: bitcoin::absolute::LockTime::ZERO,
+            input: vec![txin],
+            output: vec![],
+        };
+
+        let mut sighash_cache = SighashCache::new(&transaction);
+        let txout = TxOut {
+            value: Amount::from_sat(PAYING_INPUT_SATS_AMOUNT),
+            script_pubkey: self.p2tr_address.script_pubkey(),
+        };
+        let message_hash = sighash_cache
+            .taproot_key_spend_signature_hash(0, &Prevouts::One(0, txout), TapSighashType::NonePlusAnyoneCanPay)
+            .map_err(|e| RuneError::HashError(format!("Failed to create message hash: {}", e)))?;
+
+        let message = Message::from_digest(message_hash.to_byte_array());
+        let secp = Secp256k1::new();
+        let signature = secp.sign_schnorr_no_aux_rand(&message, &self.keypair);
+
+        let paying_input = UserPayingTransferInput {
+            txid: txid.to_string(),
+            vout: 0,
+            address: self.p2tr_address.to_string(),
+            sats_amount: PAYING_INPUT_SATS_AMOUNT,
+            none_anyone_can_pay_signature: signature,
+        };
+
+        Ok(paying_input)
+    }
 }
 
 fn create_partial_token_leaf_output(

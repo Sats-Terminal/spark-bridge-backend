@@ -82,7 +82,7 @@ async fn main() {
         verifier_clients_hash_map.insert(verifier.id, Arc::new(verifier_client));
     }
     let deposit_verification_aggregator =
-        DepositVerificationAggregator::new(flow_sender.clone(), verifier_clients_hash_map, shared_db_pool.clone());
+        DepositVerificationAggregator::new(flow_sender.clone(), verifier_clients_hash_map, shared_db_pool.clone(), server_config.network.network);
 
     // Create App
     let app = create_app(

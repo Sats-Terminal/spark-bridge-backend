@@ -69,6 +69,7 @@ pub async fn handle(
     }];
 
     if total_amount > exit_amount {
+        info!("[{LOG_PATH}] Creating new deposit address");
         let new_nonce = generate_nonce();
         let public_key_package = flow_router
             .frost_aggregator
@@ -100,6 +101,7 @@ pub async fn handle(
         });
     }
 
+    info!("[{LOG_PATH}] Creating rune partial transaction");
     let mut transaction = create_rune_partial_transaction(
         outputs_to_spend,
         paying_utxo,
@@ -159,6 +161,8 @@ pub async fn handle(
 
         flow_router.storage.insert_utxo(utxo).await?;
     }
+
+    info!("[{LOG_PATH}] Exit spark flow completed");
 
     Ok(())
 }

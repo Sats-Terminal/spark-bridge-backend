@@ -8,6 +8,7 @@ use serde::{Deserialize};
 use std::str::FromStr;
 use bitcoin::{Txid, secp256k1::schnorr::Signature, Network};
 use global_utils::conversion::decode_address;
+use tracing;
 
 #[derive(Deserialize)]
 pub struct UserPayingTransferInput {
@@ -44,6 +45,7 @@ pub async fn handle(
     State(state): State<AppState>,
     Json(request): Json<ExitSparkRequest>,
 ) -> Result<Json<()>, GatewayError> {
+    tracing::debug!("Exit spark request for spark address: {:?}", request.spark_address);
     let verify_spark_deposit_request = VerifySparkDepositRequest {
         spark_address: request.spark_address,
         exit_address: decode_address(&request.exit_address, state.network)
@@ -57,5 +59,6 @@ pub async fn handle(
         .await
         .map_err(|e| GatewayError::DepositVerificationError(format!("Failed to verify spark deposit: {}", e)))?;
 
+    tracing::debug!("Exit spark request verified");
     Ok(Json(()))
 }

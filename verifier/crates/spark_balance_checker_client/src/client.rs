@@ -2,6 +2,7 @@ use crate::error::SparkBalanceCheckerClientError;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 pub use verifier_config_parser::config::SparkBalanceCheckerConfig;
+use token_identifier::TokenIdentifier;
 
 const GET_BALANCE_PATH: &str = "/balance";
 
@@ -14,7 +15,7 @@ pub struct SparkBalanceCheckerClient {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GetBalanceRequest {
     pub spark_address: String,
-    pub rune_id: String,
+    pub token_identifier: TokenIdentifier,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

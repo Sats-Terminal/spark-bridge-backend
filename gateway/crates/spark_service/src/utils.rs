@@ -1,6 +1,4 @@
 use bitcoin::{secp256k1, Network};
-use bitcoin::hashes::Hash;
-use bitcoin::hashes::sha256::Hash as Sha256Hash;
 use bitcoin::secp256k1::PublicKey;
 use serde::{Deserialize, Serialize};
 use lrc20::token_metadata::{TokenMetadata, SPARK_CREATION_ENTITY_PUBLIC_KEY};
@@ -15,9 +13,11 @@ pub struct WRunesMetadata {
     pub token_ticker: String,
 }
 
+const DEFAULT_TOKEN_TICKER: &str = "ticker";
+
 pub fn create_wrunes_metadata(rune_id: String, issuer_public_key: PublicKey, network: Network) -> Result<WRunesMetadata, secp256k1::Error> {
     let token_name = rune_id;
-    let token_ticker = "ticker".to_string();
+    let token_ticker = DEFAULT_TOKEN_TICKER.to_string();
 
     let token_metadata = TokenMetadata::new(
         issuer_public_key,
@@ -30,8 +30,6 @@ pub fn create_wrunes_metadata(rune_id: String, issuer_public_key: PublicKey, net
         network,
     );
     
-    println!("Token metadata: {:?}", token_metadata.compute_token_identifier());
-
     Ok(
        WRunesMetadata {
         token_identifier: token_metadata.compute_token_identifier(),

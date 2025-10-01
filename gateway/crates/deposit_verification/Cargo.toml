@@ -9,6 +9,7 @@ readme.workspace = true
 [dependencies]
 async-trait = { workspace = true }
 bitcoin = { workspace = true }
+token-identifier = { workspace = true }
 global_utils = { workspace = true }
 persistent_storage = { workspace = true }
 reqwest = { workspace = true }
@@ -25,3 +26,4 @@ gateway_local_db_store = { workspace = true }
 frost = { workspace = true }
 gateway_config_parser = { workspace = true }
 gateway_rune_transfer = { workspace = true }
+gateway_spark_service = { workspace = true }
