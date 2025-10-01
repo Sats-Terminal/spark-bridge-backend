@@ -3,7 +3,7 @@ use crate::flow_router::FlowProcessorRouter;
 use crate::types::IssueBtcDepositAddressRequest;
 use bitcoin::Address;
 use frost::traits::AggregatorDkgShareStorage;
-use frost::types::{AggregatorDkgShareData, AggregatorDkgState, DkgShareId};
+use frost::types::{AggregatorDkgShareData, AggregatorDkgState};
 use frost::utils::convert_public_key_package;
 use frost::utils::{generate_nonce, get_address};
 use gateway_local_db_store::schemas::deposit_address::{
@@ -13,7 +13,6 @@ use gateway_local_db_store::schemas::dkg_share::DkgShareGenerate;
 use gateway_local_db_store::schemas::user_identifier::{
     UserIdentifier, UserIdentifierData, UserIdentifierStorage, UserIds,
 };
-use global_utils::common_types::get_uuid;
 use tracing;
 
 const LOG_PATH: &str = "flow_processor:routes:btc_addr_issuing";

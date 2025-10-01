@@ -4,7 +4,6 @@ use crate::types::*;
 use crate::utils::spark_network_to_proto_network;
 use bitcoin::hashes::sha256::Hash as Sha256Hash;
 use bitcoin::hashes::{Hash, HashEngine, sha256};
-use bitcoin::secp256k1;
 use bitcoin::secp256k1::PublicKey;
 use frost::aggregator::FrostAggregator;
 use frost::types::SigningMetadata;
@@ -84,7 +83,7 @@ impl SparkService {
         let identity_public_key = self.get_musig_public_key(issuer_dkg_share_id, nonce_tweak).await?;
 
         let session_token = self.spark_client.get_auth_session(identity_public_key).await;
-        if let Some(_) = session_token {
+        if session_token.is_some() {
             return Ok(());
         }
 
@@ -108,7 +107,7 @@ impl SparkService {
         let signature = self
             .frost_aggregator
             .run_signing_flow(
-                issuer_dkg_share_id.clone(),
+                issuer_dkg_share_id,
                 message_hash.as_byte_array().as_slice(),
                 SigningMetadata::Authorization,
                 nonce_tweak,

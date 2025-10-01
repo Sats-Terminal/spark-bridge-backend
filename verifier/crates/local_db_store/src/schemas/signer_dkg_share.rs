@@ -3,11 +3,9 @@ use async_trait::async_trait;
 use frost::traits::SignerDkgShareStorage;
 use frost::types::SignerDkgState;
 use frost::types::{DkgShareId, SignerDkgShareIdData};
-use global_utils::common_types::get_uuid;
 use persistent_storage::error::DbError;
 use sqlx::types::Json;
 use tracing::info;
-use uuid::Uuid;
 
 #[async_trait]
 impl SignerDkgShareStorage for LocalDbStorage {

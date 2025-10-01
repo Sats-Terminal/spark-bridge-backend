@@ -46,7 +46,7 @@ impl FrostAggregator {
                 dkg_state: AggregatorDkgState::Initialized,
             }) => {
                 let signer_clients_request = DkgRound1Request {
-                    dkg_share_id: dkg_share_id.clone(),
+                    dkg_share_id: *dkg_share_id,
                 };
 
                 let mut verifier_responses = BTreeMap::new();
@@ -104,7 +104,7 @@ impl FrostAggregator {
                     let mut packages = round1_packages.clone();
                     packages.remove(&verifier_id);
                     let signer_requests = DkgRound2Request {
-                        dkg_share_id: dkg_share_id.clone(),
+                        dkg_share_id: *dkg_share_id,
                         round1_packages: packages,
                     };
                     let join_handle = async move { (verifier_id, signer_client.dkg_round_2(signer_requests).await) };
@@ -160,7 +160,7 @@ impl FrostAggregator {
                     let mut verifier_round1_packages = round1_packages.clone();
                     verifier_round1_packages.remove(&verifier_id);
                     let request = DkgFinalizeRequest {
-                        dkg_share_id: dkg_share_id.clone(),
+                        dkg_share_id: *dkg_share_id,
                         round1_packages: verifier_round1_packages,
                         round2_packages: round2_packages
                             .get(&verifier_id)
@@ -215,7 +215,7 @@ impl FrostAggregator {
                 dkg_share_id
             )));
         }
-        locked_dkg_shares.insert(dkg_share_id.clone());
+        locked_dkg_shares.insert(*dkg_share_id);
         Ok(())
     }
 
@@ -234,14 +234,14 @@ impl FrostAggregator {
 
     #[instrument]
     pub async fn run_dkg_flow(&self, dkg_share_id: &DkgShareId) -> Result<keys::PublicKeyPackage, AggregatorError> {
-        self.lock_dkg_share(&dkg_share_id).await?;
+        self.lock_dkg_share(dkg_share_id).await?;
 
-        let dkg_share_data = self.dkg_share_storage.get_dkg_share_agg_data(&dkg_share_id).await?;
+        let dkg_share_data = self.dkg_share_storage.get_dkg_share_agg_data(dkg_share_id).await?;
         if let Some(x) = dkg_share_data.as_ref() {
             match &x.dkg_state {
                 AggregatorDkgState::Initialized => {}
                 _ => {
-                    self.unlock_dkg_share_id(&dkg_share_id).await?;
+                    self.unlock_dkg_share_id(dkg_share_id).await?;
                     return Err(AggregatorError::DkgShareIdAlreadyExists(format!(
                         "Dkg share id already exists: {:?}",
                         dkg_share_id
@@ -288,7 +288,7 @@ impl FrostAggregator {
 
                 for (verifier_id, signer_client) in self.verifiers.clone() {
                     let request = SignRound1Request {
-                        dkg_share_id: dkg_share_id.clone(),
+                        dkg_share_id: *dkg_share_id,
                         metadata: metadata.clone(),
                         message_hash: message_hash.to_vec(),
                         session_id,
@@ -365,7 +365,7 @@ impl FrostAggregator {
 
                 for (verifier_id, signer_client) in self.verifiers.clone() {
                     let request = SignRound2Request {
-                        dkg_share_id: dkg_share_id.clone(),
+                        dkg_share_id: *dkg_share_id,
                         session_id,
                         signing_package: signing_package.clone(),
                     };

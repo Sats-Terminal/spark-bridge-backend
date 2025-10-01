@@ -63,7 +63,7 @@ async fn main() {
     )
     .await;
 
-    let mut task_tracker = TaskTracker::default();
+    let task_tracker = TaskTracker::default();
     task_tracker.spawn(async move {
         flow_processor.run().await;
     });

@@ -1,5 +1,4 @@
 use bitcoin::Network;
-use frost::aggregator::FrostAggregator;
 use gateway_config_parser::config::ServerConfig;
 use global_utils::config_path::ConfigPath;
 pub use persistent_storage::error::DbError;

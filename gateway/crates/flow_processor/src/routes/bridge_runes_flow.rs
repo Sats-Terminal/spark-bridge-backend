@@ -1,7 +1,6 @@
 use crate::error::FlowProcessorError;
 use crate::flow_router::FlowProcessorRouter;
 use crate::types::BridgeRunesRequest;
-use frost::traits::AggregatorDkgShareStorage;
 use frost::utils::generate_issuer_public_key;
 use gateway_local_db_store::schemas::deposit_address::{DepositAddressStorage, InnerAddress};
 use gateway_local_db_store::schemas::dkg_share::DkgShareGenerate;
@@ -10,7 +9,6 @@ use gateway_local_db_store::schemas::user_identifier::{
 };
 use gateway_spark_service::types::SparkTransactionType;
 use gateway_spark_service::utils::{convert_network_to_spark_network, create_wrunes_metadata};
-use global_utils::common_types::get_uuid;
 use spark_address::{SparkAddressData, encode_spark_address};
 use tracing::{info, instrument};
 
@@ -118,7 +116,7 @@ pub async fn handle(
         invoice: None,
         signature: None,
     })
-    .map_err(|e| FlowProcessorError::SparkAddressError(e))?;
+    .map_err(FlowProcessorError::SparkAddressError)?;
 
     flow_processor
         .spark_service

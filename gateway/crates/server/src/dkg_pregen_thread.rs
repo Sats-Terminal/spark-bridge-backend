@@ -1,9 +1,7 @@
 use frost::aggregator::FrostAggregator;
 use gateway_config_parser::config::DkgPregenConfig;
-use gateway_deposit_verification::aggregator::DepositVerificationAggregator;
 use gateway_local_db_store::schemas::dkg_share::DkgShareGenerate;
 use gateway_local_db_store::storage::LocalDbStorage;
-use global_utils::common_types::get_uuid;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
@@ -57,7 +55,7 @@ impl DkgPregenThread {
             Ok(UpdatePossibility {
                 dkg_available,
                 finalized_dkg_available,
-            }) => match Self::get_update_decision(dkg_available, finalized_dkg_available, &dkg_pregen_config) {
+            }) => match Self::get_update_decision(dkg_available, finalized_dkg_available, dkg_pregen_config) {
                 0 => {
                     trace!(
                         "Free dkg values are available: {dkg_available}, \
@@ -86,11 +84,7 @@ impl DkgPregenThread {
 
     /// Checks availability to generate more dkg pregen values
     fn get_update_decision(_dkg_available: u64, finalized_dkg_available: u64, config: &DkgPregenConfig) -> u64 {
-        if finalized_dkg_available < config.min_threshold {
-            config.min_threshold - finalized_dkg_available
-        } else {
-            0
-        }
+        config.min_threshold.saturating_sub(finalized_dkg_available)
     }
 
     /// Pregenerates shares for dkg state

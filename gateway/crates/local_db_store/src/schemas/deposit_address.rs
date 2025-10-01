@@ -1,4 +1,3 @@
-use crate::schemas::musig_id::MusigId;
 use crate::schemas::user_identifier::{UserUniqueId, UserUuid};
 use crate::storage::LocalDbStorage;
 use async_trait::async_trait;

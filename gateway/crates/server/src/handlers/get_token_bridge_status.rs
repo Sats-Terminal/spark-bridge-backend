@@ -1,11 +1,8 @@
 use crate::error::GatewayError;
 use crate::init::AppState;
 use axum::{Json, extract::State};
-use gateway_flow_processor::flow_sender::TypedMessageSender;
-use gateway_flow_processor::types::IssueSparkDepositAddressRequest;
 use gateway_local_db_store::schemas::session_storage::{RequestType, SessionStatus, SessionUuid};
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
 use tracing::{debug, instrument};
 
 #[derive(Deserialize, Debug)]

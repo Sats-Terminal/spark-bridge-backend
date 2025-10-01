@@ -2,7 +2,7 @@ use crate::error::FlowProcessorError;
 use crate::flow_router::FlowProcessorRouter;
 use crate::types::IssueSparkDepositAddressRequest;
 use frost::traits::AggregatorDkgShareStorage;
-use frost::types::{AggregatorDkgShareData, AggregatorDkgState, DkgShareId};
+use frost::types::{AggregatorDkgShareData, AggregatorDkgState};
 use frost::utils::convert_public_key_package;
 use frost::utils::generate_nonce;
 use gateway_local_db_store::schemas::deposit_address::{
@@ -11,7 +11,6 @@ use gateway_local_db_store::schemas::deposit_address::{
 use gateway_local_db_store::schemas::dkg_share::DkgShareGenerate;
 use gateway_local_db_store::schemas::user_identifier::{UserIdentifierData, UserIdentifierStorage, UserIds};
 use gateway_spark_service::utils::convert_network_to_spark_network;
-use global_utils::common_types::get_uuid;
 use spark_address::{SparkAddressData, encode_spark_address};
 use tracing;
 

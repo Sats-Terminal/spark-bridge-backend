@@ -57,7 +57,7 @@ pub fn marshal_token_transaction(
                 nanos: ((tx.client_created_timestamp % 1_000) * 1_000_000) as i32,
             };
 
-            let expiry_time = (tx.expiry_time > 0).then(|| Timestamp {
+            let expiry_time = (tx.expiry_time > 0).then_some(Timestamp {
                 seconds: tx.expiry_time as i64,
                 nanos: 0,
             });
@@ -85,7 +85,7 @@ pub fn marshal_token_transaction(
                 nanos: ((tx.client_created_timestamp % 1_000) * 1_000_000) as i32,
             };
 
-            let expiry_time = (tx.expiry_time > 0).then(|| Timestamp {
+            let expiry_time = (tx.expiry_time > 0).then_some(Timestamp {
                 seconds: tx.expiry_time as i64,
                 nanos: 0,
             });

@@ -1,4 +1,3 @@
-use bitcoin::secp256k1::PublicKey;
 use frost_secp256k1_tr::{
     Identifier, Signature, SigningPackage,
     keys::{

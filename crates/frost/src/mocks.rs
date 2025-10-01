@@ -20,7 +20,7 @@ pub struct MockSignerSignSessionStorage {
 impl MockSignerSignSessionStorage {
     pub async fn has_session(&self, dkg_share_id: &DkgShareId, session_id: &Uuid) -> bool {
         let map = self.storage.lock().await;
-        map.contains_key(&(dkg_share_id.clone(), *session_id))
+        map.contains_key(&(*dkg_share_id, *session_id))
     }
 }
 
@@ -31,12 +31,7 @@ impl SignerSignSessionStorage for MockSignerSignSessionStorage {
         dkg_share_id: &DkgShareId,
         session_id: Uuid,
     ) -> Result<Option<SignerSignData>, DbError> {
-        Ok(self
-            .storage
-            .lock()
-            .await
-            .get(&(dkg_share_id.clone(), session_id))
-            .cloned())
+        Ok(self.storage.lock().await.get(&(*dkg_share_id, session_id)).cloned())
     }
 
     async fn set_sign_data(
@@ -48,7 +43,7 @@ impl SignerSignSessionStorage for MockSignerSignSessionStorage {
         self.storage
             .lock()
             .await
-            .insert((dkg_share_data.clone(), session_id), sign_session_data);
+            .insert((*dkg_share_data, session_id), sign_session_data);
         Ok(())
     }
 }
@@ -75,7 +70,7 @@ impl SignerDkgShareStorage for MockSignerDkgShareIdStorage {
         dkg_share_id: &DkgShareId,
         dkkg_share_data: SignerDkgShareIdData,
     ) -> Result<(), DbError> {
-        self.storage.lock().await.insert(dkg_share_id.clone(), dkkg_share_data);
+        self.storage.lock().await.insert(*dkg_share_id, dkkg_share_data);
         Ok(())
     }
 }
@@ -117,7 +112,7 @@ impl AggregatorDkgShareStorage for MockAggregatorDkgShareIdStorage {
         musig_id: &DkgShareId,
         dkg_share_data: AggregatorDkgShareData,
     ) -> Result<(), DbError> {
-        self.storage.lock().await.insert(musig_id.clone(), dkg_share_data);
+        self.storage.lock().await.insert(*musig_id, dkg_share_data);
         Ok(())
     }
 }
@@ -129,12 +124,7 @@ impl AggregatorSignSessionStorage for MockAggregatorSignSessionStorage {
         dkg_share_id: &DkgShareId,
         session_id: Uuid,
     ) -> Result<Option<AggregatorSignData>, DbError> {
-        Ok(self
-            .storage
-            .lock()
-            .await
-            .get(&(dkg_share_id.clone(), session_id))
-            .cloned())
+        Ok(self.storage.lock().await.get(&(*dkg_share_id, session_id)).cloned())
     }
 
     async fn set_sign_data(
@@ -146,7 +136,7 @@ impl AggregatorSignSessionStorage for MockAggregatorSignSessionStorage {
         self.storage
             .lock()
             .await
-            .insert((dkg_share_id.clone(), session_id), sign_session_data);
+            .insert((*dkg_share_id, session_id), sign_session_data);
         Ok(())
     }
 }

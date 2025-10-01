@@ -1,11 +1,9 @@
 use crate::schemas::musig_id::MusigId;
 use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
-use frost::traits::AggregatorDkgShareStorage;
 use frost::types::DkgShareId;
 use persistent_storage::error::DbError;
 use serde::{Deserialize, Serialize};
-use sqlx::types::Json;
 use std::fmt::Debug;
 use std::str::FromStr;
 use tracing::{info, instrument};
