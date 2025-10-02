@@ -9,8 +9,7 @@ use bitcoin::secp256k1::schnorr::Signature;
 use bitcoin::sighash::{Prevouts, SighashCache, TapSighashType};
 use bitcoin::taproot::Signature as TaprootSignature;
 use bitcoin::transaction::Version;
-use bitcoin::{Address, Amount, Network, OutPoint, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Txid, Witness};
-use global_utils::conversion::decode_address;
+use bitcoin::{Address, Amount, OutPoint, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Txid, Witness};
 use ordinals::{Edict, RuneId, Runestone};
 use std::str::FromStr;
 
@@ -132,8 +131,7 @@ pub fn sign_message_hash(message_hash: [u8; 32], secret_key: SecretKey) -> Signa
     let message = Message::from_digest(message_hash);
     let keypair = Keypair::from_secret_key(&ctx, &secret_key);
     let tweaked_keypair = keypair.tap_tweak(&ctx, None);
-    let signature = ctx.sign_schnorr_no_aux_rand(&message, &tweaked_keypair.to_keypair());
-    signature
+    ctx.sign_schnorr_no_aux_rand(&message, &tweaked_keypair.to_keypair())
 }
 
 pub fn add_signature_to_transaction(transaction: &mut Transaction, input_index: usize, signature: Signature) {

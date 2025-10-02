@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use sqlx::{PgPool, Pool, Postgres, pool::PoolConnection};
+use sqlx::{Connection, PgPool, Pool, Postgres, pool::PoolConnection};
 use tracing::{instrument, trace};
 
 use crate::{config::PostgresDbCredentials, error::DbError};
@@ -21,6 +21,29 @@ pub trait PersistentRepoTrait: Send + Sync {
     async fn get_conn(&self) -> Result<PersistentDbConn, DbError>;
 }
 
+#[async_trait]
+pub trait StorageHealthcheck {
+    async fn healthcheck(&self) -> Result<(), DbError>;
+}
+
+#[async_trait]
+impl StorageHealthcheck for PostgresRepo {
+    async fn healthcheck(&self) -> Result<(), DbError> {
+        let mut conn = self.get_conn().await?;
+        conn.ping().await?;
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl StorageHealthcheck for PersistentRepoShared {
+    async fn healthcheck(&self) -> Result<(), DbError> {
+        let mut conn = self.get_conn().await?;
+        conn.ping().await?;
+        Ok(())
+    }
+}
+
 impl PostgresRepo {
     /// Provides **unmigrated** connection to db
     ///
@@ -30,7 +53,10 @@ impl PostgresRepo {
         trace!("Creating PG connection pool with creds: {:?}", creds);
         let pool = PgPool::connect(&creds.url)
             .await
-            .map_err(|x| DbError::FailedToEstablishDbConn(x, creds.url.clone()))?;
+            .map_err(|x| DbError::FailedToEstablishDbConn {
+                err: x,
+                url: creds.url.clone(),
+            })?;
         trace!(db_url = creds.url, "Creating Postgres pool with config");
         Ok(Self { pool })
     }

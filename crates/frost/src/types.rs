@@ -11,20 +11,20 @@ use frost_secp256k1_tr::{
 use serde::{Deserialize, Serialize};
 use spark_protos::spark_token::TokenTransaction;
 use std::collections::BTreeMap;
+use std::fmt::{Debug, Formatter};
 use uuid::Uuid;
 
-pub type Nonce = [u8; 32];
-pub type RuneId = String;
+pub type TweakBytes = [u8; 32];
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub enum MusigId {
     User {
         user_public_key: PublicKey,
-        rune_id: RuneId,
+        rune_id: String,
     },
     Issuer {
         issuer_public_key: PublicKey,
-        rune_id: RuneId,
+        rune_id: String,
     },
 }
 
@@ -146,7 +146,7 @@ pub enum SignerDkgState {
         round1_packages: BTreeMap<Identifier, round1::Package>,
     },
     DkgFinalized {
-        key_package: KeyPackage,
+        key_package: Box<KeyPackage>,
     },
 }
 
@@ -157,8 +157,8 @@ pub struct SignerMusigIdData {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SignerSignState {
-    SigningRound1 { nonces: SigningNonces },
-    SigningRound2 { signature_share: SignatureShare },
+    SigningRound1 { nonces: Box<SigningNonces> },
+    SigningRound2 { signature_share: Box<SignatureShare> },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -169,7 +169,7 @@ pub struct SignerSignData {
     pub sign_state: SignerSignState,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub enum SigningMetadata {
     PartialCreateToken { token_transaction: TokenTransaction },
     FinalCreateToken { token_transaction: TokenTransaction },
@@ -179,4 +179,23 @@ pub enum SigningMetadata {
     FinalTransferToken { token_transaction: TokenTransaction },
     Authorization,
     BtcTransactionMetadata {},
+}
+
+impl Debug for SigningMetadata {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(
+            f,
+            "{}",
+            match self {
+                SigningMetadata::PartialCreateToken { .. } => "PartialCreateToken",
+                SigningMetadata::FinalCreateToken { .. } => "FinalCreateToken",
+                SigningMetadata::PartialMintToken { .. } => "PartialMintToken",
+                SigningMetadata::FinalMintToken { .. } => "FinalMintToken",
+                SigningMetadata::PartialTransferToken { .. } => "PartialTransferToken",
+                SigningMetadata::FinalTransferToken { .. } => "FinalTransferToken",
+                SigningMetadata::Authorization => "Authorization",
+                SigningMetadata::BtcTransactionMetadata { .. } => "BtcTransactionMetadata",
+            }
+        )
+    }
 }

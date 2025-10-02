@@ -57,7 +57,7 @@ pub fn marshal_token_transaction(
                 nanos: ((tx.client_created_timestamp % 1_000) * 1_000_000) as i32,
             };
 
-            let expiry_time = (tx.expiry_time > 0).then(|| Timestamp {
+            let expiry_time = (tx.expiry_time > 0).then_some(Timestamp {
                 seconds: tx.expiry_time as i64,
                 nanos: 0,
             });
@@ -85,7 +85,7 @@ pub fn marshal_token_transaction(
                 nanos: ((tx.client_created_timestamp % 1_000) * 1_000_000) as i32,
             };
 
-            let expiry_time = (tx.expiry_time > 0).then(|| Timestamp {
+            let expiry_time = (tx.expiry_time > 0).then_some(Timestamp {
                 seconds: tx.expiry_time as i64,
                 nanos: 0,
             });
@@ -93,7 +93,6 @@ pub fn marshal_token_transaction(
             let mut invoice_attachments: Vec<_> = tx
                 .invoice_attachments
                 .values()
-                .into_iter()
                 .map(|v| InvoiceAttachment {
                     spark_invoice: v.to_string(),
                 })
@@ -367,8 +366,7 @@ fn parse_token_leaves_to_create_v2(
         let id = leaf.id;
         let owner_public_key = PublicKey::from_slice(&leaf.owner_public_key)?;
         let revocation_public_key = PublicKey::from_slice(
-            &leaf
-                .revocation_commitment
+            leaf.revocation_commitment
                 .as_ref()
                 .ok_or(TokenTransactionError::RevocationPublicKeyMissing)?,
         )?;

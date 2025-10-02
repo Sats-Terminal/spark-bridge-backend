@@ -413,7 +413,7 @@ impl From<&TokenMetadata> for TokenIdentifier {
 }
 
 fn wrap_io_error(err: impl fmt::Display, message: &str) -> TokenMetadataParseError {
-    TokenMetadataParseError::IoError(io::Error::new(io::ErrorKind::Other, format!("{}: {}", message, err)))
+    TokenMetadataParseError::IoError(io::Error::other(format!("{}: {}", message, err)))
 }
 
 /// Error type for parsing LRC20 token metadata.

@@ -7,43 +7,38 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum VerifierError {
-    #[error("Internal server error: {0}")]
-    BadRequest(String),
     #[error("Dkg error: {0}")]
-    DkgError(#[from] SignerError),
+    Dkg(#[from] SignerError),
     #[error("Storage error: {0}")]
-    StorageError(String),
-    #[error("Decode error: {0}")]
-    DecodeError(String),
+    Storage(String),
     #[error("Btc indexer client error: {0}")]
-    BtcIndexerClientError(String),
+    BtcIndexerClient(String),
     #[error("Spark balance checker client error: {0}")]
-    SparkBalanceCheckerClientError(String),
+    SparkBalanceCheckerClient(String),
     #[error("Gateway client error: {0}")]
-    GatewayClientError(String),
+    GatewayClient(String),
     #[error("Validation was incorrect: {0}")]
-    ValidationError(String),
+    Validation(String),
+    #[error("Healthcheck error: [{0}]")]
+    Healthcheck(String),
 }
 
 impl IntoResponse for VerifierError {
     fn into_response(self) -> Response {
         match self {
-            VerifierError::BadRequest(message) => (StatusCode::BAD_REQUEST, message).into_response(),
-            VerifierError::DkgError(error) => (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()).into_response(),
-            VerifierError::StorageError(error) => {
+            VerifierError::Dkg(error) => (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()).into_response(),
+            VerifierError::Storage(error) => (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()).into_response(),
+            VerifierError::BtcIndexerClient(error) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()).into_response()
             }
-            VerifierError::DecodeError(error) => (StatusCode::BAD_REQUEST, error.to_string()).into_response(),
-            VerifierError::BtcIndexerClientError(error) => {
+            VerifierError::SparkBalanceCheckerClient(error) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()).into_response()
             }
-            VerifierError::SparkBalanceCheckerClientError(error) => {
+            VerifierError::GatewayClient(error) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()).into_response()
             }
-            VerifierError::GatewayClientError(error) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()).into_response()
-            }
-            VerifierError::ValidationError(message) => (StatusCode::BAD_REQUEST, message).into_response(),
+            VerifierError::Healthcheck(error) => (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()).into_response(),
+            VerifierError::Validation(message) => (StatusCode::BAD_REQUEST, message).into_response(),
         }
     }
 }

@@ -10,15 +10,14 @@ use config_parser::config::{BtcIndexerParams, BtcRpcCredentials, TitanConfig};
 use local_db_store_indexer::init::IndexerDbBounds;
 use local_db_store_indexer::init::LocalDbStorage;
 
+use crate::error::BtcIndexerError;
 use titan_client::{TitanApi, TitanClient};
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
-use tracing::{error, info, instrument, log::debug, trace, warn};
+use tracing::{instrument, log::debug, trace, warn};
 use uuid::Uuid;
 
 const BTC_INDEXER_LOG_PATH: &str = "btc_indexer";
-const TX_TRACKING_LOG_PATH: &str = "btc_indexer:tx_tracking";
-const ACCOUNT_TRACKING_LOG_PATH: &str = "btc_indexer:account_tracking";
 
 pub struct BtcIndexer<C, Db, TxValidator> {
     pub btc_indexer_params: BtcIndexerParams,
@@ -46,7 +45,7 @@ pub struct IndexerParams<Db> {
 impl BtcIndexer<TitanClient, LocalDbStorage, TxArbiter> {
     #[instrument(skip(params))]
     pub fn with_api(params: IndexerParams<LocalDbStorage>) -> crate::error::Result<Self> {
-        let titan_api_client = TitanClient::new(&params.titan_config.url.to_string());
+        let titan_api_client = TitanClient::new(params.titan_config.url.as_ref());
         Self::new(IndexerParamsWithApi {
             indexer_params: params,
             titan_api_client: Arc::new(titan_api_client),
@@ -113,6 +112,23 @@ impl<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArbiterTrait> BtcIndexerAp
     #[instrument(level = "debug", skip(self), ret)]
     async fn check_tx_changes(&self, uuid: Uuid, payload: &TrackTxRequest) -> crate::error::Result<()> {
         self.persistent_storage.track_tx_request(uuid, payload).await?;
+        Ok(())
+    }
+
+    #[instrument(level = "debug", skip(self), err)]
+    async fn healthcheck(&self) -> crate::error::Result<()> {
+        if self.task_tracker.is_closed() {
+            return Err(BtcIndexerError::HealthcheckError(
+                "Threads closed, check internal logic".to_string(),
+            ));
+        }
+        self.persistent_storage
+            .healthcheck()
+            .await
+            .map_err(|e| BtcIndexerError::HealthcheckError(e.to_string()))?;
+        let _ = self.indexer_client.get_status().await.map_err(|e| {
+            BtcIndexerError::HealthcheckError(format!("Unable to retrieve titan indexer status, err: {e}"))
+        });
         Ok(())
     }
 

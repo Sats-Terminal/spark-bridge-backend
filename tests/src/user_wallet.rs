@@ -1,7 +1,6 @@
 use crate::bitcoin_client::BitcoinClient;
 use crate::constants::{BLOCKS_TO_GENERATE, DEFAULT_DUST_AMOUNT, DEFAULT_FAUCET_AMOUNT, DEFAULT_FEE_AMOUNT};
 use crate::error::RuneError;
-use crate::gateway_client::UserPayingTransferInput;
 use crate::spark_client::GetSparkAddressDataRequest;
 use crate::spark_client::SparkClient;
 use crate::utils::create_credentials;
@@ -318,7 +317,8 @@ impl UserWallet {
             .get_spark_address_data(GetSparkAddressDataRequest {
                 spark_address: self.get_spark_address()?,
             })
-            .await?;
+            .await
+            .map_err(Box::new)?;
 
         let token_identifier = spark_address_data.token_outputs[0].token_identifier;
         for token_output in spark_address_data.token_outputs.iter() {
@@ -335,7 +335,7 @@ impl UserWallet {
         let mut token_leaves_to_spend = vec![];
         for token_output in spark_address_data.token_outputs.iter() {
             token_leaves_to_spend.push(TokenLeafToSpend {
-                parent_leaf_hash: Sha256Hash::from_bytes_ref(
+                parent_leaf_hash: *Sha256Hash::from_bytes_ref(
                     token_output
                         .prev_token_transaction_hash
                         .clone()
@@ -346,8 +346,7 @@ impl UserWallet {
                                 "Failed to convert prev_token_transaction_hash to Sha256Hash".to_string(),
                             )
                         })?,
-                )
-                .clone(),
+                ),
                 parent_leaf_index: token_output.prev_token_transaction_vout,
             });
         }
@@ -407,8 +406,9 @@ impl UserWallet {
         };
         let start_transaction_response = self
             .spark_client
-            .start_spark_transaction(start_transaction_request, self.keypair.clone())
-            .await?;
+            .start_spark_transaction(start_transaction_request, self.keypair)
+            .await
+            .map_err(Box::new)?;
 
         let final_token_transaction_proto = start_transaction_response
             .final_token_transaction
@@ -454,8 +454,9 @@ impl UserWallet {
 
         let _ = self
             .spark_client
-            .commit_spark_transaction(commit_transaction_request, self.keypair.clone())
-            .await?;
+            .commit_spark_transaction(commit_transaction_request, self.keypair)
+            .await
+            .map_err(Box::new)?;
 
         Ok(())
     }

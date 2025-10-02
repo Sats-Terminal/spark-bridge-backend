@@ -1,6 +1,5 @@
 use global_utils::config_path::ConfigPath;
 use global_utils::logger::init_logger;
-use rustls;
 use spark_balance_checker_config_parser::config::ServerConfig;
 use spark_balance_checker_server::init::create_app;
 use std::sync::Once;
@@ -18,7 +17,7 @@ fn install_rustls_provider() {
 #[tracing::instrument(level = "debug", ret)]
 #[tokio::main]
 async fn main() {
-    let _ = dotenv::dotenv();
+    let _ = dotenvy::dotenv();
     let _logger_guard = init_logger();
     install_rustls_provider();
 

@@ -29,7 +29,10 @@ cancellation_retries = 10
 url = "postgres://admin_manager:password@persistent-db-storage_gateway:5432/production_db_name"
 
 [spark_config]
-certificate = { path = "./configuration_gateway/ca.pem" }
+certificates = [
+    { path = "./configuration_gateway/Amazon-Root-CA.pem" },
+    { path = "./configuration_gateway/Flashnet-CA.pem" },
+]
 
 [[spark_config.operators]]
 id = 1
