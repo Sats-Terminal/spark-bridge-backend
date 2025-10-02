@@ -2,7 +2,7 @@ use std::{fmt::Debug, net::SocketAddr, str::FromStr, sync::Arc};
 
 use axum::{Json, Router, extract::State, routing::post};
 use axum_test::TestServer;
-use btc_indexer_api::api::BtcIndexerCallbackResponse;
+use btc_indexer_api::api::{BtcIndexerCallbackResponse, ResponseMeta};
 use btc_indexer_internals::api::AccountReplenishmentEvent;
 use btc_indexer_server::{AppState, error::ServerError};
 use global_utils::common_resp::Empty;
@@ -38,7 +38,7 @@ pub async fn create_test_notifier_track_tx(
 
 #[instrument(skip(state))]
 async fn notify_handler<T: Clone + Send + Sync + Debug>(
-    State(mut state): State<TestAppState<T>>,
+    State(state): State<TestAppState<T>>,
     Json(payload): Json<T>,
 ) -> Result<Json<Empty>, ServerError> {
     info!("Received track tx: {:?}", payload);
@@ -57,7 +57,7 @@ async fn notify_handler<T: Clone + Send + Sync + Debug>(
 
 #[instrument(skip(state))]
 async fn _notify_handler_inner<T: Clone + Send + Sync + Debug>(
-    mut state: TestAppState<T>,
+    state: TestAppState<T>,
     payload: T,
 ) -> Result<Json<Empty>, ServerError> {
     info!("Received track tx: {:?}", payload);
@@ -72,14 +72,6 @@ async fn _notify_handler_inner<T: Clone + Send + Sync + Debug>(
         warn!("No notifier has been set, (trying to send msg: {payload:?}");
     }
     Ok(Json(Empty {}))
-}
-
-#[instrument(skip(state))]
-async fn notify_tx(
-    State(mut state): State<TestAppState<BtcIndexerCallbackResponse>>,
-    Json(payload): Json<BtcIndexerCallbackResponse>,
-) -> Result<Json<Empty>, ServerError> {
-    _notify_handler_inner::<BtcIndexerCallbackResponse>(state, payload).await
 }
 
 #[instrument]

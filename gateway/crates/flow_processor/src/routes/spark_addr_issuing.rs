@@ -4,7 +4,7 @@ use crate::types::IssueSparkDepositAddressRequest;
 use frost::traits::AggregatorMusigIdStorage;
 use frost::types::AggregatorDkgState;
 use frost::utils::convert_public_key_package;
-use frost::utils::generate_nonce;
+use frost::utils::generate_tweak_bytes;
 use gateway_local_db_store::schemas::deposit_address::{
     DepositAddrInfo, DepositAddressStorage, DepositStatus, InnerAddress, VerifiersResponses,
 };
@@ -49,7 +49,7 @@ pub async fn handle(
         }
     };
 
-    let nonce = generate_nonce();
+    let nonce = generate_tweak_bytes();
     let public_key = convert_public_key_package(&public_key_package)
         .map_err(|e| FlowProcessorError::InvalidDataError(e.to_string()))?;
 

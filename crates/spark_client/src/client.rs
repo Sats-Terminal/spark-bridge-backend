@@ -4,8 +4,9 @@ use crate::{
     connection::{SparkServicesClients, SparkTlsConnection},
 };
 use bitcoin::secp256k1::PublicKey;
-use log;
-use spark_protos::spark::{QueryTokenOutputsRequest, QueryTokenOutputsResponse};
+use spark_protos::spark::{
+    QueryTokenOutputsRequest, QueryTokenOutputsResponse, QueryTokenTransactionsRequest, QueryTokenTransactionsResponse,
+};
 use spark_protos::spark_authn::{
     GetChallengeRequest, GetChallengeResponse, VerifyChallengeRequest, VerifyChallengeResponse,
 };
@@ -16,9 +17,12 @@ use std::collections::HashMap;
 use std::{future::Future, sync::Arc};
 use tokio::sync::Mutex;
 use tonic::metadata::MetadataValue;
+use tonic_health::pb::HealthCheckRequest;
+use tonic_health::pb::health_check_response::ServingStatus;
 use tracing;
 
 const N_QUERY_RETRIES: usize = 3;
+const SPARK_OPERATOR_SERVICE_NAME: &str = "spark-operator";
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct SparkAuthSession {
@@ -61,10 +65,10 @@ impl SparkRpcClient {
                     return Ok(response);
                 }
                 Err(e) => {
-                    log::error!("Query failed, retry {}/{}: {:?}", _j + 1, N_QUERY_RETRIES, e);
+                    tracing::error!("Query failed, retry {}/{}: {:?}", _j + 1, N_QUERY_RETRIES, e);
                 }
             }
-            log::info!("Sleeping for 100ms and retrying");
+            tracing::info!("Sleeping for 100ms and retrying");
             tokio::time::sleep(std::time::Duration::from_millis(100)).await;
         }
 
@@ -86,6 +90,36 @@ impl SparkRpcClient {
         };
 
         self.retry_query(query_fn, request).await.map(|r| r.into_inner())
+    }
+
+    pub async fn query_token_transactions(
+        &self,
+        request: QueryTokenTransactionsRequest,
+    ) -> Result<QueryTokenTransactionsResponse, SparkClientError> {
+        let query_fn = |mut clients: SparkServicesClients, request: QueryTokenTransactionsRequest| async move {
+            clients
+                .spark
+                .query_token_transactions(request)
+                .await
+                .map_err(|e| SparkClientError::ConnectionError(format!("Failed to query transactions: {}", e)))
+        };
+
+        self.retry_query(query_fn, request).await.map(|r| r.into_inner())
+    }
+
+    pub async fn check_spark_operator_service(&self) -> Result<ServingStatus, SparkClientError> {
+        let req = HealthCheckRequest {
+            service: SPARK_OPERATOR_SERVICE_NAME.to_string(),
+        };
+        let query_fn = |mut clients: SparkServicesClients, request: HealthCheckRequest| async move {
+            clients
+                .health
+                .check(request)
+                .await
+                .map_err(|e| SparkClientError::ConnectionError(format!("Failed to query healthcheck: {}", e)))
+        };
+
+        self.retry_query(query_fn, req).await.map(|r| r.into_inner().status())
     }
 
     pub async fn start_token_transaction(
@@ -246,27 +280,28 @@ struct CommitTransactionRequestWithAuth {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::config::{CaCertificate, SparkConfig, SparkOperatorConfig};
-    use crate::utils::spark_address::decode_spark_address;
+    use crate::common::config::{CertificateConfig, SparkConfig, SparkOperatorConfig};
     use global_utils::common_types::{Url, UrlWrapped};
+    use global_utils::logger::{LoggerGuard, init_logger};
+    use spark_address::decode_spark_address;
     use std::str::FromStr;
+    use std::sync::LazyLock;
+    use tracing::info;
 
-    fn init_logger() {
-        let _ = env_logger::builder()
-            .filter_level(log::LevelFilter::Info)
-            .is_test(true)
-            .try_init();
-    }
+    const PATH_TO_AMAZON_CA: &str = "../../infrastructure/configurations/certificates/Amazon-Root-CA.pem";
+    const PATH_TO_FLASHNET: &str = "../../infrastructure/configurations/certificates/Flashnet-CA.pem";
+
+    pub static TEST_LOGGER: LazyLock<LoggerGuard> = LazyLock::new(|| init_logger());
 
     #[tokio::test]
     async fn test_get_balances_direct() -> anyhow::Result<()> {
-        init_logger();
-        log::info!("Starting test");
+        let _logger_guard = &*TEST_LOGGER;
+        info!("Starting test");
 
         let address = "sprt1pgss8fxt9jxuv4dgjwrg539s6u06ueausq076xvfej7wdah0htvjlxunt9fa4n".to_string();
         let rune_id = "btknrt1p2sy7a8cx5pqfm3u4p2qfqa475fgwj3eg5d03hhk47t66605zf6qg52vj2".to_string();
 
-        let address_data = decode_spark_address(address)?;
+        let address_data = decode_spark_address(&address)?;
 
         let identity_public_key = hex::decode(address_data.identity_public_key)
             .map_err(|e| SparkClientError::DecodeError(format!("Failed to decode identity public key: {}", e)))?;
@@ -290,19 +325,26 @@ mod tests {
                 running_authority: "".to_string(),
                 is_coordinator: Some(true),
             }],
-            ca_pem: CaCertificate::from_path("../../spark_balance_checker/infrastructure/configuration/ca.pem")?.ca_pem,
+            certificates: vec![
+                CertificateConfig {
+                    path: PATH_TO_AMAZON_CA.to_string(),
+                },
+                CertificateConfig {
+                    path: PATH_TO_FLASHNET.to_string(),
+                },
+            ],
         };
 
-        let balance_checker = SparkRpcClient::new(config).await.unwrap();
+        let balance_checker = SparkRpcClient::new(config).await?;
 
         let response = balance_checker.get_token_outputs(request).await?;
 
         for output in response.outputs_with_previous_transaction_data {
             if let Some(output) = output.output {
-                log::info!("token identifier: {:?}", hex::encode(output.token_identifier.unwrap()));
-                log::info!("token pubkey: {:?}", hex::encode(output.token_public_key.unwrap()));
+                info!("token identifier: {:?}", hex::encode(output.token_identifier.unwrap()));
+                info!("token pubkey: {:?}", hex::encode(output.token_public_key.unwrap()));
                 let amount = u128::from_be_bytes(output.token_amount.try_into().unwrap());
-                log::info!("amount: {:?}", amount);
+                info!("amount: {:?}", amount);
             }
         }
         Ok(())

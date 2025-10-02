@@ -3,7 +3,7 @@ use crate::init::AppState;
 use axum::Json;
 use axum::extract::State;
 use frost::types::MusigId;
-use frost::types::Nonce;
+use frost::types::TweakBytes;
 use serde::{Deserialize, Serialize};
 use tracing;
 use verifier_local_db_store::schemas::deposit_address::DepositAddressStorage;
@@ -14,7 +14,7 @@ use tracing::instrument;
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WatchSparkDepositRequest {
     pub musig_id: MusigId,
-    pub nonce: Nonce,
+    pub nonce: TweakBytes,
     pub spark_address: String,
     pub exit_address: String,
     pub amount: u64,
@@ -34,7 +34,7 @@ pub async fn handle(
 
     let deposit_address = InnerAddress::SparkAddress(request.spark_address.clone());
     let bridge_address = InnerAddress::from_string_and_type(request.exit_address, true)
-        .map_err(|e| VerifierError::ValidationError(format!("Invalid exit address: {}", e)))?;
+        .map_err(|e| VerifierError::Validation(format!("Invalid exit address: {}", e)))?;
 
     state
         .storage
@@ -50,7 +50,7 @@ pub async fn handle(
             confirmation_status: DepositStatus::WaitingForConfirmation,
         })
         .await
-        .map_err(|e| VerifierError::StorageError(format!("Failed to set deposit address info: {}", e)))?;
+        .map_err(|e| VerifierError::Storage(format!("Failed to set deposit address info: {}", e)))?;
 
     let response = state
         .spark_balance_checker_client
@@ -59,7 +59,7 @@ pub async fn handle(
             rune_id: request.musig_id.get_rune_id(),
         })
         .await
-        .map_err(|e| VerifierError::SparkBalanceCheckerClientError(format!("Failed to get balance: {}", e)))?;
+        .map_err(|e| VerifierError::SparkBalanceCheckerClient(format!("Failed to get balance: {}", e)))?;
 
     let confirmation_status = match response.balance == request.amount as u128 {
         true => DepositStatus::Confirmed,
@@ -73,7 +73,7 @@ pub async fn handle(
         .storage
         .set_confirmation_status_by_deposit_address(deposit_address, confirmation_status.clone())
         .await
-        .map_err(|e| VerifierError::StorageError(format!("Failed to update confirmation status: {}", e)))?;
+        .map_err(|e| VerifierError::Storage(format!("Failed to update confirmation status: {}", e)))?;
 
     tracing::info!("Spark deposit watched for address: {}", request.spark_address);
 

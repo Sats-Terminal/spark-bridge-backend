@@ -1,6 +1,6 @@
 use crate::tx_arbiter::{TxArbiterResponse, TxArbiterTrait};
 
-use btc_indexer_api::api::{BtcIndexerCallbackResponse, ResponseMeta};
+use btc_indexer_api::api::ResponseMeta;
 use config_parser::config::BtcIndexerParams;
 use local_db_store_indexer::init::IndexerDbBounds;
 use local_db_store_indexer::schemas::track_tx_requests_storage::{TrackedReqStatus, TxTrackingRequestsToSendResponse};
@@ -22,7 +22,7 @@ use tracing::instrument;
 /// Spawns tasks  [1] to track already saved txs in db, [2] to send responses to users when we have finalized tx
 #[instrument(
     skip(btc_indexer_params, local_db, cancellation_token, titan_client, tx_validator),
-    level = "debug"
+    level = "trace"
 )]
 pub fn spawn<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArbiterTrait>(
     cancellation_token: CancellationToken,
@@ -32,7 +32,6 @@ pub fn spawn<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArbiterTrait>(
     tx_validator: Arc<TxValidator>,
     task_tracker: &mut TaskTracker,
 ) {
-    // Update txs info tracking task
     task_tracker.spawn({
         let mut interval = tokio::time::interval(Duration::from_millis(btc_indexer_params.update_interval_millis));
         let local_db = local_db.clone();
@@ -57,11 +56,10 @@ pub fn spawn<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArbiterTrait>(
         }
     });
 
-    // Tx finalization tracking task
     task_tracker.spawn({
         let mut interval = tokio::time::interval(Duration::from_millis(btc_indexer_params.update_interval_millis));
         let local_db = local_db.clone();
-        let client = Arc::new(reqwest::Client::new());
+        let client = Arc::new(Client::new());
         async move {
             'checking_loop: loop {
                 tokio::select! {
@@ -97,7 +95,7 @@ async fn send_response_to_recipients<Db: IndexerDbBounds>(
 
 #[instrument(skip_all, level = "trace")]
 fn spawn_tasks_to_send_response<Db: IndexerDbBounds>(
-    client: Arc<reqwest::Client>,
+    client: Arc<Client>,
     local_db: Db,
     txs_to_update_status: Vec<TxTrackingRequestsToSendResponse>,
 ) -> anyhow::Result<JoinSet<()>> {

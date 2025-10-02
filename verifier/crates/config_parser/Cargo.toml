@@ -8,7 +8,7 @@ config = { workspace = true }
 tracing = { workspace = true }
 global_utils = { workspace = true }
 thiserror = { workspace = true }
-dotenv = { workspace = true }
+dotenvy = { workspace = true }
 frost = { workspace = true }
 spark_client = { workspace = true }
 bitcoin = { workspace = true }

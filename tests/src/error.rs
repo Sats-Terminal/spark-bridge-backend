@@ -21,7 +21,7 @@ pub enum RuneError {
     #[error("Failed to transfer spark")]
     SparkAddressError(#[from] SparkAddressError),
     #[error("Spark client error: {0}")]
-    SparkClientError(#[from] SparkClientError),
+    SparkClientError(#[from] Box<SparkClientError>),
     #[error("Token identifier mismatch")]
     TokenIdentifierMismatch,
     #[error("Invalid data: {0}")]
@@ -59,7 +59,7 @@ pub enum SparkClientError {
     #[error("Failed to decode spark address: {0}")]
     DecodeSparkAddressError(#[from] spark_address::SparkAddressError),
     #[error("Tonic request error: {0}")]
-    TonicRequestError(#[from] tonic::Status),
+    TonicRequestError(#[from] Box<tonic::Status>),
     #[error("Decode error: {0}")]
     DecodeError(String),
     #[error("Token identifier error: {0}")]

@@ -14,9 +14,9 @@ pub enum BtcTxReview {
     Failure { reason: TxRejectReason },
 }
 
-impl Into<DepositStatus> for BtcTxReview {
-    fn into(self) -> DepositStatus {
-        match self {
+impl From<BtcTxReview> for DepositStatus {
+    fn from(value: BtcTxReview) -> Self {
+        match value {
             BtcTxReview::Success => DepositStatus::Confirmed,
             BtcTxReview::Failure { reason } => DepositStatus::Failed(reason),
         }
@@ -50,19 +50,19 @@ pub async fn handle(
         .storage
         .set_confirmation_status_by_out_point(request.outpoint, deposit_status)
         .await
-        .map_err(|e| VerifierError::StorageError(format!("Failed to update confirmation status: {}", e)))?;
+        .map_err(|e| VerifierError::Storage(format!("Failed to update confirmation status: {}", e)))?;
 
     state
         .storage
         .set_sats_fee_amount_by_out_point(request.outpoint, request.sats_fee_amount)
         .await
-        .map_err(|e| VerifierError::StorageError(format!("Failed to update sats fee amount: {}", e)))?;
+        .map_err(|e| VerifierError::Storage(format!("Failed to update sats fee amount: {}", e)))?;
 
     state
         .gateway_client
         .notify_runes_deposit(gateway_request)
         .await
-        .map_err(|e| VerifierError::GatewayClientError(format!("Failed to notify runes deposit: {}", e)))?;
+        .map_err(|e| VerifierError::GatewayClient(format!("Failed to notify runes deposit: {}", e)))?;
 
     tracing::info!("Runes deposit notified for out point: {}", request.outpoint);
 

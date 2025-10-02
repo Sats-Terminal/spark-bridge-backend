@@ -59,7 +59,7 @@ pub fn sign_transaction(
     let tweaked_keypair = keypair.tap_tweak(&Secp256k1::new(), None).to_keypair();
 
     for (i, message) in messages.iter().enumerate() {
-        let signature = Secp256k1::new().sign_schnorr_no_aux_rand(&message, &tweaked_keypair);
+        let signature = Secp256k1::new().sign_schnorr_no_aux_rand(message, &tweaked_keypair);
 
         let taproot_signature = TaprootSignature {
             signature,

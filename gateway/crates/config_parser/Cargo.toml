@@ -3,7 +3,7 @@ name = "gateway_config_parser"
 edition = "2024"
 
 [dependencies]
-dotenv = { workspace = true }
+dotenvy = { workspace = true }
 global_utils = { workspace = true }
 serde = { workspace = true }
 config = { workspace = true }

@@ -4,7 +4,7 @@ use axum::Json;
 use axum::extract::State;
 use bitcoin::OutPoint;
 use frost::types::MusigId;
-use frost::types::Nonce;
+use frost::types::TweakBytes;
 use serde::{Deserialize, Serialize};
 use tracing;
 use verifier_btc_indexer_client::client::WatchRunesDepositRequest as IndexerWatchRunesDepositRequest;
@@ -17,7 +17,7 @@ use tracing::instrument;
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WatchRunesDepositRequest {
     pub musig_id: MusigId,
-    pub nonce: Nonce,
+    pub nonce: TweakBytes,
     pub amount: u64,
     pub btc_address: String,
     pub bridge_address: String,
@@ -35,7 +35,7 @@ pub async fn handle(
     tracing::info!("Watching runes deposit for address: {}", request.btc_address);
 
     let deposit_address = InnerAddress::from_string_and_type(request.btc_address.clone(), true)
-        .map_err(|e| VerifierError::ValidationError(format!("Invalid BTC address: {}", e)))?;
+        .map_err(|e| VerifierError::Validation(format!("Invalid BTC address: {}", e)))?;
     let bridge_address = InnerAddress::SparkAddress(request.bridge_address.clone());
 
     state
@@ -52,7 +52,7 @@ pub async fn handle(
             confirmation_status: DepositStatus::WaitingForConfirmation,
         })
         .await
-        .map_err(|e| VerifierError::StorageError(format!("Failed to set deposit address info: {}", e)))?;
+        .map_err(|e| VerifierError::Storage(format!("Failed to set deposit address info: {}", e)))?;
 
     let callback_url = construct_hardcoded_callback_url(&state.server_config.server);
 
@@ -66,7 +66,7 @@ pub async fn handle(
             callback_url,
         })
         .await
-        .map_err(|e| VerifierError::BtcIndexerClientError(format!("Failed to watch runes deposit: {}", e)))?;
+        .map_err(|e| VerifierError::BtcIndexerClient(format!("Failed to watch runes deposit: {}", e)))?;
 
     tracing::info!("Runes deposit watched for address: {}", request.btc_address);
 

@@ -29,13 +29,17 @@ services:
       - ${BITCOIN_NETWORK:-regtest}
       - RUST_LOG=trace
       - CONFIG_PATH=/config.toml
-      - CA_PEM_PATH=/configuration_gateway/ca.pem
       - DATABASE_URL=postgres://${POSTGRES_USER:-admin_manager}:${POSTGRES_PASSWORD:-password}@persistent-db-storage_gateway:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-production_db_name}
     ports:
       - "8070:8060"
-      - "8069:8061"
+    healthcheck:
+      test: [ "CMD", "curl", "-X", "POST", "-f", "http://localhost:8060/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
     entrypoint: sh -c "sqlx migrate run && gateway_main"
-#    entrypoint: tail -f /dev/null
+    #    entrypoint: tail -f /dev/null
     depends_on:
       - persistent-db-storage_gateway
       - verifier1-service
@@ -43,7 +47,8 @@ services:
       - verifier3-service
     volumes:
       - ./configurations/gateway/production.toml:/config.toml
-      - ./configurations/common/ca.pem:/configuration_gateway/ca.pem
+      - ./configurations/certificates/Amazon-Root-CA.pem:/configuration_gateway/Amazon-Root-CA.pem
+      - ./configurations/certificates/Flashnet-CA.pem:/configuration_gateway/Flashnet-CA.pem
 
   # ====== Verifier 1 ======
   persistent-db-storage_verifier_1:
@@ -76,6 +81,12 @@ services:
       - DATABASE_URL=postgres://${POSTGRES_USER:-admin_manager}:${POSTGRES_PASSWORD:-password}@persistent-db-storage_verifier_1:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-production_db_name}
     ports:
       - "8071:8070"
+    healthcheck:
+      test: [ "CMD", "curl", "-X", "POST", "-f", "http://localhost:8070/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
     entrypoint: sh -c "sqlx migrate run && verifier_main"
     depends_on:
       - persistent-db-storage_verifier_1
@@ -113,13 +124,19 @@ services:
       - DATABASE_URL=postgres://${POSTGRES_USER:-admin_manager}:${POSTGRES_PASSWORD:-password}@persistent-db-storage_verifier_2:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-production_db_name}
     ports:
       - "8072:8070"
+    healthcheck:
+      test: [ "CMD", "curl", "-X", "POST", "-f", "http://localhost:8070/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
     entrypoint: sh -c "sqlx migrate run && verifier_main"
     depends_on:
       - persistent-db-storage_verifier_2
     volumes:
       - ./configurations/verifier_2/production.toml:/config.toml
 
-# ====== Verifier 3 ======
+  # ====== Verifier 3 ======
   persistent-db-storage_verifier_3:
     image: postgres:17.5-alpine3.22
     restart: always
@@ -150,13 +167,19 @@ services:
       - DATABASE_URL=postgres://${POSTGRES_USER:-admin_manager}:${POSTGRES_PASSWORD:-password}@persistent-db-storage_verifier_3:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-production_db_name}
     ports:
       - "8073:8070"
+    healthcheck:
+      test: [ "CMD", "curl", "-X", "POST", "-f", "http://localhost:8070/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
     entrypoint: sh -c "sqlx migrate run && verifier_main"
     depends_on:
       - persistent-db-storage_verifier_3
     volumes:
       - ./configurations/verifier_3/production.toml:/config.toml
 
-# ===== Btc indexer =====
+  # ===== Btc indexer =====
 
   btc-indexer-service:
     build:
@@ -166,21 +189,24 @@ services:
     environment:
       - RUST_LOG=trace
       - CONFIG_PATH=/configuration_indexer/production.toml
+      - TITAN_URL=http://titan:${TITAN_HTTP_PORT:-3030}
       - BITCOIN_NETWORK=${BITCOIN_NETWORK:-regtest}
       - BITCOIN_RPC_HOST=bitcoind
       - BITCOIN_RPC_PORT=${BITCOIN_RPC_PORT:-18443}
       - BITCOIN_RPC_USERNAME=${BITCOIN_RPC_USERNAME:-bitcoin}
       - BITCOIN_RPC_PASSWORD=${BITCOIN_RPC_PASSWORD:-bitcoinpass}
-      - POSTGRES_USER=${POSTGRES_USER:-admin_manager}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
-      - POSTGRES_HOST=persistent-db-storage_btc_indexer
-      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
-      - POSTGRES_DB=${POSTGRES_DB:-production_db_name}
+      - DATABASE_URL=postgres://${POSTGRES_USER:-admin_manager}:${POSTGRES_PASSWORD:-password}@persistent-db-storage_btc_indexer:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-production_db_name}
     networks:
       all-network:
+    entrypoint: sh -c "sqlx migrate run && btc_indexer"
     ports:
       - "8060:8070"
-    entrypoint: sh -c "btc_indexer"
+    healthcheck:
+      test: [ "CMD", "curl", "-X", "POST", "-f", "http://localhost:8070/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
     depends_on:
       - persistent-db-storage_btc_indexer
       - titan
@@ -270,18 +296,23 @@ services:
     restart: always
     environment:
       - RUST_LOG=trace
-      - CA_PEM_PATH=/configuration_spark_balance_checker/ca.pem
       - CONFIG_PATH=/configuration_spark_balance_checker/production.toml
     networks:
       all-network:
     ports:
       - "8090:8070"
+    healthcheck:
+      test: [ "CMD", "curl", "-X", "POST", "-f", "http://localhost:8070/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
     entrypoint: sh -c "spark_balance_checker_main"
     #    entrypoint: tail -f /dev/null
     volumes:
       - ./configurations/spark_balance_checker/production.toml:/configuration_spark_balance_checker/production.toml
-      - ./configurations/common/ca.pem:/configuration_spark_balance_checker/ca.pem
-
+      - ./configurations/certificates/Amazon-Root-CA.pem:/configuration_spark_balance_checker/Amazon-Root-CA.pem
+      - ./configurations/certificates/Flashnet-CA.pem:/configuration_spark_balance_checker/Flashnet-CA.pem
 
 networks:
   all-network:

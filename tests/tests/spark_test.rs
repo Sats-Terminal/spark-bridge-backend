@@ -27,7 +27,7 @@ async fn test_spark() {
     })
     .await
     .unwrap();
-
+    // todo: don't hardcode values
     let bitcoin_client = BitcoinClient::new(BitcoinClientConfig {
         bitcoin_url: "http://127.0.0.1:18443".to_string(),
         titan_url: "http://127.0.0.1:3030".to_string(),

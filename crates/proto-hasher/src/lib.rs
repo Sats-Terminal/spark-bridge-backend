@@ -19,6 +19,12 @@ pub use hashing::hash_message;
 /// Proto hasher
 pub struct ProtoHasher {}
 
+impl Default for ProtoHasher {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ProtoHasher {
     /// Creates a new ProtoHasher
     pub fn new() -> Self {

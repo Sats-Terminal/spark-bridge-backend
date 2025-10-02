@@ -28,8 +28,6 @@ VERIFIER_3_LOG_PATH="./logs/verifier_3.log"
 SPARK_BALANCE_CHECKER_LOG_PATH="./logs/spark_balance_checker.log"
 BTC_INDEXER_LOG_PATH="./logs/btc_indexer.log"
 
-SPARK_BALANCE_CHECKER_CA_PEM_PATH="./infrastructure/configurations/spark_balance_checker/ca.pem"
-
 # Function to run docker compose and wait for initialization
 run_docker_compose_with_wait() {
     echo "Starting docker compose with file: $compose_file"
@@ -78,7 +76,15 @@ run_services() {
         --name spark_balance_checker \
         --log $SPARK_BALANCE_CHECKER_LOG_PATH 
 
-    CONFIG_PATH=$BTC_INDEXER_CONFIG_PATH pm2 start ./target/debug/btc_indexer_main \
+    CONFIG_PATH=$BTC_INDEXER_CONFIG_PATH \
+      DATABASE_URL=postgres://postgres:postgres@localhost:5474/btc_indexer \
+      BITCOIN_NETWORK=regtest \
+      BITCOIN_RPC_HOST=http://localhost \
+      BITCOIN_RPC_PORT=18443 \
+      BITCOIN_RPC_USERNAME=bitcoin \
+      BITCOIN_RPC_PASSWORD=bitcoinpass \
+      TITAN_URL=http://127.0.0.1:3030 \
+      pm2 start ./target/debug/btc_indexer_main \
         --name btc_indexer \
         --log $BTC_INDEXER_LOG_PATH 
 }

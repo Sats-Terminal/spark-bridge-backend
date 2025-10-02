@@ -37,4 +37,3 @@ COPY ./gateway/crates/local_db_store/migrations/ /migrations
 COPY --from=builder /usr/local/cargo/bin/gateway_main /usr/local/bin/gateway_main
 COPY --from=builder /usr/local/cargo/bin/sqlx /usr/local/bin/sqlx
 CMD ["verifier_main"]
-#CMD ["tail", "-f", "/dev/null"]

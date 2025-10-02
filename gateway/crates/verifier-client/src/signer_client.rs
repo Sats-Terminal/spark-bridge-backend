@@ -24,7 +24,7 @@ impl SignerClient for VerifierClient {
             .await
             .map_err(|e| AggregatorError::InvalidRequest(format!("Failed to get URL for DKG round 1: {}", e)))?;
 
-        self.send_request(url, request)
+        self.send_post_json_request(url, request)
             .await
             .map_err(|e| AggregatorError::HttpError(format!("Failed to send request for DKG round 1: {}", e)))
     }
@@ -36,7 +36,7 @@ impl SignerClient for VerifierClient {
             .await
             .map_err(|e| AggregatorError::InvalidRequest(format!("Failed to get URL for DKG round 2: {}", e)))?;
 
-        self.send_request(url, request)
+        self.send_post_json_request(url, request)
             .await
             .map_err(|e| AggregatorError::HttpError(format!("Failed to send request for DKG round 2: {}", e)))
     }
@@ -48,7 +48,7 @@ impl SignerClient for VerifierClient {
             .await
             .map_err(|e| AggregatorError::InvalidRequest(format!("Failed to get URL for DKG finalize: {}", e)))?;
 
-        self.send_request(url, request)
+        self.send_post_json_request(url, request)
             .await
             .map_err(|e| AggregatorError::HttpError(format!("Failed to send request for DKG finalize: {}", e)))
     }
@@ -60,7 +60,7 @@ impl SignerClient for VerifierClient {
             .await
             .map_err(|e| AggregatorError::InvalidRequest(format!("Failed to get URL for sign round 1: {}", e)))?;
 
-        self.send_request(url, request)
+        self.send_post_json_request(url, request)
             .await
             .map_err(|e| AggregatorError::HttpError(format!("Failed to send request for sign round 1: {}", e)))
     }
@@ -72,7 +72,7 @@ impl SignerClient for VerifierClient {
             .await
             .map_err(|e| AggregatorError::InvalidRequest(format!("Failed to get URL for sign round 2: {}", e)))?;
 
-        self.send_request(url, request)
+        self.send_post_json_request(url, request)
             .await
             .map_err(|e| AggregatorError::HttpError(format!("Failed to send request for sign round 2: {}", e)))
     }

@@ -5,9 +5,9 @@ use std::{collections::BTreeSet, sync::Arc};
 use tokio::sync::Mutex;
 use tracing::debug;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct FrostSigner {
-    musig_id_storage: Arc<dyn SignerMusigIdStorage>, // TODO: implement signer storage
+    musig_id_storage: Arc<dyn SignerMusigIdStorage>,
     identifier: Identifier,
     sign_session_storage: Arc<dyn SignerSignSessionStorage>,
     total_participants: u16,
@@ -36,10 +36,7 @@ impl FrostSigner {
     pub async fn lock_musig_id(&self, musig_id: &MusigId) -> Result<(), SignerError> {
         let mut locked_musig_ids = self.locked_musig_ids.lock().await;
         if locked_musig_ids.contains(musig_id) {
-            return Err(SignerError::MusigAlreadyExists(format!(
-                "Musig id already exists: {:?}",
-                musig_id
-            )));
+            return Err(SignerError::MusigAlreadyExists(musig_id.clone()));
         }
         locked_musig_ids.insert(musig_id.clone());
         Ok(())
@@ -49,10 +46,7 @@ impl FrostSigner {
         let mut locked_musig_ids = self.locked_musig_ids.lock().await;
         let removed = locked_musig_ids.remove(musig_id);
         if !removed {
-            return Err(SignerError::MusigNotFound(format!(
-                "Something bad went wrong: {:?}",
-                musig_id
-            )));
+            return Err(SignerError::MusigNotFound(musig_id.clone()));
         }
         Ok(())
     }
@@ -92,10 +86,7 @@ impl FrostSigner {
             }
             _ => {
                 self.unlock_musig_id(&musig_id).await?;
-                Err(SignerError::MusigAlreadyExists(format!(
-                    "Musig id already exists: {:?}",
-                    musig_id
-                )))
+                Err(SignerError::MusigAlreadyExists(musig_id.clone()))
             }
         }
     }
@@ -160,7 +151,9 @@ impl FrostSigner {
                     .set_musig_id_data(
                         &musig_id,
                         SignerMusigIdData {
-                            dkg_state: SignerDkgState::DkgFinalized { key_package },
+                            dkg_state: SignerDkgState::DkgFinalized {
+                                key_package: Box::new(key_package),
+                            },
                         },
                     )
                     .await?;
@@ -192,7 +185,7 @@ impl FrostSigner {
                 dkg_state: SignerDkgState::DkgFinalized { key_package },
             }) => {
                 let tweak_key_package = match tweak.clone() {
-                    Some(tweak) => key_package.clone().tweak(Some(tweak.to_vec())),
+                    Some(tweak) => Box::new(key_package.clone().tweak(Some(tweak.to_vec()))),
                     None => key_package.clone(),
                 };
                 let (nonces, commitments) =
@@ -206,7 +199,9 @@ impl FrostSigner {
                             tweak,
                             message_hash,
                             metadata,
-                            sign_state: SignerSignState::SigningRound1 { nonces },
+                            sign_state: SignerSignState::SigningRound1 {
+                                nonces: Box::new(nonces),
+                            },
                         },
                     )
                     .await?;
@@ -252,14 +247,16 @@ impl FrostSigner {
         match sign_data.sign_state {
             SignerSignState::SigningRound1 { nonces } => {
                 let tweak_key_package = match sign_data.tweak.clone() {
-                    Some(tweak) => key_package.clone().tweak(Some(tweak.to_vec())),
+                    Some(tweak) => Box::new(key_package.clone().tweak(Some(tweak.to_vec()))),
                     None => key_package.clone(),
                 };
                 let signature_share =
                     frost_secp256k1_tr::round2::sign(&request.signing_package, &nonces, &tweak_key_package)
                         .map_err(|e| SignerError::Internal(format!("Sign round2 failed: {e}")))?;
 
-                sign_data.sign_state = SignerSignState::SigningRound2 { signature_share };
+                sign_data.sign_state = SignerSignState::SigningRound2 {
+                    signature_share: Box::new(signature_share),
+                };
 
                 self.sign_session_storage
                     .set_sign_data(&musig_id, session_id, sign_data)
@@ -273,5 +270,10 @@ impl FrostSigner {
                 "User session state is not SigningRound1".to_string(),
             )),
         }
+    }
+
+    pub fn healthcheck(&self) -> Result<(), SignerError> {
+        // TODO: maybe perform some internal checks
+        Ok(())
     }
 }

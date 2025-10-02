@@ -96,7 +96,7 @@ impl UtxoStorage for LocalDbStorage {
         .bind(utxo.rune_amount as i64)
         .bind(&utxo.rune_id)
         .bind(utxo.status)
-        .bind(&utxo.btc_address.to_string())
+        .bind(utxo.btc_address.to_string())
         .bind(utxo.sats_fee_amount as i64)
         .fetch_one(&self.postgres_repo.pool)
         .await
@@ -294,10 +294,10 @@ async fn get_candidate_utxos_for_update(
     .await
     .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
-    Ok(candidates
+    candidates
         .into_iter()
         .map(|row| Utxo::from_row(row, network))
-        .collect::<Result<Vec<Utxo>, DbError>>()?)
+        .collect::<Result<Vec<Utxo>, DbError>>()
 }
 
 #[instrument(level = "trace", skip_all)]
@@ -339,8 +339,8 @@ async fn mark_utxos_as_spent(
         .await
         .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
-    Ok(updated_utxos
+    updated_utxos
         .into_iter()
         .map(|row| Utxo::from_row(row, network))
-        .collect::<Result<Vec<Utxo>, DbError>>()?)
+        .collect::<Result<Vec<Utxo>, DbError>>()
 }

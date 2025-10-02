@@ -4,7 +4,7 @@ use crate::types::ExitSparkRequest;
 use bitcoin::OutPoint;
 use bitcoin::secp256k1::schnorr::Signature;
 use frost::types::SigningMetadata;
-use frost::utils::{convert_public_key_package, generate_nonce, get_address};
+use frost::utils::{convert_public_key_package, generate_tweak_bytes, get_tweaked_p2tr_address};
 use gateway_local_db_store::schemas::deposit_address::{
     DepositAddrInfo, DepositAddressStorage, InnerAddress, VerifiersResponses,
 };
@@ -69,7 +69,7 @@ pub async fn handle(
     }];
 
     if total_amount > exit_amount {
-        let new_nonce = generate_nonce();
+        let new_nonce = generate_tweak_bytes();
         let public_key_package = flow_router
             .frost_aggregator
             .get_public_key_package(deposit_addr_info.musig_id.clone(), Some(new_nonce))
@@ -77,7 +77,7 @@ pub async fn handle(
             .map_err(|e| FlowProcessorError::FrostAggregatorError(format!("Failed to get public key package: {e}")))?;
         let public_key = convert_public_key_package(&public_key_package)
             .map_err(|e| FlowProcessorError::InvalidDataError(format!("Failed to convert public key package: {e}")))?;
-        let deposit_address = get_address(public_key, new_nonce, flow_router.network)
+        let deposit_address = get_tweaked_p2tr_address(public_key, new_nonce, flow_router.network)
             .map_err(|e| FlowProcessorError::InvalidDataError(format!("Failed to create address: {e}")))?;
 
         flow_router
@@ -108,12 +108,12 @@ pub async fn handle(
     )
     .map_err(|e| FlowProcessorError::RuneTransferError(format!("Failed to create rune partial transaction: {e}")))?;
 
-    for i in 0..(transaction.input.len() - 1) {
+    for (i, utxo_i) in utxos.iter().enumerate().take(transaction.input.len() - 1) {
         // -1 because the last input is the paying input
         let message_hash = create_message_hash(&transaction, exit_address.clone(), DUST_AMOUNT, i)
             .map_err(|e| FlowProcessorError::RuneTransferError(format!("Failed to create message hash: {e}")))?;
 
-        let input_btc_address = utxos[i].btc_address.clone();
+        let input_btc_address = utxo_i.btc_address.clone();
         let input_deposit_addr_info = flow_router
             .storage
             .get_row_by_deposit_address(InnerAddress::BitcoinAddress(input_btc_address.clone()))

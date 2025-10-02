@@ -3,6 +3,7 @@ use std::fmt::{Debug, Formatter};
 use crate::schemas::track_tx_requests_storage::TxRequestsTrackingStorageTrait;
 use crate::schemas::tx_tracking_storage::TxTrackingStorageTrait;
 use async_trait::async_trait;
+use persistent_storage::init::StorageHealthcheck;
 use persistent_storage::{
     config::PostgresDbCredentials,
     error::DbError,
@@ -17,8 +18,15 @@ pub struct LocalDbStorage {
 }
 
 pub trait IndexerDbBounds:
-    PersistentRepoTrait + Clone + TxTrackingStorageTrait + TxRequestsTrackingStorageTrait + 'static
+    PersistentRepoTrait + Clone + TxTrackingStorageTrait + TxRequestsTrackingStorageTrait + StorageHealthcheck + 'static
 {
+}
+
+#[async_trait]
+impl StorageHealthcheck for LocalDbStorage {
+    async fn healthcheck(&self) -> Result<(), DbError> {
+        self.postgres_repo.healthcheck().await
+    }
 }
 
 impl IndexerDbBounds for LocalDbStorage {}

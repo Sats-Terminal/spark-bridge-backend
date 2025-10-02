@@ -2,11 +2,11 @@ use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
 use bitcoin::{Address, OutPoint};
 use frost::types::MusigId;
-use frost::types::Nonce;
+use frost::types::TweakBytes;
 use persistent_storage::error::DbError;
 use serde::{Deserialize, Serialize};
 use sqlx::types::Json;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
 use tracing::instrument;
 
@@ -16,14 +16,20 @@ pub enum InnerAddress {
     BitcoinAddress(Address),
 }
 
-impl InnerAddress {
-    pub fn to_string(&self) -> String {
-        match self {
-            InnerAddress::SparkAddress(addr) => addr.clone(),
-            InnerAddress::BitcoinAddress(addr) => addr.to_string(),
-        }
+impl Display for InnerAddress {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(
+            f,
+            "{}",
+            match self {
+                InnerAddress::SparkAddress(addr) => addr.clone(),
+                InnerAddress::BitcoinAddress(addr) => addr.to_string(),
+            }
+        )
     }
+}
 
+impl InnerAddress {
     pub fn from_string_and_type(addr_str: String, is_btc: bool) -> Result<Self, String> {
         if is_btc {
             Address::from_str(&addr_str)
@@ -72,7 +78,7 @@ struct DbDepositAddrInfo {
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct DepositAddrInfo {
     pub musig_id: MusigId,
-    pub nonce: Nonce,
+    pub nonce: TweakBytes,
     pub deposit_address: InnerAddress,
     pub bridge_address: InnerAddress,
     pub is_btc: bool,
@@ -90,12 +96,12 @@ impl DepositAddrInfo {
             is_btc: self.is_btc,
             deposit_amount: self.deposit_amount,
             sats_fee_amount: self.sats_fee_amount,
-            out_point: self.out_point.clone(),
+            out_point: self.out_point,
             confirmation_status: self.confirmation_status.clone(),
         }
     }
 
-    fn from_db_format(musig_id: MusigId, nonce: Nonce, db_info: DbDepositAddrInfo) -> Result<Self, String> {
+    fn from_db_format(musig_id: MusigId, nonce: TweakBytes, db_info: DbDepositAddrInfo) -> Result<Self, String> {
         let deposit_address = InnerAddress::from_string_and_type(db_info.deposit_address, db_info.is_btc)?;
 
         let bridge_address = InnerAddress::from_string_and_type(db_info.bridge_address, !db_info.is_btc)?;
@@ -115,9 +121,12 @@ impl DepositAddrInfo {
 }
 
 #[async_trait]
-pub trait DepositAddressStorage: Send + Sync + Debug {
-    async fn get_deposit_addr_info(&self, musig_id: &MusigId, tweak: Nonce)
-    -> Result<Option<DepositAddrInfo>, DbError>;
+pub trait DepositAddressStorage: Send + Sync {
+    async fn get_deposit_addr_info(
+        &self,
+        musig_id: &MusigId,
+        tweak: TweakBytes,
+    ) -> Result<Option<DepositAddrInfo>, DbError>;
     async fn set_deposit_addr_info(&self, deposit_addr_info: DepositAddrInfo) -> Result<(), DbError>;
     async fn set_confirmation_status_by_out_point(
         &self,
@@ -138,7 +147,7 @@ impl DepositAddressStorage for LocalDbStorage {
     async fn get_deposit_addr_info(
         &self,
         musig_id: &MusigId,
-        tweak: Nonce,
+        tweak: TweakBytes,
     ) -> Result<Option<DepositAddrInfo>, DbError> {
         let public_key = musig_id.get_public_key();
         let rune_id = musig_id.get_rune_id();

@@ -2,9 +2,11 @@ use crate::client::VerifierClient;
 use async_trait::async_trait;
 use bitcoin::OutPoint;
 use frost::types::MusigId;
-use frost::types::Nonce;
+use frost::types::TweakBytes;
 use gateway_deposit_verification::error::DepositVerificationError;
-use gateway_deposit_verification::traits::VerificationClient;
+use gateway_deposit_verification::traits::{
+    DepositVerificationClientTrait, VerificationClient, VerificationClientHealthCheck,
+};
 use gateway_deposit_verification::types::{
     WatchRunesDepositRequest, WatchRunesDepositResponse, WatchSparkDepositRequest, WatchSparkDepositResponse,
 };
@@ -18,7 +20,7 @@ const WATCH_SPARK_DEPOSIT_PATH: &str = "/api/gateway/watch-spark-deposit";
 #[derive(Serialize, Debug)]
 pub struct VerifierWatchRunesDepositRequest {
     pub musig_id: MusigId,
-    pub nonce: Nonce,
+    pub nonce: TweakBytes,
     pub amount: u64,
     pub btc_address: String,
     pub bridge_address: String,
@@ -41,8 +43,8 @@ impl From<WatchRunesDepositRequest> for VerifierWatchRunesDepositRequest {
 #[derive(Deserialize, Debug)]
 pub struct VerifierWatchRunesDepositResponse {}
 
-impl Into<WatchRunesDepositResponse> for VerifierWatchRunesDepositResponse {
-    fn into(self) -> WatchRunesDepositResponse {
+impl From<VerifierWatchRunesDepositResponse> for WatchRunesDepositResponse {
+    fn from(_value: VerifierWatchRunesDepositResponse) -> Self {
         WatchRunesDepositResponse {}
     }
 }
@@ -50,7 +52,7 @@ impl Into<WatchRunesDepositResponse> for VerifierWatchRunesDepositResponse {
 #[derive(Debug, Serialize)]
 pub struct VerifierWatchSparkDepositRequest {
     pub musig_id: MusigId,
-    pub nonce: Nonce,
+    pub nonce: TweakBytes,
     pub exit_address: String,
     pub amount: u64,
     pub spark_address: String,
@@ -73,10 +75,10 @@ pub struct VerifierWatchSparkDepositResponse {
     pub verifier_response: DepositStatus,
 }
 
-impl Into<WatchSparkDepositResponse> for VerifierWatchSparkDepositResponse {
-    fn into(self) -> WatchSparkDepositResponse {
+impl From<VerifierWatchSparkDepositResponse> for WatchSparkDepositResponse {
+    fn from(value: VerifierWatchSparkDepositResponse) -> Self {
         WatchSparkDepositResponse {
-            verifier_response: self.verifier_response,
+            verifier_response: value.verifier_response,
         }
     }
 }
@@ -94,9 +96,10 @@ impl VerificationClient for VerifierClient {
 
         let request: VerifierWatchRunesDepositRequest = request.into();
 
-        let response: VerifierWatchRunesDepositResponse = self.send_request(url, request).await.map_err(|e| {
-            DepositVerificationError::HttpError(format!("Failed to send request for watch runes deposit: {}", e))
-        })?;
+        let response: VerifierWatchRunesDepositResponse =
+            self.send_post_json_request(url, request).await.map_err(|e| {
+                DepositVerificationError::HttpError(format!("Failed to send request for watch runes deposit: {}", e))
+            })?;
 
         Ok(response.into())
     }
@@ -112,10 +115,20 @@ impl VerificationClient for VerifierClient {
 
         let request: VerifierWatchSparkDepositRequest = request.into();
 
-        let response: VerifierWatchSparkDepositResponse = self.send_request(url, request).await.map_err(|e| {
-            DepositVerificationError::HttpError(format!("Failed to send request for watch spark deposit: {}", e))
-        })?;
+        let response: VerifierWatchSparkDepositResponse =
+            self.send_post_json_request(url, request).await.map_err(|e| {
+                DepositVerificationError::HttpError(format!("Failed to send request for watch spark deposit: {}", e))
+            })?;
 
         Ok(response.into())
     }
 }
+
+#[async_trait]
+impl VerificationClientHealthCheck for VerifierClient {
+    async fn healthcheck(&self) -> Result<(), DepositVerificationError> {
+        self.healthcheck().await
+    }
+}
+
+impl DepositVerificationClientTrait for VerifierClient {}

@@ -4,6 +4,7 @@ use spark_protos::spark::spark_service_client::SparkServiceClient;
 use spark_protos::spark_authn::spark_authn_service_client::SparkAuthnServiceClient;
 use spark_protos::spark_token::spark_token_service_client::SparkTokenServiceClient;
 use tonic::transport::{Channel, ClientTlsConfig, Uri};
+use tonic_health::pb::health_client::HealthClient;
 use tracing;
 
 use crate::common::{config::SparkConfig, error::SparkClientError};
@@ -13,6 +14,7 @@ pub struct SparkServicesClients {
     pub spark: SparkServiceClient<Channel>,
     pub spark_token: SparkTokenServiceClient<Channel>,
     pub spark_auth: SparkAuthnServiceClient<Channel>,
+    pub health: HealthClient<Channel>,
 }
 
 pub struct SparkTlsConnection {
@@ -59,14 +61,13 @@ impl SparkTlsConnection {
         Ok(channel)
     }
 
-    // This function creates a new spark client.
     pub(crate) async fn create_clients(&self) -> Result<SparkServicesClients, SparkClientError> {
         let channel = self.create_tls_channel().await?;
-
         Ok(SparkServicesClients {
             spark: SparkServiceClient::new(channel.clone()),
             spark_token: SparkTokenServiceClient::new(channel.clone()),
-            spark_auth: SparkAuthnServiceClient::new(channel),
+            spark_auth: SparkAuthnServiceClient::new(channel.clone()),
+            health: HealthClient::new(channel),
         })
     }
 }
@@ -74,20 +75,19 @@ impl SparkTlsConnection {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::config::{CaCertificate, SparkOperatorConfig};
-    use env_logger;
+    use crate::common::config::{CertificateConfig, SparkOperatorConfig};
     use global_utils::common_types::{Url, UrlWrapped};
+    use global_utils::logger::{LoggerGuard, init_logger};
+    use std::sync::LazyLock;
     use tokio;
-    fn init_logger() {
-        let _ = env_logger::builder()
-            .filter_level(log::LevelFilter::Info)
-            .is_test(true)
-            .try_init();
-    }
+
+    const PATH_TO_AMAZON_CA: &str = "../../infrastructure/configurations/certificates/Amazon-Root-CA.pem";
+    const PATH_TO_FLASHNET: &str = "../../infrastructure/configurations/certificates/Flashnet-CA.pem";
+    pub static TEST_LOGGER: LazyLock<LoggerGuard> = LazyLock::new(|| init_logger());
 
     #[tokio::test]
     async fn test_get_client() -> anyhow::Result<()> {
-        init_logger();
+        let _logger_guard = &*TEST_LOGGER;
 
         let spark_config = SparkConfig {
             operators: vec![SparkOperatorConfig {
@@ -98,10 +98,17 @@ mod tests {
                 running_authority: "".to_string(),
                 is_coordinator: Some(true),
             }],
-            ca_pem: CaCertificate::from_path("../../spark_balance_checker/infrastructure/configuration/ca.pem")?.ca_pem,
+            certificates: vec![
+                CertificateConfig {
+                    path: PATH_TO_AMAZON_CA.to_string(),
+                },
+                CertificateConfig {
+                    path: PATH_TO_FLASHNET.to_string(),
+                },
+            ],
         };
-        let connection = SparkTlsConnection::new(spark_config).unwrap();
-        connection.create_clients().await.unwrap();
+        let connection = SparkTlsConnection::new(spark_config)?;
+        connection.create_clients().await?;
         Ok(())
     }
 }

@@ -2,12 +2,12 @@ use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
 use bitcoin::Address;
 use frost::types::MusigId;
-use frost::types::Nonce;
+use frost::types::TweakBytes;
 use persistent_storage::error::DbError;
 use serde::{Deserialize, Serialize};
 use sqlx::types::Json;
 use std::collections::HashMap;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -16,14 +16,20 @@ pub enum InnerAddress {
     BitcoinAddress(Address),
 }
 
-impl InnerAddress {
-    pub fn to_string(&self) -> String {
-        match self {
-            InnerAddress::SparkAddress(addr) => addr.clone(),
-            InnerAddress::BitcoinAddress(addr) => addr.to_string(),
-        }
+impl Display for InnerAddress {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(
+            f,
+            "{}",
+            match self {
+                InnerAddress::SparkAddress(addr) => addr.clone(),
+                InnerAddress::BitcoinAddress(addr) => addr.to_string(),
+            }
+        )
     }
+}
 
+impl InnerAddress {
     pub fn from_string_and_type(addr_str: String, is_btc: bool) -> Result<Self, String> {
         if is_btc {
             Address::from_str(&addr_str)
@@ -121,7 +127,7 @@ impl VerifiersResponses {
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct DepositAddrInfo {
     pub musig_id: MusigId,
-    pub nonce: Nonce,
+    pub nonce: TweakBytes,
     pub deposit_address: InnerAddress,
     pub bridge_address: Option<InnerAddress>,
     pub is_btc: bool,
@@ -140,7 +146,7 @@ impl DepositAddrInfo {
         }
     }
 
-    fn from_db_format(musig_id: MusigId, nonce: Nonce, db_info: DbDepositAddrInfo) -> Result<Self, String> {
+    fn from_db_format(musig_id: MusigId, nonce: TweakBytes, db_info: DbDepositAddrInfo) -> Result<Self, String> {
         let deposit_address = InnerAddress::from_string_and_type(db_info.deposit_address, db_info.is_btc)?;
 
         let bridge_address = match db_info.bridge_address {
@@ -161,9 +167,12 @@ impl DepositAddrInfo {
 }
 
 #[async_trait]
-pub trait DepositAddressStorage: Send + Sync + Debug {
-    async fn get_deposit_addr_info(&self, musig_id: &MusigId, tweak: Nonce)
-    -> Result<Option<DepositAddrInfo>, DbError>;
+pub trait DepositAddressStorage: Send + Sync {
+    async fn get_deposit_addr_info(
+        &self,
+        musig_id: &MusigId,
+        tweak: TweakBytes,
+    ) -> Result<Option<DepositAddrInfo>, DbError>;
     async fn set_deposit_addr_info(&self, deposit_addr_info: DepositAddrInfo) -> Result<(), DbError>;
     async fn set_confirmation_status_by_deposit_address(
         &self,
@@ -190,7 +199,7 @@ impl DepositAddressStorage for LocalDbStorage {
     async fn get_deposit_addr_info(
         &self,
         musig_id: &MusigId,
-        tweak: Nonce,
+        tweak: TweakBytes,
     ) -> Result<Option<DepositAddrInfo>, DbError> {
         let public_key = musig_id.get_public_key();
         let rune_id = musig_id.get_rune_id();
@@ -274,7 +283,7 @@ impl DepositAddressStorage for LocalDbStorage {
     ) -> Result<Option<DepositAddrInfo>, DbError> {
         let address_str = deposit_address.to_string();
 
-        let result: Option<(String, String, Nonce, String, Option<String>, bool, i64, Json<VerifiersResponses>)> = sqlx::query_as(
+        let result: Option<(String, String, TweakBytes, String, Option<String>, bool, i64, Json<VerifiersResponses>)> = sqlx::query_as(
             "SELECT public_key, rune_id, nonce_tweak, deposit_address, bridge_address, is_btc, amount, confirmation_status
             FROM gateway.deposit_address WHERE deposit_address = $1",
         )
@@ -299,7 +308,7 @@ impl DepositAddressStorage for LocalDbStorage {
                     user_public_key: bitcoin::secp256k1::PublicKey::from_str(&public_key)
                         .map_err(|e| DbError::BadRequest(format!("Invalid public key: {}", e)))?,
                 };
-                let nonce = Nonce::from(nonce_tweak);
+                let nonce = TweakBytes::from(nonce_tweak);
 
                 let db_info = DbDepositAddrInfo {
                     deposit_address: deposit_address_str,

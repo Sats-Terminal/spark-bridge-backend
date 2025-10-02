@@ -3,7 +3,7 @@ use frost::traits::SignerClient;
 use frost_secp256k1_tr::Identifier;
 use gateway_config_parser::config::ServerConfig;
 use gateway_deposit_verification::aggregator::DepositVerificationAggregator;
-use gateway_deposit_verification::traits::VerificationClient;
+use gateway_deposit_verification::traits::DepositVerificationClientTrait;
 use gateway_flow_processor::init::create_flow_processor;
 use gateway_local_db_store::storage::LocalDbStorage;
 use gateway_server::init::create_app;
@@ -31,7 +31,7 @@ fn install_rustls_provider() {
 #[instrument(level = "trace", ret)]
 #[tokio::main]
 async fn main() {
-    let _ = dotenv::dotenv();
+    let _ = dotenvy::dotenv();
     let _logger_guard = init_logger();
 
     install_rustls_provider();
@@ -74,11 +74,7 @@ async fn main() {
     });
 
     // Create Deposit Verification Aggregator
-    let mut verifier_clients_hash_map = HashMap::<u16, Arc<dyn VerificationClient>>::new();
-    for verifier in server_config.clone().verifiers.0 {
-        let verifier_client = VerifierClient::new(verifier.clone());
-        verifier_clients_hash_map.insert(verifier.id, Arc::new(verifier_client));
-    }
+    let verifier_clients_hash_map = extract_verifiers(&server_config);
     let deposit_verification_aggregator =
         DepositVerificationAggregator::new(flow_sender.clone(), verifier_clients_hash_map, shared_db_pool.clone());
 
@@ -98,4 +94,13 @@ async fn main() {
     let listener = TcpListener::bind(addr_to_listen.clone()).await.unwrap();
     tracing::info!("Listening on {:?}", addr_to_listen);
     axum::serve(listener, app).await.unwrap();
+}
+
+fn extract_verifiers(server_config: &ServerConfig) -> HashMap<u16, Arc<dyn DepositVerificationClientTrait>> {
+    let mut verifier_clients_hash_map = HashMap::<u16, Arc<dyn DepositVerificationClientTrait>>::new();
+    for verifier in server_config.clone().verifiers.0 {
+        let verifier_client = VerifierClient::new(verifier.clone());
+        verifier_clients_hash_map.insert(verifier.id, Arc::new(verifier_client.clone()));
+    }
+    verifier_clients_hash_map
 }

@@ -45,8 +45,8 @@ use std::{string::String, vec::Vec};
 
 use bech32::{self, Bech32m, Hrp};
 use hex::{decode as hex_to_bytes, encode as bytes_to_hex};
+use spark_invoice::SparkInvoiceFields;
 use spark_invoice::proto::{read_varint_u32, write_len_prefixed_bytes, write_varint_u32};
-use spark_invoice::{PaymentType, SparkInvoice, SparkInvoiceFields};
 /* ------------------------------------------------------------- *
  *  Network ⇄ HRP                                                 *
  * ------------------------------------------------------------- */
@@ -215,52 +215,52 @@ pub struct DecodedProto {
 }
 
 fn decode_proto(buf: &[u8]) -> Result<DecodedProto, SparkAddressError> {
-    let mut pos = 0;
+    let mut _pos = 0;
 
     // --- Public key ---
-    if buf.is_empty() || buf[pos] != PUBLIC_KEY_TAG {
+    if buf.is_empty() || buf[_pos] != PUBLIC_KEY_TAG {
         return Err(SparkAddressError::BadProto);
     }
-    pos += 1;
+    _pos += 1;
 
-    if pos >= buf.len() {
+    if _pos >= buf.len() {
         return Err(SparkAddressError::BadProto);
     }
-    let key_len = buf[pos] as usize;
-    pos += 1;
+    let key_len = buf[_pos] as usize;
+    _pos += 1;
 
-    if pos + key_len > buf.len() {
+    if _pos + key_len > buf.len() {
         return Err(SparkAddressError::BadProto);
     }
-    let key = &buf[pos..pos + key_len];
-    pos += key_len;
+    let key = &buf[_pos.._pos + key_len];
+    _pos += key_len;
 
     // --- Optional invoice fields ---
     let mut invoice_fields = None;
-    if pos < buf.len() && buf[pos] == INVOICE_TAG {
-        pos += 1;
+    if _pos < buf.len() && buf[_pos] == INVOICE_TAG {
+        _pos += 1;
 
-        let len = read_varint_u32(buf, &mut pos).map_err(|_| SparkAddressError::BadProto)? as usize;
-        if pos + len > buf.len() {
+        let len = read_varint_u32(buf, &mut _pos).map_err(|_| SparkAddressError::BadProto)? as usize;
+        if _pos + len > buf.len() {
             return Err(SparkAddressError::BadProto);
         }
         let (decoded, used) =
-            SparkInvoiceFields::decode_proto(&buf[pos..pos + len]).map_err(|_| SparkAddressError::BadProto)?;
+            SparkInvoiceFields::decode_proto(&buf[_pos.._pos + len]).map_err(|_| SparkAddressError::BadProto)?;
         invoice_fields = Some(decoded);
-        pos += used;
+        _pos += used;
     }
 
     // --- Optional signature ---
     let mut signature = None;
-    if pos < buf.len() && buf[pos] == SIGNATURE_TAG {
-        pos += 1;
+    if _pos < buf.len() && buf[_pos] == SIGNATURE_TAG {
+        _pos += 1;
 
-        let len = read_varint_u32(buf, &mut pos).map_err(|_| SparkAddressError::BadProto)? as usize;
-        if pos + len > buf.len() {
+        let len = read_varint_u32(buf, &mut _pos).map_err(|_| SparkAddressError::BadProto)? as usize;
+        if _pos + len > buf.len() {
             return Err(SparkAddressError::BadProto);
         }
-        signature = Some(buf[pos..pos + len].to_vec());
-        pos += len;
+        signature = Some(buf[_pos.._pos + len].to_vec());
+        _pos += len;
     }
 
     Ok(DecodedProto {
@@ -387,7 +387,7 @@ mod tests {
     use chrono::{DateTime, NaiveDateTime, Utc};
     use core::str::FromStr;
     use lazy_static::lazy_static;
-    use spark_invoice::{SatsPayment, TokensPayment};
+    use spark_invoice::{PaymentType, SatsPayment, TokensPayment};
     use token_identifier::TokenIdentifier;
     use uuid::Uuid;
 

@@ -20,4 +20,6 @@ pub enum ConfigParserError {
     ParseIntError { var_name: String, err: ParseIntError },
     #[error("Failed to parse Btc network, err: {0}")]
     ParseNetworkError(String),
+    #[error("Failed to parse URL, err: {err}, url: '{url}'")]
+    ParseUrlError { err: url::ParseError, url: String },
 }
