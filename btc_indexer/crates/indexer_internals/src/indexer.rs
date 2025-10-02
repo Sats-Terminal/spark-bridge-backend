@@ -126,6 +126,9 @@ impl<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArbiterTrait> BtcIndexerAp
             .healthcheck()
             .await
             .map_err(|e| BtcIndexerError::HealthcheckError(e.to_string()))?;
+        let _ = self.indexer_client.get_status().await.map_err(|e| {
+            BtcIndexerError::HealthcheckError(format!("Unable to retrieve titan indexer status, err: {e}"))
+        });
         Ok(())
     }
 
