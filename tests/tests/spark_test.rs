@@ -5,7 +5,7 @@ use std::time::Duration;
 use tests::bitcoin_client::{BitcoinClient, BitcoinClientConfig};
 use tests::gateway_client::*;
 use tests::rune_manager::RuneManager;
-use tests::spark_client::{GetSparkAddressDataRequest, SparkClient, SparkClientConfig};
+use tests::spark_client::{SparkClient, SparkClientConfig};
 use tests::user_wallet::TransferType;
 use tests::user_wallet::UserWallet;
 use tokio::time::sleep;
@@ -13,8 +13,6 @@ use tokio::time::sleep;
 #[tokio::test]
 async fn test_spark() {
     let _guard = init_logger();
-
-    // Mint runes for user wallet
 
     let spark_client = SparkClient::new(SparkClientConfig {
         coordinator_url: "https://2.spark.flashnet.xyz".to_string(),
@@ -48,8 +46,6 @@ async fn test_spark() {
     let rune_balance = user_wallet.get_rune_balance().await.unwrap();
     assert!(rune_balance > 0, "Rune balance should be greater than 0");
 
-    // Get runes deposit address
-
     let deposit_amount = 100_000;
 
     let gateway_client = GatewayClient::new(GatewayConfig {
@@ -71,8 +67,6 @@ async fn test_spark() {
         get_runes_deposit_address_response
     );
 
-    // send runes to deposit address
-
     let deposit_address = Address::from_str(&get_runes_deposit_address_response.address)
         .unwrap()
         .assume_checked();
@@ -86,8 +80,6 @@ async fn test_spark() {
         .await
         .unwrap();
     tracing::info!("txid: {:?}", txid);
-
-    // bridge runes
 
     let spark_address = user_wallet.get_spark_address().unwrap();
 
@@ -104,8 +96,6 @@ async fn test_spark() {
     tracing::info!("bridge_runes_response: {:?}", bridge_runes_response);
 
     sleep(Duration::from_secs(10)).await;
-
-    // get spark deposit address
 
     let spark_deposit_amount = 50_000;
 
@@ -125,8 +115,6 @@ async fn test_spark() {
 
     tracing::info!("Spark deposit address: {:?}", spark_deposit_address);
 
-    // send runes to spark deposit address
-
     tracing::info!("Transferring spark to deposit address");
 
     user_wallet
@@ -135,6 +123,4 @@ async fn test_spark() {
         .unwrap();
 
     tracing::info!("Spark transferred to deposit address");
-
-    // exit spark request
 }
