@@ -17,3 +17,4 @@ eyre = { workspace = true }
 persistent_storage = { workspace = true }
 spark-protos = { workspace = true }
 global_utils = { workspace = true }
+anyhow = { workspace = true }

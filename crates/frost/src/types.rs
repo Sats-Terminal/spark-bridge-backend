@@ -115,6 +115,7 @@ pub enum AggregatorDkgState {
     DkgFinalized {
         public_key_package: PublicKeyPackage,
     },
+    Initialized,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

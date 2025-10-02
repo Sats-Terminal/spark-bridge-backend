@@ -267,7 +267,7 @@ impl FrostAggregator {
 
         match musig_id_data {
             Some(AggregatorMusigIdData {
-                dkg_state: AggregatorDkgState::DkgFinalized { public_key_package },
+                dkg_state: AggregatorDkgState::DkgFinalized { public_key_package: _public_key_package },
             }) => {
                 let mut commitments = BTreeMap::new();
                 let mut join_handles = vec![];
