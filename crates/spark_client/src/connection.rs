@@ -4,6 +4,7 @@ use spark_protos::spark::spark_service_client::SparkServiceClient;
 use spark_protos::spark_authn::spark_authn_service_client::SparkAuthnServiceClient;
 use spark_protos::spark_token::spark_token_service_client::SparkTokenServiceClient;
 use tonic::transport::{Channel, ClientTlsConfig, Uri};
+use tonic_health::pb::health_client::HealthClient;
 use tracing;
 
 use crate::common::{config::SparkConfig, error::SparkClientError};
@@ -13,6 +14,7 @@ pub struct SparkServicesClients {
     pub spark: SparkServiceClient<Channel>,
     pub spark_token: SparkTokenServiceClient<Channel>,
     pub spark_auth: SparkAuthnServiceClient<Channel>,
+    pub health: HealthClient<Channel>,
 }
 
 pub struct SparkTlsConnection {
@@ -62,11 +64,11 @@ impl SparkTlsConnection {
     // This function creates a new spark client.
     pub(crate) async fn create_clients(&self) -> Result<SparkServicesClients, SparkClientError> {
         let channel = self.create_tls_channel().await?;
-
         Ok(SparkServicesClients {
             spark: SparkServiceClient::new(channel.clone()),
             spark_token: SparkTokenServiceClient::new(channel.clone()),
-            spark_auth: SparkAuthnServiceClient::new(channel),
+            spark_auth: SparkAuthnServiceClient::new(channel.clone()),
+            health: HealthClient::new(channel),
         })
     }
 }

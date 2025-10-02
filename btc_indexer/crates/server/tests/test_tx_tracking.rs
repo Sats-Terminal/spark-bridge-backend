@@ -36,7 +36,7 @@ mod mocked_tx_tracking {
     #[instrument]
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_invocation_tx_tracking(pool: PostgresPool) -> anyhow::Result<()> {
-        dotenv::dotenv()?;
+        dotenvy::dotenv();
         let _logger_guard = &*TEST_LOGGER;
         let test_server = init_mocked_tx_tracking_test_server(pool).await?;
         let (url_to_listen, oneshot_chan, _notify_server) =

@@ -44,7 +44,7 @@ mod mock_testing {
 
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_retrieving_of_finalized_tx(mut pool: PostgresPool) -> anyhow::Result<()> {
-        dotenv::dotenv()?;
+        dotenvy::dotenv();
         let _logger_guard = &*TEST_LOGGER;
 
         let tx_id = Txid::from_str("f74516e3b24af90fc2da8251d2c1e3763252b15c7aec3c1a42dde7116138caee")?;

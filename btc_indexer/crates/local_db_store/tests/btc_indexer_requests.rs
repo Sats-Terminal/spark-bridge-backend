@@ -21,7 +21,7 @@ mod test_btc_indexer_requests {
 
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_one_inserting(mut pool: PostgresPool) -> anyhow::Result<()> {
-        dotenv::dotenv()?;
+        dotenvy::dotenv();
         let _logger_guard = &*TEST_LOGGER;
         let storage = LocalDbStorage {
             postgres_repo: persistent_storage::init::PostgresRepo { pool }.into_shared(),

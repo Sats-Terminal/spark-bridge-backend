@@ -11,7 +11,7 @@ use tracing::instrument;
 #[instrument(level = "debug", ret)]
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let _ = dotenv::dotenv();
+    let _ = dotenvy::dotenv();
     let _logger_guard = init_logger();
 
     // Init configs

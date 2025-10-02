@@ -17,9 +17,12 @@ use std::collections::HashMap;
 use std::{future::Future, sync::Arc};
 use tokio::sync::Mutex;
 use tonic::metadata::MetadataValue;
+use tonic_health::pb::HealthCheckRequest;
+use tonic_health::pb::health_check_response::ServingStatus;
 use tracing;
 
 const N_QUERY_RETRIES: usize = 3;
+const SPARK_OPERATOR_SERVICE_NAME: &str = "spark-operator";
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct SparkAuthSession {
@@ -102,6 +105,21 @@ impl SparkRpcClient {
         };
 
         self.retry_query(query_fn, request).await.map(|r| r.into_inner())
+    }
+
+    pub async fn check_spark_operator_service(&self) -> Result<ServingStatus, SparkClientError> {
+        let req = HealthCheckRequest {
+            service: SPARK_OPERATOR_SERVICE_NAME.to_string(),
+        };
+        let query_fn = |mut clients: SparkServicesClients, request: HealthCheckRequest| async move {
+            clients
+                .health
+                .check(request)
+                .await
+                .map_err(|e| SparkClientError::ConnectionError(format!("Failed to query healthcheck: {}", e)))
+        };
+
+        self.retry_query(query_fn, req).await.map(|r| r.into_inner().status())
     }
 
     pub async fn start_token_transaction(

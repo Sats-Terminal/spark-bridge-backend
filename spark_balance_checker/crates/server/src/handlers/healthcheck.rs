@@ -4,6 +4,9 @@ use axum::Json;
 use axum::extract::State;
 use global_utils::common_resp::Empty;
 use spark_protos::spark::QueryTokenTransactionsRequest;
+use tonic_health::pb::health_check_response::ServingStatus;
+
+const EXPECTED_SPARK_OPERATOR_STATUS: ServingStatus = ServingStatus::Serving;
 
 #[utoipa::path(
     post,
@@ -32,5 +35,22 @@ pub async fn handle(State(state): State<AppState>) -> Result<Json<Empty>, Server
             msg: "Failed to query 1 transaction from Spark".to_string(),
             err: e,
         })?;
+    let obtained_so_status =
+        state
+            .client
+            .check_spark_operator_service()
+            .await
+            .map_err(|e| ServerError::HealthCheckError {
+                msg: "Failed to check spark operator service status".to_string(),
+                err: e,
+            })?;
+    if EXPECTED_SPARK_OPERATOR_STATUS != obtained_so_status {
+        return Err(ServerError::IncorrectHealthCheckStatus {
+            msg: format!(
+                "Not healthy status of spark operator, got: {:?}, has to be: {:?}",
+                obtained_so_status, EXPECTED_SPARK_OPERATOR_STATUS
+            ),
+        });
+    }
     Ok(Json(Empty {}))
 }

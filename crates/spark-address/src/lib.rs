@@ -387,7 +387,7 @@ mod tests {
     use chrono::{DateTime, NaiveDateTime, Utc};
     use core::str::FromStr;
     use lazy_static::lazy_static;
-    use spark_invoice::{SatsPayment, TokensPayment};
+    use spark_invoice::{PaymentType, SatsPayment, TokensPayment};
     use token_identifier::TokenIdentifier;
     use uuid::Uuid;
 

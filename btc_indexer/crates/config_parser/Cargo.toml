@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 config = { workspace = true }
 bitcoincore-rpc = { workspace = true }
-dotenv = { workspace = true }
+dotenvy = { workspace = true }
 global_utils = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
