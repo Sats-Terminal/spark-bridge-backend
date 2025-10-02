@@ -1,30 +1,8 @@
-use std::{
-    collections::{BTreeMap, HashSet},
-    sync::LazyLock,
-};
+use std::sync::LazyLock;
 
-use global_utils::logger::{LoggerGuard, init_logger};
+use global_utils::logger::{init_logger, LoggerGuard};
 
 pub static TEST_LOGGER: LazyLock<LoggerGuard> = LazyLock::new(|| init_logger());
-
-/// Transforms a vector into a BTreeMap using a key extraction function.
-pub fn vec_to_btreemap<K, V, F>(vec: Vec<V>, key_fn: F) -> BTreeMap<K, V>
-where
-    K: Ord,
-    F: Fn(&V) -> K,
-{
-    let mut map = BTreeMap::new();
-    for v in vec {
-        map.insert(key_fn(&v), v);
-    }
-    map
-}
-
-pub fn vecs_equal_unordered<T: Eq + std::hash::Hash>(a: &[T], b: &[T]) -> bool {
-    let set_a: HashSet<_> = a.iter().collect();
-    let set_b: HashSet<_> = b.iter().collect();
-    set_a == set_b
-}
 
 fn btc_tx_review_eq(a: &btc_indexer_api::api::BtcTxReview, b: &btc_indexer_api::api::BtcTxReview) -> bool {
     use btc_indexer_api::api::{BtcTxReview, TxRejectReason};
@@ -68,7 +46,6 @@ fn tx_tracking_requests_to_send_response_eq(
         && btc_tx_review_eq(&a.review, &b.review)
 }
 
-// Helper for comparing vectors of TxTrackingRequestsToSendResponse
 pub fn tx_tracking_requests_vec_eq(
     a: &[local_db_store_indexer::schemas::track_tx_requests_storage::TxTrackingRequestsToSendResponse],
     b: &[local_db_store_indexer::schemas::track_tx_requests_storage::TxTrackingRequestsToSendResponse],

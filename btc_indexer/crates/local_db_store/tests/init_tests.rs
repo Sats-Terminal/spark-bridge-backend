@@ -1,9 +1,6 @@
 mod utils;
 
 mod init_tests {
-    use std::sync::LazyLock;
-
-    use global_utils::logger::{LoggerGuard, init_logger};
     use persistent_storage::{config::PostgresDbCredentials, init::PostgresRepo};
     use sqlx::Connection;
 
