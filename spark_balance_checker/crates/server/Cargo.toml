@@ -19,6 +19,7 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 utoipa = { workspace = true }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
+serde_json = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }

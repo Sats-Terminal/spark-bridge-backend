@@ -22,12 +22,10 @@ async fn main() {
     let _logger_guard = init_logger();
     install_rustls_provider();
 
-    // Init configs
     let config_path = ConfigPath::from_env().unwrap();
     let config = ServerConfig::init_config(config_path.path);
     let app = create_app(config.spark.clone()).await;
 
-    // Init app
     let addr_to_listen = format!("{}:{}", config.app_config.ip, config.app_config.port);
     let listener = TcpListener::bind(addr_to_listen.clone()).await.unwrap();
 

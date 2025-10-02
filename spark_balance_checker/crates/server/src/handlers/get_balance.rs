@@ -1,9 +1,10 @@
 use crate::error::ServerError;
 use crate::init::AppState;
-use axum::Json;
 use axum::extract::State;
+use axum::Json;
 use bech32;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use spark_address::decode_spark_address;
 use spark_protos::spark::QueryTokenOutputsRequest;
 use utoipa::ToSchema;
@@ -68,12 +69,11 @@ pub async fn handle(
                     outputs.len()
                 )))
             } else {
-                // safe to unwrap because we know there is only one output
                 let output = outputs.into_iter().next().unwrap();
                 match output.output {
                     Some(output) => {
                         let encoded_balance = output.token_amount;
-                        // safe to unwrap because we know the balance is 128 bits
+
                         let balance = u128::from_be_bytes(encoded_balance.try_into().unwrap());
                         Ok(Json(GetBalanceResponse { balance }))
                     }
