@@ -22,8 +22,8 @@ pub struct SocketAddrWrapped(pub SocketAddr);
 
 impl PartialSchema for SocketAddrWrapped {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
-        utoipa::openapi::ObjectBuilder::new()
-            .schema_type(utoipa::openapi::schema::SchemaType::Type(openapi::schema::Type::String))
+        openapi::ObjectBuilder::new()
+            .schema_type(openapi::schema::SchemaType::Type(openapi::schema::Type::String))
             .examples(Some(json!(&SocketAddr::V4(SocketAddrV4::new(
                 Ipv4Addr::new(127, 0, 0, 1),
                 8080
@@ -62,8 +62,8 @@ impl<'de> serde::Deserialize<'de> for TxIdWrapped {
 
 impl PartialSchema for TxIdWrapped {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
-        utoipa::openapi::ObjectBuilder::new()
-            .schema_type(utoipa::openapi::schema::SchemaType::Type(openapi::schema::Type::String))
+        openapi::ObjectBuilder::new()
+            .schema_type(openapi::schema::SchemaType::Type(openapi::schema::Type::String))
             .examples(Some(json!(&TxIdWrapped(
                 Txid::from_str("fb0c9ab881331ec7acdd85d79e3197dcaf3f95055af1703aeee87e0d853e81ec",).unwrap()
             ))))
@@ -71,21 +71,21 @@ impl PartialSchema for TxIdWrapped {
     }
 }
 
-impl Type<sqlx::Postgres> for TxIdWrapped {
+impl Type<Postgres> for TxIdWrapped {
     fn type_info() -> PgTypeInfo {
-        <String as Type<sqlx::Postgres>>::type_info()
+        <String as Type<Postgres>>::type_info()
     }
 }
 
-impl Encode<'_, sqlx::Postgres> for TxIdWrapped {
+impl Encode<'_, Postgres> for TxIdWrapped {
     fn encode_by_ref(&self, buf: &mut <Postgres as Database>::ArgumentBuffer<'_>) -> Result<IsNull, BoxDynError> {
-        <String as Encode<sqlx::Postgres>>::encode_by_ref(&self.0.to_string(), buf)
+        <String as Encode<Postgres>>::encode_by_ref(&self.0.to_string(), buf)
     }
 }
 
-impl<'r> Decode<'r, sqlx::Postgres> for TxIdWrapped {
-    fn decode(value: PgValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
-        let s = <String as Decode<sqlx::Postgres>>::decode(value)?;
+impl<'r> Decode<'r, Postgres> for TxIdWrapped {
+    fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
+        let s = <String as Decode<Postgres>>::decode(value)?;
         Ok(TxIdWrapped(Txid::from_str(&s)?))
     }
 }
@@ -100,29 +100,29 @@ impl utoipa::ToSchema for TxIdWrapped {
 #[serde(transparent)]
 pub struct UrlWrapped(pub Url);
 
-impl Type<sqlx::Postgres> for UrlWrapped {
+impl Type<Postgres> for UrlWrapped {
     fn type_info() -> PgTypeInfo {
-        <String as Type<sqlx::Postgres>>::type_info()
+        <String as Type<Postgres>>::type_info()
     }
 }
 
-impl Encode<'_, sqlx::Postgres> for UrlWrapped {
+impl Encode<'_, Postgres> for UrlWrapped {
     fn encode_by_ref(&self, buf: &mut <Postgres as Database>::ArgumentBuffer<'_>) -> Result<IsNull, BoxDynError> {
-        <String as Encode<sqlx::Postgres>>::encode_by_ref(&self.0.to_string(), buf)
+        <String as Encode<Postgres>>::encode_by_ref(&self.0.to_string(), buf)
     }
 }
 
-impl<'r> Decode<'r, sqlx::Postgres> for UrlWrapped {
-    fn decode(value: PgValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
-        let s = <String as Decode<sqlx::Postgres>>::decode(value)?;
+impl<'r> Decode<'r, Postgres> for UrlWrapped {
+    fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
+        let s = <String as Decode<Postgres>>::decode(value)?;
         Ok(UrlWrapped(Url::from_str(&s)?))
     }
 }
 
 impl PartialSchema for UrlWrapped {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
-        utoipa::openapi::ObjectBuilder::new()
-            .schema_type(utoipa::openapi::schema::SchemaType::Type(openapi::schema::Type::String))
+        openapi::ObjectBuilder::new()
+            .schema_type(openapi::schema::SchemaType::Type(openapi::schema::Type::String))
             .examples(Some(json!(&Url::from_str("localhost:8080").unwrap())))
             .into()
     }
