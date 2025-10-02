@@ -2,7 +2,6 @@ use crate::errors::AggregatorError;
 use crate::types::*;
 use async_trait::async_trait;
 use persistent_storage::error::DbError;
-use std::fmt::Debug;
 use uuid::Uuid;
 
 #[async_trait]

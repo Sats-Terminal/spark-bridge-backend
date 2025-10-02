@@ -14,7 +14,7 @@ use crate::error::BtcIndexerError;
 use titan_client::{TitanApi, TitanClient};
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
-use tracing::{error, info, instrument, log::debug, trace, warn};
+use tracing::{instrument, log::debug, trace, warn};
 use uuid::Uuid;
 
 const BTC_INDEXER_LOG_PATH: &str = "btc_indexer";

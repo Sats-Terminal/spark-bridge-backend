@@ -17,7 +17,7 @@ use tokio::task::JoinSet;
 
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
-use tracing::{debug, error, info, instrument, trace};
+use tracing::{debug, error, instrument, trace};
 
 /// Msg used in thread which is responsible for updating information for existing txs
 const UPDATE_TXS_INFO_LOG_PATH: &str = "btc_indexer:update_txs_info";

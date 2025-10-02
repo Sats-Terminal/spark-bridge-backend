@@ -14,17 +14,16 @@ use std::collections::BTreeMap;
 use uuid::Uuid;
 
 pub type TweakBytes = [u8; 32];
-pub type RuneId = String;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub enum MusigId {
     User {
         user_public_key: PublicKey,
-        rune_id: RuneId,
+        rune_id: String,
     },
     Issuer {
         issuer_public_key: PublicKey,
-        rune_id: RuneId,
+        rune_id: String,
     },
 }
 
