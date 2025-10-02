@@ -1,13 +1,14 @@
 use global_utils::logger::init_logger;
-use persistent_storage::{config::PostgresDbCredentials, init::PostgresRepo};
 use tokio;
+
+const BUFFER: usize = 10;
 
 #[tokio::test]
 async fn test_select_channel() {
     let _guard = init_logger();
 
-    let (tx1, mut rx1) = tokio::sync::mpsc::channel::<String>(10);
-    let (tx2, mut rx2) = tokio::sync::mpsc::channel::<String>(10);
+    let (tx1, mut rx1) = tokio::sync::mpsc::channel::<String>(BUFFER);
+    let (tx2, mut rx2) = tokio::sync::mpsc::channel::<String>(BUFFER);
 
     let task = tokio::spawn(async move {
         loop {

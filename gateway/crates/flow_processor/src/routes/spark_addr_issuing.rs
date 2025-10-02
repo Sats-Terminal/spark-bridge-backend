@@ -44,6 +44,7 @@ pub async fn handle(
                 AggregatorDkgState::DkgFinalized {
                     public_key_package: pubkey_package,
                 } => pubkey_package,
+                AggregatorDkgState::Initialized => todo!(),
             }
         }
     };
