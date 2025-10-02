@@ -18,22 +18,6 @@ help:
 docker/build:
 	docker build -f ./infrastructure/Dockerfile ./../ -t btc_indexer:image
 
-## Open indexer from docker
-docker/up:
-	docker-compose --env-file ./.env -f ./infrastructure/docker-compose.yml up -d --build
-
-## Close indexer from docker
-docker/down:
-	docker-compose --env-file ./.env -f ./infrastructure/docker-compose.yml down btc_indexer
-
-## Open db from docker
-docker/db/up:
-	docker compose --env-file ./.env -f ./infrastructure/docker-compose.yml up persistent-db-storage -d
-
-## Close db from docker
-docker/db/down:
-	docker compose --env-file ./.env -f ./infrastructure/docker-compose.yml down  -v persistent-db-storage
-
 ## Format code
 fmt:
 	cargo +nightly fmt --all

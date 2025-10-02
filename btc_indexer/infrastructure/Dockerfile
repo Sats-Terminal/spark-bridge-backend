@@ -14,4 +14,3 @@ COPY ./btc_indexer/crates/local_db_store/migrations/ /migrations
 COPY --from=builder /usr/local/cargo/bin/btc_indexer_main /usr/local/bin/btc_indexer
 COPY --from=builder /usr/local/cargo/bin/sqlx /usr/local/bin/sqlx
 CMD ["btc_indexer"]
-#CMD ["tail", "-f", "/dev/null"]

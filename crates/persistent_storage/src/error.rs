@@ -5,8 +5,8 @@ use sqlx::migrate::MigrateError;
 pub enum DbError {
     #[error("Unable to retrieve env variable for db initialization, error: {0}")]
     UnableToRetrieveEnvVar(String),
-    #[error("Failed to establish connection with db, please check url [err: {0}, url: {1}]")]
-    FailedToEstablishDbConn(sqlx::Error, String),
+    #[error("Failed to establish connection with db, please check url [err: {err}, url: {url}]")]
+    FailedToEstablishDbConn { err: sqlx::Error, url: String },
     #[error("Failed to initialize initial db config, error: {0}")]
     FailedToParseConfig(#[from] ConfigParserError),
     #[error("Failed to migrate db, error: {0}")]
