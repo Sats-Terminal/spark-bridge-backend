@@ -11,9 +11,6 @@ use titan_types::{RuneAmount, Transaction};
 use tracing::instrument;
 
 const BTC_BLOCK_CONFIRMATION_HEIGHT: u64 = 6;
-const INPUT_V_BYTES_WEIGHT: u64 = 58;
-const OUTPUT_V_BYTES_WEIGHT: u64 = 43;
-const SATOSHI_PER_V_BYTE: u64 = 4;
 
 #[derive(Debug, Clone, Copy)]
 pub struct TxArbiter {}
@@ -144,11 +141,6 @@ impl TxArbiterTrait for TxArbiter {
 }
 
 impl TxArbiter {
-    fn calculate_desired_satoshi_fee_amount(tx_to_check: &Transaction) -> u64 {
-        let (inputs, outputs) = (tx_to_check.input.len() as u64, tx_to_check.output.len() as u64);
-        INPUT_V_BYTES_WEIGHT * SATOSHI_PER_V_BYTE * inputs + OUTPUT_V_BYTES_WEIGHT * SATOSHI_PER_V_BYTE * outputs
-    }
-
     /// One rune entry consist from one RuneId of runes and has equal value to amount
     fn check_runes_validity(tx_to_check: &[RuneAmount], amount: Amount, id: RuneId) -> bool {
         let counted_runes = Self::count_runes_btree(tx_to_check.iter());
@@ -176,5 +168,3 @@ impl TxArbiter {
         rune_counts
     }
 }
-
-// TODO: write unit tests for transaction checking (has to be added transaction constructor for testing)

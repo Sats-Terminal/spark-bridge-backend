@@ -134,8 +134,8 @@ impl SparkClient {
                 .challenge
                 .ok_or(SparkClientError::DecodeError("Challenge is not found".to_string()))?;
 
-            let message_hash = sha512::Hash::hash(challenge.encode_to_vec().as_slice());
-            let message = BitcoinMessage::from_digest(message_hash.clone());
+            let message_hash = sha256::Hash::hash(challenge.encode_to_vec().as_slice());
+            let message = BitcoinMessage::from_digest(message_hash.as_byte_array().clone());
 
             let secp = Secp256k1::new();
             let signature = secp.sign_schnorr_no_aux_rand(&message, &keypair);
