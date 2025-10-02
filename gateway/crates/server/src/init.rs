@@ -13,12 +13,13 @@ pub struct AppState {
     pub network: Network,
 }
 
-#[instrument(level = "debug", skip(flow_sender), ret)]
+#[instrument(level = "trace", skip_all)]
 pub async fn create_app(
     flow_sender: FlowSender,
     deposit_verification_aggregator: DepositVerificationAggregator,
     network: Network,
 ) -> Router {
+    tracing::info!("Creating app");
     let state = AppState {
         network,
         flow_sender,

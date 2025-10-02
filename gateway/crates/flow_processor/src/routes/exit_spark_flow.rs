@@ -16,18 +16,16 @@ use gateway_rune_transfer::transfer::{
 };
 use global_utils::conversion::decode_address;
 use persistent_storage::error::DbError;
-use tracing::{info, instrument};
+use tracing::instrument;
 
 const DUST_AMOUNT: u64 = 546;
 
-const LOG_PATH: &str = "flow_processor:routes:exit_spark_flow";
-
-#[instrument(level = "info", skip(flow_router), ret)]
+#[instrument(level = "trace", skip(flow_router), ret)]
 pub async fn handle(
     flow_router: &mut FlowProcessorRouter,
     request: ExitSparkRequest,
 ) -> Result<(), FlowProcessorError> {
-    info!("[{LOG_PATH}] Handling exit spark flow ...");
+    tracing::info!("Handling exit spark flow ...");
 
     let deposit_addr_info = flow_router
         .storage

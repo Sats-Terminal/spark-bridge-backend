@@ -2,6 +2,7 @@ use crate::error::SparkBalanceCheckerClientError;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 pub use verifier_config_parser::config::SparkBalanceCheckerConfig;
+use tracing::instrument;
 
 const GET_BALANCE_PATH: &str = "/balance";
 
@@ -30,6 +31,7 @@ impl SparkBalanceCheckerClient {
         }
     }
 
+    #[instrument(level = "trace", skip(self), ret)]
     pub async fn get_balance(
         &self,
         request: GetBalanceRequest,
@@ -52,6 +54,7 @@ impl SparkBalanceCheckerClient {
             })?;
             Ok(response)
         } else {
+            tracing::error!("Failed to send HTTP request for {:?}, with status {}", request, response.status());
             Err(SparkBalanceCheckerClientError::HttpError(format!(
                 "Failed to send HTTP request with status {}, error: {}",
                 response.status(),

@@ -22,7 +22,7 @@ pub struct AppState {
     pub server_config: ServerConfig,
 }
 
-#[instrument(level = "debug", skip(frost_signer), ret)]
+#[instrument(level = "trace", skip_all)]
 pub async fn create_app(
     frost_signer: FrostSigner,
     btc_indexer_config: BtcIndexerConfig,
@@ -31,6 +31,7 @@ pub async fn create_app(
     storage: Arc<LocalDbStorage>,
     server_config: ServerConfig,
 ) -> Router {
+    tracing::info!("Creating app");
     let state = AppState {
         frost_signer,
         btc_indexer_client: BtcIndexerClient::new(btc_indexer_config),

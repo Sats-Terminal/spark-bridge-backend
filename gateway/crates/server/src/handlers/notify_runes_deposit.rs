@@ -27,16 +27,21 @@ impl Into<NotifyRunesDepositRequest> for VerifierNotifyRunesDepositRequest {
     }
 }
 
-#[instrument(level = "info", skip(request, state), fields(request = ?request), ret)]
+#[instrument(level = "trace", skip(request, state), fields(request = ?request), ret)]
 pub async fn handle(
     State(state): State<AppState>,
     Json(request): Json<VerifierNotifyRunesDepositRequest>,
 ) -> Result<Json<()>, GatewayError> {
+    let out_point = request.out_point.clone();
+    tracing::info!("Handling notify runes deposit request with out point: {:?}", out_point);
+
     // TODO: This request should spawn task and immediately return Json(())
     let _ = state
         .deposit_verification_aggregator
         .notify_runes_deposit(request.into())
         .await;
+
+    tracing::info!("Notify runes deposit request handled request with out point: {:?}", out_point);
 
     Ok(Json(()))
 }

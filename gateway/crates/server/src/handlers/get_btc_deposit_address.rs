@@ -5,7 +5,7 @@ use gateway_flow_processor::flow_sender::TypedMessageSender;
 use gateway_flow_processor::types::IssueBtcDepositAddressRequest;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
-use tracing::{debug, instrument};
+use tracing::instrument;
 
 #[derive(Deserialize, Debug)]
 pub struct GetBtcDepositAddressRequest {
@@ -20,12 +20,14 @@ pub struct GetBtcDepositAddressResponse {
 }
 
 /// Handles Btc address issuing for replenishment
-#[instrument(level = "info", skip(state, request), fields(request = ?request), ret)]
+#[instrument(level = "trace", skip(state), ret)]
 pub async fn handle(
     State(state): State<AppState>,
     Json(request): Json<GetBtcDepositAddressRequest>,
 ) -> Result<Json<GetBtcDepositAddressResponse>, GatewayError> {
-    debug!("[handler-btc-addr-issuing] Handling request: {request:?}");
+    let request_user_public_key = request.user_public_key.clone();
+    tracing::info!("Handling get btc deposit address request with user public key: {:?}", request_user_public_key);
+
     let possible_response = state
         .flow_sender
         .send(IssueBtcDepositAddressRequest {
@@ -39,6 +41,8 @@ pub async fn handle(
         .map_err(|e| {
             GatewayError::FlowProcessorError(format!("Failed to issue deposit address for replenishment: {e}"))
         })?;
+
+    tracing::info!("Get btc deposit address request handled request with user public key: {:?}", request_user_public_key);
 
     Ok(Json(GetBtcDepositAddressResponse {
         address: possible_response.addr_to_replenish.to_string(),

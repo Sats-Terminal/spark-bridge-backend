@@ -30,7 +30,7 @@ pub struct BtcIndexerNotifyRunesDepositRequest {
     pub sats_fee_amount: u64,
 }
 
-#[instrument(level = "debug", skip_all, ret)]
+#[instrument(level = "trace", skip(state), ret)]
 pub async fn handle(
     State(state): State<AppState>,
     Json(request): Json<BtcIndexerNotifyRunesDepositRequest>,
@@ -64,7 +64,7 @@ pub async fn handle(
         .await
         .map_err(|e| VerifierError::GatewayClientError(format!("Failed to notify runes deposit: {}", e)))?;
 
-    tracing::debug!("Runes deposit notified for out point: {}", request.outpoint);
+    tracing::info!("Runes deposit notified for out point: {}", request.outpoint);
 
     Ok(Json(()))
 }

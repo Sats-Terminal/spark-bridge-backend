@@ -12,6 +12,7 @@ use verifier_config_parser::config::construct_hardcoded_callback_url;
 use verifier_local_db_store::schemas::deposit_address::{
     DepositAddrInfo, DepositAddressStorage, DepositStatus, InnerAddress,
 };
+use tracing::instrument;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WatchRunesDepositRequest {
@@ -26,6 +27,7 @@ pub struct WatchRunesDepositRequest {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WatchRunesDepositResponse {}
 
+#[instrument(level = "trace", skip(state), ret)]
 pub async fn handle(
     State(state): State<AppState>,
     Json(request): Json<WatchRunesDepositRequest>,
@@ -66,7 +68,7 @@ pub async fn handle(
         .await
         .map_err(|e| VerifierError::BtcIndexerClientError(format!("Failed to watch runes deposit: {}", e)))?;
 
-    tracing::debug!("Runes deposit watched for address: {}", request.btc_address);
+    tracing::info!("Runes deposit watched for address: {}", request.btc_address);
 
     Ok(Json(WatchRunesDepositResponse {}))
 }

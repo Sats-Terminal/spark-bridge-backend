@@ -7,6 +7,7 @@ use frost::types::{DkgRound1Request, DkgRound1Response};
 use frost::types::{DkgRound2Request, DkgRound2Response};
 use frost::types::{SignRound1Request, SignRound1Response};
 use frost::types::{SignRound2Request, SignRound2Response};
+use tracing::instrument;
 
 const DKG_ROUND_1_PATH: &str = "/api/gateway/dkg-round-1";
 const DKG_ROUND_2_PATH: &str = "/api/gateway/dkg-round-2";
@@ -16,6 +17,7 @@ const SIGN_ROUND_2_PATH: &str = "/api/gateway/sign-round-2";
 
 #[async_trait]
 impl SignerClient for VerifierClient {
+    #[instrument(level = "trace", skip_all)]
     async fn dkg_round_1(&self, request: DkgRound1Request) -> Result<DkgRound1Response, AggregatorError> {
         let url = self
             .get_url(DKG_ROUND_1_PATH)
@@ -27,6 +29,7 @@ impl SignerClient for VerifierClient {
             .map_err(|e| AggregatorError::HttpError(format!("Failed to send request for DKG round 1: {}", e)))
     }
 
+    #[instrument(level = "trace", skip_all)]
     async fn dkg_round_2(&self, request: DkgRound2Request) -> Result<DkgRound2Response, AggregatorError> {
         let url = self
             .get_url(DKG_ROUND_2_PATH)
@@ -38,6 +41,7 @@ impl SignerClient for VerifierClient {
             .map_err(|e| AggregatorError::HttpError(format!("Failed to send request for DKG round 2: {}", e)))
     }
 
+    #[instrument(level = "trace", skip_all)]
     async fn dkg_finalize(&self, request: DkgFinalizeRequest) -> Result<DkgFinalizeResponse, AggregatorError> {
         let url = self
             .get_url(DKG_FINALIZE_PATH)
@@ -49,6 +53,7 @@ impl SignerClient for VerifierClient {
             .map_err(|e| AggregatorError::HttpError(format!("Failed to send request for DKG finalize: {}", e)))
     }
 
+    #[instrument(level = "trace", skip_all)]
     async fn sign_round_1(&self, request: SignRound1Request) -> Result<SignRound1Response, AggregatorError> {
         let url = self
             .get_url(SIGN_ROUND_1_PATH)
@@ -60,6 +65,7 @@ impl SignerClient for VerifierClient {
             .map_err(|e| AggregatorError::HttpError(format!("Failed to send request for sign round 1: {}", e)))
     }
 
+    #[instrument(level = "trace", skip_all)]
     async fn sign_round_2(&self, request: SignRound2Request) -> Result<SignRound2Response, AggregatorError> {
         let url = self
             .get_url(SIGN_ROUND_2_PATH)

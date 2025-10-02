@@ -55,7 +55,7 @@ pub enum RejectReason {
 
 #[async_trait]
 impl TxArbiterTrait for TxArbiter {
-    #[instrument(skip(titan_client), level = "debug")]
+    #[instrument(skip(titan_client), level = "trace", ret)]
     async fn check_tx<C: TitanApi>(
         &self,
         titan_client: Arc<C>,

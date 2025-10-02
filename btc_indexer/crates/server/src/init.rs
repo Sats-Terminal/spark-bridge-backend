@@ -21,7 +21,7 @@ pub struct AppState<C, Db, TxValidator> {
 #[openapi(paths(crate::routes::track_tx::handler))]
 struct ApiDoc;
 
-#[instrument(skip(db_pool, btc_indexer))]
+#[instrument(skip_all, level = "trace")]
 pub async fn create_app(
     db_pool: LocalDbStorage,
     btc_indexer: BtcIndexer<TitanClient, LocalDbStorage, TxArbiter>,

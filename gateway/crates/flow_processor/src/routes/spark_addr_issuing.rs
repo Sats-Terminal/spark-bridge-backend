@@ -10,12 +10,15 @@ use gateway_local_db_store::schemas::deposit_address::{
 };
 use gateway_spark_service::utils::convert_network_to_spark_network;
 use spark_address::{SparkAddressData, encode_spark_address};
-use tracing;
+use tracing::instrument;
 
+#[instrument(skip(flow_router), level = "trace", ret)]
 pub async fn handle(
     flow_router: &mut FlowProcessorRouter,
     request: IssueSparkDepositAddressRequest,
 ) -> Result<String, FlowProcessorError> {
+    tracing::info!("Handling spark addr issuing for musig id: {:?}", request.musig_id);
+
     let public_key_package = match flow_router.storage.get_musig_id_data(&request.musig_id).await? {
         None => {
             tracing::debug!("Missing musig, running dkg from the beginning ...");
@@ -24,11 +27,9 @@ pub async fn handle(
                 .run_dkg_flow(&request.musig_id)
                 .await
                 .map_err(|e| FlowProcessorError::FrostAggregatorError(format!("Failed to run DKG flow: {}", e)))?;
-            tracing::debug!("DKG processing was successfully completed");
             pubkey_package
         }
         Some(x) => {
-            tracing::debug!("Musig exists, obtaining dkg pubkey ...");
             // extract data from db, get nonce and generate new one, return it to user
             match x.dkg_state {
                 AggregatorDkgState::DkgRound1 { .. } => {
@@ -76,6 +77,8 @@ pub async fn handle(
             confirmation_status: verifiers_responses,
         })
         .await?;
+
+    tracing::info!("Spark addr issuing completed for musig id: {:?}", request.musig_id);
 
     Ok(address)
 }

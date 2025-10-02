@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use tracing;
 use verifier_config_parser::config::GatewayConfig;
 use verifier_local_db_store::schemas::deposit_address::DepositStatus;
+use tracing::instrument;
 
 const NOTIFY_RUNES_DEPOSIT_PATH: &str = "/api/verifier/notify-runes-deposit";
 
@@ -30,14 +31,11 @@ impl GatewayClient {
         }
     }
 
+    #[instrument(level = "trace", skip(self), ret)]
     pub async fn notify_runes_deposit(
         &self,
         request: GatewayNotifyRunesDepositRequest,
     ) -> Result<(), GatewayClientError> {
-        tracing::info!(
-            "Sending request to notify runes deposit for verifier: {}",
-            request.verifier_id
-        );
         let url = self
             .config
             .address
@@ -59,7 +57,7 @@ impl GatewayClient {
             );
             Ok(())
         } else {
-            tracing::error!("Failed to send HTTP request with status {}", response.status());
+            tracing::error!("Failed to send HTTP request for {:?}, with status {}", request, response.status());
             Err(GatewayClientError::HttpError(format!(
                 "Failed to send HTTP request with status {}, error: {}",
                 response.status(),

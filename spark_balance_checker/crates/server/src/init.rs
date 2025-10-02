@@ -2,7 +2,7 @@ use crate::handlers;
 use axum::{Router, routing::post};
 use spark_client::client::SparkRpcClient;
 use spark_client::common::config::SparkConfig;
-use tracing::{info, instrument};
+use tracing::instrument;
 use utoipa::OpenApi;
 
 #[derive(Clone)]
@@ -16,10 +16,7 @@ struct ApiDoc;
 
 #[instrument(level = "debug", ret, skip(config), fields(operators=?config.operators))]
 pub async fn create_app(config: SparkConfig) -> Router {
-    info!(
-        "[spark_balance_checker] Creating app with obtained config: {:?}",
-        config,
-    );
+    tracing::info!("Creating app");
     let state = AppState {
         client: SparkRpcClient::new(config).await.unwrap(),
     };
@@ -29,6 +26,5 @@ pub async fn create_app(config: SparkConfig) -> Router {
 
     #[cfg(feature = "swagger")]
     let app = app.merge(SwaggerUi::new("/swagger-ui/").url("/api-docs/openapi.json", ApiDoc::openapi()));
-    info!("[spark_balance_checker] Successfully created app], app: {app:?}");
     app
 }

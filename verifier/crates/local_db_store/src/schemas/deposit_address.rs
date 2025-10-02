@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::types::Json;
 use std::fmt::Debug;
 use std::str::FromStr;
+use tracing::instrument;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum InnerAddress {
@@ -133,6 +134,7 @@ pub trait DepositAddressStorage: Send + Sync + Debug {
 
 #[async_trait]
 impl DepositAddressStorage for LocalDbStorage {
+    #[instrument(level = "trace", skip(self), ret)]
     async fn get_deposit_addr_info(
         &self,
         musig_id: &MusigId,
@@ -190,6 +192,7 @@ impl DepositAddressStorage for LocalDbStorage {
         }
     }
 
+    #[instrument(level = "trace", skip(self), ret)]
     async fn set_deposit_addr_info(&self, deposit_addr_info: DepositAddrInfo) -> Result<(), DbError> {
         let db_info = deposit_addr_info.to_db_format();
 
@@ -216,6 +219,7 @@ impl DepositAddressStorage for LocalDbStorage {
         Ok(())
     }
 
+    #[instrument(level = "trace", skip(self), ret)]
     async fn set_confirmation_status_by_out_point(
         &self,
         out_point: OutPoint,
@@ -231,6 +235,7 @@ impl DepositAddressStorage for LocalDbStorage {
         Ok(())
     }
 
+    #[instrument(level = "trace", skip(self), ret)]
     async fn set_sats_fee_amount_by_out_point(&self, out_point: OutPoint, sats_fee_amount: u64) -> Result<(), DbError> {
         let _ = sqlx::query("UPDATE verifier.deposit_address SET sats_fee_amount = $1 WHERE out_point = $2")
             .bind(sats_fee_amount as i64)
@@ -242,6 +247,7 @@ impl DepositAddressStorage for LocalDbStorage {
         Ok(())
     }
 
+    #[instrument(level = "trace", skip(self), ret)]
     async fn set_confirmation_status_by_deposit_address(
         &self,
         deposit_address: InnerAddress,
