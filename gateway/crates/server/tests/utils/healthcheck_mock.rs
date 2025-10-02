@@ -6,29 +6,23 @@ use axum::{Json, Router, debug_handler};
 use axum_test::TestServer;
 use bitcoin::Network;
 use frost::aggregator::FrostAggregator;
-use frost::signer::FrostSigner;
 use frost::traits::SignerClient;
 use frost_secp256k1_tr::Identifier;
 use gateway_config_parser::config::ServerConfig;
 use gateway_deposit_verification::aggregator::DepositVerificationAggregator;
-use gateway_deposit_verification::traits::{DepositVerificationClientTrait, VerificationClient};
+use gateway_deposit_verification::traits::{DepositVerificationClientTrait};
 use gateway_flow_processor::init::create_flow_processor;
 use gateway_local_db_store::storage::LocalDbStorage;
-use gateway_server::init::{GatewayApi, create_app};
+use gateway_server::init::{create_app};
 use gateway_verifier_client::client::VerifierClient;
 use global_utils::common_resp::Empty;
 use global_utils::config_path::ConfigPath;
-use global_utils::logger::init_logger;
-use persistent_storage::config::PostgresDbCredentials;
 use persistent_storage::init::{PostgresPool, PostgresRepo};
 use spark_client::common::config::CertificateConfig;
 use std::collections::{BTreeMap, HashMap};
-use std::net::SocketAddr;
-use std::str::FromStr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tracing::{info, instrument};
-use url::Url;
 use verifier_server::init::VerifierApi;
 
 #[instrument(skip(pool))]
@@ -48,13 +42,11 @@ pub async fn init_mocked_test_server(pool: PostgresPool) -> anyhow::Result<TestS
         },
     ];
 
-    // Create DB Pool
     let db_pool = Arc::new(LocalDbStorage {
         postgres_repo: PostgresRepo { pool },
         network: Network::Regtest,
     });
 
-    // Spawn mocked verifiers
     for v_conf in server_config.verifiers.0.iter_mut() {
         let addr_to_listen = obtain_random_localhost_socket_addr()?;
         v_conf.address = format!("http://{}", addr_to_listen);
@@ -67,7 +59,6 @@ pub async fn init_mocked_test_server(pool: PostgresPool) -> anyhow::Result<TestS
         });
     }
 
-    // Create Frost Aggregator
     let mut verifiers_map = BTreeMap::<Identifier, Arc<dyn SignerClient>>::new();
     for verifier in server_config.clone().verifiers.0 {
         let identifier: Identifier = verifier.id.try_into()?;
@@ -76,7 +67,6 @@ pub async fn init_mocked_test_server(pool: PostgresPool) -> anyhow::Result<TestS
     }
     let frost_aggregator = FrostAggregator::new(verifiers_map, db_pool.clone(), db_pool.clone());
 
-    // Create Flow Processor
     let (mut flow_processor, flow_sender) = create_flow_processor(
         server_config.clone(),
         db_pool.clone(),
@@ -89,12 +79,10 @@ pub async fn init_mocked_test_server(pool: PostgresPool) -> anyhow::Result<TestS
         flow_processor.run().await;
     });
 
-    // Create Deposit Verification Aggregator
     let verifier_clients_hash_map = extract_verifiers(&server_config);
     let deposit_verification_aggregator =
         DepositVerificationAggregator::new(flow_sender.clone(), verifier_clients_hash_map, db_pool.clone());
 
-    // Create App
     let app = create_app(
         flow_sender.clone(),
         deposit_verification_aggregator.clone(),
@@ -102,13 +90,12 @@ pub async fn init_mocked_test_server(pool: PostgresPool) -> anyhow::Result<TestS
     )
     .await;
 
-    // Run App
     let addr_to_listen = format!(
         "{}:{}",
         server_config.server_public.ip, server_config.server_public.port
     );
-    let listener = TcpListener::bind(addr_to_listen.clone()).await?;
-    tracing::info!("Listening on {:?}", addr_to_listen);
+    TcpListener::bind(addr_to_listen.clone()).await?;
+    info!("Listening on {:?}", addr_to_listen);
 
     let test_server = TestServer::builder().http_transport().build(app.into_make_service())?;
     info!("Serving local axum test server on {:?}", test_server.server_address());
