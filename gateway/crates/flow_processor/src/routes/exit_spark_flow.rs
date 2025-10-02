@@ -111,12 +111,12 @@ pub async fn handle(
     )
     .map_err(|e| FlowProcessorError::RuneTransferError(format!("Failed to create rune partial transaction: {e}")))?;
 
-    for i in 0..(transaction.input.len() - 1) {
+    for i in 1..transaction.input.len() {
         // -1 because the last input is the paying input
         let message_hash = create_message_hash(&transaction, exit_address.clone(), DUST_AMOUNT, i)
             .map_err(|e| FlowProcessorError::RuneTransferError(format!("Failed to create message hash: {e}")))?;
 
-        let input_btc_address = utxos[i].btc_address.clone();
+        let input_btc_address = utxos[i - 1].btc_address.clone();
         let input_deposit_addr_info = flow_router
             .storage
             .get_row_by_deposit_address(InnerAddress::BitcoinAddress(input_btc_address.clone()))

@@ -82,7 +82,7 @@ async fn test_spark() {
     let deposit_address = Address::from_str(&get_runes_deposit_address_response.address)
         .unwrap()
         .assume_checked();
-    let txid = user_wallet
+    let tx = user_wallet
         .transfer(
             TransferType::RuneTransfer {
                 rune_amount: deposit_amount,
@@ -91,6 +91,8 @@ async fn test_spark() {
         )
         .await
         .unwrap();
+    let txid = tx.compute_txid();
+
     tracing::info!("txid: {:?}", txid);
 
     // bridge runes

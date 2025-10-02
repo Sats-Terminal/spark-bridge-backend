@@ -8,7 +8,7 @@ use crate::spark_client::GetSparkAddressDataRequest;
 use crate::spark_client::SparkClient;
 use crate::utils::create_credentials;
 use crate::utils::sign_transaction;
-use bitcoin::Address;
+use bitcoin::{secp256k1, Address, Network, XOnlyPublicKey};
 use bitcoin::Transaction;
 use bitcoin::Txid;
 use bitcoin::hashes::sha256::Hash as Sha256Hash;
@@ -38,6 +38,7 @@ use spark_protos::spark_token::SignatureWithIndex;
 use spark_protos::spark_token::StartTransactionRequest;
 use std::str::FromStr;
 use std::time::Duration;
+use bitcoin::key::{TapTweak, TweakedPublicKey};
 use titan_client::SpentStatus;
 use token_identifier::TokenIdentifier;
 use tokio::time::sleep;
@@ -144,7 +145,7 @@ impl UserWallet {
         &mut self,
         transfer_type: TransferType,
         transfer_address: Address,
-    ) -> Result<Txid, RuneError> {
+    ) -> Result<Transaction, RuneError> {
         tracing::info!("Transferring runes");
         let rune_balance = self.get_rune_balance().await?;
 
@@ -238,13 +239,13 @@ impl UserWallet {
 
         let txid = transaction.compute_txid();
 
-        self.bitcoin_client.broadcast_transaction(transaction)?;
+        self.bitcoin_client.broadcast_transaction(transaction.clone())?;
         self.bitcoin_client.generate_blocks(BLOCKS_TO_GENERATE, None)?;
         sleep(Duration::from_secs(1)).await;
 
         tracing::info!("Runes transferred");
 
-        Ok(txid)
+        Ok(transaction)
     }
 
     pub async fn unite_unspent_utxos(&mut self) -> Result<Txid, RuneError> {
@@ -486,7 +487,7 @@ impl UserWallet {
     }
 
     pub async fn create_user_paying_transfer_input(&mut self) -> Result<UserPayingTransferInput, RuneError> {
-        let txid = self
+        let tx = self
             .transfer(
                 TransferType::BtcTransfer {
                     sats_amount: PAYING_INPUT_SATS_AMOUNT,
@@ -494,6 +495,7 @@ impl UserWallet {
                 self.p2tr_address.clone(),
             )
             .await?;
+        let txid = tx.compute_txid();
 
         let previous_output = OutPoint { txid: txid, vout: 1 };
         let txin = TxIn {
@@ -513,7 +515,7 @@ impl UserWallet {
         let mut sighash_cache = SighashCache::new(&transaction);
         let txout = TxOut {
             value: Amount::from_sat(PAYING_INPUT_SATS_AMOUNT),
-            script_pubkey: self.p2tr_address.script_pubkey(),
+            script_pubkey: tx.output[1].script_pubkey.clone(),
         };
         let message_hash = sighash_cache
             .taproot_key_spend_signature_hash(0, &Prevouts::One(0, txout), TapSighashType::NonePlusAnyoneCanPay)
@@ -521,7 +523,8 @@ impl UserWallet {
 
         let message = Message::from_digest(message_hash.to_byte_array());
         let secp = Secp256k1::new();
-        let signature = secp.sign_schnorr_no_aux_rand(&message, &self.keypair);
+        let tweaked = self.keypair.tap_tweak(&secp, None);
+        let signature = secp.sign_schnorr_no_aux_rand(&message, &tweaked.to_keypair());
 
         let paying_input = UserPayingTransferInput {
             txid: txid.to_string(),

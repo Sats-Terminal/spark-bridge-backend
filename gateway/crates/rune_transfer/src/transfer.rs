@@ -139,7 +139,7 @@ pub fn sign_message_hash(message_hash: [u8; 32], secret_key: SecretKey) -> Signa
 pub fn add_signature_to_transaction(transaction: &mut Transaction, input_index: usize, signature: Signature) {
     let taproot_signature = TaprootSignature {
         signature,
-        sighash_type: TapSighashType::All,
+        sighash_type: TapSighashType::AllPlusAnyoneCanPay,
     };
     transaction.input[input_index].witness = Witness::p2tr_key_spend(&taproot_signature);
 }
