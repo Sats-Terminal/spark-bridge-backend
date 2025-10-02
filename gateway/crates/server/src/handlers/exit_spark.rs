@@ -28,10 +28,7 @@ impl UserPayingTransferInput {
             btc_exit_address: decode_address(&self.btc_exit_address, network)
                 .map_err(|e| GatewayError::InvalidData(format!("Failed to parse address: {e}")))?,
             sats_amount: self.sats_amount,
-            none_anyone_can_pay_signature: Signature::from_slice(&self.none_anyone_can_pay_signature.serialize())
-                .map_err(|e| {
-                    GatewayError::InvalidData(format!("Failed to parse none anyone can pay signature: {e}"))
-                })?,
+            none_anyone_can_pay_signature: self.none_anyone_can_pay_signature,
         })
     }
 }
