@@ -80,7 +80,7 @@ mod tests {
         let arc_storage = Arc::new(storage);
 
         let user_key_storage: Arc<dyn SignerMusigIdStorage> = if is_mock_key_storage {
-            Arc::new(MockSignerMusigIdStorage::new())
+            Arc::new(MockSignerMusigIdStorage::default())
         } else {
             arc_storage.clone()
         };
@@ -120,8 +120,8 @@ mod tests {
 
         let aggregator = FrostAggregator::new(
             verifiers_map,
-            Arc::new(MockAggregatorMusigIdStorage::new()),
-            Arc::new(MockAggregatorSignSessionStorage::new()),
+            Arc::new(MockAggregatorMusigIdStorage::default()),
+            Arc::new(MockAggregatorSignSessionStorage::default()),
         );
 
         let secp = Secp256k1::new();

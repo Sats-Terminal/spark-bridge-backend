@@ -3,15 +3,13 @@ mod utils;
 use std::str::FromStr;
 
 use bitcoin::{BlockHash, hashes::Hash};
-use bitcoincore_rpc::{RawTx, bitcoin::Txid};
+use bitcoincore_rpc::bitcoin::Txid;
 use btc_indexer_internals::{
     api::BtcIndexerApi,
     indexer::{BtcIndexer, IndexerParams, IndexerParamsWithApi},
 };
 use config_parser::config::{BtcRpcCredentials, ServerConfig};
 use global_utils::common_types::get_uuid;
-use local_db_store_indexer::PostgresDbCredentials;
-use titan_client::TitanApi;
 use titan_types::{Transaction, TransactionStatus};
 use tracing::debug;
 
@@ -24,7 +22,7 @@ mod mock_testing {
     use crate::utils::mock::MockTxArbiter;
     use crate::utils::test_notifier::{obtain_random_localhost_socket_addr, spawn_notify_server_track_tx};
     use bitcoin::OutPoint;
-    use btc_indexer_api::api::{BtcIndexerCallbackResponse, BtcTxReview, ResponseMeta, TrackTxRequest};
+    use btc_indexer_api::api::{Amount, BtcTxReview, ResponseMeta, TrackTxRequest};
     use btc_indexer_internals::tx_arbiter::TxArbiterResponse;
     use config_parser::config::TitanConfig;
     use global_utils::common_types::UrlWrapped;
@@ -32,9 +30,7 @@ mod mock_testing {
     use local_db_store_indexer::init::LocalDbStorage;
     use local_db_store_indexer::schemas::tx_tracking_storage::TxToUpdateStatus;
     use persistent_storage::init::PostgresPool;
-    use std::env;
     use std::sync::Arc;
-    use tracing::info;
     use url::Url;
 
     const CONFIG_FILEPATH: &str = "../../../infrastructure/configurations/btc_indexer/dev.toml";
@@ -42,8 +38,11 @@ mod mock_testing {
 
     pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("../local_db_store/migrations");
 
+    const VOUT_FOR_OUT_POINT: u32 = 1234;
+    const RUNE_AMOUNT: Amount = 45678;
+
     #[sqlx::test(migrator = "MIGRATOR")]
-    async fn test_retrieving_of_finalized_tx(mut pool: PostgresPool) -> anyhow::Result<()> {
+    async fn test_retrieving_of_finalized_tx(pool: PostgresPool) -> anyhow::Result<()> {
         dotenvy::dotenv();
         let _logger_guard = &*TEST_LOGGER;
 
@@ -63,7 +62,7 @@ mod mock_testing {
         debug!("Receiving oneshot event..");
         let out_point = OutPoint {
             txid: tx_id,
-            vout: 1234,
+            vout: VOUT_FOR_OUT_POINT,
         };
         indexer
             .check_tx_changes(
@@ -71,9 +70,9 @@ mod mock_testing {
                 &TrackTxRequest {
                     callback_url: UrlWrapped(url_to_listen),
                     btc_address: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh".to_string(),
-                    out_point: out_point,
+                    out_point,
                     rune_id: ordinals::RuneId::from_str("840000:142")?,
-                    rune_amount: 45678,
+                    rune_amount: RUNE_AMOUNT,
                 },
             )
             .await?;
@@ -112,7 +111,7 @@ mod mock_testing {
         let generate_indexer_mocking_invocations = |indexer: &mut MockTitanIndexer| {
             let mut i = 0;
             indexer.expect_get_transaction().returning(move |tx_id| {
-                let utxos = generate_transaction(tx_id, i);
+                let _utxos = generate_transaction(tx_id, i);
                 i += 1;
                 let generated_tx = generate_transaction(tx_id, i);
                 debug!("[mock expectations1] generated tx: {:?}", &generated_tx);
@@ -122,7 +121,7 @@ mod mock_testing {
                 let mut cloned_mocked_indexer = MockTitanIndexer::new();
                 let mut i = 0;
                 cloned_mocked_indexer.expect_get_transaction().returning(move |tx_id| {
-                    let utxos = generate_transaction(tx_id, i);
+                    let _utxos = generate_transaction(tx_id, i);
                     i += 1;
                     let generated_tx = generate_transaction(tx_id, i);
                     debug!("[mock expectations2] generated tx: {:?}", &generated_tx);
@@ -136,7 +135,7 @@ mod mock_testing {
         };
         let generate_tx_arbiter_mocking_invocations = |tx_arbiter: &mut MockTxArbiter| {
             tx_arbiter.expect_check_tx().returning(
-                |titan_client: Arc<MockTitanIndexer>, tx_to_check: &Transaction, tx_info: &TxToUpdateStatus| {
+                |_titan_client: Arc<MockTitanIndexer>, _tx_to_check: &Transaction, tx_info: &TxToUpdateStatus| {
                     let review = TxArbiterResponse::ReviewFormed(
                         BtcTxReview::Success,
                         OutPoint {
@@ -151,7 +150,7 @@ mod mock_testing {
             tx_arbiter.expect_clone().returning(move || {
                 let mut cloned_tx_arbiter = MockTxArbiter::new();
                 cloned_tx_arbiter.expect_check_tx().returning(
-                    |titan_client: Arc<MockTitanIndexer>, tx_to_check: &Transaction, tx_info: &TxToUpdateStatus| {
+                    |_titan_client: Arc<MockTitanIndexer>, _tx_to_check: &Transaction, tx_info: &TxToUpdateStatus| {
                         let review = TxArbiterResponse::ReviewFormed(
                             BtcTxReview::Success,
                             OutPoint {
@@ -166,7 +165,9 @@ mod mock_testing {
                 cloned_tx_arbiter.expect_clone().returning(move || {
                     let mut cloned2_tx_arbiter = MockTxArbiter::new();
                     cloned2_tx_arbiter.expect_check_tx().returning(
-                        |titan_client: Arc<MockTitanIndexer>, tx_to_check: &Transaction, tx_info: &TxToUpdateStatus| {
+                        |_titan_client: Arc<MockTitanIndexer>,
+                         _tx_to_check: &Transaction,
+                         tx_info: &TxToUpdateStatus| {
                             let review = TxArbiterResponse::ReviewFormed(
                                 BtcTxReview::Success,
                                 OutPoint {

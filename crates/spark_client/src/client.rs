@@ -280,7 +280,7 @@ struct CommitTransactionRequestWithAuth {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::config::{CaCertificate, CertificateConfig, SparkConfig, SparkOperatorConfig};
+    use crate::common::config::{CertificateConfig, SparkConfig, SparkOperatorConfig};
     use global_utils::common_types::{Url, UrlWrapped};
     use global_utils::logger::{LoggerGuard, init_logger};
     use spark_address::decode_spark_address;
@@ -335,7 +335,7 @@ mod tests {
             ],
         };
 
-        let balance_checker = SparkRpcClient::new(config).await.unwrap();
+        let balance_checker = SparkRpcClient::new(config).await?;
 
         let response = balance_checker.get_token_outputs(request).await?;
 

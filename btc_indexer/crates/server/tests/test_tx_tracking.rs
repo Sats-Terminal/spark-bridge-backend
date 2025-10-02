@@ -8,17 +8,14 @@ mod mocked_tx_tracking {
     use crate::utils::mock::generate_mock_tx_arbiter;
     use crate::utils::{
         init::{TEST_LOGGER, obtain_random_localhost_socket_addr},
-        mock::{
-            create_app_mocked, generate_mock_titan_indexer_tx_tracking, generate_mock_titan_indexer_wallet_tracking,
-        },
+        mock::generate_mock_titan_indexer_tx_tracking,
         test_notifier::spawn_notify_server_track_tx,
     };
     use axum_test::TestServer;
     use bitcoin::{OutPoint, Txid};
-    use btc_indexer_api::api::{BtcIndexerCallbackResponse, BtcTxReview, ResponseMeta, TrackTxRequest};
-    use btc_indexer_internals::indexer::{BtcIndexer, IndexerParams, IndexerParamsWithApi};
-    use config_parser::config::ServerConfig;
-    use global_utils::common_types::{TxIdWrapped, UrlWrapped};
+    use btc_indexer_api::api::{BtcIndexerCallbackResponse, BtcTxReview, TrackTxRequest};
+
+    use global_utils::common_types::UrlWrapped;
     use ordinals::RuneId;
     use persistent_storage::init::PostgresPool;
     use tracing::{info, instrument};
@@ -61,7 +58,7 @@ mod mocked_tx_tracking {
         info!("Callback response: {:?}", result);
         assert!(btc_indexer_meta_eq(
             &result,
-            &ResponseMeta {
+            &BtcIndexerCallbackResponse {
                 outpoint: out_point,
                 status: BtcTxReview::Success,
                 sats_fee_amount: 0,

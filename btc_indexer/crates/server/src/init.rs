@@ -26,7 +26,6 @@ pub async fn create_app(
     db_pool: LocalDbStorage,
     btc_indexer: BtcIndexer<TitanClient, LocalDbStorage, TxArbiter>,
 ) -> Router {
-    // We're opening already tracking task for our txs
     let (btc_indexer, db_pool) = (Arc::new(btc_indexer), Arc::new(db_pool));
 
     let state = AppState {

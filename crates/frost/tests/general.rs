@@ -1,137 +1,172 @@
-use bitcoin::secp256k1::{PublicKey, Secp256k1, SecretKey};
-use frost::types::{MusigId, SigningMetadata, TweakBytes};
-use frost::{aggregator::FrostAggregator, mocks::*, signer::FrostSigner, traits::SignerClient};
-use frost_secp256k1_tr::{Identifier, keys::Tweak};
-use std::{collections::BTreeMap, sync::Arc};
+mod tests {
+    use bitcoin::key::TapTweak;
+    use bitcoin::key::UntweakedPublicKey;
+    use bitcoin::secp256k1::{PublicKey, Secp256k1};
+    use frost::types::{MusigId, SigningMetadata, TweakBytes};
+    use frost::utils::generate_tweak_bytes;
+    use frost::{aggregator::FrostAggregator, mocks::*, signer::FrostSigner, traits::SignerClient};
+    use frost_secp256k1_tr::{Identifier, keys::Tweak};
+    use std::str::FromStr;
+    use std::{collections::BTreeMap, sync::Arc};
 
-fn create_signer(identifier: u16) -> FrostSigner {
-    FrostSigner::new(
-        identifier,
-        Arc::new(MockSignerMusigIdStorage::default()),
-        Arc::new(MockSignerSignSessionStorage::default()),
-        3,
-        2,
-    )
-}
+    #[tokio::test]
+    async fn test_aggregator_signer_integration() -> anyhow::Result<()> {
+        let msg_hash = b"test_message";
+        _test_aggregator_signer_integration(msg_hash, None).await?;
+        Ok(())
+    }
 
-fn create_verifiers_map_easy() -> BTreeMap<Identifier, Arc<dyn SignerClient>> {
-    let signer1 = create_signer(1);
-    let signer2 = create_signer(2);
-    let signer3 = create_signer(3);
+    #[tokio::test]
+    async fn test_aggregator_signer_integration_tweaked() -> anyhow::Result<()> {
+        let msg_hash = b"test_message";
+        let tweak = generate_tweak_bytes();
+        _test_aggregator_signer_integration(msg_hash, Some(tweak)).await?;
+        Ok(())
+    }
 
-    let mock_signer_client1 = MockSignerClient::new(signer1);
-    let mock_signer_client2 = MockSignerClient::new(signer2);
-    let mock_signer_client3 = MockSignerClient::new(signer3);
+    #[tokio::test]
+    async fn test_parallel_signing_sessions_via_aggregator() -> anyhow::Result<()> {
+        let msg_a = b"parallel message A".to_vec();
+        let msg_b = b"parallel message B".to_vec();
+        _test_parallel_signing_sessions_via_aggregator(&msg_a, &msg_b, None).await?;
+        Ok(())
+    }
 
-    let identifier_1: Identifier = 1.try_into().unwrap();
-    let identifier_2: Identifier = 2.try_into().unwrap();
-    let identifier_3: Identifier = 3.try_into().unwrap();
+    #[tokio::test]
+    async fn test_parallel_signing_sessions_via_aggregator_tweaked() -> anyhow::Result<()> {
+        let msg_a = b"parallel message A".to_vec();
+        let msg_b = b"parallel message B".to_vec();
+        let tweak = generate_tweak_bytes();
+        _test_parallel_signing_sessions_via_aggregator(&msg_a, &msg_b, Some(tweak)).await?;
+        Ok(())
+    }
 
-    BTreeMap::from([
-        (identifier_1, Arc::new(mock_signer_client1) as Arc<dyn SignerClient>),
-        (identifier_2, Arc::new(mock_signer_client2) as Arc<dyn SignerClient>),
-        (identifier_3, Arc::new(mock_signer_client3) as Arc<dyn SignerClient>),
-    ])
-}
+    #[test]
+    fn test_get_tweaked_public_key() {
+        let ctx = Secp256k1::new();
 
-#[tokio::test]
-async fn test_aggregator_signer_integration() {
-    let verifiers_map = create_verifiers_map_easy();
+        let our_public_key =
+            PublicKey::from_str("038144ac71b61ab0e0a56967696a4f31a0cdd492cd3753d59aa978e0c8eaa5a60e").unwrap();
 
-    let aggregator = FrostAggregator::new(
-        verifiers_map,
-        Arc::new(MockAggregatorMusigIdStorage::default()),
-        Arc::new(MockAggregatorSignSessionStorage::default()),
-    );
+        let untweaked_public_key: UntweakedPublicKey = our_public_key.into();
+        let (_tweaked_public_key, _) = untweaked_public_key.tap_tweak(&ctx, None);
+    }
 
-    let secp = Secp256k1::new();
-    let secret_key = SecretKey::from_slice(&[1u8; 32]).unwrap();
-    let musig_id = MusigId::User {
-        user_public_key: PublicKey::from_secret_key(&secp, &secret_key),
-        rune_id: "test_rune_id".to_string(),
-    };
+    async fn _test_parallel_signing_sessions_via_aggregator(
+        msg_hash_a: &[u8],
+        msg_hash_b: &[u8],
+        tweak: Option<TweakBytes>,
+    ) -> anyhow::Result<()> {
+        let verifiers_map = create_verifiers_map_easy();
 
-    //let user_id = "test_user";
-    let message_hash = b"test_message";
-    // let tweak = Some(b"test_tweak".as_slice());
-    let tweak = None;
+        let user_public_key =
+            PublicKey::from_str("038144ac71b61ab0e0a56967696a4f31a0cdd492cd3753d59aa978e0c8eaa5a60e")?;
+        let musig_id = MusigId::User {
+            user_public_key,
+            rune_id: "test_rune_id".to_string(),
+        };
 
-    let public_key_package = aggregator.run_dkg_flow(&musig_id).await.unwrap();
-    let metadata = SigningMetadata::Authorization;
+        let agg_storage = MockAggregatorMusigIdStorage::default();
 
-    let signature = aggregator
-        .run_signing_flow(musig_id.clone(), message_hash, metadata, tweak)
-        .await
-        .unwrap();
+        let aggregator = FrostAggregator::new(
+            verifiers_map,
+            Arc::new(agg_storage),
+            Arc::new(MockAggregatorSignSessionStorage::default()),
+        );
 
-    let tweaked_public_key_package = match tweak.clone() {
-        Some(tweak) => public_key_package.clone().tweak(Some(tweak.to_vec())),
-        None => public_key_package.clone(),
-    };
-    tweaked_public_key_package
-        .verifying_key()
-        .verify(message_hash, &signature)
-        .unwrap();
-}
+        let public_key_package = aggregator.run_dkg_flow(&musig_id).await?;
+        let metadata = SigningMetadata::Authorization;
 
-#[tokio::test]
-async fn test_parallel_signing_sessions_via_aggregator() {
-    let verifiers_map = create_verifiers_map_easy();
+        let (sig_res_a, sig_res_b) = tokio::join!(
+            aggregator.run_signing_flow(musig_id.clone(), msg_hash_a, metadata.clone(), tweak),
+            aggregator.run_signing_flow(musig_id.clone(), msg_hash_b, metadata, tweak),
+        );
 
-    let aggregator = FrostAggregator::new(
-        verifiers_map,
-        Arc::new(MockAggregatorMusigIdStorage::default()),
-        Arc::new(MockAggregatorSignSessionStorage::default()),
-    );
+        let signature_a = sig_res_a?;
+        let signature_b = sig_res_b?;
 
-    let secp = Secp256k1::new();
-    let secret_key = SecretKey::from_slice(&[1u8; 32]).unwrap();
-    let user_id = MusigId::User {
-        user_public_key: PublicKey::from_secret_key(&secp, &secret_key),
-        rune_id: "test_rune_id".to_string(),
-    };
-    //let user_id = "test_user".to_string();
-    let msg_a = b"parallel message A".to_vec();
-    let msg_b = b"parallel message B".to_vec();
-    let tweak = None::<TweakBytes>;
+        let tweaked_public_key_package = match tweak.clone() {
+            Some(tweak) => public_key_package.clone().tweak(Some(tweak.to_vec())),
+            None => public_key_package.clone(),
+        };
+        tweaked_public_key_package
+            .verifying_key()
+            .verify(msg_hash_a, &signature_a)
+            .expect("signature A must be valid");
+        tweaked_public_key_package
+            .verifying_key()
+            .verify(msg_hash_b, &signature_b)
+            .expect("signature B must be valid");
 
-    let public_key_package = aggregator.run_dkg_flow(&user_id).await.unwrap();
-    let metadata = SigningMetadata::Authorization;
+        assert_ne!(
+            signature_a, signature_b,
+            "signatures for different messages should differ"
+        );
+        Ok(())
+    }
 
-    let (sig_res_a, sig_res_b) = tokio::join!(
-        aggregator.run_signing_flow(user_id.clone(), msg_a.as_slice(), metadata.clone(), tweak),
-        aggregator.run_signing_flow(user_id.clone(), msg_b.as_slice(), metadata, tweak),
-    );
+    async fn _test_aggregator_signer_integration(msg_hash: &[u8], tweak: Option<TweakBytes>) -> anyhow::Result<()> {
+        let verifiers_map = create_verifiers_map_easy();
 
-    let signature_a = sig_res_a.unwrap();
-    let signature_b = sig_res_b.unwrap();
+        let user_public_key =
+            PublicKey::from_str("038144ac71b61ab0e0a56967696a4f31a0cdd492cd3753d59aa978e0c8eaa5a60e")?;
+        let musig_id = MusigId::User {
+            user_public_key,
+            rune_id: "test_rune_id".to_string(),
+        };
 
-    let pk = public_key_package.clone();
-    pk.verifying_key()
-        .verify(msg_a.as_slice(), &signature_a)
-        .expect("signature A must be valid");
+        let agg_storage = MockAggregatorMusigIdStorage::default();
 
-    pk.verifying_key()
-        .verify(msg_b.as_slice(), &signature_b)
-        .expect("signature B must be valid");
+        let aggregator = FrostAggregator::new(
+            verifiers_map,
+            Arc::new(agg_storage),
+            Arc::new(MockAggregatorSignSessionStorage::default()),
+        );
 
-    assert_ne!(
-        signature_a, signature_b,
-        "signatures for different messages should differ"
-    );
-}
+        let public_key_package = aggregator.run_dkg_flow(&musig_id).await?;
+        let metadata = SigningMetadata::Authorization;
 
-use bitcoin::key::TapTweak;
-use bitcoin::key::UntweakedPublicKey;
-use std::str::FromStr;
+        let signature = aggregator
+            .run_signing_flow(musig_id.clone(), msg_hash, metadata, tweak)
+            .await?;
 
-#[test]
-fn test_get_tweaked_public_key() {
-    let ctx = Secp256k1::new();
+        let tweaked_public_key_package = match tweak.clone() {
+            Some(tweak) => public_key_package.clone().tweak(Some(tweak.to_vec())),
+            None => public_key_package.clone(),
+        };
+        tweaked_public_key_package
+            .verifying_key()
+            .verify(msg_hash, &signature)?;
+        Ok(())
+    }
 
-    let our_public_key =
-        PublicKey::from_str("038144ac71b61ab0e0a56967696a4f31a0cdd492cd3753d59aa978e0c8eaa5a60e").unwrap();
+    fn create_signer(identifier: u16) -> FrostSigner {
+        FrostSigner::new(
+            identifier,
+            Arc::new(MockSignerMusigIdStorage::default()),
+            Arc::new(MockSignerSignSessionStorage::default()),
+            3,
+            2,
+        )
+    }
 
-    let untweaked_public_key: UntweakedPublicKey = our_public_key.into();
-    let (tweaked_public_key, _) = untweaked_public_key.tap_tweak(&ctx, None);
+    fn create_verifiers_map_easy() -> BTreeMap<Identifier, Arc<dyn SignerClient>> {
+        let signer1 = create_signer(1);
+        let signer2 = create_signer(2);
+        let signer3 = create_signer(3);
+
+        let mock_signer_client1 = MockSignerClient::new(signer1);
+        let mock_signer_client2 = MockSignerClient::new(signer2);
+        let mock_signer_client3 = MockSignerClient::new(signer3);
+
+        let identifier_1: Identifier = 1.try_into().unwrap();
+        let identifier_2: Identifier = 2.try_into().unwrap();
+        let identifier_3: Identifier = 3.try_into().unwrap();
+
+        BTreeMap::from([
+            (identifier_1, Arc::new(mock_signer_client1) as Arc<dyn SignerClient>),
+            (identifier_2, Arc::new(mock_signer_client2) as Arc<dyn SignerClient>),
+            (identifier_3, Arc::new(mock_signer_client3) as Arc<dyn SignerClient>),
+        ])
+    }
 }
