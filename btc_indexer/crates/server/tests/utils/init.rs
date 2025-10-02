@@ -1,5 +1,5 @@
 use std::{
-    net::{IpAddr, SocketAddr, TcpListener},
+    net::{SocketAddr, TcpListener},
     str::FromStr,
     sync::LazyLock,
 };
@@ -38,7 +38,7 @@ pub async fn init_test_server() -> anyhow::Result<TestServer> {
     })?;
     let app = btc_indexer_server::create_app(db_pool, btc_indexer).await;
     let test_server = TestServer::builder().http_transport().build(app.into_make_service())?;
-    tracing::info!("Serving local axum test server on {:?}", test_server.server_address());
+    info!("Serving local axum test server on {:?}", test_server.server_address());
     Ok(test_server)
 }
 
