@@ -18,8 +18,6 @@ use tracing::{error, info, instrument, log::debug, trace, warn};
 use uuid::Uuid;
 
 const BTC_INDEXER_LOG_PATH: &str = "btc_indexer";
-const TX_TRACKING_LOG_PATH: &str = "btc_indexer:tx_tracking";
-const ACCOUNT_TRACKING_LOG_PATH: &str = "btc_indexer:account_tracking";
 
 pub struct BtcIndexer<C, Db, TxValidator> {
     pub btc_indexer_params: BtcIndexerParams,

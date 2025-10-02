@@ -16,7 +16,6 @@ use bitcoin::{XOnlyPublicKey, key::Keypair};
 use ord::Inscription;
 use ordinals::RuneId;
 use ordinals::{Etching, Rune, Runestone, Terms};
-use rand_core::{OsRng, RngCore};
 use std::str::FromStr;
 use std::time::Duration;
 use tokio::time::sleep;

@@ -8,7 +8,6 @@ use frost::utils::generate_issuer_public_key;
 use gateway_local_db_store::schemas::deposit_address::{DepositAddressStorage, InnerAddress};
 use gateway_spark_service::types::SparkTransactionType;
 use gateway_spark_service::utils::{convert_network_to_spark_network, create_wrunes_metadata};
-use std::thread::sleep;
 use tracing::{info, instrument};
 
 const LOG_PATH: &str = "flow_processor:routes:bridge_runes_flow";

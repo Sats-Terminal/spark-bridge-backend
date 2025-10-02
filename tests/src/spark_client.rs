@@ -1,5 +1,5 @@
 use crate::error::SparkClientError;
-use bitcoin::hashes::{Hash, sha256, sha512};
+use bitcoin::hashes::{Hash, sha256};
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::{Keypair, Message as BitcoinMessage, Secp256k1};
 use hex;

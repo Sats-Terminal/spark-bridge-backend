@@ -7,7 +7,7 @@ use global_utils::common_resp::Empty;
 use global_utils::common_types::get_uuid;
 use local_db_store_indexer::init::IndexerDbBounds;
 
-use tracing::{debug, error, info, instrument, trace};
+use tracing::{info, instrument};
 
 const PATH_TO_LOG: &str = "btc_indexer_server:track_tx";
 

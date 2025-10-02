@@ -2,7 +2,6 @@ use crate::error::ServerError;
 use crate::init::AppState;
 use axum::Json;
 use axum::extract::State;
-use bech32;
 use global_utils::common_resp::Empty;
 
 #[utoipa::path(

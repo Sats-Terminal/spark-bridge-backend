@@ -3,7 +3,7 @@ use frost::traits::SignerClient;
 use frost_secp256k1_tr::Identifier;
 use gateway_config_parser::config::ServerConfig;
 use gateway_deposit_verification::aggregator::DepositVerificationAggregator;
-use gateway_deposit_verification::traits::VerificationClient;
+use gateway_deposit_verification::traits::{DepositVerificationClientTrait, VerificationClient};
 use gateway_flow_processor::init::create_flow_processor;
 use gateway_local_db_store::storage::LocalDbStorage;
 use gateway_server::init::create_app;
@@ -74,7 +74,7 @@ async fn main() {
     });
 
     // Create Deposit Verification Aggregator
-    let (verifier_clients_hash_map, typed_verifier_clients_hash_map) = extract_verifiers(&server_config);
+    let verifier_clients_hash_map = extract_verifiers(&server_config);
     let deposit_verification_aggregator =
         DepositVerificationAggregator::new(flow_sender.clone(), verifier_clients_hash_map, shared_db_pool.clone());
 
@@ -83,7 +83,6 @@ async fn main() {
         flow_sender.clone(),
         deposit_verification_aggregator.clone(),
         server_config.network.network,
-        typed_verifier_clients_hash_map,
     )
     .await;
 
@@ -97,18 +96,11 @@ async fn main() {
     axum::serve(listener, app).await.unwrap();
 }
 
-fn extract_verifiers(
-    server_config: &ServerConfig,
-) -> (
-    HashMap<u16, Arc<dyn VerificationClient>>,
-    HashMap<u16, Arc<VerifierClient>>,
-) {
-    let mut verifier_clients_hash_map = HashMap::<u16, Arc<dyn VerificationClient>>::new();
-    let mut typed_verifier_clients_hash_map = HashMap::<u16, Arc<VerifierClient>>::new();
+fn extract_verifiers(server_config: &ServerConfig) -> HashMap<u16, Arc<dyn DepositVerificationClientTrait>> {
+    let mut verifier_clients_hash_map = HashMap::<u16, Arc<dyn DepositVerificationClientTrait>>::new();
     for verifier in server_config.clone().verifiers.0 {
         let verifier_client = VerifierClient::new(verifier.clone());
         verifier_clients_hash_map.insert(verifier.id, Arc::new(verifier_client.clone()));
-        typed_verifier_clients_hash_map.insert(verifier.id, Arc::new(verifier_client));
     }
-    (verifier_clients_hash_map, typed_verifier_clients_hash_map)
+    verifier_clients_hash_map
 }

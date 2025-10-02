@@ -5,7 +5,6 @@ use global_utils::conversion::decode_address;
 use persistent_storage::error::DbError;
 use serde::{Deserialize, Serialize};
 use sqlx::{Postgres, Transaction};
-use std::str::FromStr;
 
 #[derive(Debug, Clone)]
 pub struct Utxo {

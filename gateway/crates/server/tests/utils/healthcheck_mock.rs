@@ -1,16 +1,17 @@
-use crate::utils::common::{CERT_PATH, CONFIG_PATH, obtain_random_localhost_socket_addr};
+use crate::utils::common::{CONFIG_PATH, PATH_TO_AMAZON_CA, PATH_TO_FLASHNET, obtain_random_localhost_socket_addr};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::post;
 use axum::{Json, Router, debug_handler};
 use axum_test::TestServer;
+use bitcoin::Network;
 use frost::aggregator::FrostAggregator;
 use frost::signer::FrostSigner;
 use frost::traits::SignerClient;
 use frost_secp256k1_tr::Identifier;
 use gateway_config_parser::config::ServerConfig;
 use gateway_deposit_verification::aggregator::DepositVerificationAggregator;
-use gateway_deposit_verification::traits::VerificationClient;
+use gateway_deposit_verification::traits::{DepositVerificationClientTrait, VerificationClient};
 use gateway_flow_processor::init::create_flow_processor;
 use gateway_local_db_store::storage::LocalDbStorage;
 use gateway_server::init::{GatewayApi, create_app};
@@ -20,6 +21,7 @@ use global_utils::config_path::ConfigPath;
 use global_utils::logger::init_logger;
 use persistent_storage::config::PostgresDbCredentials;
 use persistent_storage::init::{PostgresPool, PostgresRepo};
+use spark_client::common::config::CertificateConfig;
 use std::collections::{BTreeMap, HashMap};
 use std::net::SocketAddr;
 use std::str::FromStr;
@@ -37,11 +39,19 @@ pub async fn init_mocked_test_server(pool: PostgresPool) -> anyhow::Result<TestS
     let mut server_config = ServerConfig::init_config(config_path.path);
     tracing::debug!("App config: {:?}", server_config);
 
-    server_config.spark.certificate.path = CERT_PATH.to_string();
+    server_config.spark.certificates = vec![
+        CertificateConfig {
+            path: PATH_TO_AMAZON_CA.to_string(),
+        },
+        CertificateConfig {
+            path: PATH_TO_FLASHNET.to_string(),
+        },
+    ];
 
     // Create DB Pool
     let db_pool = Arc::new(LocalDbStorage {
         postgres_repo: PostgresRepo { pool },
+        network: Network::Regtest,
     });
 
     // Spawn mocked verifiers
@@ -80,7 +90,7 @@ pub async fn init_mocked_test_server(pool: PostgresPool) -> anyhow::Result<TestS
     });
 
     // Create Deposit Verification Aggregator
-    let (verifier_clients_hash_map, typed_verifier_clients_hash_map) = extract_verifiers(&server_config);
+    let verifier_clients_hash_map = extract_verifiers(&server_config);
     let deposit_verification_aggregator =
         DepositVerificationAggregator::new(flow_sender.clone(), verifier_clients_hash_map, db_pool.clone());
 
@@ -89,7 +99,6 @@ pub async fn init_mocked_test_server(pool: PostgresPool) -> anyhow::Result<TestS
         flow_sender.clone(),
         deposit_verification_aggregator.clone(),
         server_config.network.network,
-        typed_verifier_clients_hash_map,
     )
     .await;
 
@@ -106,20 +115,13 @@ pub async fn init_mocked_test_server(pool: PostgresPool) -> anyhow::Result<TestS
     Ok(test_server)
 }
 
-fn extract_verifiers(
-    server_config: &ServerConfig,
-) -> (
-    HashMap<u16, Arc<dyn VerificationClient>>,
-    HashMap<u16, Arc<VerifierClient>>,
-) {
-    let mut verifier_clients_hash_map = HashMap::<u16, Arc<dyn VerificationClient>>::new();
-    let mut typed_verifier_clients_hash_map = HashMap::<u16, Arc<VerifierClient>>::new();
+fn extract_verifiers(server_config: &ServerConfig) -> HashMap<u16, Arc<dyn DepositVerificationClientTrait>> {
+    let mut verifier_clients_hash_map = HashMap::<u16, Arc<dyn DepositVerificationClientTrait>>::new();
     for verifier in server_config.clone().verifiers.0 {
         let verifier_client = VerifierClient::new(verifier.clone());
         verifier_clients_hash_map.insert(verifier.id, Arc::new(verifier_client.clone()));
-        typed_verifier_clients_hash_map.insert(verifier.id, Arc::new(verifier_client));
     }
-    (verifier_clients_hash_map, typed_verifier_clients_hash_map)
+    verifier_clients_hash_map
 }
 
 fn create_mock_healthcheck_app() -> Router {
