@@ -13,7 +13,7 @@ pub struct VerifierClient {
 }
 
 impl VerifierClient {
-    const HEALTHCHECK_PATH: &'static str = "/healthcheck";
+    const HEALTHCHECK_PATH: &'static str = "/health";
 
     pub fn new(config: VerifierConfig) -> Self {
         Self {

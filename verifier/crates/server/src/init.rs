@@ -33,7 +33,7 @@ impl VerifierApi {
     pub const DKG_FINALIZE_ENDPOINT: &'static str = "/api/gateway/dkg-finalize";
     pub const SIGN_ROUND1_ENDPOINT: &'static str = "/api/gateway/sign-round-1";
     pub const SIGN_ROUND2_ENDPOINT: &'static str = "/api/gateway/sign-round-2";
-    pub const HEALTHCHECK_ENDPOINT: &'static str = "/healthcheck";
+    pub const HEALTHCHECK_ENDPOINT: &'static str = "/health";
 }
 
 #[instrument(level = "debug", skip(frost_signer), ret)]

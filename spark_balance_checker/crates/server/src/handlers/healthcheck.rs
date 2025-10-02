@@ -7,7 +7,7 @@ use global_utils::common_resp::Empty;
 
 #[utoipa::path(
     post,
-    path = "/healthcheck",
+    path = "/health",
     request_body = Empty,
     responses(
         (status = 200, description = "Success", body = Empty),

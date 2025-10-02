@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 pub use verifier_config_parser::config::SparkBalanceCheckerConfig;
 
 const GET_BALANCE_PATH: &str = "/balance";
-const HEALTHCHECK_PATH: &str = "/healthcheck";
+const HEALTHCHECK_PATH: &str = "/health";
 
 #[derive(Clone, Debug)]
 pub struct SparkBalanceCheckerClient {

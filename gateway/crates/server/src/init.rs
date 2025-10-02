@@ -26,7 +26,7 @@ impl GatewayApi {
     pub const EXIT_SPARK_ADDRESS_ENDPOINT: &'static str = "/api/user/exit-spark";
     pub const NOTIFY_RUNES_DEPOSIT_ADDRESS_ENDPOINT: &'static str = "/api/verifier/notify-runes-deposit";
     pub const BRIDGE_RUNES_ADDRESS_ENDPOINT: &'static str = "/api/user/bridge-runes";
-    pub const HEALTHCHECK_ENDPOINT: &'static str = "/healthcheck";
+    pub const HEALTHCHECK_ENDPOINT: &'static str = "/health";
 }
 
 #[instrument(level = "debug", skip(flow_sender), ret)]

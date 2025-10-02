@@ -80,7 +80,8 @@ mod tests {
     use std::sync::LazyLock;
     use tokio;
 
-    const PATH_TO_CA_PEM: &str = "../../infrastructure/configurations/common/ca.pem";
+    const PATH_TO_AMAZON_CA: &str = "../../infrastructure/configurations/certificates/Amazon-Root-CA.pem";
+    const PATH_TO_FLASHNET: &str = "../../infrastructure/configurations/certificates/Flashnet-CA.pem";
     pub static TEST_LOGGER: LazyLock<LoggerGuard> = LazyLock::new(|| init_logger());
 
     #[tokio::test]
@@ -96,9 +97,14 @@ mod tests {
                 running_authority: "".to_string(),
                 is_coordinator: Some(true),
             }],
-            certificate: CertificateConfig {
-                path: PATH_TO_CA_PEM.to_string(),
-            },
+            certificates: vec![
+                CertificateConfig {
+                    path: PATH_TO_AMAZON_CA.to_string(),
+                },
+                CertificateConfig {
+                    path: PATH_TO_FLASHNET.to_string(),
+                },
+            ],
         };
         let connection = SparkTlsConnection::new(spark_config).unwrap();
         connection.create_clients().await?;

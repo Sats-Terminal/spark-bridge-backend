@@ -19,7 +19,7 @@ pub struct SparkBalanceCheckerApi;
 impl SparkBalanceCheckerApi {
     /// Represents hardcoded `/track_tx` endpoint
     pub const GET_BALANCE_ENDPOINT: &'static str = "/balance";
-    pub const HEALTHCHECK_ENDPOINT: &'static str = "/healthcheck";
+    pub const HEALTHCHECK_ENDPOINT: &'static str = "/health";
 }
 
 #[instrument(level = "debug", ret, skip(config), fields(operators=?config.operators))]
