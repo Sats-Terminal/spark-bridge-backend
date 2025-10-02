@@ -59,7 +59,6 @@ impl SparkTlsConnection {
         Ok(channel)
     }
 
-    // This function creates a new spark client.
     pub(crate) async fn create_clients(&self) -> Result<SparkServicesClients, SparkClientError> {
         let channel = self.create_tls_channel().await?;
 
@@ -74,9 +73,9 @@ impl SparkTlsConnection {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::config::{CaCertificate, CertificateConfig, SparkOperatorConfig};
+    use crate::common::config::{CertificateConfig, SparkOperatorConfig};
     use global_utils::common_types::{Url, UrlWrapped};
-    use global_utils::logger::{LoggerGuard, init_logger};
+    use global_utils::logger::{init_logger, LoggerGuard};
     use std::sync::LazyLock;
     use tokio;
 
@@ -106,7 +105,7 @@ mod tests {
                 },
             ],
         };
-        let connection = SparkTlsConnection::new(spark_config).unwrap();
+        let connection = SparkTlsConnection::new(spark_config)?;
         connection.create_clients().await?;
         Ok(())
     }
