@@ -16,13 +16,13 @@ pub struct VerifierNotifyRunesDepositRequest {
     pub status: DepositStatus,
 }
 
-impl Into<NotifyRunesDepositRequest> for VerifierNotifyRunesDepositRequest {
-    fn into(self) -> NotifyRunesDepositRequest {
+impl From<VerifierNotifyRunesDepositRequest> for NotifyRunesDepositRequest {
+    fn from(value: VerifierNotifyRunesDepositRequest) -> Self {
         NotifyRunesDepositRequest {
-            verifier_id: self.verifier_id,
-            out_point: self.out_point,
-            sats_fee_amount: self.sats_fee_amount,
-            status: self.status,
+            verifier_id: value.verifier_id,
+            out_point: value.out_point,
+            sats_fee_amount: value.sats_fee_amount,
+            status: value.status,
         }
     }
 }

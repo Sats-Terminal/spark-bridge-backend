@@ -151,7 +151,9 @@ impl FrostSigner {
                     .set_musig_id_data(
                         &musig_id,
                         SignerMusigIdData {
-                            dkg_state: SignerDkgState::DkgFinalized { key_package },
+                            dkg_state: SignerDkgState::DkgFinalized {
+                                key_package: Box::new(key_package),
+                            },
                         },
                     )
                     .await?;
@@ -183,7 +185,7 @@ impl FrostSigner {
                 dkg_state: SignerDkgState::DkgFinalized { key_package },
             }) => {
                 let tweak_key_package = match tweak.clone() {
-                    Some(tweak) => key_package.clone().tweak(Some(tweak.to_vec())),
+                    Some(tweak) => Box::new(key_package.clone().tweak(Some(tweak.to_vec()))),
                     None => key_package.clone(),
                 };
                 let (nonces, commitments) =
@@ -197,7 +199,9 @@ impl FrostSigner {
                             tweak,
                             message_hash,
                             metadata,
-                            sign_state: SignerSignState::SigningRound1 { nonces },
+                            sign_state: SignerSignState::SigningRound1 {
+                                nonces: Box::new(nonces),
+                            },
                         },
                     )
                     .await?;
@@ -243,14 +247,16 @@ impl FrostSigner {
         match sign_data.sign_state {
             SignerSignState::SigningRound1 { nonces } => {
                 let tweak_key_package = match sign_data.tweak.clone() {
-                    Some(tweak) => key_package.clone().tweak(Some(tweak.to_vec())),
+                    Some(tweak) => Box::new(key_package.clone().tweak(Some(tweak.to_vec()))),
                     None => key_package.clone(),
                 };
                 let signature_share =
                     frost_secp256k1_tr::round2::sign(&request.signing_package, &nonces, &tweak_key_package)
                         .map_err(|e| SignerError::Internal(format!("Sign round2 failed: {e}")))?;
 
-                sign_data.sign_state = SignerSignState::SigningRound2 { signature_share };
+                sign_data.sign_state = SignerSignState::SigningRound2 {
+                    signature_share: Box::new(signature_share),
+                };
 
                 self.sign_session_storage
                     .set_sign_data(&musig_id, session_id, sign_data)

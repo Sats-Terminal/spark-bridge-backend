@@ -42,8 +42,8 @@ impl From<WatchRunesDepositRequest> for VerifierWatchRunesDepositRequest {
 #[derive(Deserialize, Debug)]
 pub struct VerifierWatchRunesDepositResponse {}
 
-impl Into<WatchRunesDepositResponse> for VerifierWatchRunesDepositResponse {
-    fn into(self) -> WatchRunesDepositResponse {
+impl From<VerifierWatchRunesDepositResponse> for WatchRunesDepositResponse {
+    fn from(_value: VerifierWatchRunesDepositResponse) -> Self {
         WatchRunesDepositResponse {}
     }
 }
@@ -74,10 +74,10 @@ pub struct VerifierWatchSparkDepositResponse {
     pub verifier_response: DepositStatus,
 }
 
-impl Into<WatchSparkDepositResponse> for VerifierWatchSparkDepositResponse {
-    fn into(self) -> WatchSparkDepositResponse {
+impl From<VerifierWatchSparkDepositResponse> for WatchSparkDepositResponse {
+    fn from(value: VerifierWatchSparkDepositResponse) -> Self {
         WatchSparkDepositResponse {
-            verifier_response: self.verifier_response,
+            verifier_response: value.verifier_response,
         }
     }
 }

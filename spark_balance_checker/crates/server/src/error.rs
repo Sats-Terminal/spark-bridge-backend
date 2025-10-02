@@ -35,14 +35,17 @@ pub enum ServerError {
     DecodeError(String),
     #[error("Invalid data: {0}")]
     InvalidData(String),
+    #[error("Failed to check service health, msg: '{msg}', err: {err}")]
+    HealthCheckError { msg: String, err: SparkClientError },
 }
 
 impl IntoResponse for ServerError {
     fn into_response(self) -> Response {
         let (status, error_message) = match self {
-            ServerError::ConnectionError(message) => (StatusCode::INTERNAL_SERVER_ERROR, message),
-            ServerError::DecodeError(message) => (StatusCode::BAD_REQUEST, message),
-            ServerError::InvalidData(message) => (StatusCode::BAD_REQUEST, message),
+            ServerError::ConnectionError(_) => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()),
+            ServerError::DecodeError(_) => (StatusCode::BAD_REQUEST, self.to_string()),
+            ServerError::InvalidData(_) => (StatusCode::BAD_REQUEST, self.to_string()),
+            ServerError::HealthCheckError { .. } => (StatusCode::BAD_REQUEST, self.to_string()),
         };
 
         (status, error_message).into_response()

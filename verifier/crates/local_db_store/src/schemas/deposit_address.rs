@@ -6,7 +6,7 @@ use frost::types::TweakBytes;
 use persistent_storage::error::DbError;
 use serde::{Deserialize, Serialize};
 use sqlx::types::Json;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -15,14 +15,20 @@ pub enum InnerAddress {
     BitcoinAddress(Address),
 }
 
-impl InnerAddress {
-    pub fn to_string(&self) -> String {
-        match self {
-            InnerAddress::SparkAddress(addr) => addr.clone(),
-            InnerAddress::BitcoinAddress(addr) => addr.to_string(),
-        }
+impl Display for InnerAddress {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(
+            f,
+            "{}",
+            match self {
+                InnerAddress::SparkAddress(addr) => addr.clone(),
+                InnerAddress::BitcoinAddress(addr) => addr.to_string(),
+            }
+        )
     }
+}
 
+impl InnerAddress {
     pub fn from_string_and_type(addr_str: String, is_btc: bool) -> Result<Self, String> {
         if is_btc {
             Address::from_str(&addr_str)

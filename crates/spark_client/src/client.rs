@@ -4,7 +4,9 @@ use crate::{
     connection::{SparkServicesClients, SparkTlsConnection},
 };
 use bitcoin::secp256k1::PublicKey;
-use spark_protos::spark::{QueryTokenOutputsRequest, QueryTokenOutputsResponse};
+use spark_protos::spark::{
+    QueryTokenOutputsRequest, QueryTokenOutputsResponse, QueryTokenTransactionsRequest, QueryTokenTransactionsResponse,
+};
 use spark_protos::spark_authn::{
     GetChallengeRequest, GetChallengeResponse, VerifyChallengeRequest, VerifyChallengeResponse,
 };
@@ -82,6 +84,21 @@ impl SparkRpcClient {
                 .query_token_outputs(request)
                 .await
                 .map_err(|e| SparkClientError::ConnectionError(format!("Failed to query balance: {}", e)))
+        };
+
+        self.retry_query(query_fn, request).await.map(|r| r.into_inner())
+    }
+
+    pub async fn query_token_transactions(
+        &self,
+        request: QueryTokenTransactionsRequest,
+    ) -> Result<QueryTokenTransactionsResponse, SparkClientError> {
+        let query_fn = |mut clients: SparkServicesClients, request: QueryTokenTransactionsRequest| async move {
+            clients
+                .spark
+                .query_token_transactions(request)
+                .await
+                .map_err(|e| SparkClientError::ConnectionError(format!("Failed to query transactions: {}", e)))
         };
 
         self.retry_query(query_fn, request).await.map(|r| r.into_inner())

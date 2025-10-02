@@ -10,6 +10,7 @@ pub struct AppState {
     pub client: SparkRpcClient,
 }
 
+#[allow(dead_code)]
 #[derive(OpenApi)]
 #[openapi(paths(handlers::get_balance::handle))]
 struct ApiDoc;

@@ -79,7 +79,7 @@ impl SparkService {
         let identity_public_key = self.get_musig_public_key(musig_id.clone(), nonce_tweak).await?;
 
         let session_token = self.spark_client.get_auth_session(identity_public_key).await;
-        if let Some(_) = session_token {
+        if session_token.is_some() {
             return Ok(());
         }
 

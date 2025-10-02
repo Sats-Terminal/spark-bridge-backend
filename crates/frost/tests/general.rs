@@ -1,16 +1,13 @@
 use bitcoin::secp256k1::{PublicKey, Secp256k1, SecretKey};
-use frost::types::{MusigId, SigningMetadata};
+use frost::types::{MusigId, SigningMetadata, TweakBytes};
 use frost::{aggregator::FrostAggregator, mocks::*, signer::FrostSigner, traits::SignerClient};
 use frost_secp256k1_tr::{Identifier, keys::Tweak};
-use lrc20::token_transaction::{
-    TokenTransaction, TokenTransactionCreateInput, TokenTransactionInput, TokenTransactionVersion,
-};
 use std::{collections::BTreeMap, sync::Arc};
 
 fn create_signer(identifier: u16) -> FrostSigner {
     FrostSigner::new(
         identifier,
-        Arc::new(MockSignerMusigIdStorage::new()),
+        Arc::new(MockSignerMusigIdStorage::default()),
         Arc::new(MockSignerSignSessionStorage::default()),
         3,
         2,
@@ -37,43 +34,14 @@ fn create_verifiers_map_easy() -> BTreeMap<Identifier, Arc<dyn SignerClient>> {
     ])
 }
 
-fn create_signing_metadata() -> SigningMetadata {
-    let token_transaction_metadata = TokenTransactionMetadata::PartialCreateToken {
-        token_transaction: TokenTransaction {
-            version: TokenTransactionVersion::V2,
-            input: TokenTransactionInput::Create(TokenTransactionCreateInput {
-                issuer_public_key: PublicKey::from_secret_key(
-                    &Secp256k1::new(),
-                    &SecretKey::from_slice(&[1u8; 32]).unwrap(),
-                ),
-                token_name: "test_token".to_string(),
-                token_ticker: "TEST".to_string(),
-                decimals: 8,
-                max_supply: 1000000000000000000,
-                is_freezable: false,
-                creation_entity_public_key: None,
-            }),
-            leaves_to_create: vec![],
-            spark_operator_identity_public_keys: vec![],
-            expiry_time: 0,
-            network: None,
-            client_created_timestamp: 0,
-        },
-    };
-
-    SigningMetadata {
-        token_transaction_metadata,
-    }
-}
-
 #[tokio::test]
 async fn test_aggregator_signer_integration() {
     let verifiers_map = create_verifiers_map_easy();
 
     let aggregator = FrostAggregator::new(
         verifiers_map,
-        Arc::new(MockAggregatorMusigIdStorage::new()),
-        Arc::new(MockAggregatorSignSessionStorage::new()),
+        Arc::new(MockAggregatorMusigIdStorage::default()),
+        Arc::new(MockAggregatorSignSessionStorage::default()),
     );
 
     let secp = Secp256k1::new();
@@ -89,7 +57,7 @@ async fn test_aggregator_signer_integration() {
     let tweak = None;
 
     let public_key_package = aggregator.run_dkg_flow(&musig_id).await.unwrap();
-    let metadata = create_signing_metadata();
+    let metadata = SigningMetadata::Authorization;
 
     let signature = aggregator
         .run_signing_flow(musig_id.clone(), message_hash, metadata, tweak)
@@ -112,8 +80,8 @@ async fn test_parallel_signing_sessions_via_aggregator() {
 
     let aggregator = FrostAggregator::new(
         verifiers_map,
-        Arc::new(MockAggregatorMusigIdStorage::new()),
-        Arc::new(MockAggregatorSignSessionStorage::new()),
+        Arc::new(MockAggregatorMusigIdStorage::default()),
+        Arc::new(MockAggregatorSignSessionStorage::default()),
     );
 
     let secp = Secp256k1::new();
@@ -125,10 +93,10 @@ async fn test_parallel_signing_sessions_via_aggregator() {
     //let user_id = "test_user".to_string();
     let msg_a = b"parallel message A".to_vec();
     let msg_b = b"parallel message B".to_vec();
-    let tweak = None::<&[u8]>;
+    let tweak = None::<TweakBytes>;
 
     let public_key_package = aggregator.run_dkg_flow(&user_id).await.unwrap();
-    let metadata = create_signing_metadata();
+    let metadata = SigningMetadata::Authorization;
 
     let (sig_res_a, sig_res_b) = tokio::join!(
         aggregator.run_signing_flow(user_id.clone(), msg_a.as_slice(), metadata.clone(), tweak),

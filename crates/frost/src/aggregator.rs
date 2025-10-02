@@ -222,7 +222,7 @@ impl FrostAggregator {
         self.lock_musig_id(musig_id).await?;
 
         let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id).await?;
-        if let Some(_) = musig_id_data {
+        if musig_id_data.is_some() {
             self.unlock_musig_id(musig_id).await?;
             return Err(AggregatorError::MusigAlreadyExists(musig_id.clone()));
         }
@@ -258,7 +258,10 @@ impl FrostAggregator {
 
         match musig_id_data {
             Some(AggregatorMusigIdData {
-                dkg_state: AggregatorDkgState::DkgFinalized { public_key_package },
+                dkg_state:
+                    AggregatorDkgState::DkgFinalized {
+                        public_key_package: _public_key_package,
+                    },
             }) => {
                 let mut commitments = BTreeMap::new();
                 let mut join_handles = vec![];
