@@ -5,9 +5,9 @@ use std::{collections::BTreeSet, sync::Arc};
 use tokio::sync::Mutex;
 use tracing::debug;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct FrostSigner {
-    musig_id_storage: Arc<dyn SignerMusigIdStorage>, // TODO: implement signer storage
+    musig_id_storage: Arc<dyn SignerMusigIdStorage>,
     identifier: Identifier,
     sign_session_storage: Arc<dyn SignerSignSessionStorage>,
     total_participants: u16,

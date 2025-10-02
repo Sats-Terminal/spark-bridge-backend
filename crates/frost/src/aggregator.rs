@@ -10,7 +10,7 @@ use tokio::sync::Mutex;
 use tracing::debug;
 use uuid::Uuid;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct FrostAggregator {
     verifiers: BTreeMap<Identifier, Arc<dyn SignerClient>>,
     musig_id_storage: Arc<dyn AggregatorMusigIdStorage>,

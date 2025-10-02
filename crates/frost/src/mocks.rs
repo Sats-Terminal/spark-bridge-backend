@@ -126,7 +126,7 @@ impl AggregatorSignSessionStorage for MockAggregatorSignSessionStorage {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct MockSignerClient {
     signer: FrostSigner,
 }

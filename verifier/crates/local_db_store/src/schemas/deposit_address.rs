@@ -114,7 +114,7 @@ impl DepositAddrInfo {
 }
 
 #[async_trait]
-pub trait DepositAddressStorage: Send + Sync + Debug {
+pub trait DepositAddressStorage: Send + Sync {
     async fn get_deposit_addr_info(
         &self,
         musig_id: &MusigId,

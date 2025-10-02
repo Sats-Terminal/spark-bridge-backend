@@ -1,7 +1,6 @@
 use crate::bitcoin_client::BitcoinClient;
 use crate::constants::{BLOCKS_TO_GENERATE, DEFAULT_DUST_AMOUNT, DEFAULT_FAUCET_AMOUNT, DEFAULT_FEE_AMOUNT};
 use crate::error::RuneError;
-use crate::gateway_client::UserPayingTransferInput;
 use crate::spark_client::GetSparkAddressDataRequest;
 use crate::spark_client::SparkClient;
 use crate::utils::create_credentials;

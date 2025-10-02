@@ -6,7 +6,7 @@ use std::fmt::Debug;
 use uuid::Uuid;
 
 #[async_trait]
-pub trait SignerClient: Send + Sync + Debug {
+pub trait SignerClient: Send + Sync {
     async fn dkg_round_1(&self, request: DkgRound1Request) -> Result<DkgRound1Response, AggregatorError>;
 
     async fn dkg_round_2(&self, request: DkgRound2Request) -> Result<DkgRound2Response, AggregatorError>;
@@ -19,14 +19,14 @@ pub trait SignerClient: Send + Sync + Debug {
 }
 
 #[async_trait]
-pub trait AggregatorMusigIdStorage: Send + Sync + Debug {
+pub trait AggregatorMusigIdStorage: Send + Sync {
     async fn get_musig_id_data(&self, musig_id: &MusigId) -> Result<Option<AggregatorMusigIdData>, DbError>;
     async fn set_musig_id_data(&self, musig_id: &MusigId, musig_id_data: AggregatorMusigIdData) -> Result<(), DbError>;
     async fn get_issuer_musig_id(&self, rune_id: String) -> Result<Option<MusigId>, DbError>;
 }
 
 #[async_trait]
-pub trait AggregatorSignSessionStorage: Send + Sync + Debug {
+pub trait AggregatorSignSessionStorage: Send + Sync {
     async fn get_sign_data(&self, musig_id: &MusigId, session_id: Uuid) -> Result<Option<AggregatorSignData>, DbError>;
     async fn set_sign_data(
         &self,
@@ -37,13 +37,13 @@ pub trait AggregatorSignSessionStorage: Send + Sync + Debug {
 }
 
 #[async_trait]
-pub trait SignerMusigIdStorage: Send + Sync + Debug {
+pub trait SignerMusigIdStorage: Send + Sync {
     async fn get_musig_id_data(&self, musig_id: &MusigId) -> Result<Option<SignerMusigIdData>, DbError>;
     async fn set_musig_id_data(&self, musig_id: &MusigId, musig_id_data: SignerMusigIdData) -> Result<(), DbError>;
 }
 
 #[async_trait]
-pub trait SignerSignSessionStorage: Send + Sync + Debug {
+pub trait SignerSignSessionStorage: Send + Sync {
     async fn get_sign_data(&self, musig_id: &MusigId, session_id: Uuid) -> Result<Option<SignerSignData>, DbError>;
     async fn set_sign_data(
         &self,
