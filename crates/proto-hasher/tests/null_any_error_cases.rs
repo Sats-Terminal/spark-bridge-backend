@@ -17,7 +17,6 @@ fn lookup_msg(full_name: &str) -> MessageDescriptor {
 }
 
 fn mk_value_null() -> DynamicMessage {
-    // google.protobuf.Value with kind = null_value
     let d = lookup_msg("google.protobuf.Value");
     let mut m = DynamicMessage::new(d.clone());
     m.set_field(&d.get_field_by_name("null_value").unwrap(), Value::EnumNumber(0)); // NullValue = 0
@@ -25,7 +24,6 @@ fn mk_value_null() -> DynamicMessage {
 }
 
 fn mk_value_empty() -> DynamicMessage {
-    // google.protobuf.Value with no kind populated
     let d = lookup_msg("google.protobuf.Value");
     DynamicMessage::new(d)
 }
@@ -35,7 +33,7 @@ fn mk_list_value_with(values: Vec<DynamicMessage>) -> DynamicMessage {
     let mut list_msg = DynamicMessage::new(lvd.clone());
     let values_fd = lvd.get_field_by_name("values").unwrap();
     {
-        let mut list = list_msg
+        let list = list_msg
             .get_field_mut(&values_fd)
             .as_list_mut()
             .expect("values is list");
