@@ -1,232 +1,249 @@
+#[cfg(test)]
 mod tests {
-    use gateway_local_db_store::schemas::session_storage::SessionStorage;
-    use gateway_local_db_store::storage::{LocalDbStorage, make_repo_with_config};
-    use gateway_session_storage::tracker::SessionTracker;
-    use gateway_session_storage::traits::{RequestType, SessionStatus, SessionStorage};
+    use bitcoin::Network;
+    use gateway_local_db_store::schemas::session_storage::{RequestType, SessionInfo, SessionStatus, SessionStorage};
+    use gateway_local_db_store::storage::LocalDbStorage;
     use global_utils::common_types::get_uuid;
-    use persistent_storage::error::DbError as DatabaseError;
-    use persistent_storage::init::{PostgresPool, PostgresRepo};
-    use serde_json::json;
+    use persistent_storage::error::DbError;
+    use persistent_storage::init::PostgresRepo;
+    use sqlx::types::Json;
     use std::sync::Arc;
 
-    async fn cleanup_sessions(repo: Arc<LocalDbStorage>) {
-        sqlx::query("TRUNCATE gateway.session_requests")
-            .execute(&repo.get_conn().await.unwrap())
+    pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
+
+    fn make_test_repo(db: sqlx::PgPool) -> Arc<LocalDbStorage> {
+        Arc::new(LocalDbStorage {
+            postgres_repo: PostgresRepo { pool: db },
+            network: Network::Regtest,
+        })
+    }
+
+    async fn cleanup_and_setup(repo: &LocalDbStorage) {
+        sqlx::query("TRUNCATE gateway.session_requests RESTART IDENTITY CASCADE")
+            .execute(&repo.postgres_repo.pool)
             .await
             .unwrap();
     }
 
-    pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
-
-    #[sqlx::test(migrator = "MIGRATOR")]
-    async fn test_create_session(db: PostgresPool) -> Result<(), DatabaseError> {
-        let repo = make_repo_with_config(db).await;
-        //setup_test_table(&repo).await;
-        cleanup_sessions(repo.clone()).await;
-
-        let request_data = json!({
-            "rune_id": "test_rune_123",
-            "amount": 1000,
-            "recipient": "test_address"
-        });
-
-        let session_id = repo
-            .create_session(RequestType::SendRunes, request_data.clone())
-            .await?;
-
-        assert_eq!(session_id.to_string().len(), 36);
-
-        let session = repo.get_session(session_id).await?;
-        assert_eq!(session.session_id, session_id);
-        assert_eq!(session.request_type, RequestType::SendRunes);
-        assert_eq!(session.status, SessionStatus::Pending);
-        assert_eq!(session.request, request_data);
-        assert!(session.response.is_none());
-        assert!(session.error.is_none());
-
-        Ok(())
-    }
-
-    #[sqlx::test(migrator = "MIGRATOR")]
-    async fn test_session_status_updates(db: PostgresPool) -> Result<(), DatabaseError> {
-        let repo = make_repo_with_config(db).await;
-        //setup_test_table(&repo).await;
-        cleanup_sessions(repo.clone()).await;
-
-        let request_data = json!({"test": "data"});
-        let session_id = repo
-            .create_session(RequestType::CreateTransaction, request_data)
-            .await?;
-
-        repo.update_session_status(session_id, SessionStatus::InProgress)
-            .await?;
-
-        let session = repo.get_session(session_id).await?;
-        assert_eq!(session.status, SessionStatus::InProgress);
-
-        repo.set_session_error(session_id, "Test error occurred").await?;
-
-        let session = repo.get_session(session_id).await?;
-        assert_eq!(session.status, SessionStatus::Failed);
-        assert_eq!(session.error, Some("Test error occurred".to_string()));
-
-        Ok(())
-    }
-
-    #[sqlx::test(migrator = "MIGRATOR")]
-    async fn test_session_success(db: PostgresPool) -> Result<(), DatabaseError> {
-        let repo = make_repo_with_config(db).await;
-        //setup_test_table(&repo).await;
-        cleanup_sessions(repo.clone()).await;
-
-        let request_data = json!({"action": "test"});
-        let session_id = repo
-            .create_session(RequestType::BroadcastTransaction, request_data)
-            .await?;
-
-        let response_data = json!({
-            "txid": "abc123def456",
-            "block_height": 800000
-        });
-
-        repo.set_session_success(session_id, response_data.clone()).await?;
-
-        let session = repo.get_session(session_id).await?;
-        assert_eq!(session.status, SessionStatus::Success);
-        assert_eq!(session.response, Some(response_data));
-        assert!(session.error.is_none());
-
-        Ok(())
-    }
-
-    #[sqlx::test(migrator = "MIGRATOR")]
-    async fn test_list_sessions(db: PostgresPool) -> Result<(), DatabaseError> {
-        let repo = make_repo_with_config(db).await;
-        //setup_test_table(&repo).await;
-        cleanup_sessions(repo.clone()).await;
-
-        let session1 = repo
-            .create_session(RequestType::SendRunes, json!({"test": "1"}))
-            .await?;
-
-        let session2 = repo
-            .create_session(RequestType::CreateTransaction, json!({"test": "2"}))
-            .await?;
-
-        repo.update_session_status(session1, SessionStatus::Success).await?;
-        repo.update_session_status(session2, SessionStatus::Failed).await?;
-
-        let all_sessions = repo.list_sessions(Some(10), None).await?;
-        assert_eq!(all_sessions.len(), 2);
-
-        let success_sessions = repo.list_sessions_by_status(SessionStatus::Success, Some(10)).await?;
-        assert_eq!(success_sessions.len(), 1);
-        assert_eq!(success_sessions[0].session_id, session1);
-
-        let failed_sessions = repo.list_sessions_by_status(SessionStatus::Failed, Some(10)).await?;
-        assert_eq!(failed_sessions.len(), 1);
-        assert_eq!(failed_sessions[0].session_id, session2);
-
-        Ok(())
-    }
-
-    #[sqlx::test(migrator = "MIGRATOR")]
-    async fn test_session_tracker_helper(db: PostgresPool) -> Result<(), DatabaseError> {
-        let repo = make_repo_with_config(db).await;
-        //setup_test_table(&repo).await;
-        cleanup_sessions(repo.clone()).await;
-
-        let tracker = SessionTracker { repo: repo.clone() };
-
-        let session_id = tracker
-            .start_session(
-                RequestType::GenerateFrostSignature,
-                json!({"message": "test_signature"}),
-            )
-            .await?;
-
-        let status = tracker.get_session_status(session_id).await?;
-        assert!(matches!(status, SessionStatus::InProgress));
-
-        let result_data = json!({"signature": "abcd1234"});
-        tracker.complete_session(session_id, result_data.clone()).await?;
-
-        let session = repo.get_session(session_id).await?;
-        assert_eq!(session.status, SessionStatus::Success);
-        assert_eq!(session.response, Some(result_data));
-
-        Ok(())
-    }
-
-    #[sqlx::test(migrator = "MIGRATOR")]
-    async fn test_session_not_found(db: PostgresPool) -> Result<(), DatabaseError> {
-        let repo = make_repo_with_config(db).await;
-        //setup_test_table(&repo).await;
-        cleanup_sessions(repo.clone()).await;
-
-        let non_existent_id = get_uuid();
-
-        let result = repo.get_session(non_existent_id).await;
-        assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), DatabaseError::NotFound(_)));
-
-        Ok(())
-    }
-
-    #[sqlx::test(migrator = "MIGRATOR")]
-    async fn test_concurrent_session_operations(db: PostgresPool) -> Result<(), DatabaseError> {
-        let repo = make_repo_with_config(db).await;
-        //setup_test_table(&repo).await;
-        cleanup_sessions(repo.clone()).await;
-
-        let handles: Vec<_> = (0..5)
-            .map(|i| {
-                let repo_clone = repo.clone();
-                tokio::spawn(async move {
-                    repo_clone
-                        .create_session(RequestType::SendRunes, json!({"batch_id": i}))
-                        .await
-                })
-            })
-            .collect();
-
-        let results: Result<Vec<_>, _> = futures::future::try_join_all(handles).await;
-        let session_ids: Result<Vec<_>, _> = results.unwrap().into_iter().collect();
-        let session_ids = session_ids?;
-
-        assert_eq!(session_ids.len(), 5);
-
-        let mut unique_ids = std::collections::HashSet::new();
-        for id in &session_ids {
-            assert!(unique_ids.insert(*id), "Duplicate session ID found");
+    fn create_test_session() -> SessionInfo {
+        SessionInfo {
+            request_type: RequestType::GetRunesDepositAddress,
+            request_status: Json(SessionStatus::Pending),
         }
+    }
 
-        let all_sessions = repo.list_sessions(Some(10), None).await?;
-        assert_eq!(all_sessions.len(), 5);
+    fn create_test_session_with_type(request_type: RequestType, status: SessionStatus) -> SessionInfo {
+        SessionInfo {
+            request_type,
+            request_status: Json(status),
+        }
+    }
 
+    #[sqlx::test(migrator = "MIGRATOR")]
+    async fn test_create_session(db: sqlx::PgPool) -> Result<(), DbError> {
+        let repo = make_test_repo(db);
+        cleanup_and_setup(&repo).await;
+
+        let session = create_test_session();
+        let session_id = repo.create_session(session.clone()).await?;
+
+        let row: (SessionStatus,) =
+            sqlx::query_as("SELECT request_status FROM gateway.session_requests WHERE session_id = $1")
+                .bind(session_id)
+                .fetch_one(&repo.postgres_repo.pool)
+                .await?;
+
+        assert_eq!(row.0, *session.request_status);
         Ok(())
     }
 
-    #[tokio::test]
-    async fn test_request_type_enum_conversion() {
-        let types = vec![
-            RequestType::SendRunes,
-            RequestType::CreateTransaction,
-            RequestType::BroadcastTransaction,
-            RequestType::GenerateFrostSignature,
+    #[sqlx::test(migrator = "MIGRATOR")]
+    async fn test_update_session_status(db: sqlx::PgPool) -> Result<(), DbError> {
+        let repo = make_test_repo(db);
+        cleanup_and_setup(&repo).await;
+
+        let session = create_test_session();
+        let session_id = repo.create_session(session).await?;
+
+        repo.update_session_status(session_id, SessionStatus::Completed).await?;
+
+        let row: (SessionStatus,) =
+            sqlx::query_as("SELECT request_status FROM gateway.session_requests WHERE session_id = $1")
+                .bind(session_id)
+                .fetch_one(&repo.postgres_repo.pool)
+                .await?;
+
+        assert_eq!(row.0, SessionStatus::Completed);
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "MIGRATOR")]
+    async fn test_get_session(db: sqlx::PgPool) -> Result<(), DbError> {
+        let repo = make_test_repo(db);
+        cleanup_and_setup(&repo).await;
+
+        let original_session = create_test_session_with_type(RequestType::BridgeRunes, SessionStatus::Processing);
+        let session_id = repo.create_session(original_session.clone()).await?;
+
+        let retrieved_session = repo.get_session(session_id).await?;
+
+        assert_eq!(retrieved_session.request_type, original_session.request_type);
+        assert_eq!(*retrieved_session.request_status, *original_session.request_status);
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "MIGRATOR")]
+    async fn test_get_nonexistent_session(db: sqlx::PgPool) -> Result<(), DbError> {
+        let repo = make_test_repo(db);
+        cleanup_and_setup(&repo).await;
+
+        let fake_id = get_uuid();
+        let result = repo.get_session(fake_id).await;
+
+        assert!(result.is_err());
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "MIGRATOR")]
+    async fn test_update_nonexistent_session(db: sqlx::PgPool) -> Result<(), DbError> {
+        let repo = make_test_repo(db);
+        cleanup_and_setup(&repo).await;
+
+        let fake_id = get_uuid();
+        let result = repo.update_session_status(fake_id, SessionStatus::Failed).await;
+
+        assert!(result.is_ok());
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "MIGRATOR")]
+    async fn test_create_different_session_types(db: sqlx::PgPool) -> Result<(), DbError> {
+        let repo = make_test_repo(db);
+        cleanup_and_setup(&repo).await;
+
+        let session_types = vec![
+            RequestType::GetRunesDepositAddress,
+            RequestType::GetSparkDepositAddress,
+            RequestType::BridgeRunes,
+            RequestType::ExitSpark,
         ];
 
-        for original_type in types {
-            let type_string = original_type;
-            let converted_back = RequestType::from(type_string.clone());
+        for session_type in session_types {
+            let session = create_test_session_with_type(session_type.clone(), SessionStatus::Pending);
+            let session_id = repo.create_session(session).await?;
 
-            match (&original_type, &converted_back) {
-                (RequestType::SendRunes, RequestType::SendRunes) => {}
-                (RequestType::CreateTransaction, RequestType::CreateTransaction) => {}
-                (RequestType::BroadcastTransaction, RequestType::BroadcastTransaction) => {}
-                (RequestType::GenerateFrostSignature, RequestType::GenerateFrostSignature) => {}
-                _ => panic!("Type conversion failed for {:?}", type_string),
-            }
+            let row: (RequestType,) =
+                sqlx::query_as("SELECT request_type FROM gateway.session_requests WHERE session_id = $1")
+                    .bind(session_id)
+                    .fetch_one(&repo.postgres_repo.pool)
+                    .await?;
+
+            assert_eq!(row.0, session_type);
         }
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "MIGRATOR")]
+    async fn test_all_session_statuses(db: sqlx::PgPool) -> Result<(), DbError> {
+        let repo = make_test_repo(db);
+        cleanup_and_setup(&repo).await;
+
+        let statuses = vec![
+            SessionStatus::Pending,
+            SessionStatus::Processing,
+            SessionStatus::Completed,
+            SessionStatus::Failed,
+            SessionStatus::Cancelled,
+        ];
+
+        for status in statuses {
+            let session = create_test_session_with_type(RequestType::GetRunesDepositAddress, status);
+            let session_id = repo.create_session(session).await?;
+
+            let retrieved_session = repo.get_session(session_id).await?;
+            assert_eq!(*retrieved_session.request_status, status);
+        }
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "MIGRATOR")]
+    async fn test_status_progression(db: sqlx::PgPool) -> Result<(), DbError> {
+        let repo = make_test_repo(db);
+        cleanup_and_setup(&repo).await;
+
+        let session = create_test_session();
+        let session_id = repo.create_session(session).await?;
+
+        let status_progression = vec![SessionStatus::Processing, SessionStatus::Completed];
+
+        for status in status_progression {
+            repo.update_session_status(session_id, status).await?;
+            let updated_session = repo.get_session(session_id).await?;
+            assert_eq!(*updated_session.request_status, status);
+        }
+        Ok(())
+    }
+
+    const ITERATIONS: usize = 5;
+    const ITERATIONS_V2: usize = 100;
+
+    #[sqlx::test(migrator = "MIGRATOR")]
+    async fn test_create_multiple_sessions(db: sqlx::PgPool) -> Result<(), DbError> {
+        let repo = make_test_repo(db);
+        cleanup_and_setup(&repo).await;
+
+        let mut session_ids = Vec::new();
+        for _i in 0..ITERATIONS {
+            let session = create_test_session_with_type(RequestType::GetRunesDepositAddress, SessionStatus::Pending);
+            let session_id = repo.create_session(session).await?;
+            session_ids.push(session_id);
+        }
+
+        assert_eq!(session_ids.len(), 5);
+        for session_id in session_ids {
+            let session = repo.get_session(session_id).await?;
+            assert_eq!(*session.request_status, SessionStatus::Pending);
+        }
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "MIGRATOR")]
+    async fn test_session_serialization(db: sqlx::PgPool) -> Result<(), DbError> {
+        let repo = make_test_repo(db);
+        cleanup_and_setup(&repo).await;
+
+        let session = create_test_session_with_type(RequestType::BridgeRunes, SessionStatus::Processing);
+
+        let json_str = serde_json::to_string(&session).unwrap();
+        let deserialized: SessionInfo = serde_json::from_str(&json_str).unwrap();
+
+        assert_eq!(session.request_type, deserialized.request_type);
+        assert_eq!(*session.request_status, *deserialized.request_status);
+
+        let session_id = repo.create_session(session).await?;
+        let retrieved_session = repo.get_session(session_id).await?;
+
+        assert_eq!(retrieved_session.request_type, deserialized.request_type);
+        assert_eq!(*retrieved_session.request_status, *deserialized.request_status);
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "MIGRATOR")]
+    async fn test_performance_create_many_sessions(db: sqlx::PgPool) -> Result<(), DbError> {
+        let repo = make_test_repo(db);
+        cleanup_and_setup(&repo).await;
+
+        use std::time::Instant;
+        let start = Instant::now();
+
+        for _ in 0..ITERATIONS_V2 {
+            let session = create_test_session();
+            repo.create_session(session).await?;
+        }
+
+        let duration = start.elapsed();
+        println!("Created 100 sessions in: {:?}", duration);
+
+        Ok(())
     }
 }

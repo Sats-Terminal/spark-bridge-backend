@@ -80,20 +80,14 @@ impl AggregatorMusigIdStorage for LocalDbStorage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::make_repo_with_config;
     use bitcoin::secp256k1::{PublicKey, Secp256k1, SecretKey};
     use frost::aggregator::FrostAggregator;
     use frost::mocks::*;
     use frost::signer::FrostSigner;
     use frost::traits::SignerClient;
-    use frost::traits::*;
     use frost::types::SigningMetadata;
-    use frost::types::TokenTransactionMetadata;
-    use frost_secp256k1_tr::Identifier;
     use frost_secp256k1_tr::keys::Tweak;
-    use lrc20::token_transaction::{
-        TokenTransaction, TokenTransactionCreateInput, TokenTransactionInput, TokenTransactionVersion,
-    };
+    use frost_secp256k1_tr::Identifier;
     use persistent_storage::init::{PostgresPool, PostgresRepo};
     use std::collections::BTreeMap;
     use std::sync::Arc;
@@ -131,37 +125,17 @@ mod tests {
     }
 
     fn create_signing_metadata() -> SigningMetadata {
-        let token_transaction_metadata = TokenTransactionMetadata::PartialCreateToken {
-            token_transaction: TokenTransaction {
-                version: TokenTransactionVersion::V2,
-                input: TokenTransactionInput::Create(TokenTransactionCreateInput {
-                    issuer_public_key: PublicKey::from_secret_key(
-                        &Secp256k1::new(),
-                        &SecretKey::from_slice(&[1u8; 32]).unwrap(),
-                    ),
-                    token_name: "test_token".to_string(),
-                    token_ticker: "TEST".to_string(),
-                    decimals: 8,
-                    max_supply: 1000000000000000000,
-                    is_freezable: false,
-                    creation_entity_public_key: None,
-                }),
-                leaves_to_create: vec![],
-                spark_operator_identity_public_keys: vec![],
-                expiry_time: 0,
-                network: None,
-                client_created_timestamp: 0,
-            },
-        };
-
-        SigningMetadata {
-            token_transaction_metadata,
-        }
+        SigningMetadata::Authorization
     }
 
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_aggregator_signer_integration(db: PostgresPool) -> anyhow::Result<()> {
-        let storage = make_repo_with_config(db).await;
+        use bitcoin::Network;
+
+        let storage = Arc::new(LocalDbStorage {
+            postgres_repo: PostgresRepo { pool: db },
+            network: Network::Regtest,
+        });
 
         let verifiers_map = create_verifiers_map_easy().await;
         let aggregator = FrostAggregator::new(verifiers_map, storage.clone(), storage);
@@ -173,21 +147,19 @@ mod tests {
             rune_id: "test_rune_id".to_string(),
         };
 
-        //let user_id = "test_user";
         let message_hash = b"test_message";
 
         let public_key_package = aggregator.run_dkg_flow(&user_id).await?;
 
-        let tweak = Some(b"test_tweak".as_slice());
-        // let tweak = None;
+        let tweak: Option<[u8; 32]> = Some(*b"test_tweak_must_be_32_bytes_long");
         let metadata = create_signing_metadata();
 
         let signature = aggregator
             .run_signing_flow(user_id, message_hash, metadata, tweak)
             .await?;
 
-        let tweaked_public_key_package = match tweak.clone() {
-            Some(tweak) => public_key_package.clone().tweak(Some(tweak.to_vec())),
+        let tweaked_public_key_package = match tweak {
+            Some(tweak_bytes) => public_key_package.clone().tweak(Some(tweak_bytes.to_vec())),
             None => public_key_package.clone(),
         };
         tweaked_public_key_package
