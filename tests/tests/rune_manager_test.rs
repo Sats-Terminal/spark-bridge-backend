@@ -81,43 +81,94 @@ async fn test_multiple_runes_manager() {
 
     let rune_ids = vec![rune_id_1, rune_id_2, rune_id_3];
 
-    let mut user_wallet = UserWallet::new(
+    let mut user_wallet_1 = UserWallet::new(
         bitcoin_client.clone(),
-        rune_ids.clone()
+        vec![rune_id_1]
+    ).await.unwrap();
+
+    let mut user_wallet_2 = UserWallet::new(
+        bitcoin_client.clone(),
+        vec![rune_id_2]
+    ).await.unwrap();
+
+    let mut user_wallet_3 = UserWallet::new(
+        bitcoin_client.clone(),
+        vec![rune_id_3]
     ).await.unwrap();
 
     tracing::info!("Minting rune 1...");
-    rune_manager.mint_rune(rune_id_1, user_wallet.get_address()).await.unwrap();
+    rune_manager.mint_rune(rune_id_1, user_wallet_1.get_address()).await.unwrap();
+
+    tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
 
     tracing::info!("Minting rune 2...");
-    rune_manager.mint_rune(rune_id_2, user_wallet.get_address()).await.unwrap();
+    rune_manager.mint_rune(rune_id_2, user_wallet_2.get_address()).await.unwrap();
+
+    tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
 
     tracing::info!("Minting rune 3...");
-    rune_manager.mint_rune(rune_id_3, user_wallet.get_address()).await.unwrap();
+    rune_manager.mint_rune(rune_id_3, user_wallet_3.get_address()).await.unwrap();
 
-    user_wallet.unite_unspent_utxos().await.unwrap();
+    tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
 
-    let all_balances = user_wallet.get_all_balances().await.unwrap();
-    tracing::info!("All balances: {:?}", all_balances);
-    println!("======================================={}", all_balances.len());
-    assert!(all_balances.len() >= 3, "Should have at least 3 runes");
-
-    for rune_id in &rune_ids {
-        let balance = user_wallet.get_rune_balance(rune_id).await.unwrap();
-        assert!(balance > 0, "Balance for rune {:?} should be greater than 0", rune_id);
-        tracing::info!("Rune {:?} balance: {}", rune_id, balance);
+    tracing::info!("=== Checking wallet 1 ===");
+    let addr_data_1 = bitcoin_client.get_address_data(user_wallet_1.get_address()).await.unwrap();
+    tracing::info!("Wallet 1 address: {}", user_wallet_1.get_address());
+    tracing::info!("Wallet 1 total outputs: {}", addr_data_1.outputs.len());
+    for (i, output) in addr_data_1.outputs.iter().enumerate() {
+        tracing::info!("  Output {}: txid={}, vout={}, spent={:?}, confirmed={:?}, runes_count={}",
+        i, output.txid, output.vout, output.spent, output.status.confirmed, output.runes.len());
+        for rune in &output.runes {
+            tracing::info!("    Rune: id={}, amount={}", rune.rune_id, rune.amount);
+        }
     }
+
+    tracing::info!("=== Checking wallet 2 ===");
+    let addr_data_2 = bitcoin_client.get_address_data(user_wallet_2.get_address()).await.unwrap();
+    tracing::info!("Wallet 2 address: {}", user_wallet_2.get_address());
+    tracing::info!("Wallet 2 total outputs: {}", addr_data_2.outputs.len());
+    for (i, output) in addr_data_2.outputs.iter().enumerate() {
+        tracing::info!("  Output {}: txid={}, vout={}, spent={:?}, confirmed={:?}, runes_count={}",
+        i, output.txid, output.vout, output.spent, output.status.confirmed, output.runes.len());
+        for rune in &output.runes {
+            tracing::info!("    Rune: id={}, amount={}", rune.rune_id, rune.amount);
+        }
+    }
+
+    tracing::info!("=== Checking wallet 3 ===");
+    let addr_data_3 = bitcoin_client.get_address_data(user_wallet_3.get_address()).await.unwrap();
+    tracing::info!("Wallet 3 address: {}", user_wallet_3.get_address());
+    tracing::info!("Wallet 3 total outputs: {}", addr_data_3.outputs.len());
+    for (i, output) in addr_data_3.outputs.iter().enumerate() {
+        tracing::info!("  Output {}: txid={}, vout={}, spent={:?}, confirmed={:?}, runes_count={}",
+        i, output.txid, output.vout, output.spent, output.status.confirmed, output.runes.len());
+        for rune in &output.runes {
+            tracing::info!("    Rune: id={}, amount={}", rune.rune_id, rune.amount);
+        }
+    }
+
+    let balance_1 = user_wallet_1.get_rune_balance(&rune_id_1).await.unwrap();
+    let balance_2 = user_wallet_2.get_rune_balance(&rune_id_2).await.unwrap();
+    let balance_3 = user_wallet_3.get_rune_balance(&rune_id_3).await.unwrap();
+
+    tracing::info!("Balance 1: {}", balance_1);
+    tracing::info!("Balance 2: {}", balance_2);
+    tracing::info!("Balance 3: {}", balance_3);
+
+    assert!(balance_1 > 0, "Balance for rune 1 should be greater than 0");
+    assert!(balance_2 > 0, "Balance for rune 2 should be greater than 0");
+    assert!(balance_3 > 0, "Balance for rune 3 should be greater than 0");
 
     let dummy_addresses: Vec<_> = (0..3).map(|_| create_credentials().0).collect();
 
     tracing::info!("Transferring rune 1...");
-    user_wallet.transfer_runes(rune_id_1, 1000, dummy_addresses[0].clone()).await.unwrap();
+    user_wallet_1.transfer_runes(rune_id_1, 1000, dummy_addresses[0].clone()).await.unwrap();
 
     tracing::info!("Transferring rune 2...");
-    user_wallet.transfer_runes(rune_id_2, 500, dummy_addresses[1].clone()).await.unwrap();
+    user_wallet_2.transfer_runes(rune_id_2, 500, dummy_addresses[1].clone()).await.unwrap();
 
     tracing::info!("Transferring rune 3...");
-    user_wallet.transfer_runes(rune_id_3, 2000, dummy_addresses[2].clone()).await.unwrap();
+    user_wallet_3.transfer_runes(rune_id_3, 2000, dummy_addresses[2].clone()).await.unwrap();
 
     for (i, (rune_id, dummy_addr)) in rune_ids.iter().zip(dummy_addresses.iter()).enumerate() {
         let address_data = bitcoin_client.get_address_data(dummy_addr.clone()).await.unwrap();

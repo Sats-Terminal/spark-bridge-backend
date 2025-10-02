@@ -1,8 +1,7 @@
 use reqwest::Client;
-use url::Url;
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use thiserror::Error;
-use bitcoin::Address;
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use url::Url;
 
 #[derive(Clone, Debug)]
 pub struct GatewayClient {

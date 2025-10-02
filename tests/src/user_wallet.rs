@@ -170,82 +170,60 @@ impl UserWallet {
         tracing::info!("Uniting unspent UTXOs");
         tracing::info!("Wallet address: {}", self.p2tr_address);
 
-        sleep(Duration::from_secs(10)).await;
+        tokio::time::sleep(Duration::from_secs(3)).await;
 
-        let address_data = {
-            let mut retry_count = 0;
-            let max_retries = 30;
+        let address_data = self.bitcoin_client.get_address_data(self.p2tr_address.clone()).await?;
 
-            loop {
-                let data = self.bitcoin_client.get_address_data(self.p2tr_address.clone()).await?;
-
-                let mut found_runes = std::collections::HashSet::new();
-                for output in data.outputs.iter() {
-                    if let SpentStatus::Unspent = output.spent {
-                        for rune in output.runes.iter() {
-                            if let Ok(rune_id) = RuneId::from_str(&rune.rune_id.to_string()) {
-                                found_runes.insert(rune_id);
-                            }
-                        }
-                    }
-                }
-
-                tracing::debug!("Found {} unique runes in unspent outputs", found_runes.len());
-
-                if !found_runes.is_empty() || retry_count >= max_retries {
-                    break data;
-                }
-
-                tracing::debug!("No runes found yet (attempt {}/{}), waiting...", retry_count + 1, max_retries);
-                sleep(Duration::from_secs(2)).await;
-                retry_count += 1;
-            }
-        };
-
-        let mut total_btc = 0;
-        let mut rune_totals: HashMap<RuneId, u128> = HashMap::new();
-        let mut txins = vec![];
+        let mut total_amount = 0;
         let mut prev_input_amounts = vec![];
+        let mut txins = vec![];
+        let mut rune_totals: HashMap<RuneId, u128> = HashMap::new();
 
-        for output in address_data.outputs.iter() {
-            if let SpentStatus::Unspent = output.spent {
-                if output.value > 0 {
-                    total_btc += output.value;
-                    tracing::debug!("UTXO {:?}:{} has {} runes", output.txid, output.vout, output.runes.len());
-                    for runes in output.runes.iter() {
-                        let rune_id = RuneId::from_str(&runes.rune_id.to_string())
-                            .map_err(|e| RuneError::UniteUnspentUtxosError(format!("Failed to parse RuneId: {}", e)))?;
-                        tracing::debug!("Found rune {:?} with amount {}", rune_id, runes.amount);
-                        *rune_totals.entry(rune_id).or_insert(0) += runes.amount;
-                    }
+        tracing::debug!("Found {} outputs", address_data.outputs.len());
 
-                    txins.push(TxIn {
-                        previous_output: OutPoint {
-                            txid: output.txid,
-                            vout: output.vout,
-                        },
-                        script_sig: ScriptBuf::new(),
-                        sequence: Sequence::ENABLE_RBF_NO_LOCKTIME,
-                        witness: Witness::new(),
-                    });
-                    prev_input_amounts.push(output.value);
-                }
+        for utxo in address_data.outputs.iter() {
+            if !utxo.status.confirmed {
+                tracing::warn!("Skipping unconfirmed UTXO: {}:{}", utxo.txid, utxo.vout);
+                continue;
             }
-        }
+            if let SpentStatus::Unspent = utxo.spent {
+                tracing::debug!("UTXO {}:{} has {} runes", utxo.txid, utxo.vout, utxo.runes.len());
 
-        if txins.is_empty() {
-            return Err(RuneError::UniteUnspentUtxosError("No unspent UTXOs to unite".to_string()));
+                total_amount += utxo.value;
+                prev_input_amounts.push(utxo.value);
+
+                for rune in utxo.runes.iter() {
+                    let rune_id = RuneId::from_str(&rune.rune_id.to_string())
+                        .map_err(|e| RuneError::UniteUnspentUtxosError(format!("Failed to parse RuneId: {}", e)))?;
+                    tracing::debug!("Found rune {:?} with amount {}", rune_id, rune.amount);
+                    *rune_totals.entry(rune_id).or_insert(0) += rune.amount;
+                }
+
+                txins.push(TxIn {
+                    previous_output: OutPoint {
+                        txid: utxo.txid,
+                        vout: utxo.vout,
+                    },
+                    script_sig: ScriptBuf::new(),
+                    sequence: Sequence::ENABLE_RBF_NO_LOCKTIME,
+                    witness: Witness::new(),
+                });
+            }
         }
 
         tracing::info!("Total unique runes found: {}", rune_totals.len());
 
+        if txins.is_empty() {
+            return Err(RuneError::UniteUnspentUtxosError("No unspent UTXOs found".to_string()));
+        }
+
         let mut edicts = vec![];
-        for (rune_id, total_amount) in rune_totals.iter() {
-            if *total_amount > 0 {
-                tracing::info!("Creating edict for rune {:?}: amount {}", rune_id, total_amount);
+        for (rune_id, total) in rune_totals.iter() {
+            if *total > 0 {
+                tracing::info!("Creating edict for rune {:?}: amount {}", rune_id, total);
                 edicts.push(Edict {
                     id: *rune_id,
-                    amount: *total_amount,
+                    amount: *total,
                     output: 1,
                 });
             }
@@ -253,42 +231,42 @@ impl UserWallet {
 
         tracing::info!("Total edicts created: {}", edicts.len());
 
-        let runestone = Runestone {
-            edicts,
-            etching: None,
-            mint: None,
-            pointer: None,
-        };
-        let op_return_script = runestone.encipher();
+        let mut outputs = vec![];
 
-        let txouts = vec![
-            TxOut {
+        if !edicts.is_empty() {
+            let runestone = Runestone {
+                edicts,
+                etching: None,
+                mint: None,
+                pointer: None,
+            };
+            outputs.push(TxOut {
                 value: Amount::from_sat(0),
-                script_pubkey: op_return_script,
-            },
-            TxOut {
-                value: Amount::from_sat(total_btc - DEFAULT_FEE_AMOUNT),
-                script_pubkey: self.p2tr_address.script_pubkey(),
-            },
-        ];
+                script_pubkey: runestone.encipher(),
+            });
+        }
+
+        outputs.push(TxOut {
+            value: Amount::from_sat(total_amount - DEFAULT_FEE_AMOUNT),
+            script_pubkey: self.p2tr_address.script_pubkey(),
+        });
 
         let mut transaction = Transaction {
             version: Version::TWO,
             lock_time: bitcoin::absolute::LockTime::ZERO,
             input: txins,
-            output: txouts,
+            output: outputs,
         };
 
         sign_transaction(&mut transaction, prev_input_amounts, self.p2tr_address.clone(), self.keypair)?;
 
         let txid = transaction.compute_txid();
-
         self.bitcoin_client.broadcast_transaction(transaction)?;
         self.bitcoin_client.generate_blocks(6, None)?;
-        sleep(Duration::from_secs(1)).await;
+
+        tokio::time::sleep(Duration::from_secs(5)).await;
 
         tracing::info!("UTXOs united successfully");
-
         Ok(txid)
     }
 }

@@ -4,7 +4,7 @@ use bitcoin::key::Keypair;
 use rand_core::{OsRng, RngCore};
 use crate::utils::create_credentials;
 use crate::error::{RuneError};
-use ordinals::{Edict, RuneId, Runestone};
+use ordinals::{RuneId, Runestone};
 use crate::rune_etching::{EtchRuneParams, etch_rune};
 use bitcoin::{TxIn, OutPoint, Sequence, Witness, TxOut, Amount, ScriptBuf, Transaction, Txid};
 use bitcoin::transaction::Version;
@@ -14,6 +14,7 @@ use titan_client::SpentStatus;
 use std::str::FromStr;
 use crate::utils::sign_transaction;
 use std::collections::HashMap;
+use bitcoin::hashes::Hash;
 
 const DEFAULT_FEE_AMOUNT: u64 = 5_000;
 const DEFAULT_DUST_AMOUNT: u64 = 546;
@@ -79,8 +80,6 @@ impl RuneManager {
         Ok(rune_manager)
     }
 
-
-
     pub async fn etch_new_rune(
         &mut self,
         rune_name: Option<String>,
@@ -106,10 +105,8 @@ impl RuneManager {
             amount_per_mint: amount,
         });
 
-        let _ = self.unite_unspent_utxos().await?;
         self.bitcoin_client.generate_blocks(6, None)?;
         sleep(Duration::from_secs(10)).await;
-
 
         Ok(rune_id)
     }
@@ -138,21 +135,18 @@ impl RuneManager {
         let mut total_amount = 0;
         let mut prev_input_amounts = vec![];
         let mut txins = vec![];
-        let mut rune_totals: HashMap<RuneId, u128> = HashMap::new();
 
         for utxo in address_data.outputs.iter() {
             if !utxo.status.confirmed {
                 return Err(RuneError::UniteUnspentUtxosError("Unspent utxo is not confirmed".to_string()));
             }
             if let SpentStatus::Unspent = utxo.spent {
+                if !utxo.runes.is_empty() {
+                    continue;
+                }
+
                 total_amount += utxo.value;
                 prev_input_amounts.push(utxo.value);
-
-                for rune in utxo.runes.iter() {
-                    let rune_id = RuneId::from_str(&rune.rune_id.to_string())
-                        .map_err(|e| RuneError::UniteUnspentUtxosError(format!("Failed to parse RuneId: {}", e)))?;
-                    *rune_totals.entry(rune_id).or_insert(0) += rune.amount;
-                }
 
                 txins.push(TxIn {
                     previous_output: OutPoint {
@@ -166,36 +160,14 @@ impl RuneManager {
             }
         }
 
-        let mut edicts = vec![];
-        for (rune_id, total) in rune_totals.iter() {
-            if *total > 0 {
-                edicts.push(Edict {
-                    id: *rune_id,
-                    amount: *total,
-                    output: 1,
-                });
-            }
+        if txins.is_empty() {
+            return Ok(Txid::all_zeros());
         }
 
-        let mut outputs = vec![];
-
-        if !edicts.is_empty() {
-            let runestone = Runestone {
-                edicts,
-                etching: None,
-                mint: None,
-                pointer: None,
-            };
-            outputs.push(TxOut {
-                value: Amount::from_sat(0),
-                script_pubkey: runestone.encipher(),
-            });
-        }
-
-        outputs.push(TxOut {
+        let outputs = vec![TxOut {
             value: Amount::from_sat(total_amount - DEFAULT_FEE_AMOUNT),
             script_pubkey: self.p2tr_address.script_pubkey(),
-        });
+        }];
 
         let mut transaction = Transaction {
             version: Version::TWO,
@@ -209,7 +181,6 @@ impl RuneManager {
         let txid = transaction.compute_txid();
         self.bitcoin_client.broadcast_transaction(transaction)?;
         self.bitcoin_client.generate_blocks(6, None)?;
-        sleep(Duration::from_secs(5)).await;
 
         Ok(txid)
     }
@@ -220,15 +191,17 @@ impl RuneManager {
         for output in address_data.outputs.iter() {
             if output.value >= 100_000 {
                 if let SpentStatus::Unspent = output.spent {
-                    return Ok((OutPoint {
-                        txid: Txid::from_str(&output.txid.to_string()).unwrap(),
-                        vout: output.vout,
-                    }, output.value));
+                    if output.runes.is_empty() {
+                        return Ok((OutPoint {
+                            txid: Txid::from_str(&output.txid.to_string()).unwrap(),
+                            vout: output.vout,
+                        }, output.value));
+                    }
                 }
             }
         }
 
-        Err(RuneError::GetFundedOutpointError("Failed to get funded outpoint".to_string()))
+        Err(RuneError::GetFundedOutpointError("Failed to get funded outpoint without runes".to_string()))
     }
 
     pub async fn mint_rune(&mut self, rune_id: RuneId, address: Address) -> Result<Txid, RuneError> {
@@ -249,6 +222,8 @@ impl RuneManager {
         let op_return_script = runestone.encipher();
 
         let (outpoint, value) = self.get_funded_outpoint_data().await?;
+
+        tracing::info!("Using outpoint for mint: {}:{}, value: {}", outpoint.txid, outpoint.vout, value);
 
         let txin = TxIn {
             previous_output: outpoint,
@@ -289,7 +264,6 @@ impl RuneManager {
 
         Ok(txid)
     }
-
 }
 
 pub fn random_rune_name() -> String {
