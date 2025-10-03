@@ -28,8 +28,6 @@ VERIFIER_3_LOG_PATH="./logs/verifier_3.log"
 SPARK_BALANCE_CHECKER_LOG_PATH="./logs/spark_balance_checker.log"
 BTC_INDEXER_LOG_PATH="./logs/btc_indexer.log"
 
-SPARK_BALANCE_CHECKER_CA_PEM_PATH="./infrastructure/configurations/spark_balance_checker/ca.pem"
-
 # Function to run docker compose and wait for initialization
 run_docker_compose_with_wait() {
     echo "Starting docker compose with file: $compose_file"

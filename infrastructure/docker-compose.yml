@@ -29,7 +29,6 @@ services:
       - ${BITCOIN_NETWORK:-regtest}
       - RUST_LOG=trace
       - CONFIG_PATH=/config.toml
-      - CA_PEM_PATH=/configuration_gateway/ca.pem
       - DATABASE_URL=postgres://${POSTGRES_USER:-admin_manager}:${POSTGRES_PASSWORD:-password}@persistent-db-storage_gateway:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-production_db_name}
     ports:
       - "8070:8060"
@@ -297,7 +296,6 @@ services:
     restart: always
     environment:
       - RUST_LOG=trace
-      - CA_PEM_PATH=/configuration_spark_balance_checker/ca.pem
       - CONFIG_PATH=/configuration_spark_balance_checker/production.toml
     networks:
       all-network:

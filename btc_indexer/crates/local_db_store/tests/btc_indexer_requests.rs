@@ -1,10 +1,10 @@
 mod utils;
 
 mod test_btc_indexer_requests {
-    use crate::utils::{tx_tracking_requests_vec_eq, TEST_LOGGER};
+    use crate::utils::{TEST_LOGGER, tx_tracking_requests_vec_eq};
     use bitcoin::{OutPoint, Txid};
     use btc_indexer_api::api::{Amount, BtcTxReview, TrackTxRequest};
-    use global_utils::common_types::{get_uuid, TxIdWrapped, UrlWrapped};
+    use global_utils::common_types::{TxIdWrapped, UrlWrapped, get_uuid};
     use local_db_store_indexer::init::LocalDbStorage;
     use local_db_store_indexer::schemas::track_tx_requests_storage::{
         TrackedReqStatus, TxRequestsTrackingStorageTrait, TxTrackingRequestsToSendResponse,
@@ -26,7 +26,7 @@ mod test_btc_indexer_requests {
 
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_one_inserting(pool: PostgresPool) -> anyhow::Result<()> {
-        dotenv::dotenv()?;
+        dotenvy::dotenv();
         let _logger_guard = &*TEST_LOGGER;
         let storage = LocalDbStorage {
             postgres_repo: persistent_storage::init::PostgresRepo { pool }.into_shared(),

@@ -5,7 +5,7 @@ mod tests {
     use frost::types::{MusigId, SigningMetadata, TweakBytes};
     use frost::utils::generate_tweak_bytes;
     use frost::{aggregator::FrostAggregator, mocks::*, signer::FrostSigner, traits::SignerClient};
-    use frost_secp256k1_tr::{keys::Tweak, Identifier};
+    use frost_secp256k1_tr::{Identifier, keys::Tweak};
     use std::str::FromStr;
     use std::{collections::BTreeMap, sync::Arc};
 
@@ -59,20 +59,19 @@ mod tests {
     ) -> anyhow::Result<()> {
         let verifiers_map = create_verifiers_map_easy();
 
-        let user_public_key = PublicKey::from_str(
-            "038144ac71b61ab0e0a56967696a4f31a0cdd492cd3753d59aa978e0c8eaa5a60e"
-        )?;
+        let user_public_key =
+            PublicKey::from_str("038144ac71b61ab0e0a56967696a4f31a0cdd492cd3753d59aa978e0c8eaa5a60e")?;
         let musig_id = MusigId::User {
             user_public_key,
             rune_id: "test_rune_id".to_string(),
         };
 
-        let agg_storage = MockAggregatorMusigIdStorage::new();
+        let agg_storage = MockAggregatorMusigIdStorage::default();
 
         let aggregator = FrostAggregator::new(
             verifiers_map,
             Arc::new(agg_storage),
-            Arc::new(MockAggregatorSignSessionStorage::new()),
+            Arc::new(MockAggregatorSignSessionStorage::default()),
         );
 
         let public_key_package = aggregator.run_dkg_flow(&musig_id).await?;
@@ -109,20 +108,19 @@ mod tests {
     async fn _test_aggregator_signer_integration(msg_hash: &[u8], tweak: Option<TweakBytes>) -> anyhow::Result<()> {
         let verifiers_map = create_verifiers_map_easy();
 
-        let user_public_key = PublicKey::from_str(
-            "038144ac71b61ab0e0a56967696a4f31a0cdd492cd3753d59aa978e0c8eaa5a60e"
-        )?;
+        let user_public_key =
+            PublicKey::from_str("038144ac71b61ab0e0a56967696a4f31a0cdd492cd3753d59aa978e0c8eaa5a60e")?;
         let musig_id = MusigId::User {
             user_public_key,
             rune_id: "test_rune_id".to_string(),
         };
 
-        let agg_storage = MockAggregatorMusigIdStorage::new();
+        let agg_storage = MockAggregatorMusigIdStorage::default();
 
         let aggregator = FrostAggregator::new(
             verifiers_map,
             Arc::new(agg_storage),
-            Arc::new(MockAggregatorSignSessionStorage::new()),
+            Arc::new(MockAggregatorSignSessionStorage::default()),
         );
 
         let public_key_package = aggregator.run_dkg_flow(&musig_id).await?;
@@ -145,7 +143,7 @@ mod tests {
     fn create_signer(identifier: u16) -> FrostSigner {
         FrostSigner::new(
             identifier,
-            Arc::new(MockSignerMusigIdStorage::new()),
+            Arc::new(MockSignerMusigIdStorage::default()),
             Arc::new(MockSignerSignSessionStorage::default()),
             3,
             2,

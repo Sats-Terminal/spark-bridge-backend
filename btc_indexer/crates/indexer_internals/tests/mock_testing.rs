@@ -2,8 +2,8 @@ mod utils;
 
 use std::str::FromStr;
 
-use bitcoin::{hashes::Hash, BlockHash};
-use bitcoincore_rpc::{bitcoin::Txid};
+use bitcoin::{BlockHash, hashes::Hash};
+use bitcoincore_rpc::bitcoin::Txid;
 use btc_indexer_internals::{
     api::BtcIndexerApi,
     indexer::{BtcIndexer, IndexerParams, IndexerParamsWithApi},
@@ -43,7 +43,7 @@ mod mock_testing {
 
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_retrieving_of_finalized_tx(pool: PostgresPool) -> anyhow::Result<()> {
-        dotenv::dotenv()?;
+        dotenvy::dotenv();
         let _logger_guard = &*TEST_LOGGER;
 
         let tx_id = Txid::from_str("f74516e3b24af90fc2da8251d2c1e3763252b15c7aec3c1a42dde7116138caee")?;
@@ -111,7 +111,7 @@ mod mock_testing {
         let generate_indexer_mocking_invocations = |indexer: &mut MockTitanIndexer| {
             let mut i = 0;
             indexer.expect_get_transaction().returning(move |tx_id| {
-                generate_transaction(tx_id, i);
+                let _utxos = generate_transaction(tx_id, i);
                 i += 1;
                 let generated_tx = generate_transaction(tx_id, i);
                 debug!("[mock expectations1] generated tx: {:?}", &generated_tx);
@@ -121,7 +121,7 @@ mod mock_testing {
                 let mut cloned_mocked_indexer = MockTitanIndexer::new();
                 let mut i = 0;
                 cloned_mocked_indexer.expect_get_transaction().returning(move |tx_id| {
-                    generate_transaction(tx_id, i);
+                    let _utxos = generate_transaction(tx_id, i);
                     i += 1;
                     let generated_tx = generate_transaction(tx_id, i);
                     debug!("[mock expectations2] generated tx: {:?}", &generated_tx);
@@ -165,7 +165,9 @@ mod mock_testing {
                 cloned_tx_arbiter.expect_clone().returning(move || {
                     let mut cloned2_tx_arbiter = MockTxArbiter::new();
                     cloned2_tx_arbiter.expect_check_tx().returning(
-                        |_titan_client: Arc<MockTitanIndexer>, _tx_to_check: &Transaction, tx_info: &TxToUpdateStatus| {
+                        |_titan_client: Arc<MockTitanIndexer>,
+                         _tx_to_check: &Transaction,
+                         tx_info: &TxToUpdateStatus| {
                             let review = TxArbiterResponse::ReviewFormed(
                                 BtcTxReview::Success,
                                 OutPoint {

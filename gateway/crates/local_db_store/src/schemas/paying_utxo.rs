@@ -4,6 +4,7 @@ use bitcoin::{Address, Txid};
 use gateway_rune_transfer::transfer::PayingTransferInput;
 use persistent_storage::error::DbError;
 use std::str::FromStr;
+use tracing::instrument;
 
 #[async_trait]
 pub trait PayingUtxoStorage: Send + Sync {
@@ -16,6 +17,7 @@ pub trait PayingUtxoStorage: Send + Sync {
 
 #[async_trait]
 impl PayingUtxoStorage for LocalDbStorage {
+    #[instrument(level = "trace", skip_all)]
     async fn insert_paying_utxo(&self, paying_utxo: PayingTransferInput) -> Result<(), DbError> {
         let _ = sqlx::query(
             "INSERT INTO gateway.paying_utxo (txid, vout, spark_deposit_address, sats_amount, none_anyone_can_pay_signature)
@@ -33,6 +35,7 @@ impl PayingUtxoStorage for LocalDbStorage {
         Ok(())
     }
 
+    #[instrument(level = "trace", skip_all)]
     async fn get_paying_utxo_by_spark_deposit_address(
         &self,
         spark_deposit_address: String,
@@ -50,7 +53,7 @@ impl PayingUtxoStorage for LocalDbStorage {
             Some((txid, vout, address, sats_amount, none_anyone_can_pay_signature)) => Ok(Some(PayingTransferInput {
                 txid: Txid::from_str(&txid).map_err(|e| DbError::BadRequest(format!("Failed to parse txid: {}", e)))?,
                 vout: vout as u32,
-                address: Address::from_str(&address).unwrap().assume_checked(),
+                address: Address::from_str(&address).map_err(|e| DbError::BadRequest(format!("Failed to parse address: {}", e)))?.assume_checked(),
                 sats_amount: sats_amount as u64,
                 none_anyone_can_pay_signature: none_anyone_can_pay_signature.parse().map_err(|e| {
                     DbError::BadRequest(format!("Failed to parse none anyone can pay signature: {}", e))

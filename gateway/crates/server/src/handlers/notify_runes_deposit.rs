@@ -16,27 +16,32 @@ pub struct VerifierNotifyRunesDepositRequest {
     pub status: DepositStatus,
 }
 
-impl Into<NotifyRunesDepositRequest> for VerifierNotifyRunesDepositRequest {
-    fn into(self) -> NotifyRunesDepositRequest {
+impl From<VerifierNotifyRunesDepositRequest> for NotifyRunesDepositRequest {
+    fn from(value: VerifierNotifyRunesDepositRequest) -> Self {
         NotifyRunesDepositRequest {
-            verifier_id: self.verifier_id,
-            out_point: self.out_point,
-            sats_fee_amount: self.sats_fee_amount,
-            status: self.status,
+            verifier_id: value.verifier_id,
+            out_point: value.out_point,
+            sats_fee_amount: value.sats_fee_amount,
+            status: value.status,
         }
     }
 }
 
-#[instrument(level = "info", skip(request, state), fields(request = ?request), ret)]
+#[instrument(level = "trace", skip(request, state), fields(request = ?request), ret)]
 pub async fn handle(
     State(state): State<AppState>,
     Json(request): Json<VerifierNotifyRunesDepositRequest>,
 ) -> Result<Json<()>, GatewayError> {
+    let out_point = request.out_point;
+    tracing::info!("Handling notify runes deposit request with out point: {:?}", out_point);
+
     // TODO: This request should spawn task and immediately return Json(())
     let _ = state
         .deposit_verification_aggregator
         .notify_runes_deposit(request.into())
         .await;
+
+    tracing::info!("Notify runes deposit request handled request with out point: {:?}", out_point);
 
     Ok(Json(()))
 }

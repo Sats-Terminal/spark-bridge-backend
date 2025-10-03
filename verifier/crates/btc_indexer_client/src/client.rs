@@ -4,6 +4,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use url::Url;
 use verifier_config_parser::config::BtcIndexerConfig;
+use tracing::instrument;
 
 const WATCH_RUNES_DEPOSIT_PATH: &str = "/track_tx";
 
@@ -30,6 +31,7 @@ impl BtcIndexerClient {
         }
     }
 
+    #[instrument(level = "trace", skip(self), ret)]
     pub async fn watch_runes_deposit(&self, request: WatchRunesDepositRequest) -> Result<(), BtcIndexerClientError> {
         let url = self
             .config
@@ -47,6 +49,7 @@ impl BtcIndexerClient {
         if response.status().is_success() {
             Ok(())
         } else {
+            tracing::error!("Failed to send HTTP request for {:?}, with status {}", request, response.status());
             Err(BtcIndexerClientError::HttpError(format!(
                 "Failed to send HTTP request with status {}, error: {}",
                 response.status(),

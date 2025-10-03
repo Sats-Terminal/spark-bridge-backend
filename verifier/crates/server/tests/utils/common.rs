@@ -28,7 +28,6 @@ pub static TEST_LOGGER: LazyLock<LoggerGuard> = LazyLock::new(|| init_logger());
 pub static MIGRATOR: Migrator = sqlx::migrate!("../local_db_store/migrations");
 
 pub const CONFIG_PATH: &str = "../../../infrastructure/configurations/verifier_1/dev.toml";
-pub const CERT_PATH: &str = "../../../infrastructure/configurations/common/ca.pem";
 
 pub fn obtain_random_localhost_socket_addr() -> anyhow::Result<SocketAddr> {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");

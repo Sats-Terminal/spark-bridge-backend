@@ -3,18 +3,18 @@ name = "frost"
 edition = "2024"
 
 [dependencies]
-tokio = { workspace = true }
-thiserror = { workspace = true }
-serde = { workspace = true }
-tracing = { workspace = true }
-frost-secp256k1-tr = { workspace = true }
+anyhow = { workspace = true }
 async-trait = { workspace = true }
-rand_core = { workspace = true }
-futures = { workspace = true }
-uuid = { workspace = true }
 bitcoin = { workspace = true }
 eyre = { workspace = true }
-persistent_storage = { workspace = true }
-spark-protos = { workspace = true }
+frost-secp256k1-tr = { workspace = true }
+futures = { workspace = true }
 global_utils = { workspace = true }
-anyhow = { workspace = true }
+persistent_storage = { workspace = true }
+rand_core = { workspace = true }
+serde = { workspace = true }
+spark-protos = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }

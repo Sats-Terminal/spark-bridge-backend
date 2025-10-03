@@ -413,7 +413,7 @@ impl From<&TokenMetadata> for TokenIdentifier {
 }
 
 fn wrap_io_error(err: impl fmt::Display, message: &str) -> TokenMetadataParseError {
-    TokenMetadataParseError::IoError(io::Error::new(io::ErrorKind::Other, format!("{}: {}", message, err)))
+    TokenMetadataParseError::IoError(io::Error::other(format!("{}: {}", message, err)))
 }
 
 /// Error type for parsing LRC20 token metadata.
@@ -469,13 +469,6 @@ mod tests {
 
     use crate::token_metadata::{MIN_TOKEN_METADATA_SIZE, TokenMetadata, TokenMetadataParseError};
 
-    const MAX_SUPPLY_TYPE_1: u128 = 1_000_000;
-    const MAX_SUPPLY_TYPE_2: u128 = 18_446_744_073_709_551_615;
-    const DECIMAL_TYPE_1: u8 = 10;
-    const DECIMAL_TYPE_2: u8 = 2;
-    const DECIMAL_TYPE_3: u8 = 255;
-    const DECIMAL_TYPE_4: u8 = 8;
-
     static TEST_ISSUER_PUBLIC_KEY: Lazy<PublicKey> = Lazy::new(|| {
         PublicKey::from_str("0305bd561c55adf4a2369f936ab82f7688438f1b199af2455c5ef33935e64ee7e7").unwrap()
     });
@@ -485,7 +478,7 @@ mod tests {
             *TEST_ISSUER_PUBLIC_KEY,
             "Test Token".to_string(),
             "TEST".to_string(),
-            DECIMAL_TYPE_4,
+            8,
             0,
             true,
             Some(*TEST_ISSUER_PUBLIC_KEY),
@@ -497,6 +490,7 @@ mod tests {
     fn test_compute_token_identifier() {
         let token_identifier = TEST_METADATA.compute_token_identifier();
 
+        // Note: This hash has changed due to algorithm updates to match Go implementation
         assert_eq!(
             token_identifier.to_string(),
             "e468b91d8059c0363650e63ef32443f29ccf49013f5bac6052fa6cac45a61317"
@@ -518,19 +512,21 @@ mod tests {
             bytes
         });
 
+        // This is an actual token created in production servers on Regtest
         let metadata = TokenMetadata {
             issuer_public_key,
             name: "RaccoonCoin".to_string(),
             symbol: "RCC".to_string(),
-            decimal: DECIMAL_TYPE_1,
+            decimal: 10,
             max_supply,
             is_freezable: false,
-            creation_entity_public_key: None,
+            creation_entity_public_key: None, // L1 token uses None
             network: Network::Regtest,
         };
 
         let token_identifier = metadata.compute_token_identifier();
 
+        // IMPORTANT: This expected value should match Go implementation!
         let expected_bytes = hex::decode("f1ca1e65691d0f65132ce24608594aaccd741e323056c97407a9f625b0ee4251").unwrap();
 
         assert_eq!(token_identifier.to_bytes().to_vec(), expected_bytes);
@@ -544,6 +540,7 @@ mod tests {
         let issuer_public_key =
             PublicKey::from_str("036898ed2b633947f0994b8952fa06da2cfc7d1ee003fcf2cc076752b9ad3b3691").unwrap();
 
+        // Use the same compressed key as in Go test
         let creation_entity_compressed_bytes =
             hex::decode("0345b806679a5e63159584db91fec038cffd2ef59cee031abe92e2f30bf0642175").unwrap();
         let creation_entity_compressed_key = PublicKey::from_slice(&creation_entity_compressed_bytes).unwrap();
@@ -556,11 +553,12 @@ mod tests {
             bytes
         });
 
+        // This is an actual token created in production servers on Regtest
         let metadata = TokenMetadata {
             issuer_public_key,
             name: "RaccoonCoin".to_string(),
             symbol: "RCC".to_string(),
-            decimal: DECIMAL_TYPE_1,
+            decimal: 10,
             max_supply,
             is_freezable: false,
             creation_entity_public_key: Some(creation_entity_public_key),
@@ -569,6 +567,7 @@ mod tests {
 
         let token_identifier = metadata.compute_token_identifier();
 
+        // IMPORTANT: This expected value should match Go implementation!
         let expected_bytes = hex::decode("8b5fde73c803f6ef5c819ae94ddd035f02bee63555a08fc94f6851e289b46a1b").unwrap();
 
         assert_eq!(token_identifier.to_bytes().to_vec(), expected_bytes);
@@ -587,8 +586,8 @@ mod tests {
                     issuer_public_key: *TEST_ISSUER_PUBLIC_KEY,
                     name: "TokenName".to_string(),
                     symbol: "TNK".to_string(),
-                    decimal: DECIMAL_TYPE_2,
-                    max_supply: MAX_SUPPLY_TYPE_1,
+                    decimal: 2,
+                    max_supply: 1_000_000,
                     is_freezable: true,
                     creation_entity_public_key: Some(*TEST_ISSUER_PUBLIC_KEY),
                     network: Network::Regtest,
@@ -600,8 +599,8 @@ mod tests {
                     issuer_public_key: *TEST_ISSUER_PUBLIC_KEY,
                     name: "TokenName17Charss".to_string(),
                     symbol: "TESTSY".to_string(),
-                    decimal: DECIMAL_TYPE_3,
-                    max_supply: MAX_SUPPLY_TYPE_2,
+                    decimal: 255,
+                    max_supply: 18_446_744_073_709_551_615,
                     is_freezable: true,
                     creation_entity_public_key: None,
                     network: Network::Regtest,
@@ -613,8 +612,8 @@ mod tests {
                     issuer_public_key: *TEST_ISSUER_PUBLIC_KEY,
                     name: "TokenName".to_string(),
                     symbol: "TNK".to_string(),
-                    decimal: DECIMAL_TYPE_2,
-                    max_supply: MAX_SUPPLY_TYPE_1,
+                    decimal: 2,
+                    max_supply: 1_000_000,
                     is_freezable: false,
                     creation_entity_public_key: None,
                     network: Network::Regtest,
@@ -626,8 +625,8 @@ mod tests {
                     issuer_public_key: *TEST_ISSUER_PUBLIC_KEY,
                     name: "The String Longer Than MAX_NAME_SIZE".to_string(),
                     symbol: "TNK".to_string(),
-                    decimal: DECIMAL_TYPE_2,
-                    max_supply: MAX_SUPPLY_TYPE_1,
+                    decimal: 2,
+                    max_supply: 1_000_000,
                     is_freezable: true,
                     creation_entity_public_key: None,
                     network: Network::Regtest,
@@ -639,8 +638,8 @@ mod tests {
                     issuer_public_key: *TEST_ISSUER_PUBLIC_KEY,
                     name: "TokenName".to_string(),
                     symbol: "The String Longer Than MAX_SYMBOL_SIZE".to_string(),
-                    decimal: DECIMAL_TYPE_2,
-                    max_supply: MAX_SUPPLY_TYPE_1,
+                    decimal: 2,
+                    max_supply: 1_000_000,
                     is_freezable: true,
                     creation_entity_public_key: None,
                     network: Network::Regtest,
@@ -652,8 +651,8 @@ mod tests {
                     issuer_public_key: *TEST_ISSUER_PUBLIC_KEY,
                     name: "".to_string(),
                     symbol: "TNK".to_string(),
-                    decimal: DECIMAL_TYPE_2,
-                    max_supply: MAX_SUPPLY_TYPE_1,
+                    decimal: 2,
+                    max_supply: 1_000_000,
                     is_freezable: true,
                     creation_entity_public_key: None,
                     network: Network::Regtest,
@@ -665,8 +664,8 @@ mod tests {
                     issuer_public_key: *TEST_ISSUER_PUBLIC_KEY,
                     name: "TokenName".to_string(),
                     symbol: "".to_string(),
-                    decimal: DECIMAL_TYPE_2,
-                    max_supply: MAX_SUPPLY_TYPE_1,
+                    decimal: 2,
+                    max_supply: 1_000_000,
                     is_freezable: true,
                     creation_entity_public_key: None,
                     network: Network::Regtest,

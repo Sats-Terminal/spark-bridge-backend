@@ -184,7 +184,7 @@ impl TokenMetadata {
         // #[cfg(test)]
         println!(
             "Step 6 - Max supply: input={}, hash={}",
-            hex::encode(&max_supply_bytes),
+            hex::encode(max_supply_bytes),
             hex::encode(max_supply_hash.as_byte_array())
         );
         all_hashes.extend_from_slice(max_supply_hash.as_byte_array());
@@ -424,7 +424,7 @@ impl From<&TokenMetadata> for TokenIdentifier {
 }
 
 fn wrap_io_error(err: impl fmt::Display, message: &str) -> TokenMetadataParseError {
-    TokenMetadataParseError::IoError(io::Error::new(io::ErrorKind::Other, format!("{}: {}", message, err)))
+    TokenMetadataParseError::IoError(io::Error::other(format!("{}: {}", message, err)))
 }
 
 /// Error type for parsing LRC20 token metadata.

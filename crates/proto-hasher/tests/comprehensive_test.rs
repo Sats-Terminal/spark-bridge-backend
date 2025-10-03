@@ -11,10 +11,6 @@ lazy_static! {
     static ref POOL: DescriptorPool = DescriptorPool::global();
 }
 
-const MK_VALUE_NUMBER: f64 = 123.0;
-const MK_DURATION: i64 = 60;
-const MT_TIMESPAMP:i64 = 1_234_567_890;
-
 fn lookup_msg(full_name: &str) -> MessageDescriptor {
     POOL.get_message_by_name(full_name)
         .unwrap_or_else(|| panic!("descriptor not found: {full_name}"))
@@ -125,9 +121,9 @@ fn mk_struct_with_map(entries: &[(&str, DynamicMessage)]) -> DynamicMessage {
 fn hash_well_known_types_duration() {
     let hasher = ProtoHasher::new();
 
-    let msg1 = mk_duration(MK_DURATION, 0);
-    let msg2 = mk_duration(MK_DURATION * MK_DURATION, 0);
-    let msg3 = mk_duration(MK_DURATION, 0);
+    let msg1 = mk_duration(60, 0);
+    let msg2 = mk_duration(3600, 0);
+    let msg3 = mk_duration(60, 0);
 
     let h1 = hasher.hash_proto(msg1).unwrap();
     let h2 = hasher.hash_proto(msg2).unwrap();
@@ -143,9 +139,9 @@ fn hash_well_known_types_duration() {
 fn hash_well_known_types_timestamp() {
     let hasher = ProtoHasher::new();
 
-    let msg1 = mk_timestamp(MT_TIMESPAMP, 0);
-    let msg2 = mk_timestamp(MT_TIMESPAMP + 1, 0);
-    let msg3 = mk_timestamp(MT_TIMESPAMP, 0);
+    let msg1 = mk_timestamp(1_234_567_890, 0);
+    let msg2 = mk_timestamp(1_234_567_891, 0);
+    let msg3 = mk_timestamp(1_234_567_890, 0);
 
     let h1 = hasher.hash_proto(msg1).unwrap();
     let h2 = hasher.hash_proto(msg2).unwrap();
@@ -172,9 +168,9 @@ fn hash_struct_value_empty() {
 fn hash_struct_value_with_values() {
     let hasher = ProtoHasher::new();
 
-    let msg1 = mk_struct_with_values("test", MK_VALUE_NUMBER);
-    let msg2 = mk_struct_with_values("test", MK_VALUE_NUMBER);
-    let msg3 = mk_struct_with_values("different", MK_VALUE_NUMBER);
+    let msg1 = mk_struct_with_values("test", 30.0);
+    let msg2 = mk_struct_with_values("test", 30.0);
+    let msg3 = mk_struct_with_values("different", 30.0);
 
     let h1 = hasher.hash_proto(msg1).unwrap();
     let h2 = hasher.hash_proto(msg2).unwrap();
@@ -203,14 +199,14 @@ fn non_wkt_default_skipping() {
 fn non_wkt_field_sorting_by_number_or_key() {
     let struct1 = mk_struct_with_map(&[
         ("name", mk_value_string("test")),
-        ("age", mk_value_number(MK_VALUE_NUMBER)),
+        ("age", mk_value_number(30.0)),
         ("active", mk_value_bool(true)),
     ]);
 
     let struct2 = mk_struct_with_map(&[
         ("active", mk_value_bool(true)),
         ("name", mk_value_string("test")),
-        ("age", mk_value_number(MK_VALUE_NUMBER)),
+        ("age", mk_value_number(30.0)),
     ]);
 
     let hasher = ProtoHasher::new();
@@ -224,17 +220,17 @@ fn non_wkt_field_sorting_by_number_or_key() {
 fn non_wkt_nested_messages() {
     let nested1 = mk_struct_with_map(&[(
         "user",
-        mk_struct_with_map(&[("name", mk_value_string("alice")), ("id", mk_value_number(MK_VALUE_NUMBER))]),
+        mk_struct_with_map(&[("name", mk_value_string("alice")), ("id", mk_value_number(123.0))]),
     )]);
 
     let nested2 = mk_struct_with_map(&[(
         "user",
-        mk_struct_with_map(&[("name", mk_value_string("alice")), ("id", mk_value_number(MK_VALUE_NUMBER))]),
+        mk_struct_with_map(&[("name", mk_value_string("alice")), ("id", mk_value_number(123.0))]),
     )]);
 
     let nested3 = mk_struct_with_map(&[(
         "user",
-        mk_struct_with_map(&[("name", mk_value_string("bob")), ("id", mk_value_number(MK_VALUE_NUMBER))]),
+        mk_struct_with_map(&[("name", mk_value_string("bob")), ("id", mk_value_number(123.0))]),
     )]);
 
     let hasher = ProtoHasher::new();
@@ -272,7 +268,7 @@ fn non_wkt_list_handling() {
 #[test]
 fn non_wkt_value_types() {
     let string_val = mk_struct_with_map(&[("field", mk_value_string("test"))]);
-    let number_val = mk_struct_with_map(&[("field", mk_value_number(MK_VALUE_NUMBER))]);
+    let number_val = mk_struct_with_map(&[("field", mk_value_number(42.0))]);
     let bool_val = mk_struct_with_map(&[("field", mk_value_bool(true))]);
 
     let hasher = ProtoHasher::new();

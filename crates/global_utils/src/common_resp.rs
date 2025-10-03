@@ -1,5 +1,4 @@
 use serde::Serialize;
-use serde_json::json;
 use utoipa::ToSchema;
 
 #[derive(Serialize, ToSchema, Debug)]

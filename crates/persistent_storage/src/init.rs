@@ -53,7 +53,10 @@ impl PostgresRepo {
         trace!("Creating PG connection pool with creds: {:?}", creds);
         let pool = PgPool::connect(&creds.url)
             .await
-            .map_err(|x| DbError::FailedToEstablishDbConn(x, creds.url.clone()))?;
+            .map_err(|x| DbError::FailedToEstablishDbConn {
+                err: x,
+                url: creds.url.clone(),
+            })?;
         trace!(db_url = creds.url, "Creating Postgres pool with config");
         Ok(Self { pool })
     }

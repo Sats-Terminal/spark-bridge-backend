@@ -12,7 +12,7 @@ use tracing::instrument;
 
 #[async_trait]
 impl AggregatorMusigIdStorage for LocalDbStorage {
-    #[instrument(level = "trace", skip(self), ret)]
+    #[instrument(level = "trace", skip_all)]
     async fn get_musig_id_data(&self, musig_id: &MusigId) -> Result<Option<AggregatorMusigIdData>, DbError> {
         let public_key = musig_id.get_public_key();
         let rune_id = musig_id.get_rune_id();
@@ -33,7 +33,7 @@ impl AggregatorMusigIdStorage for LocalDbStorage {
         }))
     }
 
-    #[instrument(level = "trace", skip(self), ret)]
+    #[instrument(level = "trace", skip_all)]
     async fn set_musig_id_data(&self, musig_id: &MusigId, user_state: AggregatorMusigIdData) -> Result<(), DbError> {
         let dkg_state = Json(user_state.dkg_state);
         let public_key = musig_id.get_public_key();
@@ -56,6 +56,7 @@ impl AggregatorMusigIdStorage for LocalDbStorage {
         Ok(())
     }
 
+    #[instrument(level = "trace", skip_all)]
     async fn get_issuer_musig_id(&self, rune_id: String) -> Result<Option<MusigId>, DbError> {
         let result: Option<(String, String)> = sqlx::query_as(
             "SELECT public_key, rune_id 
@@ -91,17 +92,18 @@ mod tests {
     use persistent_storage::init::{PostgresPool, PostgresRepo};
     use std::collections::BTreeMap;
     use std::sync::Arc;
+    use frost::utils::generate_tweak_bytes;
 
     pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
 
     async fn create_signer(identifier: u16) -> FrostSigner {
         FrostSigner::new(
             identifier,
-            Arc::new(MockSignerMusigIdStorage::new()),
+            Arc::new(MockSignerMusigIdStorage::default()),
             Arc::new(MockSignerSignSessionStorage::default()),
             3,
             2,
-        )
+        ).unwrap()
     }
 
     async fn create_verifiers_map_easy() -> BTreeMap<Identifier, Arc<dyn SignerClient>> {
@@ -151,9 +153,9 @@ mod tests {
 
         let public_key_package = aggregator.run_dkg_flow(&user_id).await?;
 
-        let tweak: Option<[u8; 32]> = Some(*b"test_tweak_must_be_32_bytes_long");
         let metadata = create_signing_metadata();
-
+        let tweak = Some(generate_tweak_bytes());
+        
         let signature = aggregator
             .run_signing_flow(user_id, message_hash, metadata, tweak)
             .await?;

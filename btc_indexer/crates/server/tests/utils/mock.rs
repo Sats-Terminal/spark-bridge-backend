@@ -1,15 +1,11 @@
-use std::{
-    collections::HashMap,
-    str::FromStr,
-    sync::{Arc},
-};
+use std::{collections::HashMap, str::FromStr, sync::Arc};
 
 use crate::utils::init::{DRAFT_TITAN_URL, TEST_LOGGER};
 use async_trait::async_trait;
 use axum::{Router, routing::post};
 use axum_test::TestServer;
 use bitcoin::{BlockHash, OutPoint, hashes::Hash};
-use bitcoincore_rpc::{bitcoin::Txid};
+use bitcoincore_rpc::bitcoin::Txid;
 use btc_indexer_api::api::{BtcIndexerApi, BtcTxReview};
 use btc_indexer_internals::indexer::{BtcIndexer, IndexerParams, IndexerParamsWithApi};
 use btc_indexer_internals::tx_arbiter::TxArbiterTrait;
@@ -17,8 +13,8 @@ use btc_indexer_internals::tx_arbiter::{TxArbiterError, TxArbiterResponse};
 use btc_indexer_server::AppState;
 use config_parser::config::{BtcRpcCredentials, ServerConfig, TitanConfig};
 use global_utils::config_variant::ConfigVariant;
+use local_db_store_indexer::init::LocalDbStorage;
 use local_db_store_indexer::schemas::tx_tracking_storage::TxToUpdateStatus;
-use local_db_store_indexer::{init::LocalDbStorage};
 use mockall::mock;
 use persistent_storage::init::{PostgresPool, PostgresRepo};
 use reqwest::header::HeaderMap;
@@ -161,6 +157,17 @@ pub fn generate_mock_titan_indexer_tx_tracking() -> MockTitanIndexer {
             i += 1;
             Ok(generate_transaction(tx_id, i))
         });
+        indexer.expect_get_status().returning(move || {
+            Ok(Status {
+                block_tip: BlockTip {
+                    height: 27,
+                    hash: "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824".to_string(),
+                    is_at_tip: true,
+                },
+                runes_count: 10,
+                mempool_tx_count: 100_000,
+            })
+        });
         indexer.expect_clone().returning(move || {
             let mut cloned_mocked_indexer = MockTitanIndexer::new();
             let mut i = 0;
@@ -168,6 +175,17 @@ pub fn generate_mock_titan_indexer_tx_tracking() -> MockTitanIndexer {
                 let utxos = generate_transaction(tx_id, i);
                 i += 1;
                 Ok(generate_transaction(tx_id, i))
+            });
+            cloned_mocked_indexer.expect_get_status().returning(move || {
+                Ok(Status {
+                    block_tip: BlockTip {
+                        height: 27,
+                        hash: "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824".to_string(),
+                        is_at_tip: true,
+                    },
+                    runes_count: 10,
+                    mempool_tx_count: 100_000,
+                })
             });
             cloned_mocked_indexer
                 .expect_clone()

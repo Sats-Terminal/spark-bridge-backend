@@ -5,6 +5,7 @@ use global_utils::conversion::decode_address;
 use persistent_storage::error::DbError;
 use serde::{Deserialize, Serialize};
 use sqlx::{Postgres, Transaction};
+use tracing::instrument;
 
 #[derive(Debug, Clone)]
 pub struct Utxo {
@@ -75,6 +76,7 @@ pub trait UtxoStorage: Send + Sync {
 
 #[async_trait]
 impl UtxoStorage for LocalDbStorage {
+    #[instrument(level = "trace", skip_all)]
     async fn insert_utxo(&self, utxo: Utxo) -> Result<Utxo, DbError> {
         let rec = sqlx::query_as::<_, UtxoRow>(
             r#"
@@ -103,6 +105,7 @@ impl UtxoStorage for LocalDbStorage {
         Ok(Utxo::from_row(rec, self.network)?)
     }
 
+    #[instrument(level = "trace", skip_all)]
     async fn update_status(&self, out_point: OutPoint, new_status: UtxoStatus) -> Result<(), DbError> {
         let rows = sqlx::query(
             r#"
@@ -125,6 +128,7 @@ impl UtxoStorage for LocalDbStorage {
         Ok(())
     }
 
+    #[instrument(level = "trace", skip_all)]
     async fn list_unspent(&self, rune_id: String) -> Result<Vec<Utxo>, DbError> {
         let rows = sqlx::query_as::<_, UtxoRow>(
             r#"
@@ -147,6 +151,7 @@ impl UtxoStorage for LocalDbStorage {
             .collect::<Result<Vec<Utxo>, DbError>>()?)
     }
 
+    #[instrument(level = "trace", skip_all)]
     async fn select_utxos_for_amount(&self, rune_id: String, target_amount: u64) -> Result<Vec<Utxo>, DbError> {
         let mut tx = self
             .postgres_repo
@@ -184,6 +189,7 @@ impl UtxoStorage for LocalDbStorage {
         Ok(updated_utxos)
     }
 
+    #[instrument(level = "trace", skip_all)]
     async fn get_utxo(&self, out_point: OutPoint) -> Result<Option<Utxo>, DbError> {
         let utxo = sqlx::query_as::<_, UtxoRow>(
             r#"
@@ -203,6 +209,7 @@ impl UtxoStorage for LocalDbStorage {
         }
     }
 
+    #[instrument(level = "trace", skip_all)]
     async fn delete_utxo(&self, out_point: OutPoint) -> Result<(), DbError> {
         let rows = sqlx::query(
             r#"
@@ -223,6 +230,7 @@ impl UtxoStorage for LocalDbStorage {
         Ok(())
     }
 
+    #[instrument(level = "trace", skip_all)]
     async fn update_sats_fee_amount(&self, out_point: OutPoint, sats_fee_amount: u64) -> Result<(), DbError> {
         let rows = sqlx::query(
             r#"
@@ -245,6 +253,7 @@ impl UtxoStorage for LocalDbStorage {
         Ok(())
     }
 
+    #[instrument(level = "trace", skip_all)]
     async fn get_utxo_by_btc_address(&self, btc_address: String) -> Result<Option<Utxo>, DbError> {
         let utxo = sqlx::query_as::<_, UtxoRow>(
             r#"
@@ -265,6 +274,7 @@ impl UtxoStorage for LocalDbStorage {
     }
 }
 
+#[instrument(level = "trace", skip_all)]
 async fn get_candidate_utxos_for_update(
     rune_id: String,
     tx: &mut Transaction<'_, Postgres>,
@@ -284,12 +294,13 @@ async fn get_candidate_utxos_for_update(
     .await
     .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
-    Ok(candidates
+    candidates
         .into_iter()
         .map(|row| Utxo::from_row(row, network))
-        .collect::<Result<Vec<Utxo>, DbError>>()?)
+        .collect::<Result<Vec<Utxo>, DbError>>()
 }
 
+#[instrument(level = "trace", skip_all)]
 async fn mark_utxos_as_spent(
     utxo_refs: &[String],
     tx: &mut Transaction<'_, Postgres>,
@@ -326,8 +337,8 @@ async fn mark_utxos_as_spent(
         .await
         .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
-    Ok(updated_utxos
+    updated_utxos
         .into_iter()
         .map(|row| Utxo::from_row(row, network))
-        .collect::<Result<Vec<Utxo>, DbError>>()?)
+        .collect::<Result<Vec<Utxo>, DbError>>()
 }

@@ -8,9 +8,11 @@ use frost::types::SigningMetadata;
 use persistent_storage::error::DbError;
 use sqlx::types::Json;
 use uuid::Uuid;
+use tracing::instrument;
 
 #[async_trait]
 impl SignerSignSessionStorage for LocalDbStorage {
+    #[instrument(level = "trace", skip(self), ret)]
     async fn get_sign_data(&self, musig_id: &MusigId, session_id: Uuid) -> Result<Option<SignerSignData>, DbError> {
         let public_key = musig_id.get_public_key();
         let rune_id = musig_id.get_rune_id();
@@ -37,6 +39,7 @@ impl SignerSignSessionStorage for LocalDbStorage {
         )
     }
 
+    #[instrument(level = "trace", skip(self, sign_data), ret)]
     async fn set_sign_data(
         &self,
         musig_id: &MusigId,

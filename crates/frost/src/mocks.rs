@@ -44,8 +44,8 @@ impl SignerSignSessionStorage for MockSignerSignSessionStorage {
     }
 }
 
-impl MockSignerMusigIdStorage {
-    pub fn new() -> Self {
+impl Default for MockSignerMusigIdStorage {
+    fn default() -> Self {
         Self {
             storage: Arc::new(Mutex::new(BTreeMap::new())),
         }
@@ -74,16 +74,16 @@ pub struct MockAggregatorSignSessionStorage {
     storage: Arc<Mutex<BTreeMap<(MusigId, Uuid), AggregatorSignData>>>,
 }
 
-impl MockAggregatorMusigIdStorage {
-    pub fn new() -> Self {
+impl Default for MockAggregatorMusigIdStorage {
+    fn default() -> Self {
         Self {
             storage: Arc::new(Mutex::new(BTreeMap::default())),
         }
     }
 }
 
-impl MockAggregatorSignSessionStorage {
-    pub fn new() -> Self {
+impl Default for MockAggregatorSignSessionStorage {
+    fn default() -> Self {
         Self {
             storage: Arc::new(Mutex::new(BTreeMap::default())),
         }

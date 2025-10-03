@@ -203,10 +203,7 @@ impl FrostAggregator {
     pub async fn lock_musig_id(&self, musig_id: &MusigId) -> Result<(), AggregatorError> {
         let mut locked_musig_ids = self.locked_musig_ids.lock().await;
         if locked_musig_ids.contains(musig_id) {
-            return Err(AggregatorError::MusigAlreadyExists(format!(
-                "Musig id already exists: {:?}",
-                musig_id
-            )));
+            return Err(AggregatorError::MusigAlreadyExists(musig_id.clone()));
         }
         locked_musig_ids.insert(musig_id.clone());
         Ok(())
@@ -216,10 +213,7 @@ impl FrostAggregator {
         let mut locked_musig_ids = self.locked_musig_ids.lock().await;
         let removed = locked_musig_ids.remove(musig_id);
         if !removed {
-            return Err(AggregatorError::MusigNotFound(format!(
-                "Something bad went wrong: {:?}",
-                musig_id
-            )));
+            return Err(AggregatorError::FailedToUnlockMusig(musig_id.clone()));
         }
         Ok(())
     }
@@ -228,12 +222,9 @@ impl FrostAggregator {
         self.lock_musig_id(musig_id).await?;
 
         let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id).await?;
-        if let Some(_) = musig_id_data {
+        if musig_id_data.is_some() {
             self.unlock_musig_id(musig_id).await?;
-            return Err(AggregatorError::MusigAlreadyExists(format!(
-                "Musig id already exists: {:?}",
-                musig_id
-            )));
+            return Err(AggregatorError::MusigAlreadyExists(musig_id.clone()));
         }
 
         self.dkg_round_1(musig_id).await?;
@@ -267,7 +258,10 @@ impl FrostAggregator {
 
         match musig_id_data {
             Some(AggregatorMusigIdData {
-                dkg_state: AggregatorDkgState::DkgFinalized { public_key_package: _public_key_package },
+                dkg_state:
+                    AggregatorDkgState::DkgFinalized {
+                        public_key_package: _public_key_package,
+                    },
             }) => {
                 let mut commitments = BTreeMap::new();
                 let mut join_handles = vec![];

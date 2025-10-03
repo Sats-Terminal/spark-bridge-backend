@@ -14,10 +14,8 @@ use crate::error::BtcIndexerError;
 use titan_client::{TitanApi, TitanClient};
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
-use tracing::{error, info, instrument, log::debug, trace, warn};
+use tracing::instrument;
 use uuid::Uuid;
-
-const BTC_INDEXER_LOG_PATH: &str = "btc_indexer";
 
 pub struct BtcIndexer<C, Db, TxValidator> {
     pub btc_indexer_params: BtcIndexerParams,
@@ -43,7 +41,6 @@ pub struct IndexerParams<Db> {
 }
 
 impl BtcIndexer<TitanClient, LocalDbStorage, TxArbiter> {
-    #[instrument(skip(params))]
     pub fn with_api(params: IndexerParams<LocalDbStorage>) -> crate::error::Result<Self> {
         let titan_api_client = TitanClient::new(params.titan_config.url.as_ref());
         Self::new(IndexerParamsWithApi {
@@ -69,7 +66,6 @@ impl<C: Clone, Db: Clone, TxValidator: Clone> Clone for BtcIndexer<C, Db, TxVali
 }
 
 impl<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArbiterTrait> BtcIndexer<C, Db, TxValidator> {
-    #[instrument(skip(params))]
     pub fn new(params: IndexerParamsWithApi<C, Db, TxValidator>) -> crate::error::Result<Self> {
         let cancellation_token = CancellationToken::new();
         let mut task_tracker = TaskTracker::default();
@@ -85,8 +81,8 @@ impl<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArbiterTrait> BtcIndexer<C
             &params.indexer_params.btc_rpc_creds.url.to_string(),
             params.indexer_params.btc_rpc_creds.get_btc_creds(),
         )?);
-        debug!(
-            "[Btc indexer] Initialization passed with configuration, {:?}",
+        tracing::debug!(
+            "Initialization passed with configuration, {:?}",
             params.indexer_params.btc_indexer_params
         );
         let indexer = BtcIndexer {
@@ -109,13 +105,13 @@ impl<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArbiterTrait> BtcIndexer<C
 #[async_trait]
 impl<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArbiterTrait> BtcIndexerApi for BtcIndexer<C, Db, TxValidator> {
     #[inline]
-    #[instrument(level = "debug", skip(self), ret)]
+    #[instrument(level = "trace", skip(self), ret)]
     async fn check_tx_changes(&self, uuid: Uuid, payload: &TrackTxRequest) -> crate::error::Result<()> {
         self.persistent_storage.track_tx_request(uuid, payload).await?;
         Ok(())
     }
 
-    #[instrument(level = "debug", skip(self), err)]
+    #[instrument(level = "trace", skip(self), err)]
     async fn healthcheck(&self) -> crate::error::Result<()> {
         if self.task_tracker.is_closed() {
             return Err(BtcIndexerError::HealthcheckError(
@@ -126,23 +122,26 @@ impl<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArbiterTrait> BtcIndexerAp
             .healthcheck()
             .await
             .map_err(|e| BtcIndexerError::HealthcheckError(e.to_string()))?;
+        let _ = self.indexer_client.get_status().await.map_err(|e| {
+            BtcIndexerError::HealthcheckError(format!("Unable to retrieve titan indexer status, err: {e}"))
+        });
         Ok(())
     }
 
-    #[instrument(level = "debug", skip(self))]
+    #[instrument(level = "trace", skip(self))]
     fn get_tx_info(&self, tx_id: bitcoin::Txid) -> crate::error::Result<bitcoin::transaction::Transaction> {
         Ok(self.btc_core.get_by_id(&tx_id)?)
     }
 
-    #[instrument(level = "debug", skip(self))]
+    #[instrument(level = "trace", skip(self))]
     fn get_blockchain_info(&self) -> crate::error::Result<json::GetBlockchainInfoResult> {
         Ok(self.btc_core.get_blockchain_info()?)
     }
 
-    #[instrument(level = "debug", skip(self, tx))]
+    #[instrument(level = "trace", skip(self, tx))]
     fn broadcast_transaction(&self, tx: impl RawTx) -> crate::error::Result<bitcoin::blockdata::transaction::Txid> {
         let hex_tx = tx.raw_hex();
-        trace!("[Btc indexer] broadcasting transaction, {hex_tx}");
+        tracing::info!("broadcasting transaction, {hex_tx}");
         Ok(self.btc_core.send_raw_transaction(hex_tx)?)
     }
 }
@@ -150,7 +149,7 @@ impl<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArbiterTrait> BtcIndexerAp
 impl<C, Db, TxValidator> Drop for BtcIndexer<C, Db, TxValidator> {
     #[instrument(skip(self))]
     fn drop(&mut self) {
-        debug!("[{BTC_INDEXER_LOG_PATH}] Closing indexer");
+        tracing::info!("Closing indexer");
         self.cancellation_token.cancel();
         self.task_tracker.close();
     }

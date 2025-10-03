@@ -17,6 +17,7 @@ spark-protos = { workspace = true }
 spark_client = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
+tonic-health = { workspace = true }
 utoipa = { workspace = true }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 serde_json = { workspace = true }
@@ -24,6 +25,6 @@ serde_json = { workspace = true }
 [dev-dependencies]
 anyhow = { workspace = true }
 axum-test = { workspace = true }
-dotenv = { workspace = true }
+dotenvy = { workspace = true }
 tokio = { workspace = true }
 spark_balance_checker_config_parser = { workspace = true }

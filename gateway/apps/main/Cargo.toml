@@ -6,7 +6,7 @@ edition = "2024"
 anyhow = { workspace = true }
 axum = { workspace = true }
 bitcoin = { workspace = true }
-dotenv = { workspace = true }
+dotenvy = { workspace = true }
 frost = { workspace = true }
 gateway_config_parser = { workspace = true }
 gateway_flow_processor = { workspace = true }
@@ -21,3 +21,4 @@ gateway_deposit_verification = { workspace = true }
 frost-secp256k1-tr = { workspace = true }
 gateway_verifier_client = { workspace = true }
 rustls = { workspace = true }
+eyre = { workspace = true }

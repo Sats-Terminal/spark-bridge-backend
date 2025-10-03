@@ -4,7 +4,7 @@ use axum::Json;
 use axum::extract::State;
 use global_utils::common_resp::Empty;
 use serde::{Deserialize, Serialize};
-use tracing::{info, instrument, trace};
+use tracing::{instrument, trace};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct TestSparkRequest {
