@@ -175,15 +175,6 @@ impl SparkClient {
         let address_data = decode_spark_address(&request.spark_address)?;
         let public_key = hex::decode(address_data.identity_public_key).unwrap();
 
-        // let token_identifier = TokenIdentifier::decode_bech32m("btknrt132gmeqdec4xvf46y8r84j583yxza0l80laa0tk9pp7nqx665dssqqkk9ad", bitcoin::Network::Regtest).unwrap();
-
-        // let request = QueryTokenOutputsRequest {
-        //     owner_public_keys: vec![public_key],
-        //     token_identifiers: vec![token_identifier.to_bytes().to_vec()],
-        //     token_public_keys: vec![],
-        //     network: 2, // Regtest, search spark_network_to_proto_network function
-        // };
-
         let request = QueryTokenOutputsRequest {
             owner_public_keys: vec![public_key],
             token_identifiers: vec![],
