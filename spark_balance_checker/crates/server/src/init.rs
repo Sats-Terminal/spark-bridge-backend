@@ -4,17 +4,12 @@ use axum::{Router, routing::post};
 use spark_client::client::SparkRpcClient;
 use spark_client::common::config::SparkConfig;
 use tracing::instrument;
-use utoipa::OpenApi;
 
 #[derive(Clone)]
 pub struct AppState {
     pub client: SparkRpcClient,
 }
 
-#[allow(dead_code)]
-#[derive(OpenApi)]
-#[openapi(paths(handlers::get_balance::handle))]
-struct ApiDoc;
 
 pub struct SparkBalanceCheckerApi;
 
@@ -41,7 +36,5 @@ pub async fn create_app(config: SparkConfig) -> Result<Router, ServerError> {
         )
         .with_state(state);
 
-    #[cfg(feature = "swagger")]
-    let app = app.merge(SwaggerUi::new("/swagger-ui/").url("/api-docs/openapi.json", ApiDoc::openapi()));
     Ok(app)
 }

@@ -71,7 +71,7 @@ pub async fn handle(
             nonce,
             deposit_address: InnerAddress::SparkAddress(address.clone()),
             bridge_address: None,
-            is_btc: true,
+            is_btc: false,
             amount: request.amount,
             confirmation_status: verifiers_responses,
         })

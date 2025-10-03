@@ -4,6 +4,7 @@ use frost::types::MusigId;
 use frost::types::TweakBytes;
 use gateway_local_db_store::schemas::deposit_address::DepositStatus;
 use gateway_rune_transfer::transfer::PayingTransferInput;
+use token_identifier::TokenIdentifier;
 
 #[derive(Clone, Debug)]
 pub struct WatchSparkDepositRequest {
@@ -12,6 +13,7 @@ pub struct WatchSparkDepositRequest {
     pub exit_address: Address,
     pub amount: u64,
     pub spark_address: String,
+    pub token_identifier: TokenIdentifier,
 }
 
 #[derive(Clone, Debug)]
@@ -50,6 +52,5 @@ pub struct VerifyRunesDepositRequest {
 #[derive(Clone, Debug)]
 pub struct VerifySparkDepositRequest {
     pub spark_address: String,
-    pub exit_address: Address,
     pub paying_input: PayingTransferInput,
 }

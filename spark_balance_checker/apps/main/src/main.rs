@@ -1,6 +1,7 @@
 use eyre::Result;
 use global_utils::config_path::ConfigPath;
 use global_utils::logger::init_logger;
+use rustls;
 use spark_balance_checker_config_parser::config::ServerConfig;
 use spark_balance_checker_server::init::create_app;
 use std::sync::Once;

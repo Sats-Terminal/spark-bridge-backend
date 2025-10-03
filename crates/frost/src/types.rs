@@ -96,6 +96,7 @@ pub struct SignRound2Request {
     pub musig_id: MusigId,
     pub session_id: Uuid,
     pub signing_package: SigningPackage,
+    pub tap_tweek: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

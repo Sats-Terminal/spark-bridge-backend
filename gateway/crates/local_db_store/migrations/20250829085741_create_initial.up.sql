@@ -94,7 +94,7 @@ CREATE TABLE IF NOT EXISTS gateway.paying_utxo
 (
     txid TEXT NOT NULL,
     vout INT NOT NULL,
-    spark_deposit_address TEXT NOT NULL,
+    btc_exit_address TEXT NOT NULL,
     sats_amount BIGINT NOT NULL,
     none_anyone_can_pay_signature TEXT NOT NULL,
     PRIMARY KEY (txid, vout)

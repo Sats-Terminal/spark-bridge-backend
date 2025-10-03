@@ -59,7 +59,7 @@ impl RuneManager {
     }
 
     pub async fn get_rune_id(&self) -> RuneId {
-        self.rune_id
+        self.rune_id.clone()
     }
 
     async fn unite_unspent_utxos(&mut self) -> Result<Txid, RuneError> {
@@ -124,16 +124,16 @@ impl RuneManager {
         let address_data = self.bitcoin_client.get_address_data(self.p2tr_address.clone()).await?;
 
         for output in address_data.outputs.iter() {
-            if output.value >= 100_000
-                && let SpentStatus::Unspent = output.spent
-            {
-                return Ok((
-                    OutPoint {
-                        txid: Txid::from_str(&output.txid.to_string()).unwrap(),
-                        vout: output.vout,
-                    },
-                    output.value,
-                ));
+            if output.value >= 100_000 {
+                if let SpentStatus::Unspent = output.spent {
+                    return Ok((
+                        OutPoint {
+                            txid: Txid::from_str(&output.txid.to_string()).unwrap(),
+                            vout: output.vout,
+                        },
+                        output.value,
+                    ));
+                }
             }
         }
 

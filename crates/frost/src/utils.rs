@@ -25,10 +25,7 @@ pub fn get_tweaked_p2tr_address(public_key: PublicKey, tweak: TweakBytes, networ
     let ctx = Secp256k1::new();
     let (x_only_public_key, _) = public_key.x_only_public_key();
 
-    let tap_node_hash =
-        TapNodeHash::from_slice(&tweak).map_err(|e| eyre::eyre!("Failed to convert tweak to tap node hash: {}", e))?;
-
-    let address = Address::p2tr(&ctx, x_only_public_key, Some(tap_node_hash), network);
+    let address = Address::p2tr(&ctx, x_only_public_key, None, network);
 
     Ok(address)
 }

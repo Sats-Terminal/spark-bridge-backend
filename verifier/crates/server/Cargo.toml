@@ -20,7 +20,9 @@ verifier_spark_balance_checker_client = { workspace = true }
 verifier_gateway_client = { workspace = true }
 bitcoin = { workspace = true }
 url = { workspace = true }
+token-identifier = { workspace = true }
 
 [dev-dependencies]
 axum-test = { workspace = true }
 sqlx = { workspace = true }
+token-identifier = { workspace = true }

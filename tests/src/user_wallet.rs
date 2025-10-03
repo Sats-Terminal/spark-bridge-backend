@@ -1,11 +1,14 @@
 use crate::bitcoin_client::BitcoinClient;
-use crate::constants::{BLOCKS_TO_GENERATE, DEFAULT_DUST_AMOUNT, DEFAULT_FAUCET_AMOUNT, DEFAULT_FEE_AMOUNT};
+use crate::constants::{
+    BLOCKS_TO_GENERATE, DEFAULT_DUST_AMOUNT, DEFAULT_FAUCET_AMOUNT, DEFAULT_FEE_AMOUNT, PAYING_INPUT_SATS_AMOUNT,
+};
 use crate::error::RuneError;
+use crate::gateway_client::UserPayingTransferInput;
 use crate::spark_client::GetSparkAddressDataRequest;
 use crate::spark_client::SparkClient;
 use crate::utils::create_credentials;
 use crate::utils::sign_transaction;
-use bitcoin::Address;
+use bitcoin::{secp256k1, Address, Network, XOnlyPublicKey};
 use bitcoin::Transaction;
 use bitcoin::Txid;
 use bitcoin::hashes::sha256::Hash as Sha256Hash;
@@ -13,6 +16,7 @@ use bitcoin::hashes::{Hash, HashEngine};
 use bitcoin::secp256k1::Message;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin::secp256k1::{Keypair, PublicKey};
+use bitcoin::sighash::{Prevouts, SighashCache, TapSighashType};
 use bitcoin::transaction::Version;
 use bitcoin::{Amount, OutPoint, ScriptBuf, Sequence, TxIn, TxOut, Witness};
 use chrono::Utc;
@@ -34,6 +38,7 @@ use spark_protos::spark_token::SignatureWithIndex;
 use spark_protos::spark_token::StartTransactionRequest;
 use std::str::FromStr;
 use std::time::Duration;
+use bitcoin::key::{TapTweak, TweakedPublicKey};
 use titan_client::SpentStatus;
 use token_identifier::TokenIdentifier;
 use tokio::time::sleep;
@@ -140,7 +145,7 @@ impl UserWallet {
         &mut self,
         transfer_type: TransferType,
         transfer_address: Address,
-    ) -> Result<Txid, RuneError> {
+    ) -> Result<Transaction, RuneError> {
         tracing::info!("Transferring runes");
         let rune_balance = self.get_rune_balance().await?;
 
@@ -189,20 +194,39 @@ impl UserWallet {
             witness: Witness::new(),
         };
 
-        let txouts = vec![
+        let mut txouts = vec![
             TxOut {
                 value: Amount::from_sat(0),
                 script_pubkey: op_return_script,
             },
-            TxOut {
-                value: Amount::from_sat(DEFAULT_DUST_AMOUNT),
-                script_pubkey: transfer_address.script_pubkey(),
-            },
-            TxOut {
-                value: Amount::from_sat(value - DEFAULT_FEE_AMOUNT - DEFAULT_DUST_AMOUNT),
-                script_pubkey: self.p2tr_address.script_pubkey(),
-            },
         ];
+
+        match transfer_type {
+            TransferType::RuneTransfer { rune_amount: _ } => {
+                txouts.extend(vec![
+                    TxOut {
+                        value: Amount::from_sat(DEFAULT_DUST_AMOUNT),
+                        script_pubkey: transfer_address.script_pubkey(),
+                    },
+                    TxOut {
+                        value: Amount::from_sat(value - DEFAULT_FEE_AMOUNT - DEFAULT_DUST_AMOUNT),
+                        script_pubkey: self.p2tr_address.script_pubkey(),
+                    },
+                ]);
+            }
+            TransferType::BtcTransfer { sats_amount } => {
+                txouts.extend(vec![
+                    TxOut {
+                        value: Amount::from_sat(sats_amount),
+                        script_pubkey: transfer_address.script_pubkey(),
+                    },
+                    TxOut {
+                        value: Amount::from_sat(value - DEFAULT_FEE_AMOUNT - sats_amount),
+                        script_pubkey: self.p2tr_address.script_pubkey(),
+                    },
+                ]);
+            }
+        }
 
         let mut transaction = Transaction {
             version: Version::TWO,
@@ -215,13 +239,13 @@ impl UserWallet {
 
         let txid = transaction.compute_txid();
 
-        self.bitcoin_client.broadcast_transaction(transaction)?;
+        self.bitcoin_client.broadcast_transaction(transaction.clone())?;
         self.bitcoin_client.generate_blocks(BLOCKS_TO_GENERATE, None)?;
         sleep(Duration::from_secs(1)).await;
 
         tracing::info!("Runes transferred");
 
-        Ok(txid)
+        Ok(transaction)
     }
 
     pub async fn unite_unspent_utxos(&mut self) -> Result<Txid, RuneError> {
@@ -317,8 +341,7 @@ impl UserWallet {
             .get_spark_address_data(GetSparkAddressDataRequest {
                 spark_address: self.get_spark_address()?,
             })
-            .await
-            .map_err(Box::new)?;
+            .await?;
 
         let token_identifier = spark_address_data.token_outputs[0].token_identifier;
         for token_output in spark_address_data.token_outputs.iter() {
@@ -335,7 +358,7 @@ impl UserWallet {
         let mut token_leaves_to_spend = vec![];
         for token_output in spark_address_data.token_outputs.iter() {
             token_leaves_to_spend.push(TokenLeafToSpend {
-                parent_leaf_hash: *Sha256Hash::from_bytes_ref(
+                parent_leaf_hash: Sha256Hash::from_bytes_ref(
                     token_output
                         .prev_token_transaction_hash
                         .clone()
@@ -346,7 +369,8 @@ impl UserWallet {
                                 "Failed to convert prev_token_transaction_hash to Sha256Hash".to_string(),
                             )
                         })?,
-                ),
+                )
+                .clone(),
                 parent_leaf_index: token_output.prev_token_transaction_vout,
             });
         }
@@ -356,6 +380,9 @@ impl UserWallet {
             token_identifier,
             transfer_amount as u128,
         )];
+
+        tracing::debug!("Token identifier: {:?}", token_identifier.encode_bech32m(bitcoin::Network::Regtest));
+        tracing::debug!("Spark address: {:?}", receiver_spark_address);
 
         if (transfer_amount as u128) < total_amount {
             let changed_leaf_output = create_partial_token_leaf_output(
@@ -406,9 +433,8 @@ impl UserWallet {
         };
         let start_transaction_response = self
             .spark_client
-            .start_spark_transaction(start_transaction_request, self.keypair)
-            .await
-            .map_err(Box::new)?;
+            .start_spark_transaction(start_transaction_request, self.keypair.clone())
+            .await?;
 
         let final_token_transaction_proto = start_transaction_response
             .final_token_transaction
@@ -454,16 +480,62 @@ impl UserWallet {
 
         let _ = self
             .spark_client
-            .commit_spark_transaction(commit_transaction_request, self.keypair)
-            .await
-            .map_err(Box::new)?;
+            .commit_spark_transaction(commit_transaction_request, self.keypair.clone())
+            .await?;
 
         Ok(())
     }
 
-    // pub async fn create_user_paying_transfer_input(&self,) -> Result<UserPayingTransferInput, RuneError> {
+    pub async fn create_user_paying_transfer_input(&mut self) -> Result<UserPayingTransferInput, RuneError> {
+        let tx = self
+            .transfer(
+                TransferType::BtcTransfer {
+                    sats_amount: PAYING_INPUT_SATS_AMOUNT,
+                },
+                self.p2tr_address.clone(),
+            )
+            .await?;
+        let txid = tx.compute_txid();
 
-    // }
+        let previous_output = OutPoint { txid: txid, vout: 1 };
+        let txin = TxIn {
+            previous_output,
+            script_sig: ScriptBuf::new(),
+            sequence: Sequence::ENABLE_RBF_NO_LOCKTIME,
+            witness: Witness::new(),
+        };
+
+        let transaction = Transaction {
+            version: Version::TWO,
+            lock_time: bitcoin::absolute::LockTime::ZERO,
+            input: vec![txin],
+            output: vec![],
+        };
+
+        let mut sighash_cache = SighashCache::new(&transaction);
+        let txout = TxOut {
+            value: Amount::from_sat(PAYING_INPUT_SATS_AMOUNT),
+            script_pubkey: tx.output[1].script_pubkey.clone(),
+        };
+        let message_hash = sighash_cache
+            .taproot_key_spend_signature_hash(0, &Prevouts::One(0, txout), TapSighashType::NonePlusAnyoneCanPay)
+            .map_err(|e| RuneError::HashError(format!("Failed to create message hash: {}", e)))?;
+
+        let message = Message::from_digest(message_hash.to_byte_array());
+        let secp = Secp256k1::new();
+        let tweaked = self.keypair.tap_tweak(&secp, None);
+        let signature = secp.sign_schnorr_no_aux_rand(&message, &tweaked.to_keypair());
+
+        let paying_input = UserPayingTransferInput {
+            txid: txid.to_string(),
+            vout: 1,
+            btc_exit_address: self.p2tr_address.clone().to_string(),
+            sats_amount: PAYING_INPUT_SATS_AMOUNT,
+            none_anyone_can_pay_signature: signature,
+        };
+
+        Ok(paying_input)
+    }
 }
 
 fn create_partial_token_leaf_output(

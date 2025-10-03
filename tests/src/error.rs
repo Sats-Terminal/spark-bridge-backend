@@ -21,7 +21,7 @@ pub enum RuneError {
     #[error("Failed to transfer spark")]
     SparkAddressError(#[from] SparkAddressError),
     #[error("Spark client error: {0}")]
-    SparkClientError(#[from] Box<SparkClientError>),
+    SparkClientError(#[from] SparkClientError),
     #[error("Token identifier mismatch")]
     TokenIdentifierMismatch,
     #[error("Invalid data: {0}")]

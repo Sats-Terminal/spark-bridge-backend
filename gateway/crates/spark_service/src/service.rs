@@ -109,6 +109,7 @@ impl SparkService {
                 message_hash.as_byte_array().as_slice(),
                 SigningMetadata::Authorization,
                 nonce_tweak,
+                false,
             )
             .await
             .map_err(|e| SparkServiceError::FrostAggregatorError(e.to_string()))?;
@@ -181,6 +182,7 @@ impl SparkService {
                 partial_token_transaction_hash.as_ref(),
                 create_signing_metadata(partial_token_transaction.clone(), transaction_type.clone(), true)?,
                 nonce_tweak,
+                false,
             )
             .await
             .map_err(|e| SparkServiceError::FrostAggregatorError(e.to_string()))?;
@@ -262,6 +264,7 @@ impl SparkService {
                         operator_specific_signable_payload.as_ref(),
                         create_signing_metadata(final_token_transaction, transaction_type, false)?,
                         nonce_tweak,
+                        false,
                     )
                     .await
                     .map_err(|e| SparkServiceError::FrostAggregatorError(e.to_string()))?;

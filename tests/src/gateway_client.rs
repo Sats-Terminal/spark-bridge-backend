@@ -60,7 +60,6 @@ const EXIT_SPARK_PATH: &str = "/api/user/exit-spark";
 #[derive(Serialize, Debug)]
 pub struct ExitSparkRequest {
     pub spark_address: String,
-    pub exit_address: String,
     pub paying_input: UserPayingTransferInput,
 }
 
@@ -68,7 +67,7 @@ pub struct ExitSparkRequest {
 pub struct UserPayingTransferInput {
     pub txid: String,
     pub vout: u32,
-    pub address: String,
+    pub btc_exit_address: String,
     pub sats_amount: u64,
     pub none_anyone_can_pay_signature: Signature,
 }

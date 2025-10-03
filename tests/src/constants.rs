@@ -7,3 +7,5 @@ pub const DEFAULT_RUNE_AMOUNT: u64 = 1_000_000;
 pub const DEFAULT_RUNE_CAP: u64 = 1_000;
 
 pub const DEFAULT_FAUCET_AMOUNT: u64 = 1_000_000;
+
+pub const PAYING_INPUT_SATS_AMOUNT: u64 = 5_000;

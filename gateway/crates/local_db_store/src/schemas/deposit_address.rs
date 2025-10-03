@@ -9,6 +9,7 @@ use sqlx::types::Json;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
+use std::string::ToString;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum InnerAddress {
@@ -16,16 +17,12 @@ pub enum InnerAddress {
     BitcoinAddress(Address),
 }
 
-impl Display for InnerAddress {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        writeln!(
-            f,
-            "{}",
-            match self {
-                InnerAddress::SparkAddress(addr) => addr.clone(),
-                InnerAddress::BitcoinAddress(addr) => addr.to_string(),
-            }
-        )
+impl ToString for InnerAddress {
+    fn to_string(&self) -> String {
+        match self {
+            InnerAddress::SparkAddress(addr) => addr.clone(),
+            InnerAddress::BitcoinAddress(addr) => addr.to_string(),
+        }
     }
 }
 
