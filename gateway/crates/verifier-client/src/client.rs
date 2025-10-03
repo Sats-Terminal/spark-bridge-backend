@@ -13,7 +13,7 @@ pub struct VerifierClient {
 }
 
 impl VerifierClient {
-    const HEALTHCHECK_PATH: &'static str = "/healthcheck";
+    const HEALTHCHECK_PATH: &'static str = "/health";
 
     pub fn new(config: VerifierConfig) -> Self {
         Self {
@@ -42,6 +42,7 @@ impl VerifierClient {
             })?;
             Ok(response)
         } else {
+            tracing::error!("Failed to send HTTP request with status {}", response.status());
             Err(VerifierClientError::HttpError(format!(
                 "Failed to send HTTP request with status {}, error: {}",
                 response.status(),

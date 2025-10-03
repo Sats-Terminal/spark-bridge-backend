@@ -2,7 +2,7 @@ use bitcoin::Address;
 use bitcoin::OutPoint;
 use frost::types::TweakBytes;
 use gateway_local_db_store::schemas::deposit_address::DepositStatus;
-use gateway_local_db_store::schemas::user_identifier::{UserIdentifier, UserUniqueId};
+use gateway_local_db_store::schemas::user_identifier::UserUniqueId;
 use gateway_rune_transfer::transfer::PayingTransferInput;
 
 #[derive(Clone, Debug)]

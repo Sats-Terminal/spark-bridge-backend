@@ -13,7 +13,7 @@ const PATH_TO_LOG: &str = "btc_indexer_server:track_tx";
 
 #[utoipa::path(
     post,
-    path = "/healthcheck",
+    path = "/health",
     request_body = Empty,
     responses(
         (status = 200, description = "Success", body = Empty),

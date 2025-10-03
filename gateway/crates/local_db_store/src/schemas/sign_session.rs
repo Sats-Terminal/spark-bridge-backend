@@ -5,13 +5,21 @@ use frost::types::AggregatorSignState;
 use frost::types::SigningMetadata;
 use frost::types::{AggregatorSignData, DkgShareId};
 use persistent_storage::error::DbError;
+use persistent_storage::init::StorageHealthcheck;
 use sqlx::types::Json;
 use tracing::instrument;
 use uuid::Uuid;
 
 #[async_trait]
+impl StorageHealthcheck for LocalDbStorage {
+    async fn healthcheck(&self) -> Result<(), DbError> {
+        self.postgres_repo.healthcheck().await
+    }
+}
+
+#[async_trait]
 impl AggregatorSignSessionStorage for LocalDbStorage {
-    #[instrument(level = "trace", skip(self), ret)]
+    #[instrument(level = "trace", skip_all)]
     async fn get_sign_data(
         &self,
         dkg_share_id: &DkgShareId,
@@ -43,7 +51,7 @@ impl AggregatorSignSessionStorage for LocalDbStorage {
         ))
     }
 
-    #[instrument(level = "trace", skip(self), ret)]
+    #[instrument(level = "trace", skip_all)]
     async fn set_sign_data(
         &self,
         dkg_share_id: &DkgShareId,

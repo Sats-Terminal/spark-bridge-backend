@@ -1,5 +1,7 @@
 //! Token identifier types, including token identifier, network, and raw token identifier.
 
+mod token_metadata;
+
 use std::{fmt, fmt::Display, ops::Deref, str::FromStr};
 
 use bech32::{Bech32m, Hrp};

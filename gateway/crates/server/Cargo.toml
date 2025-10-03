@@ -29,6 +29,7 @@ uuid = { workspace = true }
 anyhow = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true }
+spark_client = { workspace = true }
 gateway_config_parser = { workspace = true }
 verifier_server = { workspace = true }
 frost-secp256k1-tr = { workspace = true}

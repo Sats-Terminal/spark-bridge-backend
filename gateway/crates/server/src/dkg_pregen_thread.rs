@@ -25,7 +25,7 @@ type Storage = Arc<LocalDbStorage>;
 type Aggreagator = Arc<FrostAggregator>;
 
 impl DkgPregenThread {
-    #[instrument(skip(local_db))]
+    #[instrument(skip_all)]
     pub async fn spawn_thread(
         task_tracker: &mut TaskTracker,
         local_db: Storage,
@@ -34,7 +34,7 @@ impl DkgPregenThread {
         cancellation_token: CancellationToken,
     ) {
         task_tracker.spawn(async move {
-            trace!("[{LOG_PATH}] Loop spawned..");
+            trace!(dkg_pregen_config = ?dkg_pregen_config, "[{LOG_PATH}] Loop spawned..");
             let mut interval = tokio::time::interval(Duration::from_millis(dkg_pregen_config.update_interval_millis));
             'checking_loop: loop {
                 tokio::select! {

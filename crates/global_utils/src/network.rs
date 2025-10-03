@@ -13,7 +13,7 @@ impl EnvParser for NetworkConfig {
     const ENV_NAME: &'static str = "BITCOIN_NETWORK";
 }
 impl NetworkConfig {
-    /// Reads CONFIG_PATH env
+    /// Reads `BITCOIN_NETWORK` env
     pub fn from_env() -> Result<Self, EnvParserError> {
         let obtained_value = NetworkConfig::obtain_env_value()?;
         Ok(Self {

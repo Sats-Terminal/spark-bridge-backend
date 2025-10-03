@@ -1,3 +1,4 @@
+use crate::types::DkgShareId;
 use persistent_storage::error::DbError;
 use thiserror::Error;
 
@@ -7,14 +8,14 @@ pub enum SignerError {
     InvalidRequest(String),
     #[error("Invalid user state: {0}")]
     InvalidUserState(String),
-    #[error("Internal error: {0}")]
+    #[error("Internal error: '{0}'")]
     Internal(String),
-    #[error("Database error: {0}")]
+    #[error(transparent)]
     DatabaseError(#[from] DbError),
     #[error("DkgShareId already exists")]
-    DkgShareIdAlreadyExists(String),
+    DkgShareIdAlreadyExists(DkgShareId),
     #[error("DkgShareId not found")]
-    DkgShareIdNotFound(String),
+    DkgShareIdNotFound(DkgShareId),
 }
 
 #[derive(Error, Debug)]
@@ -29,10 +30,10 @@ pub enum AggregatorError {
     SignerError(#[from] SignerError),
     #[error("HTTP error: {0}")]
     HttpError(String),
-    #[error("Database error: {0}")]
+    #[error(transparent)]
     DatabaseError(#[from] DbError),
-    #[error("DkgShareId already exists")]
-    DkgShareIdAlreadyExists(String),
-    #[error("DkgShareId not found")]
-    DkgShareIdNotFound(String),
+    #[error("DkgShareId already exists, id: {0}")]
+    DkgShareIdAlreadyExists(DkgShareId),
+    #[error("DkgShareId not found, id: {0}")]
+    DkgShareIdNotFound(DkgShareId),
 }

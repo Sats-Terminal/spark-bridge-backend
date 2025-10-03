@@ -33,6 +33,7 @@ mod tests {
         _test_parallel_signing_sessions_via_aggregator(&msg_a, &msg_b, None).await?;
         Ok(())
     }
+
     #[tokio::test]
     async fn test_parallel_signing_sessions_via_aggregator_tweaked() -> anyhow::Result<()> {
         let msg_a = b"parallel message A".to_vec();
@@ -50,7 +51,7 @@ mod tests {
             PublicKey::from_str("038144ac71b61ab0e0a56967696a4f31a0cdd492cd3753d59aa978e0c8eaa5a60e").unwrap();
 
         let untweaked_public_key: UntweakedPublicKey = our_public_key.into();
-        let (tweaked_public_key, _) = untweaked_public_key.tap_tweak(&ctx, None);
+        let (_tweaked_public_key, _) = untweaked_public_key.tap_tweak(&ctx, None);
     }
 
     async fn _test_parallel_signing_sessions_via_aggregator(
@@ -74,7 +75,7 @@ mod tests {
         let aggregator = FrostAggregator::new(
             verifiers_map,
             Arc::new(agg_storage),
-            Arc::new(MockAggregatorSignSessionStorage::new()),
+            Arc::new(MockAggregatorSignSessionStorage::default()),
         );
 
         let public_key_package = aggregator.run_dkg_flow(&dkg_share_id).await?;
@@ -125,7 +126,7 @@ mod tests {
         let aggregator = FrostAggregator::new(
             verifiers_map,
             Arc::new(agg_storage),
-            Arc::new(MockAggregatorSignSessionStorage::new()),
+            Arc::new(MockAggregatorSignSessionStorage::default()),
         );
 
         let public_key_package = aggregator.run_dkg_flow(&dkg_share_id).await?;
@@ -148,11 +149,12 @@ mod tests {
     fn create_signer(identifier: u16) -> FrostSigner {
         FrostSigner::new(
             identifier,
-            Arc::new(MockSignerDkgShareIdStorage::new()),
+            Arc::new(MockSignerMusigIdStorage::default()),
             Arc::new(MockSignerSignSessionStorage::default()),
             3,
             2,
         )
+        .unwrap()
     }
 
     fn create_verifiers_map_easy() -> BTreeMap<Identifier, Arc<dyn SignerClient>> {

@@ -7,10 +7,12 @@ use frost::types::SignerSignState;
 use frost::types::SigningMetadata;
 use persistent_storage::error::DbError;
 use sqlx::types::Json;
+use tracing::instrument;
 use uuid::Uuid;
 
 #[async_trait]
 impl SignerSignSessionStorage for LocalDbStorage {
+    #[instrument(level = "trace", skip(self), ret)]
     async fn get_sign_data(
         &self,
         dkg_share_id: &DkgShareId,
@@ -37,6 +39,7 @@ impl SignerSignSessionStorage for LocalDbStorage {
         )
     }
 
+    #[instrument(level = "trace", skip(self, sign_session_data), ret)]
     async fn set_sign_data(
         &self,
         dkg_share_id: &DkgShareId,

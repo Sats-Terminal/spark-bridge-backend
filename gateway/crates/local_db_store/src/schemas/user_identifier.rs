@@ -5,8 +5,7 @@ use frost::types::DkgShareId;
 use persistent_storage::error::DbError;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
-use std::str::FromStr;
-use tracing::{info, instrument};
+use tracing::instrument;
 use uuid::Uuid;
 
 pub type UserUuid = Uuid;
@@ -199,6 +198,7 @@ mod tests {
             3,
             2,
         )
+        .unwrap()
     }
 
     async fn create_verifiers_map_easy() -> BTreeMap<Identifier, Arc<dyn SignerClient>> {

@@ -13,7 +13,7 @@ pub struct BtcIndexerApi;
 impl BtcIndexerApi {
     /// Represents hardcoded `/track_tx` endpoint
     pub const TRACK_TX_ENDPOINT: &'static str = "/track_tx";
-    pub const HEALTHCHECK_ENDPOINT: &'static str = "/healthcheck";
+    pub const HEALTHCHECK_ENDPOINT: &'static str = "/health";
 }
 
 pub type Amount = u64;
@@ -52,20 +52,8 @@ impl utoipa::ToSchema for TrackTxRequest {
 }
 
 pub type TrackTxResponse = Json<Empty>;
-pub type BtcIndexerCallbackResponse = IndexerCallbackResponse;
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
-#[serde(rename_all = "snake_case")]
-pub enum IndexerCallbackResponse {
-    Ok {
-        meta: ResponseMeta,
-    },
-    Err {
-        code: u16,
-        msg: String,
-        req_meta: TrackTxRequest,
-    },
-}
+pub type BtcIndexerCallbackResponse = ResponseMeta;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct ResponseMeta {

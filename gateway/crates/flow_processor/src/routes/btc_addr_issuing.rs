@@ -13,20 +13,20 @@ use gateway_local_db_store::schemas::dkg_share::DkgShareGenerate;
 use gateway_local_db_store::schemas::user_identifier::{
     UserIdentifier, UserIdentifierData, UserIdentifierStorage, UserIds,
 };
-use tracing;
+use tracing::instrument;
 
-const LOG_PATH: &str = "flow_processor:routes:btc_addr_issuing";
-
+#[instrument(skip(flow_router), level = "trace", ret)]
 pub async fn handle(
-    flow_processor: &mut FlowProcessorRouter,
+    flow_router: &mut FlowProcessorRouter,
     request: IssueBtcDepositAddressRequest,
 ) -> Result<Address, FlowProcessorError> {
-    let local_db_storage = flow_processor.storage.clone();
+    tracing::info!("Handling btc addr issuing for musig id: {:?}", request.musig_id);
+    let local_db_storage = flow_router.storage.clone();
 
     let (public_key_package, user_uuid, rune_id) = match local_db_storage.get_ids_by_musig_id(&request.musig_id).await?
     {
         None => {
-            tracing::debug!("[{LOG_PATH}] Missing DkgShareId, running dkg from the beginning ...");
+            tracing::debug!("Missing DkgShareId, running dkg from the beginning ...");
             let user_ids = local_db_storage
                 .get_random_unused_dkg_share(UserIdentifierData {
                     public_key: request.musig_id.get_public_key().to_string(),
@@ -35,12 +35,13 @@ pub async fn handle(
                 })
                 .await?;
 
-            let pubkey_package = flow_processor
+            // TODO: or remove this flow?, just return error about unavailability
+            let pubkey_package = flow_router
                 .frost_aggregator
                 .run_dkg_flow(&user_ids.dkg_share_id)
                 .await
                 .map_err(|e| FlowProcessorError::FrostAggregatorError(format!("Failed to run DKG flow: {}", e)))?;
-            tracing::debug!("[{LOG_PATH}] DKG processing was successfully completed");
+            tracing::debug!("DKG processing was successfully completed");
             (pubkey_package, user_ids.user_uuid, user_ids.rune_id)
         }
         Some(ids) => {
@@ -59,7 +60,7 @@ pub async fn handle(
                     ));
                 }
                 Some(AggregatorDkgShareData { dkg_state }) => {
-                    tracing::debug!("[{LOG_PATH}] Musig exists, obtaining dkg pubkey ...");
+                    tracing::debug!("Dkg share exists, obtaining dkg pubkey ...");
                     match dkg_state {
                         AggregatorDkgState::Initialized => {
                             return Err(FlowProcessorError::UnfinishedDkgState(
@@ -88,12 +89,12 @@ pub async fn handle(
     let nonce = generate_tweak_bytes();
     let public_key = convert_public_key_package(&public_key_package)
         .map_err(|e| FlowProcessorError::InvalidDataError(format!("Failed to convert public key package: {}", e)))?;
-    let address = get_tweaked_p2tr_address(public_key, nonce, flow_processor.network)
+    let address = get_tweaked_p2tr_address(public_key, nonce, flow_router.network)
         .map_err(|e| FlowProcessorError::InvalidDataError(format!("Failed to create address: {}", e)))?;
 
     let verifiers_responses = VerifiersResponses::new(
         DepositStatus::Created,
-        flow_processor.verifier_configs.iter().map(|v| v.id).collect(),
+        flow_router.verifier_configs.iter().map(|v| v.id).collect(),
     );
 
     local_db_storage

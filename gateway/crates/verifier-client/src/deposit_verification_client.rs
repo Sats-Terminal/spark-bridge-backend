@@ -3,13 +3,16 @@ use async_trait::async_trait;
 use bitcoin::OutPoint;
 use frost::types::TweakBytes;
 use gateway_deposit_verification::error::DepositVerificationError;
-use gateway_deposit_verification::traits::VerificationClient;
+use gateway_deposit_verification::traits::{
+    DepositVerificationClientTrait, VerificationClient, VerificationClientHealthCheck,
+};
 use gateway_deposit_verification::types::{
     WatchRunesDepositRequest, WatchRunesDepositResponse, WatchSparkDepositRequest, WatchSparkDepositResponse,
 };
 use gateway_local_db_store::schemas::deposit_address::DepositStatus;
 use gateway_local_db_store::schemas::user_identifier::UserUniqueId;
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 
 const WATCH_RUNES_DEPOSIT_PATH: &str = "/api/gateway/watch-runes-deposit";
 const WATCH_SPARK_DEPOSIT_PATH: &str = "/api/gateway/watch-spark-deposit";
@@ -40,8 +43,8 @@ impl From<WatchRunesDepositRequest> for VerifierWatchRunesDepositRequest {
 #[derive(Deserialize, Debug)]
 pub struct VerifierWatchRunesDepositResponse {}
 
-impl Into<WatchRunesDepositResponse> for VerifierWatchRunesDepositResponse {
-    fn into(self) -> WatchRunesDepositResponse {
+impl From<VerifierWatchRunesDepositResponse> for WatchRunesDepositResponse {
+    fn from(_value: VerifierWatchRunesDepositResponse) -> Self {
         WatchRunesDepositResponse {}
     }
 }
@@ -72,16 +75,17 @@ pub struct VerifierWatchSparkDepositResponse {
     pub verifier_response: DepositStatus,
 }
 
-impl Into<WatchSparkDepositResponse> for VerifierWatchSparkDepositResponse {
-    fn into(self) -> WatchSparkDepositResponse {
+impl From<VerifierWatchSparkDepositResponse> for WatchSparkDepositResponse {
+    fn from(value: VerifierWatchSparkDepositResponse) -> Self {
         WatchSparkDepositResponse {
-            verifier_response: self.verifier_response,
+            verifier_response: value.verifier_response,
         }
     }
 }
 
 #[async_trait]
 impl VerificationClient for VerifierClient {
+    #[instrument(level = "trace", skip(self), ret)]
     async fn watch_runes_deposit(
         &self,
         request: WatchRunesDepositRequest,
@@ -100,6 +104,7 @@ impl VerificationClient for VerifierClient {
         Ok(response.into())
     }
 
+    #[instrument(level = "trace", skip(self), ret)]
     async fn watch_spark_deposit(
         &self,
         request: WatchSparkDepositRequest,
@@ -118,3 +123,12 @@ impl VerificationClient for VerifierClient {
         Ok(response.into())
     }
 }
+
+#[async_trait]
+impl VerificationClientHealthCheck for VerifierClient {
+    async fn healthcheck(&self) -> Result<(), DepositVerificationError> {
+        self.healthcheck().await
+    }
+}
+
+impl DepositVerificationClientTrait for VerifierClient {}

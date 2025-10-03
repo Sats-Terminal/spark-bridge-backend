@@ -49,9 +49,7 @@ pub struct BridgeRunesRequest {
 }
 
 #[derive(Debug)]
-pub struct BridgeRunesResponse {
-    pub message: String,
-}
+pub struct BridgeRunesResponse {}
 
 #[derive(Debug)]
 pub struct ExitSparkRequest {
@@ -59,6 +57,4 @@ pub struct ExitSparkRequest {
 }
 
 #[derive(Debug)]
-pub struct ExitSparkResponse {
-    pub message: String,
-}
+pub struct ExitSparkResponse {}

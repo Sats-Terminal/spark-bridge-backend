@@ -14,8 +14,6 @@ use std::fmt::{Debug, Formatter};
 use uuid::Uuid;
 
 pub type TweakBytes = [u8; 32];
-pub type RuneId = String;
-
 pub type DkgShareId = Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -121,7 +119,7 @@ pub enum SignerDkgState {
         round1_packages: BTreeMap<Identifier, round1::Package>,
     },
     DkgFinalized {
-        key_package: KeyPackage,
+        key_package: Box<KeyPackage>,
     },
 }
 
@@ -132,8 +130,8 @@ pub struct SignerDkgShareIdData {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SignerSignState {
-    SigningRound1 { nonces: SigningNonces },
-    SigningRound2 { signature_share: SignatureShare },
+    SigningRound1 { nonces: Box<SigningNonces> },
+    SigningRound2 { signature_share: Box<SignatureShare> },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -150,19 +148,27 @@ pub enum SigningMetadata {
     FinalCreateToken { token_transaction: TokenTransaction },
     PartialMintToken { token_transaction: TokenTransaction },
     FinalMintToken { token_transaction: TokenTransaction },
+    PartialTransferToken { token_transaction: TokenTransaction },
+    FinalTransferToken { token_transaction: TokenTransaction },
     Authorization,
     BtcTransactionMetadata {},
 }
 
 impl Debug for SigningMetadata {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            SigningMetadata::PartialCreateToken { .. } => writeln!(f, "SigningMetadata::PartialCreateToken"),
-            SigningMetadata::FinalCreateToken { .. } => writeln!(f, "SigningMetadata::FinalCreateToken"),
-            SigningMetadata::PartialMintToken { .. } => writeln!(f, "SigningMetadata::PartialMintToken"),
-            SigningMetadata::FinalMintToken { .. } => writeln!(f, "SigningMetadata::FinalMintToken"),
-            SigningMetadata::Authorization => writeln!(f, "SigningMetadata::Authorization"),
-            SigningMetadata::BtcTransactionMetadata { .. } => writeln!(f, "SigningMetadata::BtcTransactionMetadata"),
-        }
+        write!(
+            f,
+            "{:?}",
+            match self {
+                SigningMetadata::PartialCreateToken { .. } => "SigningMetadata::PartialCreateToken",
+                SigningMetadata::FinalCreateToken { .. } => "SigningMetadata::FinalCreateToken",
+                SigningMetadata::PartialMintToken { .. } => "SigningMetadata::PartialMintToken",
+                SigningMetadata::FinalMintToken { .. } => "SigningMetadata::FinalMintToken",
+                SigningMetadata::Authorization => "SigningMetadata::Authorization",
+                SigningMetadata::BtcTransactionMetadata { .. } => "SigningMetadata::BtcTransactionMetadata",
+                SigningMetadata::PartialTransferToken { .. } => "SigningMetadata::PartialTransferToken",
+                SigningMetadata::FinalTransferToken { .. } => "SigningMetadata::FinalTransferToken",
+            }
+        )
     }
 }

@@ -17,11 +17,17 @@ pub struct BridgeRunesSparkRequest {
     pub vout: u32,
 }
 
-#[instrument(level = "info", skip(request, state), fields(request = ?request), ret)]
+#[instrument(level = "trace", skip(state), ret)]
 pub async fn handle(
     State(state): State<AppState>,
     Json(request): Json<BridgeRunesSparkRequest>,
 ) -> Result<Json<()>, GatewayError> {
+    let request_btc_address = request.btc_address.clone();
+    tracing::info!(
+        "Handling bridge runes request with btc address: {:?}",
+        request_btc_address
+    );
+
     let btc_address = decode_address(&request.btc_address, state.network)
         .map_err(|e| GatewayError::InvalidData(format!("Failed to parse btc address: {e}")))?;
 
@@ -39,6 +45,11 @@ pub async fn handle(
         .verify_runes_deposit(verify_runes_deposit_request)
         .await
         .map_err(|e| GatewayError::DepositVerificationError(format!("Failed to verify runes deposit: {}", e)))?;
+
+    tracing::info!(
+        "Bridge runes request handled request with btc address: {:?}",
+        request_btc_address
+    );
 
     Ok(Json(()))
 }

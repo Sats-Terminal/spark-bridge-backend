@@ -4,8 +4,10 @@ use axum::Json;
 use axum::extract::State;
 use frost::types::TweakBytes;
 use serde::{Deserialize, Serialize};
+use tracing;
+use tracing::instrument;
 use verifier_local_db_store::schemas::deposit_address::DepositAddressStorage;
-use verifier_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositStatus, TxRejectReason};
+use verifier_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositStatus, InnerAddress, TxRejectReason};
 use verifier_local_db_store::schemas::user_identifier::UserUniqueId;
 use verifier_spark_balance_checker_client::client::GetBalanceRequest;
 
@@ -23,10 +25,17 @@ pub struct WatchSparkDepositResponse {
     pub verifier_response: DepositStatus,
 }
 
+#[instrument(level = "trace", skip(state), ret)]
 pub async fn handle(
     State(state): State<AppState>,
     Json(request): Json<WatchSparkDepositRequest>,
 ) -> Result<Json<WatchSparkDepositResponse>, VerifierError> {
+    tracing::info!("Watching spark deposit for address: {}", request.spark_address);
+
+    let deposit_address = InnerAddress::SparkAddress(request.spark_address.clone());
+    let bridge_address = InnerAddress::from_string_and_type(request.exit_address, true)
+        .map_err(|e| VerifierError::Validation(format!("Invalid exit address: {}", e)))?;
+
     state
         .storage
         .set_deposit_addr_info(DepositAddrInfo {
@@ -34,15 +43,15 @@ pub async fn handle(
             rune_id: request.user_unique_id.rune_id.clone(),
             nonce: request.nonce,
             out_point: None,
-            deposit_address: request.spark_address.clone(),
-            bridge_address: request.exit_address,
-            is_btc: true,
+            deposit_address: deposit_address.clone(),
+            bridge_address,
+            is_btc: true, // check
             deposit_amount: request.amount,
             sats_fee_amount: None,
             confirmation_status: DepositStatus::WaitingForConfirmation,
         })
         .await
-        .map_err(|e| VerifierError::StorageError(format!("Failed to set deposit address info: {}", e)))?;
+        .map_err(|e| VerifierError::Storage(format!("Failed to set deposit address info: {}", e)))?;
 
     let response = state
         .spark_balance_checker_client
@@ -51,7 +60,7 @@ pub async fn handle(
             rune_id: request.user_unique_id.rune_id,
         })
         .await
-        .map_err(|e| VerifierError::SparkBalanceCheckerClientError(format!("Failed to get balance: {}", e)))?;
+        .map_err(|e| VerifierError::SparkBalanceCheckerClient(format!("Failed to get balance: {}", e)))?;
 
     let confirmation_status = match response.balance == request.amount as u128 {
         true => DepositStatus::Confirmed,
@@ -63,9 +72,11 @@ pub async fn handle(
 
     state
         .storage
-        .set_confirmation_status_by_deposit_address(request.spark_address, confirmation_status.clone())
+        .set_confirmation_status_by_deposit_address(deposit_address, confirmation_status.clone())
         .await
-        .map_err(|e| VerifierError::StorageError(format!("Failed to update confirmation status: {}", e)))?;
+        .map_err(|e| VerifierError::Storage(format!("Failed to update confirmation status: {}", e)))?;
+
+    tracing::info!("Spark deposit watched for address: {}", request.spark_address);
 
     Ok(Json(WatchSparkDepositResponse {
         verifier_response: confirmation_status,

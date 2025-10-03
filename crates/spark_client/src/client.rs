@@ -4,7 +4,9 @@ use crate::{
     connection::{SparkServicesClients, SparkTlsConnection},
 };
 use bitcoin::secp256k1::PublicKey;
-use spark_protos::spark::{QueryTokenOutputsRequest, QueryTokenOutputsResponse};
+use spark_protos::spark::{
+    QueryTokenOutputsRequest, QueryTokenOutputsResponse, QueryTokenTransactionsRequest, QueryTokenTransactionsResponse,
+};
 use spark_protos::spark_authn::{
     GetChallengeRequest, GetChallengeResponse, VerifyChallengeRequest, VerifyChallengeResponse,
 };
@@ -15,9 +17,12 @@ use std::collections::HashMap;
 use std::{future::Future, sync::Arc};
 use tokio::sync::Mutex;
 use tonic::metadata::MetadataValue;
+use tonic_health::pb::HealthCheckRequest;
+use tonic_health::pb::health_check_response::ServingStatus;
 use tracing;
 
 const N_QUERY_RETRIES: usize = 3;
+const SPARK_OPERATOR_SERVICE_NAME: &str = "spark-operator";
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct SparkAuthSession {
@@ -27,18 +32,24 @@ pub struct SparkAuthSession {
 
 #[derive(Clone)]
 pub struct SparkRpcClient {
+    config: SparkConfig,
     clients: SparkServicesClients,
     authn_sessions: Arc<Mutex<HashMap<PublicKey, SparkAuthSession>>>,
 }
 
 impl SparkRpcClient {
     pub async fn new(config: SparkConfig) -> Result<Self, SparkClientError> {
-        let tls_connection = SparkTlsConnection::new(config)?;
+        let tls_connection = SparkTlsConnection::new(config.clone())?;
         let clients = tls_connection.create_clients().await?;
         Ok(Self {
+            config,
             clients,
             authn_sessions: Arc::new(Mutex::new(HashMap::new())),
         })
+    }
+
+    pub fn get_config(&self) -> &SparkConfig {
+        &self.config
     }
 
     async fn retry_query<F, Fut, Resp, P>(&self, query_fn: F, params: P) -> Result<Resp, SparkClientError>
@@ -79,6 +90,36 @@ impl SparkRpcClient {
         };
 
         self.retry_query(query_fn, request).await.map(|r| r.into_inner())
+    }
+
+    pub async fn query_token_transactions(
+        &self,
+        request: QueryTokenTransactionsRequest,
+    ) -> Result<QueryTokenTransactionsResponse, SparkClientError> {
+        let query_fn = |mut clients: SparkServicesClients, request: QueryTokenTransactionsRequest| async move {
+            clients
+                .spark
+                .query_token_transactions(request)
+                .await
+                .map_err(|e| SparkClientError::ConnectionError(format!("Failed to query transactions: {}", e)))
+        };
+
+        self.retry_query(query_fn, request).await.map(|r| r.into_inner())
+    }
+
+    pub async fn check_spark_operator_service(&self) -> Result<ServingStatus, SparkClientError> {
+        let req = HealthCheckRequest {
+            service: SPARK_OPERATOR_SERVICE_NAME.to_string(),
+        };
+        let query_fn = |mut clients: SparkServicesClients, request: HealthCheckRequest| async move {
+            clients
+                .health
+                .check(request)
+                .await
+                .map_err(|e| SparkClientError::ConnectionError(format!("Failed to query healthcheck: {}", e)))
+        };
+
+        self.retry_query(query_fn, req).await.map(|r| r.into_inner().status())
     }
 
     pub async fn start_token_transaction(
@@ -212,7 +253,11 @@ pub fn create_request<T>(
     spark_session: SparkAuthSession,
 ) -> Result<(), SparkClientError> {
     let identity_public_key_str = hex::encode(user_public_key.serialize());
-    let id_meta = MetadataValue::try_from(identity_public_key_str).unwrap(); // TODO: handle error
+    let id_meta =
+        MetadataValue::try_from(identity_public_key_str.clone()).map_err(|e| SparkClientError::InvalidMetadataStr {
+            possible_pubkey: identity_public_key_str.to_string(),
+            err: e,
+        })?;
     request.metadata_mut().insert("x-identity-public-key", id_meta);
 
     let session_token = MetadataValue::try_from(spark_session.session_token)
@@ -239,7 +284,7 @@ struct CommitTransactionRequestWithAuth {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::config::{CaCertificate, CertificateConfig, SparkConfig, SparkOperatorConfig};
+    use crate::common::config::{CertificateConfig, SparkConfig, SparkOperatorConfig};
     use global_utils::common_types::{Url, UrlWrapped};
     use global_utils::logger::{LoggerGuard, init_logger};
     use spark_address::decode_spark_address;
@@ -247,7 +292,8 @@ mod tests {
     use std::sync::LazyLock;
     use tracing::info;
 
-    const PATH_TO_CA_PEM: &str = "../../infrastructure/configurations/common/ca.pem";
+    const PATH_TO_AMAZON_CA: &str = "../../infrastructure/configurations/certificates/Amazon-Root-CA.pem";
+    const PATH_TO_FLASHNET: &str = "../../infrastructure/configurations/certificates/Flashnet-CA.pem";
 
     pub static TEST_LOGGER: LazyLock<LoggerGuard> = LazyLock::new(|| init_logger());
 
@@ -283,12 +329,17 @@ mod tests {
                 running_authority: "".to_string(),
                 is_coordinator: Some(true),
             }],
-            certificates: vec![CertificateConfig {
-                path: PATH_TO_CA_PEM.to_string(),
-            }],
+            certificates: vec![
+                CertificateConfig {
+                    path: PATH_TO_AMAZON_CA.to_string(),
+                },
+                CertificateConfig {
+                    path: PATH_TO_FLASHNET.to_string(),
+                },
+            ],
         };
 
-        let balance_checker = SparkRpcClient::new(config).await.unwrap();
+        let balance_checker = SparkRpcClient::new(config).await?;
 
         let response = balance_checker.get_token_outputs(request).await?;
 

@@ -38,14 +38,13 @@ pub async fn init_mocked_test_server(pool: PostgresPool) -> anyhow::Result<TestS
         axum::serve(listener, mock_health_app).await.unwrap();
     });
 
-    // Create Frost Signer
     let frost_signer = FrostSigner::new(
         server_config.frost_signer.identifier,
         storage.clone(),
         storage.clone(),
         server_config.frost_signer.total_participants,
         server_config.frost_signer.threshold,
-    );
+    )?;
     server_config.btc_indexer.address = addr_to_listen_url.clone();
     server_config.spark_balance_checker.address = addr_to_listen_url.clone();
     server_config.gateway.address = addr_to_listen_url.clone();

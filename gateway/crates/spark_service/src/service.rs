@@ -48,6 +48,7 @@ impl SparkService {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip(self), ret)]
     async fn get_musig_public_key(
         &self,
         issuer_dkg_share_id: DkgShareId,
@@ -70,6 +71,7 @@ impl SparkService {
         Ok(issuer_public_key)
     }
 
+    #[tracing::instrument(level = "trace", skip(self), ret)]
     async fn authenticate(
         &self,
         issuer_dkg_share_id: DkgShareId,
@@ -134,6 +136,7 @@ impl SparkService {
         Ok(())
     }
 
+    #[tracing::instrument(level = "trace", skip(self), ret)]
     pub async fn send_spark_transaction(
         &self,
         issuer_dkg_share_id: DkgShareId,
@@ -156,8 +159,6 @@ impl SparkService {
         let identity_public_key = self.get_musig_public_key(issuer_dkg_share_id, nonce_tweak).await?;
 
         // ----- Start the transaction -----
-
-        tracing::debug!("Start the transaction");
 
         let partial_token_transaction = create_partial_token_transaction(
             identity_public_key,
@@ -212,11 +213,21 @@ impl SparkService {
             .await
             .map_err(|e| SparkServiceError::SparkClientError(e.to_string()))?;
 
-        tracing::debug!("Transaction started");
+        tracing::debug!(
+            "Transaction: {:?} for dkg share id: {:?}, with token identifier: {:?}, started",
+            transaction_type,
+            issuer_dkg_share_id,
+            token_identifier.to_string()
+        );
 
         // ----- Finalize the transaction -----
 
-        tracing::debug!("Finalize the transaction");
+        tracing::debug!(
+            "Finalize the transaction: {:?}, for dkg share id: {:?}, with token identifier: {:?}",
+            transaction_type,
+            issuer_dkg_share_id,
+            token_identifier.to_string()
+        );
 
         let final_token_transaction_proto = response.final_token_transaction.ok_or(SparkServiceError::DecodeError(
             "Final token transaction is not found".to_string(),
@@ -283,9 +294,14 @@ impl SparkService {
             .into_iter()
             .collect::<Result<Vec<InputTtxoSignaturesPerOperator>, SparkServiceError>>()?;
 
-        tracing::debug!("Sending commit transaction");
+        tracing::debug!(
+            "Sending commit transaction: {:?}, for dkg share id: {:?}, with token identifier: {:?}",
+            transaction_type,
+            issuer_dkg_share_id,
+            token_identifier.to_string()
+        );
 
-        let response = self
+        let _response = self
             .spark_client
             .commit_token_transaction(
                 CommitTransactionRequest {
@@ -299,9 +315,12 @@ impl SparkService {
             .await
             .map_err(|e| SparkServiceError::SparkClientError(e.to_string()))?;
 
-        tracing::debug!("Commit transaction response: {:?}", response);
-
-        tracing::debug!("Transaction committed");
+        tracing::info!(
+            "Transaction: {:?} for dkg share id: {:?}, with token identifier: {:?}, committed",
+            transaction_type,
+            issuer_dkg_share_id,
+            token_identifier.to_string()
+        );
 
         Ok(())
     }

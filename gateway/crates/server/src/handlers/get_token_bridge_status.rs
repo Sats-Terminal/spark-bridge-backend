@@ -16,12 +16,9 @@ pub struct GetTokenBridgeStatusResponse {
     pub status: SessionStatus,
 }
 
-const LOG_PATH: &str = "get_token_bridge_status";
-
-/// Handles Btc address issuing for replenishment
-#[instrument(level = "info", skip(state, request), fields(request = ?request), ret)]
+#[instrument(level = "info", skip(_state, request), fields(request = ?request), ret)]
 pub async fn handle(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     Json(request): Json<GetTokenBridgeStatusRequest>,
 ) -> Result<Json<GetTokenBridgeStatusResponse>, GatewayError> {
     debug!("[handler-btc-addr-issuing] Handling request: {request:?}");

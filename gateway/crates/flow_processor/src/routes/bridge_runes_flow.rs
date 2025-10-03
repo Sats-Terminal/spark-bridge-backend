@@ -1,6 +1,8 @@
 use crate::error::FlowProcessorError;
 use crate::flow_router::FlowProcessorRouter;
 use crate::types::BridgeRunesRequest;
+use bitcoin::secp256k1::PublicKey;
+use frost::traits::AggregatorDkgShareStorage;
 use frost::utils::generate_issuer_public_key;
 use gateway_local_db_store::schemas::deposit_address::{DepositAddressStorage, InnerAddress};
 use gateway_local_db_store::schemas::dkg_share::DkgShareGenerate;
@@ -10,18 +12,19 @@ use gateway_local_db_store::schemas::user_identifier::{
 use gateway_spark_service::types::SparkTransactionType;
 use gateway_spark_service::utils::{convert_network_to_spark_network, create_wrunes_metadata};
 use spark_address::{SparkAddressData, encode_spark_address};
-use tracing::{info, instrument};
+use tracing::instrument;
 
-const LOG_PATH: &str = "flow_processor:routes:bridge_runes_flow";
-
-#[instrument(skip(flow_processor), level = "trace", ret)]
+#[instrument(skip(flow_router), level = "trace", ret)]
 pub async fn handle(
-    flow_processor: &mut FlowProcessorRouter,
+    flow_router: &mut FlowProcessorRouter,
     request: BridgeRunesRequest,
 ) -> Result<(), FlowProcessorError> {
-    info!("[{LOG_PATH}] Handling btc addr bridge runes flow ...");
+    tracing::info!(
+        "Handling btc addr bridge runes flow for address: {}",
+        request.btc_address
+    );
 
-    let deposit_addr_info = flow_processor
+    let deposit_addr_info = flow_router
         .storage
         .get_row_by_deposit_address(InnerAddress::BitcoinAddress(request.btc_address.clone()))
         .await
@@ -29,7 +32,7 @@ pub async fn handle(
         .ok_or(FlowProcessorError::InvalidDataError(
             "Deposit address info not found".to_string(),
         ))?;
-    let user_info = flow_processor
+    let user_info = flow_router
         .storage
         .get_row_by_user_unique_id(&UserUniqueId {
             uuid: deposit_addr_info.user_uuid,
@@ -40,7 +43,7 @@ pub async fn handle(
         .ok_or(FlowProcessorError::InvalidDataError("User info not found".to_string()))?;
     let rune_id = user_info.rune_id;
 
-    let possible_issuer_user_ids = flow_processor
+    let possible_issuer_user_ids = flow_router
         .storage
         .get_issuer_ids(rune_id.clone())
         .await
@@ -49,9 +52,10 @@ pub async fn handle(
     let issuer_user_ids = match possible_issuer_user_ids {
         Some(user_ids) => user_ids,
         None => {
+            tracing::debug!("Issuer musig id not found, running dkg for issuer ...");
             let issuer_public_key = generate_issuer_public_key();
 
-            let issuer_ids = flow_processor
+            let issuer_ids = flow_router
                 .storage
                 .get_random_unused_dkg_share(UserIdentifierData {
                     rune_id: rune_id.clone(),
@@ -62,9 +66,9 @@ pub async fn handle(
 
             // Dkg flow has to be already completed
 
-            let wrunes_metadata = create_wrunes_metadata(rune_id.clone());
+            let wrunes_metadata = create_wrunes_metadata(rune_id.clone(), issuer_public_key, flow_router.network)?;
 
-            flow_processor
+            flow_router
                 .spark_service
                 .send_spark_transaction(
                     issuer_ids.dkg_share_id,
@@ -74,7 +78,7 @@ pub async fn handle(
                         token_name: wrunes_metadata.token_name,
                         token_ticker: wrunes_metadata.token_ticker,
                     },
-                    convert_network_to_spark_network(flow_processor.network),
+                    convert_network_to_spark_network(flow_router.network),
                 )
                 .await
                 .map_err(|e| {
@@ -89,9 +93,20 @@ pub async fn handle(
         }
     };
 
-    let wrunes_metadata = create_wrunes_metadata(rune_id.clone());
+    let issuer_public_key_package = flow_router
+        .frost_aggregator
+        .get_public_key_package(issuer_user_ids.dkg_share_id, None)
+        .await
+        .map_err(|e| FlowProcessorError::FrostAggregatorError(format!("Failed to get public key package: {}", e)))?;
 
-    let deposit_addr_info = flow_processor
+    let issuer_musig_public_key_bytes = issuer_public_key_package.verifying_key().serialize().map_err(|e| {
+        FlowProcessorError::InvalidDataError(format!("Failed to serialize issuer musig public key: {}", e))
+    })?;
+    let issuer_musig_public_key = PublicKey::from_slice(&issuer_musig_public_key_bytes)?;
+
+    let wrunes_metadata = create_wrunes_metadata(rune_id.clone(), issuer_musig_public_key, flow_router.network)?;
+
+    let deposit_addr_info = flow_router
         .storage
         .get_row_by_deposit_address(InnerAddress::BitcoinAddress(request.btc_address.clone()))
         .await
@@ -99,7 +114,7 @@ pub async fn handle(
         .ok_or(FlowProcessorError::InvalidDataError(
             "Deposit address info not found".to_string(),
         ))?;
-    let user_identifier = flow_processor
+    let _user_identifier = flow_router
         .storage
         .get_row_by_user_unique_id(&UserUniqueId {
             uuid: deposit_addr_info.user_uuid,
@@ -109,29 +124,28 @@ pub async fn handle(
         .map_err(FlowProcessorError::DbError)?
         .ok_or(FlowProcessorError::InvalidDataError("User info not found".to_string()))?;
 
-    // TODO: remove this once we have deposit verification flow
-    let receiver_spark_address = encode_spark_address(SparkAddressData {
-        identity_public_key: user_identifier.public_key,
-        network: convert_network_to_spark_network(flow_processor.network),
-        invoice: None,
-        signature: None,
-    })
-    .map_err(FlowProcessorError::SparkAddressError)?;
+    let bridge_address = deposit_addr_info
+        .bridge_address
+        .ok_or(FlowProcessorError::InvalidDataError(
+            "Bridge address not found".to_string(),
+        ))?;
 
-    flow_processor
+    flow_router
         .spark_service
         .send_spark_transaction(
             issuer_user_ids.dkg_share_id,
             None,
             wrunes_metadata.token_identifier,
             SparkTransactionType::Mint {
-                receiver_spark_address,
+                receiver_spark_address: bridge_address.to_string(),
                 token_amount: deposit_addr_info.amount,
             },
-            convert_network_to_spark_network(flow_processor.network),
+            convert_network_to_spark_network(flow_router.network),
         )
         .await
         .map_err(|e| FlowProcessorError::SparkServiceError(format!("Failed to send spark mint transaction: {}", e)))?;
+
+    tracing::info!("Bridge runes flow completed for address: {}", request.btc_address);
 
     Ok(())
 }

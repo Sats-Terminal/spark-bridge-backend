@@ -6,7 +6,7 @@ use gateway_flow_processor::types::IssueSparkDepositAddressRequest;
 use gateway_local_db_store::schemas::musig_id::MusigId;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
-use tracing::{debug, instrument};
+use tracing::instrument;
 
 #[derive(Deserialize, Debug)]
 pub struct GetSparkDepositAddressRequest {
@@ -21,12 +21,17 @@ pub struct GetSparkDepositAddressResponse {
 }
 
 /// Handles Btc address issuing for replenishment
-#[instrument(level = "info", skip(state, request), fields(request = ?request), ret)]
+#[instrument(level = "trace", skip(state), ret)]
 pub async fn handle(
     State(state): State<AppState>,
     Json(request): Json<GetSparkDepositAddressRequest>,
 ) -> Result<Json<GetSparkDepositAddressResponse>, GatewayError> {
-    debug!("[handler-btc-addr-issuing] Handling request: {request:?}");
+    let request_user_public_key = request.user_public_key.clone();
+    tracing::info!(
+        "Handling get spark deposit address request with user public key: {:?}",
+        request_user_public_key
+    );
+
     let response = state
         .flow_sender
         .send(IssueSparkDepositAddressRequest {
@@ -39,6 +44,11 @@ pub async fn handle(
         })
         .await
         .map_err(|e| GatewayError::FlowProcessorError(format!("Failed to issue deposit address for bridging: {e}")))?;
+
+    tracing::info!(
+        "Get spark deposit address request handled request with user public key: {:?}",
+        request_user_public_key
+    );
 
     Ok(Json(GetSparkDepositAddressResponse {
         address: response.addr_to_replenish,

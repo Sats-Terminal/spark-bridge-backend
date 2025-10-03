@@ -11,7 +11,6 @@ certificates = [
     { path = "./configuration_spark_balance_checker/Flashnet-CA.pem" },
 ]
 
-
 [[spark_config.operators]]
 id = 1
 base_url = "https://0.spark.lightspark.com"

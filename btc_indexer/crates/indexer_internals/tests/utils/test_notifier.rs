@@ -2,7 +2,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::{Json, Router, extract::State, routing::post};
 use axum_test::TestServer;
-use btc_indexer_api::api::BtcIndexerCallbackResponse;
+use btc_indexer_api::api::{BtcIndexerCallbackResponse, ResponseMeta};
 use btc_indexer_internals::api::AccountReplenishmentEvent;
 use global_utils::common_resp::Empty;
 use std::net::TcpListener;
@@ -27,7 +27,7 @@ pub fn obtain_random_localhost_socket_addr() -> anyhow::Result<SocketAddr> {
     Ok(socket_addr)
 }
 
-#[instrument]
+#[instrument(skip(oneshot_sender))]
 pub async fn create_test_notifier_track_tx(
     oneshot_sender: tokio::sync::oneshot::Sender<BtcIndexerCallbackResponse>,
     socket_addr: &SocketAddr,
@@ -50,7 +50,6 @@ async fn notify_handler<T: Clone + Send + Sync + Debug>(
     Json(payload): Json<T>,
 ) -> Result<Json<Empty>, MockErr> {
     info!("[callback response received!] Received track tx: {:?}", payload);
-    //todo: save state of program before handling requests
     let oneshot = state.notifier.lock().await.take();
     if let Some(oneshot_sender) = oneshot {
         info!("Sending notification about response: {payload:?}");
@@ -78,7 +77,6 @@ async fn _notify_handler_inner<T: Clone + Send + Sync + Debug>(
     payload: T,
 ) -> Result<Json<Empty>, MockErr> {
     info!("Received track tx: {:?}", payload);
-    //todo: save state of program before handling requests
     let oneshot = state.notifier.lock().await.take();
     if let Some(oneshot_sender) = oneshot {
         info!("Sending notification about response: {payload:?}");

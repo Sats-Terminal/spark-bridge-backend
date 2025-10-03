@@ -15,12 +15,14 @@ pub fn init_logger() -> LoggerGuard {
     let (std_err_writer, std_err_guard) = tracing_appender::non_blocking(io::stderr());
     let std_out_layer = fmt::layer()
         .with_writer(std_out_writer)
+        .with_ansi(false)
         .with_target(false)
         .with_level(true)
         .with_filter(EnvFilter::try_from_default_env().unwrap_or(EnvFilter::new("debug")));
 
     let std_err_layer = fmt::layer()
         .with_writer(std_err_writer)
+        .with_ansi(false)
         .with_target(false)
         .with_level(true)
         .with_filter(LevelFilter::WARN);

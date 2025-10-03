@@ -4,6 +4,7 @@ use spark_protos::spark::spark_service_client::SparkServiceClient;
 use spark_protos::spark_authn::spark_authn_service_client::SparkAuthnServiceClient;
 use spark_protos::spark_token::spark_token_service_client::SparkTokenServiceClient;
 use tonic::transport::{Channel, ClientTlsConfig, Uri};
+use tonic_health::pb::health_client::HealthClient;
 use tracing;
 
 use crate::common::{config::SparkConfig, error::SparkClientError};
@@ -13,6 +14,7 @@ pub struct SparkServicesClients {
     pub spark: SparkServiceClient<Channel>,
     pub spark_token: SparkTokenServiceClient<Channel>,
     pub spark_auth: SparkAuthnServiceClient<Channel>,
+    pub health: HealthClient<Channel>,
 }
 
 pub struct SparkTlsConnection {
@@ -59,14 +61,13 @@ impl SparkTlsConnection {
         Ok(channel)
     }
 
-    // This function creates a new spark client.
     pub(crate) async fn create_clients(&self) -> Result<SparkServicesClients, SparkClientError> {
         let channel = self.create_tls_channel().await?;
-
         Ok(SparkServicesClients {
             spark: SparkServiceClient::new(channel.clone()),
             spark_token: SparkTokenServiceClient::new(channel.clone()),
-            spark_auth: SparkAuthnServiceClient::new(channel),
+            spark_auth: SparkAuthnServiceClient::new(channel.clone()),
+            health: HealthClient::new(channel),
         })
     }
 }
@@ -80,7 +81,8 @@ mod tests {
     use std::sync::LazyLock;
     use tokio;
 
-    const PATH_TO_CA_PEM: &str = "../../infrastructure/configurations/common/ca.pem";
+    const PATH_TO_AMAZON_CA: &str = "../../infrastructure/configurations/certificates/Amazon-Root-CA.pem";
+    const PATH_TO_FLASHNET: &str = "../../infrastructure/configurations/certificates/Flashnet-CA.pem";
     pub static TEST_LOGGER: LazyLock<LoggerGuard> = LazyLock::new(|| init_logger());
 
     #[tokio::test]
@@ -96,11 +98,16 @@ mod tests {
                 running_authority: "".to_string(),
                 is_coordinator: Some(true),
             }],
-            certificates: vec![CertificateConfig {
-                path: PATH_TO_CA_PEM.to_string(),
-            }],
+            certificates: vec![
+                CertificateConfig {
+                    path: PATH_TO_AMAZON_CA.to_string(),
+                },
+                CertificateConfig {
+                    path: PATH_TO_FLASHNET.to_string(),
+                },
+            ],
         };
-        let connection = SparkTlsConnection::new(spark_config).unwrap();
+        let connection = SparkTlsConnection::new(spark_config)?;
         connection.create_clients().await?;
         Ok(())
     }

@@ -11,8 +11,8 @@ use bitcoin::{
     p2p::Magic,
     secp256k1::PublicKey,
 };
-
 use token_identifier::TokenIdentifier;
+use tracing::debug;
 
 /// L1 Creation Entity Public Key - used for L1 tokens
 /// This corresponds to a 33-byte public key with all zeros
@@ -32,6 +32,11 @@ pub const MAX_SYMBOL_SIZE: usize = 6;
 
 /// The minimum size of the symbol in [`TokenMetadata`] in bytes.
 pub const MIN_SYMBOL_SIZE: usize = 3;
+
+pub const SPARK_CREATION_ENTITY_PUBLIC_KEY: [u8; 33] = [
+    0x02, 0x05, 0xFE, 0x80, 0x7E, 0x8F, 0xE1, 0xF3, 0x68, 0xDF, 0x95, 0x5C, 0xC2, 0x91, 0xF1, 0x6D, 0x84, 0x0B, 0x7F,
+    0x28, 0x37, 0x4B, 0x0E, 0xD8, 0x0B, 0x80, 0xC3, 0xE2, 0xE0, 0x92, 0x1A, 0x06, 0x74,
+];
 
 /// The minimum size of the token metadata in bytes.
 pub const MIN_TOKEN_METADATA_SIZE: usize = PUBLIC_KEY_SIZE
@@ -107,13 +112,15 @@ impl TokenMetadata {
 
     /// Computes the token identifier for the LRC20 token metadata.
     pub fn compute_token_identifier(&self) -> TokenIdentifier {
+        debug!(name = %self.name, symbol = %self.symbol,
+           network = ?self.network, "Computing token identifier");
         let mut engine = sha256::Hash::engine();
         // Try concatenation approach - maybe Go concatenates all hashes then takes SHA256
         let mut all_hashes = Vec::new();
 
         // Hash version (1 byte)
         let version_hash = sha256::Hash::hash(&[1u8]);
-        #[cfg(test)]
+        // #[cfg(test)]
         println!(
             "Step 1 - Version: input=[01], hash={}",
             hex::encode(version_hash.as_byte_array())
@@ -124,10 +131,10 @@ impl TokenMetadata {
         // Issuer public key (33 bytes)
         let issuer_key_bytes = self.issuer_public_key.serialize();
         let issuer_public_key_hash = sha256::Hash::hash(&issuer_key_bytes);
-        #[cfg(test)]
+        // #[cfg(test)]
         println!(
             "Step 2 - Issuer key: input={}, hash={}",
-            hex::encode(&issuer_key_bytes),
+            hex::encode(issuer_key_bytes),
             hex::encode(issuer_public_key_hash.as_byte_array())
         );
         all_hashes.extend_from_slice(issuer_public_key_hash.as_byte_array());
@@ -136,7 +143,7 @@ impl TokenMetadata {
         // Name (variable length)
         let name_bytes = self.name.as_bytes();
         let name_hash = sha256::Hash::hash(name_bytes);
-        #[cfg(test)]
+        // #[cfg(test)]
         println!(
             "Step 3 - Name: input={} ({}), hash={}",
             hex::encode(name_bytes),
@@ -149,7 +156,7 @@ impl TokenMetadata {
         // Symbol (variable length)
         let symbol_bytes = self.symbol.as_bytes();
         let symbol_hash = sha256::Hash::hash(symbol_bytes);
-        #[cfg(test)]
+        // #[cfg(test)]
         println!(
             "Step 4 - Symbol: input={} ({}), hash={}",
             hex::encode(symbol_bytes),
@@ -162,10 +169,10 @@ impl TokenMetadata {
         // Decimal (1 byte)
         let decimal_bytes = [self.decimal];
         let decimal_hash = sha256::Hash::hash(&decimal_bytes);
-        #[cfg(test)]
+        // #[cfg(test)]
         println!(
             "Step 5 - Decimal: input={}, hash={}",
-            hex::encode(&decimal_bytes),
+            hex::encode(decimal_bytes),
             hex::encode(decimal_hash.as_byte_array())
         );
         all_hashes.extend_from_slice(decimal_hash.as_byte_array());
@@ -174,10 +181,10 @@ impl TokenMetadata {
         // Max supply (16 bytes)
         let max_supply_bytes = self.max_supply.to_be_bytes();
         let max_supply_hash = sha256::Hash::hash(&max_supply_bytes);
-        #[cfg(test)]
+        // #[cfg(test)]
         println!(
             "Step 6 - Max supply: input={}, hash={}",
-            hex::encode(&max_supply_bytes),
+            hex::encode(max_supply_bytes),
             hex::encode(max_supply_hash.as_byte_array())
         );
         all_hashes.extend_from_slice(max_supply_hash.as_byte_array());
@@ -191,10 +198,10 @@ impl TokenMetadata {
             let input = [0u8];
             (input, sha256::Hash::hash(&input)) // falseHash equivalent
         };
-        #[cfg(test)]
+        // #[cfg(test)]
         println!(
             "Step 7 - Freezable: input={}, hash={}",
-            hex::encode(&_freezable_input),
+            hex::encode(_freezable_input),
             hex::encode(is_freezable_hash.as_byte_array())
         );
         all_hashes.extend_from_slice(is_freezable_hash.as_byte_array());
@@ -205,10 +212,10 @@ impl TokenMetadata {
         let magic_u32 = u32::from_le_bytes(le_magic);
         let be_magic = magic_u32.to_be_bytes();
         let network_hash = sha256::Hash::hash(&be_magic);
-        #[cfg(test)]
+        // #[cfg(test)]
         println!(
             "Step 8 - Network: input={}, hash={}",
-            hex::encode(&be_magic),
+            hex::encode(be_magic),
             hex::encode(network_hash.as_byte_array())
         );
         all_hashes.extend_from_slice(network_hash.as_byte_array());
@@ -220,7 +227,7 @@ impl TokenMetadata {
             let mut bytes = vec![2u8]; // TokenCreateLayerSpark (layer byte 2)
             bytes.extend_from_slice(&creation_entity_public_key.serialize());
             let hash = sha256::Hash::hash(&bytes);
-            #[cfg(test)]
+            // #[cfg(test)]
             println!(
                 "Step 9 - Creation entity (Spark): input={}, hash={}",
                 hex::encode(&bytes),
@@ -231,10 +238,10 @@ impl TokenMetadata {
             // L1 token: just layer byte (0)
             let bytes = [1u8];
             let hash = sha256::Hash::hash(&bytes);
-            #[cfg(test)]
+            // #[cfg(test)]
             println!(
                 "Step 9 - Creation entity (L1): input={}, hash={}",
-                hex::encode(&bytes),
+                hex::encode(bytes),
                 hex::encode(hash.as_byte_array())
             );
             hash
@@ -244,12 +251,16 @@ impl TokenMetadata {
 
         // Final hash (streaming)
         let final_hash = sha256::Hash::from_engine(engine);
-        #[cfg(test)]
+        // #[cfg(test)]
         {
             println!("Concatenated hashes length: {} bytes", all_hashes.len());
             println!("Concatenated hashes: {}", hex::encode(&all_hashes));
             println!("Final hash: {}", hex::encode(final_hash.as_byte_array()));
         }
+
+        debug!(name = %self.name, symbol = %self.symbol,
+           token_identifier = %hex::encode(final_hash.as_byte_array()),
+           "Token identifier computed successfully");
 
         final_hash.into()
     }
@@ -413,7 +424,7 @@ impl From<&TokenMetadata> for TokenIdentifier {
 }
 
 fn wrap_io_error(err: impl fmt::Display, message: &str) -> TokenMetadataParseError {
-    TokenMetadataParseError::IoError(io::Error::new(io::ErrorKind::Other, format!("{}: {}", message, err)))
+    TokenMetadataParseError::IoError(io::Error::other(format!("{}: {}", message, err)))
 }
 
 /// Error type for parsing LRC20 token metadata.

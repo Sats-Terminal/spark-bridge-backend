@@ -5,6 +5,7 @@ use persistent_storage::error::DbError;
 use tokio::sync::Mutex;
 
 use crate::{errors::AggregatorError, signer::FrostSigner, traits::*, types::*};
+use persistent_storage::init::StorageHealthcheck;
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]
@@ -21,6 +22,13 @@ impl MockSignerSignSessionStorage {
     pub async fn has_session(&self, dkg_share_id: &DkgShareId, session_id: &Uuid) -> bool {
         let map = self.storage.lock().await;
         map.contains_key(&(*dkg_share_id, *session_id))
+    }
+}
+
+#[async_trait]
+impl StorageHealthcheck for MockSignerSignSessionStorage {
+    async fn healthcheck(&self) -> Result<(), DbError> {
+        Ok(())
     }
 }
 
@@ -48,11 +56,18 @@ impl SignerSignSessionStorage for MockSignerSignSessionStorage {
     }
 }
 
-impl MockSignerDkgShareIdStorage {
-    pub fn new() -> Self {
+impl Default for MockSignerDkgShareIdStorage {
+    fn default() -> Self {
         Self {
             storage: Arc::new(Mutex::new(BTreeMap::new())),
         }
+    }
+}
+
+#[async_trait]
+impl StorageHealthcheck for MockSignerDkgShareIdStorage {
+    async fn healthcheck(&self) -> Result<(), DbError> {
+        Ok(())
     }
 }
 
@@ -85,19 +100,18 @@ pub struct MockAggregatorSignSessionStorage {
     storage: Arc<Mutex<BTreeMap<(DkgShareId, Uuid), AggregatorSignData>>>,
 }
 
-impl MockAggregatorDkgShareIdStorage {
-    pub fn new() -> Self {
+impl Default for MockAggregatorSignSessionStorage {
+    fn default() -> Self {
         Self {
             storage: Arc::new(Mutex::new(BTreeMap::default())),
         }
     }
 }
 
-impl MockAggregatorSignSessionStorage {
-    pub fn new() -> Self {
-        Self {
-            storage: Arc::new(Mutex::new(BTreeMap::default())),
-        }
+#[async_trait]
+impl StorageHealthcheck for MockAggregatorDkgShareIdStorage {
+    async fn healthcheck(&self) -> Result<(), DbError> {
+        Ok(())
     }
 }
 
@@ -113,6 +127,13 @@ impl AggregatorDkgShareStorage for MockAggregatorDkgShareIdStorage {
         dkg_share_data: AggregatorDkgShareData,
     ) -> Result<(), DbError> {
         self.storage.lock().await.insert(*musig_id, dkg_share_data);
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl StorageHealthcheck for MockAggregatorSignSessionStorage {
+    async fn healthcheck(&self) -> Result<(), DbError> {
         Ok(())
     }
 }
@@ -141,7 +162,7 @@ impl AggregatorSignSessionStorage for MockAggregatorSignSessionStorage {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct MockSignerClient {
     signer: FrostSigner,
 }

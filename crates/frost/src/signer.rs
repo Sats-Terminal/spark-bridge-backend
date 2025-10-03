@@ -3,8 +3,9 @@ use frost_secp256k1_tr::{Identifier, keys::Tweak};
 use rand_core::OsRng;
 use std::{collections::BTreeSet, sync::Arc};
 use tokio::sync::Mutex;
+use tracing::debug;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct FrostSigner {
     dkg_share_storage: Arc<dyn SignerDkgShareStorage>,
     identifier: Identifier,
@@ -21,24 +22,23 @@ impl FrostSigner {
         sign_session_storage: Arc<dyn SignerSignSessionStorage>,
         total_participants: u16,
         threshold: u16,
-    ) -> Self {
-        Self {
+    ) -> Result<Self, SignerError> {
+        Ok(Self {
             dkg_share_storage,
             sign_session_storage,
-            identifier: identifier.try_into().unwrap(),
+            identifier: identifier
+                .try_into()
+                .map_err(|e| SignerError::Internal(format!("Failed to convert identifier: {}", e)))?,
             total_participants,
             threshold,
             locked_dkg_share_ids: Arc::new(Mutex::new(BTreeSet::new())),
-        }
+        })
     }
 
     pub async fn lock_dkg_share_id(&self, dkg_share_id: &DkgShareId) -> Result<(), SignerError> {
         let mut locked_dkg_share_ids = self.locked_dkg_share_ids.lock().await;
         if locked_dkg_share_ids.contains(dkg_share_id) {
-            return Err(SignerError::DkgShareIdAlreadyExists(format!(
-                "DgkShare id already exists: {:?}",
-                dkg_share_id
-            )));
+            return Err(SignerError::DkgShareIdAlreadyExists(*dkg_share_id));
         }
         locked_dkg_share_ids.insert(dkg_share_id.clone());
         Ok(())
@@ -48,15 +48,13 @@ impl FrostSigner {
         let mut locked_dkg_share_ids = self.locked_dkg_share_ids.lock().await;
         let removed = locked_dkg_share_ids.remove(dkg_share_id);
         if !removed {
-            return Err(SignerError::DkgShareIdNotFound(format!(
-                "Something bad went wrong: {:?}",
-                dkg_share_id
-            )));
+            return Err(SignerError::DkgShareIdNotFound(*dkg_share_id));
         }
         Ok(())
     }
 
     pub async fn dkg_round_1(&self, request: DkgRound1Request) -> Result<DkgRound1Response, SignerError> {
+        debug!(dkg_share_id = ?request.dkg_share_id, identifier = ?self.identifier, "Started DKG round 1");
         self.lock_dkg_share_id(&request.dkg_share_id).await?;
 
         let dkg_share_id = request.dkg_share_id;
@@ -83,22 +81,21 @@ impl FrostSigner {
                     )
                     .await?;
 
+                debug!(dkg_share_id = ?dkg_share_id, identifier = ?self.identifier, "DKG round 1 completed");
                 Ok(DkgRound1Response {
                     round1_package: package,
                 })
             }
             _ => {
                 self.unlock_dkg_share_id(&dkg_share_id).await?;
-                Err(SignerError::DkgShareIdAlreadyExists(format!(
-                    "Dkg share id already exists: {:?}",
-                    dkg_share_id
-                )))
+                Err(SignerError::DkgShareIdAlreadyExists(dkg_share_id))
             }
         }
     }
 
     pub async fn dkg_round_2(&self, request: DkgRound2Request) -> Result<DkgRound2Response, SignerError> {
         let dkg_share_id = request.dkg_share_id;
+        debug!(dkg_share_id = ?dkg_share_id, identifier = ?self.identifier, "Started DKG 2 round");
         let dkg_share_data = self.dkg_share_storage.get_dkg_share_signer_data(&dkg_share_id).await?;
 
         match dkg_share_data {
@@ -121,6 +118,7 @@ impl FrostSigner {
                     )
                     .await?;
 
+                debug!(dkg_share_id = ?dkg_share_id, identifier = ?self.identifier, "DKG 2 round completed");
                 Ok(DkgRound2Response {
                     round2_packages: packages,
                 })
@@ -133,6 +131,7 @@ impl FrostSigner {
 
     pub async fn dkg_finalize(&self, request: DkgFinalizeRequest) -> Result<DkgFinalizeResponse, SignerError> {
         let dkg_share_id = request.dkg_share_id;
+        debug!(dkg_share_id = ?dkg_share_id, identifier = ?self.identifier, "Started DKG finalize round");
         let dkg_share_data = self.dkg_share_storage.get_dkg_share_signer_data(&dkg_share_id).await?;
 
         match dkg_share_data {
@@ -154,13 +153,16 @@ impl FrostSigner {
                     .set_dkg_share_signer_data(
                         &dkg_share_id,
                         SignerDkgShareIdData {
-                            dkg_state: SignerDkgState::DkgFinalized { key_package },
+                            dkg_state: SignerDkgState::DkgFinalized {
+                                key_package: Box::new(key_package),
+                            },
                         },
                     )
                     .await?;
 
                 self.unlock_dkg_share_id(&dkg_share_id).await?;
 
+                debug!(dkg_share_id = ?dkg_share_id, identifier = ?self.identifier, "DKG finalize completed");
                 Ok(DkgFinalizeResponse { public_key_package })
             }
             _ => Err(SignerError::InvalidUserState(
@@ -176,6 +178,8 @@ impl FrostSigner {
         let message_hash = request.message_hash;
         let metadata = request.metadata;
 
+        debug!(dkg_share_id = ?dkg_share_id, session_id = %session_id, "Starting signing round 1");
+
         let dkg_share_data = self.dkg_share_storage.get_dkg_share_signer_data(&dkg_share_id).await?;
 
         match dkg_share_data {
@@ -183,7 +187,7 @@ impl FrostSigner {
                 dkg_state: SignerDkgState::DkgFinalized { key_package },
             }) => {
                 let tweak_key_package = match tweak.clone() {
-                    Some(tweak) => key_package.clone().tweak(Some(tweak.to_vec())),
+                    Some(tweak) => Box::new(key_package.clone().tweak(Some(tweak.to_vec()))),
                     None => key_package.clone(),
                 };
                 let (nonces, commitments) =
@@ -197,10 +201,14 @@ impl FrostSigner {
                             tweak,
                             message_hash,
                             metadata,
-                            sign_state: SignerSignState::SigningRound1 { nonces },
+                            sign_state: SignerSignState::SigningRound1 {
+                                nonces: Box::new(nonces),
+                            },
                         },
                     )
                     .await?;
+
+                debug!(dkg_share_id = ?dkg_share_id, session_id = %session_id, "Signing round 1 completed");
                 Ok(SignRound1Response { commitments })
             }
             _ => Err(SignerError::InvalidUserState(
@@ -212,6 +220,8 @@ impl FrostSigner {
     pub async fn sign_round_2(&self, request: SignRound2Request) -> Result<SignRound2Response, SignerError> {
         let dkg_share_id = request.dkg_share_id;
         let session_id = request.session_id;
+
+        debug!(dkg_share_id = ?dkg_share_id, session_id = %session_id, "Starting signing round 2");
 
         let dkg_share_data = self.dkg_share_storage.get_dkg_share_signer_data(&dkg_share_id).await?;
 
@@ -239,18 +249,22 @@ impl FrostSigner {
         match sign_data.sign_state {
             SignerSignState::SigningRound1 { nonces } => {
                 let tweak_key_package = match sign_data.tweak.clone() {
-                    Some(tweak) => key_package.clone().tweak(Some(tweak.to_vec())),
+                    Some(tweak) => Box::new(key_package.clone().tweak(Some(tweak.to_vec()))),
                     None => key_package.clone(),
                 };
                 let signature_share =
                     frost_secp256k1_tr::round2::sign(&request.signing_package, &nonces, &tweak_key_package)
                         .map_err(|e| SignerError::Internal(format!("Sign round2 failed: {e}")))?;
 
-                sign_data.sign_state = SignerSignState::SigningRound2 { signature_share };
+                sign_data.sign_state = SignerSignState::SigningRound2 {
+                    signature_share: Box::new(signature_share),
+                };
 
                 self.sign_session_storage
                     .set_sign_data(&dkg_share_id, session_id, sign_data)
                     .await?;
+
+                debug!(dkg_share_id= ?dkg_share_id, session_id = %session_id, "Signing round 2 finished");
 
                 Ok(SignRound2Response { signature_share })
             }
@@ -260,8 +274,9 @@ impl FrostSigner {
         }
     }
 
-    pub fn healthcheck(&self) -> Result<(), SignerError> {
-        // TODO: maybe perform some internal checks
+    pub async fn healthcheck(&self) -> Result<(), SignerError> {
+        self.sign_session_storage.healthcheck().await?;
+        self.dkg_share_storage.healthcheck().await?;
         Ok(())
     }
 }

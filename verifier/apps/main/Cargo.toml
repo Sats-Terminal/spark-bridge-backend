@@ -14,3 +14,4 @@ verifier_config_parser = { workspace = true }
 verifier_local_db_store = { workspace = true }
 verifier_server = { workspace = true }
 frost = { workspace = true }
+eyre = { workspace = true }

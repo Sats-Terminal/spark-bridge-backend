@@ -1,4 +1,5 @@
-use crate::utils::common::{CERT_1_PATH, CERT_2_PATH, CERT_PATH, CONFIG_PATH, obtain_random_localhost_socket_addr};
+use crate::utils::common::{CERT_1_PATH, CERT_2_PATH, CERT_PATH, obtain_random_localhost_socket_addr};
+use crate::utils::common::{CONFIG_PATH, PATH_TO_AMAZON_CA, PATH_TO_FLASHNET};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::post;
@@ -6,29 +7,24 @@ use axum::{Json, Router, debug_handler};
 use axum_test::TestServer;
 use bitcoin::Network;
 use frost::aggregator::FrostAggregator;
-use frost::signer::FrostSigner;
 use frost::traits::SignerClient;
 use frost_secp256k1_tr::Identifier;
 use gateway_config_parser::config::ServerConfig;
 use gateway_deposit_verification::aggregator::DepositVerificationAggregator;
-use gateway_deposit_verification::traits::VerificationClient;
+use gateway_deposit_verification::traits::DepositVerificationClientTrait;
 use gateway_flow_processor::init::create_flow_processor;
 use gateway_local_db_store::storage::LocalDbStorage;
-use gateway_server::init::{GatewayApi, create_app};
+use gateway_server::init::create_app;
 use gateway_verifier_client::client::VerifierClient;
 use global_utils::common_resp::Empty;
 use global_utils::config_path::ConfigPath;
-use global_utils::logger::init_logger;
-use persistent_storage::config::PostgresDbCredentials;
 use persistent_storage::init::{PostgresPool, PostgresRepo};
+use spark_client::common::config::CertificateConfig;
 use std::collections::{BTreeMap, HashMap};
-use std::net::SocketAddr;
-use std::str::FromStr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio_util::task::{TaskTracker, task_tracker};
 use tracing::{info, instrument};
-use url::Url;
 use verifier_server::init::VerifierApi;
 
 #[instrument(skip(pool))]
@@ -39,16 +35,20 @@ pub async fn init_mocked_test_server(pool: PostgresPool) -> anyhow::Result<TestS
     let mut server_config = ServerConfig::init_config(config_path.path);
     tracing::debug!("App config: {:?}", server_config);
 
-    server_config.spark.certificates[0].path = CERT_1_PATH.to_string();
-    server_config.spark.certificates[1].path = CERT_2_PATH.to_string();
+    server_config.spark.certificates = vec![
+        CertificateConfig {
+            path: PATH_TO_AMAZON_CA.to_string(),
+        },
+        CertificateConfig {
+            path: PATH_TO_FLASHNET.to_string(),
+        },
+    ];
 
-    // Create DB Pool
     let db_pool = Arc::new(LocalDbStorage {
         postgres_repo: PostgresRepo { pool },
-        btc_network: Network::Regtest,
+        network: Network::Regtest,
     });
 
-    // Spawn mocked verifiers
     for v_conf in server_config.verifiers.0.iter_mut() {
         let addr_to_listen = obtain_random_localhost_socket_addr()?;
         v_conf.address = format!("http://{}", addr_to_listen);
@@ -61,7 +61,6 @@ pub async fn init_mocked_test_server(pool: PostgresPool) -> anyhow::Result<TestS
         });
     }
 
-    // Create Frost Aggregator
     let mut verifiers_map = BTreeMap::<Identifier, Arc<dyn SignerClient>>::new();
     for verifier in server_config.clone().verifiers.0 {
         let identifier: Identifier = verifier.id.try_into()?;
@@ -70,7 +69,6 @@ pub async fn init_mocked_test_server(pool: PostgresPool) -> anyhow::Result<TestS
     }
     let frost_aggregator = Arc::new(FrostAggregator::new(verifiers_map, db_pool.clone(), db_pool.clone()));
 
-    // Create Flow Processor
     let (mut flow_processor, flow_sender) = create_flow_processor(
         server_config.clone(),
         db_pool.clone(),
@@ -78,24 +76,21 @@ pub async fn init_mocked_test_server(pool: PostgresPool) -> anyhow::Result<TestS
         frost_aggregator.clone(),
         server_config.network.network,
     )
-    .await;
+    .await?;
 
     let mut task_tracker = TaskTracker::default();
     task_tracker.spawn(async move {
         flow_processor.run().await;
     });
 
-    // Create Deposit Verification Aggregator
-    let (verifier_clients_hash_map, typed_verifier_clients_hash_map) = extract_verifiers(&server_config);
+    let verifier_clients_hash_map = extract_verifiers(&server_config);
     let deposit_verification_aggregator =
         DepositVerificationAggregator::new(flow_sender.clone(), verifier_clients_hash_map, db_pool.clone());
 
-    // Create App
     let app = create_app(
         flow_sender.clone(),
         deposit_verification_aggregator.clone(),
         server_config.network.network,
-        typed_verifier_clients_hash_map,
         db_pool,
         frost_aggregator,
         task_tracker,
@@ -103,33 +98,25 @@ pub async fn init_mocked_test_server(pool: PostgresPool) -> anyhow::Result<TestS
     )
     .await;
 
-    // Run App
     let addr_to_listen = format!(
         "{}:{}",
         server_config.server_public.ip, server_config.server_public.port
     );
-    let listener = TcpListener::bind(addr_to_listen.clone()).await?;
-    tracing::info!("Listening on {:?}", addr_to_listen);
+    TcpListener::bind(addr_to_listen.clone()).await?;
+    info!("Listening on {:?}", addr_to_listen);
 
     let test_server = TestServer::builder().http_transport().build(app.into_make_service())?;
     info!("Serving local axum test server on {:?}", test_server.server_address());
     Ok(test_server)
 }
 
-fn extract_verifiers(
-    server_config: &ServerConfig,
-) -> (
-    HashMap<u16, Arc<dyn VerificationClient>>,
-    HashMap<u16, Arc<VerifierClient>>,
-) {
-    let mut verifier_clients_hash_map = HashMap::<u16, Arc<dyn VerificationClient>>::new();
-    let mut typed_verifier_clients_hash_map = HashMap::<u16, Arc<VerifierClient>>::new();
+fn extract_verifiers(server_config: &ServerConfig) -> HashMap<u16, Arc<dyn DepositVerificationClientTrait>> {
+    let mut verifier_clients_hash_map = HashMap::<u16, Arc<dyn DepositVerificationClientTrait>>::new();
     for verifier in server_config.clone().verifiers.0 {
         let verifier_client = VerifierClient::new(verifier.clone());
         verifier_clients_hash_map.insert(verifier.id, Arc::new(verifier_client.clone()));
-        typed_verifier_clients_hash_map.insert(verifier.id, Arc::new(verifier_client));
     }
-    (verifier_clients_hash_map, typed_verifier_clients_hash_map)
+    verifier_clients_hash_map
 }
 
 fn create_mock_healthcheck_app() -> Router {

@@ -25,10 +25,10 @@ mod mocked_healthcheck {
     #[instrument]
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_invocation_tx_tracking(pool: PostgresPool) -> anyhow::Result<()> {
-        dotenvy::dotenv()?;
+        dotenvy::dotenv();
         let _logger_guard = &*TEST_LOGGER;
         let test_server = init_mocked_tx_tracking_test_server(pool).await?;
-        let (url_to_listen, oneshot_chan, _notify_server) =
+        let (_url_to_listen, _oneshot_chan, _notify_server) =
             spawn_notify_server_track_tx(obtain_random_localhost_socket_addr()?).await?;
 
         let response = test_server.post(BtcIndexerApi::HEALTHCHECK_ENDPOINT).await;

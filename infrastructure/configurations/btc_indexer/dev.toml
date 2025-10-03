@@ -4,12 +4,3 @@ http_server_port = 8070
 
 [btc_indexer]
 update_interval_millis = 500
-
-[database]
-url = "postgres://postgres:postgres@localhost:5474/btc_indexer"
-
-[network]
-network = "regtest"
-
-[titan]
-url = "http://localhost:3030"

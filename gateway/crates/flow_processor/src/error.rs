@@ -30,4 +30,8 @@ pub enum FlowProcessorError {
     SparkAddressError(#[from] SparkAddressError),
     #[error("Spark address error: {0}")]
     DkgShareGenerateError(#[from] DkgShareGenerateError),
+    #[error("SO Coordinator is missing")]
+    CoordinatorNotFound,
+    #[error("Initialization error: {0}")]
+    InitializationError(String),
 }

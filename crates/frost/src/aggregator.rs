@@ -7,10 +7,11 @@ use std::{
     sync::Arc,
 };
 use tokio::sync::Mutex;
+use tracing::debug;
 use tracing::instrument;
 use uuid::Uuid;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct FrostAggregator {
     verifiers: BTreeMap<Identifier, Arc<dyn SignerClient>>,
     dkg_share_storage: Arc<dyn AggregatorDkgShareStorage>,
@@ -36,8 +37,8 @@ impl FrostAggregator {
         Arc::new(self)
     }
 
-    #[instrument]
     async fn dkg_round_1(&self, dkg_share_id: &DkgShareId) -> Result<(), AggregatorError> {
+        debug!(dkg_share_id = ?dkg_share_id, "Starting DKG Round 1");
         let dkg_share_data = self.dkg_share_storage.get_dkg_share_agg_data(dkg_share_id).await?;
 
         match dkg_share_data {
@@ -80,6 +81,7 @@ impl FrostAggregator {
                     )
                     .await?;
 
+                debug!(dkg_share_id = ?dkg_share_id, verifiers_count = self.verifiers.len(), "DKG Round 1 completed");
                 Ok(())
             }
             Some(x) => Err(AggregatorError::InvalidUserState(format!(
@@ -89,8 +91,9 @@ impl FrostAggregator {
         }
     }
 
-    #[instrument]
+    #[instrument(skip(self), level = "trace")]
     async fn dkg_round_2(&self, dkg_share_id: &DkgShareId) -> Result<(), AggregatorError> {
+        debug!(dkg_share_id = ?dkg_share_id, "Starting DKG Round 2");
         let dkg_share_data = self.dkg_share_storage.get_dkg_share_agg_data(dkg_share_id).await?;
 
         match dkg_share_data {
@@ -133,6 +136,8 @@ impl FrostAggregator {
                         },
                     )
                     .await?;
+
+                debug!(dkg_share_id = ?dkg_share_id, verifiers_count = self.verifiers.len(), "DKG Round 2 completed");
                 Ok(())
             }
             _ => Err(AggregatorError::InvalidUserState(
@@ -141,8 +146,9 @@ impl FrostAggregator {
         }
     }
 
-    #[instrument]
+    #[instrument(skip(self), level = "trace")]
     async fn dkg_finalize(&self, dkg_share_id: &DkgShareId) -> Result<(), AggregatorError> {
+        debug!(dkg_share_id = ?dkg_share_id, "Starting DKG flow");
         let dkg_share_data = self.dkg_share_storage.get_dkg_share_agg_data(dkg_share_id).await?;
 
         match dkg_share_data {
@@ -198,6 +204,7 @@ impl FrostAggregator {
                     )
                     .await?;
 
+                debug!(dkg_share_id = ?dkg_share_id, "DKG flow completed successfully");
                 Ok(())
             }
             _ => Err(AggregatorError::InvalidUserState(
@@ -206,33 +213,27 @@ impl FrostAggregator {
         }
     }
 
-    #[instrument]
+    #[instrument(skip(self), level = "trace")]
     pub async fn lock_dkg_share(&self, dkg_share_id: &DkgShareId) -> Result<(), AggregatorError> {
         let mut locked_dkg_shares = self.locked_dkg_share_ids.lock().await;
         if locked_dkg_shares.contains(dkg_share_id) {
-            return Err(AggregatorError::DkgShareIdAlreadyExists(format!(
-                "Dkg share id already exists: {:?}",
-                dkg_share_id
-            )));
+            //todo: fix
+            return Err(AggregatorError::DkgShareIdAlreadyExists(*dkg_share_id));
         }
         locked_dkg_shares.insert(*dkg_share_id);
         Ok(())
     }
 
-    #[instrument]
+    #[instrument(skip(self), level = "trace")]
     pub async fn unlock_dkg_share_id(&self, dkg_share_id: &DkgShareId) -> Result<(), AggregatorError> {
         let mut locked_dkg_share_ids = self.locked_dkg_share_ids.lock().await;
         let removed = locked_dkg_share_ids.remove(dkg_share_id);
         if !removed {
-            return Err(AggregatorError::DkgShareIdNotFound(format!(
-                "Something bad went wrong: {:?}",
-                dkg_share_id
-            )));
+            return Err(AggregatorError::DkgShareIdNotFound(*dkg_share_id));
         }
         Ok(())
     }
 
-    #[instrument]
     pub async fn run_dkg_flow(&self, dkg_share_id: &DkgShareId) -> Result<keys::PublicKeyPackage, AggregatorError> {
         self.lock_dkg_share(dkg_share_id).await?;
 
@@ -242,10 +243,7 @@ impl FrostAggregator {
                 AggregatorDkgState::Initialized => {}
                 _ => {
                     self.unlock_dkg_share_id(dkg_share_id).await?;
-                    return Err(AggregatorError::DkgShareIdAlreadyExists(format!(
-                        "Dkg share id already exists: {:?}",
-                        dkg_share_id
-                    )));
+                    return Err(AggregatorError::DkgShareIdAlreadyExists(*dkg_share_id));
                 }
             }
         }
@@ -268,7 +266,6 @@ impl FrostAggregator {
         }
     }
 
-    #[instrument]
     async fn sign_round_1(
         &self,
         dkg_share_id: &DkgShareId,
@@ -277,11 +274,15 @@ impl FrostAggregator {
         metadata: SigningMetadata,
         tweak: Option<TweakBytes>,
     ) -> Result<(), AggregatorError> {
+        debug!(dkg_share_id = ?dkg_share_id, session_id = %session_id, "Starting signing round 1");
         let dkg_share_data = self.dkg_share_storage.get_dkg_share_agg_data(dkg_share_id).await?;
 
         match dkg_share_data {
             Some(AggregatorDkgShareData {
-                dkg_state: AggregatorDkgState::DkgFinalized { public_key_package },
+                dkg_state:
+                    AggregatorDkgState::DkgFinalized {
+                        public_key_package: _public_key_package,
+                    },
             }) => {
                 let mut commitments = BTreeMap::new();
                 let mut join_handles = vec![];
@@ -319,6 +320,7 @@ impl FrostAggregator {
                     )
                     .await?;
 
+                debug!(dkg_share_id = ?dkg_share_id, session_id = %session_id, "Signing round 1 completed");
                 Ok(())
             }
             _ => Err(AggregatorError::InvalidUserState(
@@ -327,8 +329,8 @@ impl FrostAggregator {
         }
     }
 
-    #[instrument]
     async fn sign_round_2(&self, dkg_share_id: &DkgShareId, session_id: Uuid) -> Result<(), AggregatorError> {
+        debug!(dkg_share_id = ?dkg_share_id, session_id = %session_id, "Starting signing round 2");
         let dkg_share_data = self.dkg_share_storage.get_dkg_share_agg_data(dkg_share_id).await?;
         let mut sign_data = self
             .sign_session_storage
@@ -396,6 +398,7 @@ impl FrostAggregator {
                     .set_sign_data(dkg_share_id, session_id, sign_data)
                     .await?;
 
+                debug!(dkg_share_id = ?dkg_share_id, session_id = %session_id, "Signing round 2 completed");
                 Ok(())
             }
             _ => Err(AggregatorError::InvalidUserState(
@@ -404,7 +407,6 @@ impl FrostAggregator {
         }
     }
 
-    #[instrument]
     pub async fn run_signing_flow(
         &self,
         dkg_share_id: DkgShareId,
@@ -448,7 +450,6 @@ impl FrostAggregator {
                 dkg_state: AggregatorDkgState::DkgFinalized { public_key_package },
             }) => {
                 let tweaked_public_key_package = match tweak {
-                    //todo: maybe use utils
                     Some(tweak) => public_key_package.clone().tweak(Some(tweak.to_vec())),
                     None => public_key_package.clone(),
                 };

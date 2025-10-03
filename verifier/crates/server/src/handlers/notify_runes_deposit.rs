@@ -14,9 +14,9 @@ pub enum BtcTxReview {
     Failure { reason: TxRejectReason },
 }
 
-impl Into<DepositStatus> for BtcTxReview {
-    fn into(self) -> DepositStatus {
-        match self {
+impl From<BtcTxReview> for DepositStatus {
+    fn from(value: BtcTxReview) -> Self {
+        match value {
             BtcTxReview::Success => DepositStatus::Confirmed,
             BtcTxReview::Failure { reason } => DepositStatus::Failed(reason),
         }
@@ -25,42 +25,56 @@ impl Into<DepositStatus> for BtcTxReview {
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct BtcIndexerNotifyRunesDepositRequest {
-    pub out_point: OutPoint,
+    pub outpoint: OutPoint,
     pub status: BtcTxReview,
     pub sats_fee_amount: u64,
 }
 
-#[instrument(level = "debug", skip_all, ret)]
+#[instrument(level = "trace", skip(state), ret)]
 pub async fn handle(
     State(state): State<AppState>,
     Json(request): Json<BtcIndexerNotifyRunesDepositRequest>,
 ) -> Result<Json<()>, VerifierError> {
-    // TODO: This request should spawn task and immediately return Json(())
+    tracing::info!("Runes deposit notified for out point: {}", request.outpoint);
+
+    tokio::spawn(async move {
+        _inner_notify(state, request.clone()).await.inspect_err(|err| {
+            tracing::error!("Failed to notify runes deposit for req: '{request:?}', err: '{err}'");
+        })
+    });
+
+    Ok(Json(()))
+}
+
+#[instrument(level = "trace", skip(state), ret)]
+async fn _inner_notify(state: AppState, request: BtcIndexerNotifyRunesDepositRequest) -> Result<(), VerifierError> {
+    tracing::info!("Notifying runes deposit for out point: {}", request.outpoint);
+
     let deposit_status: DepositStatus = request.status.clone().into();
     let gateway_request = GatewayNotifyRunesDepositRequest {
         verifier_id: state.server_config.frost_signer.identifier,
-        out_point: request.out_point,
+        out_point: request.outpoint,
         sats_fee_amount: request.sats_fee_amount,
         status: deposit_status.clone(),
     };
 
     state
         .storage
-        .set_confirmation_status_by_out_point(request.out_point, deposit_status)
+        .set_status_and_fee_amount_by_out_point(request.outpoint, deposit_status, request.sats_fee_amount)
         .await
-        .map_err(|e| VerifierError::StorageError(format!("Failed to update confirmation status: {}", e)))?;
-
-    state
-        .storage
-        .set_sats_fee_amount_by_out_point(request.out_point, request.sats_fee_amount)
-        .await
-        .map_err(|e| VerifierError::StorageError(format!("Failed to update sats fee amount: {}", e)))?;
+        .map_err(|e| {
+            VerifierError::Storage(format!(
+                "Failed to update confirmation status and set sats fee amount: {}",
+                e
+            ))
+        })?;
 
     state
         .gateway_client
         .notify_runes_deposit(gateway_request)
         .await
-        .map_err(|e| VerifierError::GatewayClientError(format!("Failed to notify runes deposit: {}", e)))?;
+        .map_err(|e| VerifierError::GatewayClient(format!("Failed to notify runes deposit: {}", e)))?;
 
-    Ok(Json(()))
+    tracing::info!("Runes deposit notified for out point: {}", request.outpoint);
+    Ok(())
 }

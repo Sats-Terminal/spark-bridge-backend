@@ -12,13 +12,15 @@ use gateway_local_db_store::schemas::dkg_share::DkgShareGenerate;
 use gateway_local_db_store::schemas::user_identifier::{UserIdentifierData, UserIdentifierStorage, UserIds};
 use gateway_spark_service::utils::convert_network_to_spark_network;
 use spark_address::{SparkAddressData, encode_spark_address};
-use tracing;
+use tracing::instrument;
 
+#[instrument(skip(flow_router), level = "trace", ret)]
 pub async fn handle(
-    flow_processor: &mut FlowProcessorRouter,
+    flow_router: &mut FlowProcessorRouter,
     request: IssueSparkDepositAddressRequest,
 ) -> Result<String, FlowProcessorError> {
-    let local_db_storage = flow_processor.storage.clone();
+    tracing::info!("Handling spark addr issuing for musig id: {:?}", request.musig_id);
+    let local_db_storage = flow_router.storage.clone();
 
     let (public_key_package, user_uuid, rune_id) = match local_db_storage.get_ids_by_musig_id(&request.musig_id).await?
     {
@@ -33,7 +35,7 @@ pub async fn handle(
                 })
                 .await?;
 
-            let pubkey_package = flow_processor
+            let pubkey_package = flow_router
                 .frost_aggregator
                 .run_dkg_flow(&user_ids.dkg_share_id)
                 .await
@@ -86,14 +88,14 @@ pub async fn handle(
 
     let address = encode_spark_address(SparkAddressData {
         identity_public_key: public_key.to_string(),
-        network: convert_network_to_spark_network(flow_processor.network),
+        network: convert_network_to_spark_network(flow_router.network),
         invoice: None,
         signature: None,
     })
     .map_err(|e| FlowProcessorError::InvalidDataError(e.to_string()))?;
     let verifiers_responses = VerifiersResponses::new(
         DepositStatus::Created,
-        flow_processor.verifier_configs.iter().map(|v| v.id).collect(),
+        flow_router.verifier_configs.iter().map(|v| v.id).collect(),
     );
 
     local_db_storage
@@ -108,6 +110,8 @@ pub async fn handle(
             confirmation_status: verifiers_responses,
         })
         .await?;
+
+    tracing::info!("Spark addr issuing completed for musig id: {:?}", request.musig_id);
 
     Ok(address)
 }
