@@ -5,6 +5,7 @@ use persistent_storage::error::DbError;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use sqlx::types::Json;
+use tracing::instrument;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -56,6 +57,7 @@ pub trait SessionStorage {
 
 #[async_trait]
 impl SessionStorage for LocalDbStorage {
+    #[instrument(level = "trace", skip_all)]
     async fn create_session(&self, session_info: SessionInfo) -> Result<Uuid, DbError> {
         let session_id = get_uuid();
         let query = r#"
@@ -72,6 +74,7 @@ impl SessionStorage for LocalDbStorage {
         Ok(session_id)
     }
 
+    #[instrument(level = "trace", skip_all)]
     async fn update_session_status(&self, session_id: Uuid, status: SessionStatus) -> Result<(), DbError> {
         let query = r#"
             UPDATE gateway.session_requests
@@ -87,6 +90,7 @@ impl SessionStorage for LocalDbStorage {
         Ok(())
     }
 
+    #[instrument(level = "trace", skip_all)]
     async fn get_session(&self, session_id: Uuid) -> Result<SessionInfo, DbError> {
         let query = r#"
             SELECT request_type, request_status

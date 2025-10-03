@@ -73,11 +73,11 @@ impl FlowProcessor {
                 flow = self.flow_receiver.recv() => {
                     match flow {
                         None => {
-                            tracing::error!("[main] Task channel closed unexpectedly");
+                            tracing::error!("Task channel closed unexpectedly");
                             break;
                         }
                         Some(flow_id) => {
-                            tracing::info!("[main] Received task for id {}", flow_id);
+                            tracing::info!("Received task for id {}", flow_id);
                             let _ = self.flows.remove(&flow_id);
                         }
                     }
@@ -85,11 +85,11 @@ impl FlowProcessor {
                 wrapper = self.tx_receiver.recv() => {
                     match wrapper {
                         None => {
-                            tracing::error!("[main] Message channel closed unexpectedly");
+                            tracing::error!("Message channel closed unexpectedly");
                             break;
                         }
                         Some(wrapper) => {
-                            tracing::info!("[main] Received message");
+                            tracing::info!("Received message");
 
                             let (message, response_sender) = wrapper;
 
@@ -109,9 +109,9 @@ impl FlowProcessor {
                             };
 
                             let handle = tokio::task::spawn(async move {
-                                tracing::info!("[main] Running flow for id {}", flow_id);
+                                tracing::info!("Running flow for id {}", flow_id);
                                 router.run(message).await;
-                                tracing::info!("[main] Flow for id {} finished", flow_id);
+                                tracing::info!("Flow for id {} finished", flow_id);
                             });
 
                             self.flows.insert(flow_id, handle);
@@ -119,7 +119,7 @@ impl FlowProcessor {
                     }
                 }
                 _ = self.cancellation_token.cancelled() => {
-                    tracing::info!("[main] Shutting down flow processor");
+                    tracing::info!("Shutting down flow processor");
 
                     for i in 0..self.cancellation_retries {
                         if self.flows.is_empty() {
@@ -129,12 +129,12 @@ impl FlowProcessor {
                             let _ = self.flows.remove(&flow_id);
                         }
                         tokio::time::sleep(Duration::from_secs(1)).await;
-                        tracing::info!("[main] Waiting flows to finish {}/{}", i + 1, self.cancellation_retries);
+                        tracing::info!("Waiting flows to finish {}/{}", i + 1, self.cancellation_retries);
                     }
 
                     for (flow_id, handle) in self.flows.iter() {
                         handle.abort();
-                        tracing::info!("[main] Aborted flow for id {}", flow_id);
+                        tracing::info!("Aborted flow for id {}", flow_id);
                     }
 
                     self.flows.clear();

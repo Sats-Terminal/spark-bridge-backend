@@ -22,15 +22,17 @@ impl FrostSigner {
         sign_session_storage: Arc<dyn SignerSignSessionStorage>,
         total_participants: u16,
         threshold: u16,
-    ) -> Self {
-        Self {
+    ) -> Result<Self, SignerError> {
+        Ok(Self {
             musig_id_storage,
             sign_session_storage,
-            identifier: identifier.try_into().unwrap(),
+            identifier: identifier
+                .try_into()
+                .map_err(|e| SignerError::Internal(format!("Failed to convert identifier: {}", e)))?,
             total_participants,
             threshold,
             locked_musig_ids: Arc::new(Mutex::new(BTreeSet::new())),
-        }
+        })
     }
 
     pub async fn lock_musig_id(&self, musig_id: &MusigId) -> Result<(), SignerError> {

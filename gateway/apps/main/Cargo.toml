@@ -21,3 +21,4 @@ gateway_deposit_verification = { workspace = true }
 frost-secp256k1-tr = { workspace = true }
 gateway_verifier_client = { workspace = true }
 rustls = { workspace = true }
+eyre = { workspace = true }

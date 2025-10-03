@@ -1,7 +1,6 @@
 use crate::error::DepositVerificationError;
 use crate::traits::DepositVerificationClientTrait;
 use crate::types::*;
-use crate::types::{NotifyRunesDepositRequest, VerifyRunesDepositRequest, VerifySparkDepositRequest};
 use futures::future::join_all;
 use gateway_flow_processor::flow_sender::{FlowSender, TypedMessageSender};
 use gateway_flow_processor::types::{BridgeRunesRequest, ExitSparkRequest};
@@ -15,7 +14,6 @@ use persistent_storage::init::StorageHealthcheck;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::task::JoinSet;
-use tracing;
 use tracing::instrument;
 
 #[derive(Clone, Debug)]
@@ -38,6 +36,7 @@ impl DepositVerificationAggregator {
         }
     }
 
+    #[instrument(level = "trace", skip(self), ret)]
     pub async fn verify_runes_deposit(
         &self,
         request: VerifyRunesDepositRequest,
@@ -106,22 +105,19 @@ impl DepositVerificationAggregator {
         self.storage.insert_utxo(utxo).await?;
 
         tracing::info!(
-            "Runes deposit verification sent for address: {}",
-            request.btc_address.to_string()
+            "Runes deposit verification completed for address: {}",
+            request.btc_address
         );
 
         Ok(())
     }
 
+    #[instrument(level = "debug", skip(self), ret)]
     pub async fn notify_runes_deposit(
         &self,
         request: NotifyRunesDepositRequest,
     ) -> Result<(), DepositVerificationError> {
-        tracing::info!(
-            "Retrieving confirmation status for out_point: {}, verifier: {}",
-            request.out_point,
-            request.verifier_id
-        );
+        tracing::info!("Gathering confirmation status for out point: {}", request.out_point);
 
         self.storage
             .update_sats_fee_amount(request.out_point, request.sats_fee_amount)
@@ -170,19 +166,17 @@ impl DepositVerificationAggregator {
             tracing::info!("Bridge runes request sent for address");
         }
 
-        tracing::info!(
-            "Runes deposit verification completed for verifier: {}, address: {}",
-            request.verifier_id,
-            btc_address
-        );
+        tracing::info!("Runes deposit verification completed for address: {}", btc_address);
 
         Ok(())
     }
 
+    #[instrument(level = "debug", skip(self), ret)]
     pub async fn verify_spark_deposit(
         &self,
         request: VerifySparkDepositRequest,
     ) -> Result<(), DepositVerificationError> {
+        tracing::info!("Verifying spark deposit for address: {}", request.spark_address);
         self.storage
             .update_bridge_address_by_deposit_address(
                 InnerAddress::SparkAddress(request.spark_address.clone()),
@@ -249,6 +243,11 @@ impl DepositVerificationAggregator {
                     DepositVerificationError::FlowProcessorError(format!("Error sending bridge spark request: {:?}", e))
                 })?;
         }
+
+        tracing::info!(
+            "Spark deposit verification completed for address: {}",
+            request.spark_address
+        );
 
         Ok(())
     }

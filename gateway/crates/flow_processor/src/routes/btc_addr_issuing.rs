@@ -9,29 +9,26 @@ use frost::utils::{generate_tweak_bytes, get_tweaked_p2tr_address};
 use gateway_local_db_store::schemas::deposit_address::{
     DepositAddrInfo, DepositAddressStorage, DepositStatus, InnerAddress, VerifiersResponses,
 };
-use tracing;
+use tracing::instrument;
 
-const LOG_PATH: &str = "flow_processor:routes:btc_addr_issuing";
-
+#[instrument(skip(flow_router), level = "trace", ret)]
 pub async fn handle(
-    flow_processor: &mut FlowProcessorRouter,
+    flow_router: &mut FlowProcessorRouter,
     request: IssueBtcDepositAddressRequest,
 ) -> Result<Address, FlowProcessorError> {
-    let local_db_storage = flow_processor.storage.clone();
+    tracing::info!("Handling btc addr issuing for musig id: {:?}", request.musig_id);
 
-    let public_key_package = match flow_processor.storage.get_musig_id_data(&request.musig_id).await? {
+    let public_key_package = match flow_router.storage.get_musig_id_data(&request.musig_id).await? {
         None => {
-            tracing::debug!("[{LOG_PATH}] Missing musig, running dkg from the beginning ...");
-            let pubkey_package = flow_processor
+            tracing::debug!("Missing musig, running dkg from the beginning ...");
+            let pubkey_package = flow_router
                 .frost_aggregator
                 .run_dkg_flow(&request.musig_id)
                 .await
                 .map_err(|e| FlowProcessorError::FrostAggregatorError(format!("Failed to run DKG flow: {}", e)))?;
-            tracing::debug!("[{LOG_PATH}] DKG processing was successfully completed");
             pubkey_package
         }
         Some(x) => {
-            tracing::debug!("[{LOG_PATH}] Musig exists, obtaining dkg pubkey ...");
             // extract data from db, get nonce and generate new one, return it to user
             match x.dkg_state {
                 AggregatorDkgState::DkgRound1 { .. } => {
@@ -54,15 +51,16 @@ pub async fn handle(
     let nonce = generate_tweak_bytes();
     let public_key = convert_public_key_package(&public_key_package)
         .map_err(|e| FlowProcessorError::InvalidDataError(format!("Failed to convert public key package: {}", e)))?;
-    let address = get_tweaked_p2tr_address(public_key, nonce, flow_processor.network)
+    let address = get_tweaked_p2tr_address(public_key, nonce, flow_router.network)
         .map_err(|e| FlowProcessorError::InvalidDataError(format!("Failed to create address: {}", e)))?;
 
     let verifiers_responses = VerifiersResponses::new(
         DepositStatus::Created,
-        flow_processor.verifier_configs.iter().map(|v| v.id).collect(),
+        flow_router.verifier_configs.iter().map(|v| v.id).collect(),
     );
 
-    local_db_storage
+    flow_router
+        .storage
         .set_deposit_addr_info(DepositAddrInfo {
             musig_id: request.musig_id.clone(),
             nonce,

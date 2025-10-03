@@ -7,6 +7,7 @@ use frost::types::MusigId;
 use frost::types::TweakBytes;
 use serde::{Deserialize, Serialize};
 use tracing;
+use tracing::instrument;
 use verifier_btc_indexer_client::client::WatchRunesDepositRequest as IndexerWatchRunesDepositRequest;
 use verifier_config_parser::config::construct_hardcoded_callback_url;
 use verifier_local_db_store::schemas::deposit_address::{
@@ -26,6 +27,7 @@ pub struct WatchRunesDepositRequest {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WatchRunesDepositResponse {}
 
+#[instrument(level = "trace", skip(state), ret)]
 pub async fn handle(
     State(state): State<AppState>,
     Json(request): Json<WatchRunesDepositRequest>,
@@ -66,7 +68,7 @@ pub async fn handle(
         .await
         .map_err(|e| VerifierError::BtcIndexerClient(format!("Failed to watch runes deposit: {}", e)))?;
 
-    tracing::debug!("Runes deposit watched for address: {}", request.btc_address);
+    tracing::info!("Runes deposit watched for address: {}", request.btc_address);
 
     Ok(Json(WatchRunesDepositResponse {}))
 }

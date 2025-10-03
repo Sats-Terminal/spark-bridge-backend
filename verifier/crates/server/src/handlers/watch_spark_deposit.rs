@@ -6,6 +6,7 @@ use frost::types::MusigId;
 use frost::types::TweakBytes;
 use serde::{Deserialize, Serialize};
 use tracing;
+use tracing::instrument;
 use verifier_local_db_store::schemas::deposit_address::DepositAddressStorage;
 use verifier_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositStatus, InnerAddress, TxRejectReason};
 use verifier_spark_balance_checker_client::client::GetBalanceRequest;
@@ -24,6 +25,7 @@ pub struct WatchSparkDepositResponse {
     pub verifier_response: DepositStatus,
 }
 
+#[instrument(level = "trace", skip(state), ret)]
 pub async fn handle(
     State(state): State<AppState>,
     Json(request): Json<WatchSparkDepositRequest>,
@@ -73,7 +75,7 @@ pub async fn handle(
         .await
         .map_err(|e| VerifierError::Storage(format!("Failed to update confirmation status: {}", e)))?;
 
-    tracing::debug!("Spark deposit watched for address: {}", request.spark_address);
+    tracing::info!("Spark deposit watched for address: {}", request.spark_address);
 
     Ok(Json(WatchSparkDepositResponse {
         verifier_response: confirmation_status,

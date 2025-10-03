@@ -195,6 +195,7 @@ pub trait DepositAddressStorage: Send + Sync {
 
 #[async_trait]
 impl DepositAddressStorage for LocalDbStorage {
+    #[tracing::instrument(level = "trace", skip_all)]
     async fn get_deposit_addr_info(
         &self,
         musig_id: &MusigId,
@@ -234,6 +235,7 @@ impl DepositAddressStorage for LocalDbStorage {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     async fn set_deposit_addr_info(&self, deposit_addr_info: DepositAddrInfo) -> Result<(), DbError> {
         let db_info = deposit_addr_info.to_db_format();
 
@@ -257,6 +259,7 @@ impl DepositAddressStorage for LocalDbStorage {
         Ok(())
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     async fn set_confirmation_status_by_deposit_address(
         &self,
         address: InnerAddress,
@@ -273,6 +276,7 @@ impl DepositAddressStorage for LocalDbStorage {
         Ok(())
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     async fn get_row_by_deposit_address(
         &self,
         deposit_address: InnerAddress,
@@ -323,6 +327,7 @@ impl DepositAddressStorage for LocalDbStorage {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     async fn update_confirmation_status_by_deposit_address(
         &self,
         deposit_address: InnerAddress,
@@ -369,6 +374,7 @@ impl DepositAddressStorage for LocalDbStorage {
         Ok(())
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     async fn update_bridge_address_by_deposit_address(
         &self,
         deposit_address: InnerAddress,
