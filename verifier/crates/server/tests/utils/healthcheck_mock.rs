@@ -38,7 +38,6 @@ pub async fn init_mocked_test_server(pool: PostgresPool) -> anyhow::Result<TestS
         axum::serve(listener, mock_health_app).await.unwrap();
     });
 
-    // Create Frost Signer
     let frost_signer = FrostSigner::new(
         server_config.frost_signer.identifier,
         storage.clone(),
