@@ -42,7 +42,6 @@ async fn notify_handler<T: Clone + Send + Sync + Debug>(
     Json(payload): Json<T>,
 ) -> Result<Json<Empty>, ServerError> {
     info!("Received track tx: {:?}", payload);
-    //todo: save state of program before handling requests
     let oneshot = state.notifier.lock().await.take();
     if let Some(oneshot_sender) = oneshot {
         info!("Sending notification about response: {payload:?}");
@@ -61,7 +60,6 @@ async fn _notify_handler_inner<T: Clone + Send + Sync + Debug>(
     payload: T,
 ) -> Result<Json<Empty>, ServerError> {
     info!("Received track tx: {:?}", payload);
-    //todo: save state of program before handling requests
     let oneshot = state.notifier.lock().await.take();
     if let Some(oneshot_sender) = oneshot {
         info!("Sending notification about response: {payload:?}");

@@ -47,7 +47,7 @@ pub fn spawn<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArbiterTrait>(
                         break 'checking_loop;
                     },
                     _ = interval.tick() => {
-                        let result = perform_status_update(local_db.clone(), titan_client.clone(),tx_validator.clone())
+                        let _result = perform_status_update(local_db.clone(), titan_client.clone(),tx_validator.clone())
                             .await
                             .inspect_err(|e|
                                 tracing::error!("Error while performing status update: {}", e)

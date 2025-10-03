@@ -296,7 +296,7 @@ impl SparkService {
             token_identifier.to_string()
         );
 
-        let response = self
+        let _response = self
             .spark_client
             .commit_token_transaction(
                 CommitTransactionRequest {

@@ -310,13 +310,9 @@ async fn mark_utxos_as_spent(
         return Ok(Vec::new());
     }
 
-    let mut conditions = Vec::new();
-    let mut bind_idx = 1;
-    for _ in utxo_refs {
-        conditions.push(format!("out_point = ${}", bind_idx));
-        bind_idx += 2;
-    }
-    let where_clause = conditions.join(" OR ");
+    let placeholders: Vec<String> = (1..=utxo_refs.len()).map(|i| format!("${}", i)).collect();
+
+    let where_clause = format!("out_point IN ({})", placeholders.join(", "));
 
     let query_str = format!(
         r#"

@@ -27,6 +27,7 @@ pub async fn handle(State(state): State<AppState>) -> Result<Json<Empty>, Verifi
     state
         .frost_signer
         .healthcheck()
+        .await
         .map_err(|e| VerifierError::Healthcheck(format!("Have a frost signer error: [{e}]")))?;
     Ok(Json(Empty {}))
 }

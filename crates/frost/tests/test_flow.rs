@@ -148,6 +148,7 @@ mod tests {
             3,
             2,
         )
+        .unwrap()
     }
 
     fn create_verifiers_map_easy() -> BTreeMap<Identifier, Arc<dyn SignerClient>> {

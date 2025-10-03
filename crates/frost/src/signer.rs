@@ -274,8 +274,9 @@ impl FrostSigner {
         }
     }
 
-    pub fn healthcheck(&self) -> Result<(), SignerError> {
-        // TODO: maybe perform some internal checks
+    pub async fn healthcheck(&self) -> Result<(), SignerError> {
+        self.sign_session_storage.healthcheck().await?;
+        self.musig_id_storage.healthcheck().await?;
         Ok(())
     }
 }

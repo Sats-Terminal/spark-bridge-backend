@@ -10,7 +10,6 @@ use spark_client::client::SparkRpcClient;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tracing;
-use tracing::info;
 use uuid::Uuid;
 
 // This struct is used to route the message to the correct flow
