@@ -1,7 +1,7 @@
 use crate::errors::SparkServiceError;
 use crate::types::create_partial_token_transaction;
 use crate::types::*;
-use crate::utils::spark_network_to_proto_network;
+use global_utils::conversion::spark_network_to_proto_network;
 use bitcoin::hashes::sha256::Hash as Sha256Hash;
 use bitcoin::hashes::{Hash, HashEngine, sha256};
 use bitcoin::secp256k1::PublicKey;

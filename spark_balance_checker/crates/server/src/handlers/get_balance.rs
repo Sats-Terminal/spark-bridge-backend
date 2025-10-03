@@ -7,7 +7,7 @@ use spark_address::decode_spark_address;
 use spark_protos::spark::QueryTokenOutputsRequest;
 use tracing::instrument;
 use token_identifier::TokenIdentifier;
-use bitcoin::Network;
+use global_utils::conversion::spark_network_to_proto_network;
 
 #[derive(Deserialize, Debug)]
 pub struct GetBalanceRequest {
@@ -29,11 +29,6 @@ pub async fn handle(
         .map_err(|e| ServerError::InvalidData(format!("Failed to decode spark address: {}", e)))?;
     let identity_public_key = hex::decode(address_data.identity_public_key)
         .map_err(|e| ServerError::InvalidData(format!("Failed to decode identity public key: {}", e)))?;
-    let network = address_data.network;
-
-    tracing::debug!("Token identifier: {:?}", payload.token_identifier.encode_bech32m(Network::Regtest));
-    tracing::debug!("Spark address: {:?}", payload.spark_address);
-    tracing::debug!("Network: {:?}, network as i32: {:?}", network, network as i32);
 
     let response = state
         .client
@@ -41,7 +36,7 @@ pub async fn handle(
             owner_public_keys: vec![identity_public_key],
             token_identifiers: vec![payload.token_identifier.to_bytes().to_vec()],
             token_public_keys: vec![],
-            network: 2,
+            network: spark_network_to_proto_network(address_data.network) as i32,
         })
         .await;
 

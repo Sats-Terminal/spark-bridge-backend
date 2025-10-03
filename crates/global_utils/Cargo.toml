@@ -21,3 +21,4 @@ tracing-subscriber = { workspace = true }
 url = { workspace = true }
 utoipa = { workspace = true }
 uuid = { workspace = true }
+spark-address = { workspace = true }
