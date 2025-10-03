@@ -7,12 +7,6 @@ Through this service, users can:
 * Safely deposit BTC Runes to receive wrapped Runes (wRunes) on the Spark side;
 * Deposit Spark wRunes to redeem BTC Runes back.
 
-Main interaction scheme of our project look like this.
-Needless to say that amount of verifier nodes can be easily increased for better distributed trust model.
-
-This repository contains the implementation of a bridge that enables users to transfer Runes tokens between Bitcoin and Spark L2.
-The bridge employs a multi-signature vault mechanism to ensure secure and trustless transfers.
-
 ![interaction_diagram.png](docs/imgs/interaction_diagram.png)
 
 ## A bit about repository
