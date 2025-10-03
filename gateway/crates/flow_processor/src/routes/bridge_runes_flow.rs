@@ -15,7 +15,10 @@ pub async fn handle(
     flow_router: &mut FlowProcessorRouter,
     request: BridgeRunesRequest,
 ) -> Result<(), FlowProcessorError> {
-    tracing::info!("Handling btc addr bridge runes flow for address: {}", request.btc_address);
+    tracing::info!(
+        "Handling btc addr bridge runes flow for address: {}",
+        request.btc_address
+    );
 
     let deposit_addr_info = flow_router
         .storage

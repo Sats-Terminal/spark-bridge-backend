@@ -87,12 +87,12 @@ mod tests {
     use frost::signer::FrostSigner;
     use frost::traits::SignerClient;
     use frost::types::SigningMetadata;
-    use frost_secp256k1_tr::keys::Tweak;
+    use frost::utils::generate_tweak_bytes;
     use frost_secp256k1_tr::Identifier;
+    use frost_secp256k1_tr::keys::Tweak;
     use persistent_storage::init::{PostgresPool, PostgresRepo};
     use std::collections::BTreeMap;
     use std::sync::Arc;
-    use frost::utils::generate_tweak_bytes;
 
     pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
 
@@ -103,7 +103,8 @@ mod tests {
             Arc::new(MockSignerSignSessionStorage::default()),
             3,
             2,
-        ).unwrap()
+        )
+        .unwrap()
     }
 
     async fn create_verifiers_map_easy() -> BTreeMap<Identifier, Arc<dyn SignerClient>> {
@@ -155,7 +156,7 @@ mod tests {
 
         let metadata = create_signing_metadata();
         let tweak = Some(generate_tweak_bytes());
-        
+
         let signature = aggregator
             .run_signing_flow(user_id, message_hash, metadata, tweak)
             .await?;

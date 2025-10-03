@@ -131,22 +131,18 @@ fn _inner_response_task_spawn<Db: IndexerDbBounds>(
         match client_resp {
             Ok(client_resp) => {
                 let status = TrackedReqStatus::Finished;
-                let _ = local_db.finalize_tx_request(data.uuid, status).await.inspect_err(|e| {
-                    tracing::error!(
-                        "Db finalization error: {}, status: {:?}",
-                        e, status
-                    )
-                });
+                let _ = local_db
+                    .finalize_tx_request(data.uuid, status)
+                    .await
+                    .inspect_err(|e| tracing::error!("Db finalization error: {}, status: {:?}", e, status));
                 tracing::debug!("Got response: {:?}", client_resp);
             }
             Err(e) => {
                 let status = TrackedReqStatus::FailedToSend;
-                let _ = local_db.finalize_tx_request(data.uuid, status).await.inspect_err(|e| {
-                    tracing::error!(
-                        "Db finalization error: {}, status: {:?}",
-                        e, status
-                    )
-                });
+                let _ = local_db
+                    .finalize_tx_request(data.uuid, status)
+                    .await
+                    .inspect_err(|e| tracing::error!("Db finalization error: {}, status: {:?}", e, status));
                 tracing::error!("Error: {}", e);
             }
         }
@@ -200,10 +196,7 @@ fn _inner_update_task_spawn<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArb
                 let r = check_obtained_transaction(titan_client, tx_validator, &tx_to_check, &tx_id)
                     .await
                     .inspect_err(|e| {
-                        tracing::error!(
-                            "Failed to check obtained transaction: {e}, tx_id: {}",
-                            tx_to_check.txid
-                        )
+                        tracing::error!("Failed to check obtained transaction: {e}, tx_id: {}", tx_to_check.txid)
                     });
                 tracing::debug!("Review finihsed: {:?}", r);
                 if let Ok(res) = r

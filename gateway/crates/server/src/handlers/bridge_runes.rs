@@ -23,7 +23,10 @@ pub async fn handle(
     Json(request): Json<BridgeRunesSparkRequest>,
 ) -> Result<Json<()>, GatewayError> {
     let request_btc_address = request.btc_address.clone();
-    tracing::info!("Handling bridge runes request with btc address: {:?}", request_btc_address);
+    tracing::info!(
+        "Handling bridge runes request with btc address: {:?}",
+        request_btc_address
+    );
 
     let btc_address = decode_address(&request.btc_address, state.network)
         .map_err(|e| GatewayError::InvalidData(format!("Failed to parse btc address: {e}")))?;
@@ -43,7 +46,10 @@ pub async fn handle(
         .await
         .map_err(|e| GatewayError::DepositVerificationError(format!("Failed to verify runes deposit: {}", e)))?;
 
-    tracing::info!("Bridge runes request handled request with btc address: {:?}", request_btc_address);
+    tracing::info!(
+        "Bridge runes request handled request with btc address: {:?}",
+        request_btc_address
+    );
 
     Ok(Json(()))
 }

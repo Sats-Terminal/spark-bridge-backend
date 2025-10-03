@@ -310,9 +310,7 @@ async fn mark_utxos_as_spent(
         return Ok(Vec::new());
     }
 
-    let placeholders: Vec<String> = (1..=utxo_refs.len())
-        .map(|i| format!("${}", i))
-        .collect();
+    let placeholders: Vec<String> = (1..=utxo_refs.len()).map(|i| format!("${}", i)).collect();
 
     let where_clause = format!("out_point IN ({})", placeholders.join(", "));
 

@@ -125,8 +125,7 @@ mod tests {
         cleanup_test_db(&repo).await;
 
         let out_point = OutPoint {
-            txid: Txid::from_str("0000000000000000000000000000000000000000000000000000000000000999")
-                .unwrap(),
+            txid: Txid::from_str("0000000000000000000000000000000000000000000000000000000000000999").unwrap(),
             vout: 0,
         };
 
@@ -287,8 +286,7 @@ mod tests {
         cleanup_test_db(&repo).await;
 
         let out_point = OutPoint {
-            txid: Txid::from_str("0000000000000000000000000000000000000000000000000000000000000888")
-                .unwrap(),
+            txid: Txid::from_str("0000000000000000000000000000000000000000000000000000000000000888").unwrap(),
             vout: 0,
         };
 
@@ -326,8 +324,7 @@ mod tests {
         cleanup_test_db(&repo).await;
 
         let out_point = OutPoint {
-            txid: Txid::from_str("0000000000000000000000000000000000000000000000000000000000000777")
-                .unwrap(),
+            txid: Txid::from_str("0000000000000000000000000000000000000000000000000000000000000777").unwrap(),
             vout: 0,
         };
 
@@ -413,10 +410,7 @@ mod tests {
 
         let (r1, r2) = tokio::join!(f1, f2);
 
-        let success_count = [r1.as_ref(), r2.as_ref()]
-            .iter()
-            .filter(|r| r.is_ok())
-            .count();
+        let success_count = [r1.as_ref(), r2.as_ref()].iter().filter(|r| r.is_ok()).count();
 
         assert!(success_count >= 1, "At least one should succeed");
 

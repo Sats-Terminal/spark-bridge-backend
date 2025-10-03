@@ -2,9 +2,9 @@ use crate::error::BtcIndexerClientError;
 use bitcoin::OutPoint;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 use url::Url;
 use verifier_config_parser::config::BtcIndexerConfig;
-use tracing::instrument;
 
 const WATCH_RUNES_DEPOSIT_PATH: &str = "/track_tx";
 
@@ -49,7 +49,11 @@ impl BtcIndexerClient {
         if response.status().is_success() {
             Ok(())
         } else {
-            tracing::error!("Failed to send HTTP request for {:?}, with status {}", request, response.status());
+            tracing::error!(
+                "Failed to send HTTP request for {:?}, with status {}",
+                request,
+                response.status()
+            );
             Err(BtcIndexerClientError::HttpError(format!(
                 "Failed to send HTTP request with status {}, error: {}",
                 response.status(),

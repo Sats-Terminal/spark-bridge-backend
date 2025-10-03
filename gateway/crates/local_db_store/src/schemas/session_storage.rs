@@ -3,10 +3,10 @@ use async_trait::async_trait;
 use global_utils::common_types::get_uuid;
 use persistent_storage::error::DbError;
 use serde::{Deserialize, Serialize};
-use sqlx::types::Json;
 use sqlx::FromRow;
-use uuid::Uuid;
+use sqlx::types::Json;
 use tracing::instrument;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionInfo {

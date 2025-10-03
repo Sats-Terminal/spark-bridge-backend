@@ -1,3 +1,4 @@
+use crate::error::FlowProcessorError;
 use crate::flow_processor::FlowProcessor;
 use crate::flow_sender::FlowSender;
 use bitcoin::Network;
@@ -12,7 +13,6 @@ use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
-use crate::error::FlowProcessorError;
 
 pub async fn create_flow_processor(
     server_config: ServerConfig,
@@ -25,16 +25,18 @@ pub async fn create_flow_processor(
 
     let cancellation_token = CancellationToken::new();
 
-    let spark_client = SparkRpcClient::new(server_config.spark.clone()).await
+    let spark_client = SparkRpcClient::new(server_config.spark.clone())
+        .await
         .map_err(|e| FlowProcessorError::InitializationError(format!("Failed to create spark client: {}", e)))?;
 
     let spark_operator_identity_public_keys = server_config
         .spark
         .operators
         .iter()
-        .map(|o| PublicKey::from_str(&o.identity_public_key)
-            .map_err(|e| FlowProcessorError::InitializationError(format!("Failed to parse public key: {}", e)))
-        )
+        .map(|o| {
+            PublicKey::from_str(&o.identity_public_key)
+                .map_err(|e| FlowProcessorError::InitializationError(format!("Failed to parse public key: {}", e)))
+        })
         .collect::<Result<Vec<PublicKey>, FlowProcessorError>>()?;
 
     let spark_service = SparkService::new(

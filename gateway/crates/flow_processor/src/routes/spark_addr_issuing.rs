@@ -9,7 +9,7 @@ use gateway_local_db_store::schemas::deposit_address::{
     DepositAddrInfo, DepositAddressStorage, DepositStatus, InnerAddress, VerifiersResponses,
 };
 use gateway_spark_service::utils::convert_network_to_spark_network;
-use spark_address::{encode_spark_address, SparkAddressData};
+use spark_address::{SparkAddressData, encode_spark_address};
 use tracing::instrument;
 
 #[instrument(skip(flow_router), level = "trace", ret)]

@@ -9,7 +9,6 @@ use local_db_store_indexer::init::IndexerDbBounds;
 
 use tracing::instrument;
 
-
 #[utoipa::path(
     post,
     path = "/track_tx",

@@ -49,7 +49,10 @@ pub async fn handle(
     Json(request): Json<ExitSparkRequest>,
 ) -> Result<Json<()>, GatewayError> {
     let request_spark_address = request.spark_address.clone();
-    tracing::info!("Handling exit spark request with spark address: {:?}", request_spark_address);
+    tracing::info!(
+        "Handling exit spark request with spark address: {:?}",
+        request_spark_address
+    );
 
     let verify_spark_deposit_request = VerifySparkDepositRequest {
         spark_address: request.spark_address,
@@ -64,7 +67,10 @@ pub async fn handle(
         .await
         .map_err(|e| GatewayError::DepositVerificationError(format!("Failed to verify spark deposit: {}", e)))?;
 
-    tracing::info!("Exit spark request handled request with spark address: {:?}", request_spark_address);
+    tracing::info!(
+        "Exit spark request handled request with spark address: {:?}",
+        request_spark_address
+    );
 
     Ok(Json(()))
 }

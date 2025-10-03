@@ -1,13 +1,13 @@
 use crate::error::ServerError;
 use crate::init::AppState;
-use axum::extract::State;
 use axum::Json;
+use axum::extract::State;
 use bech32;
 use serde::{Deserialize, Serialize};
 use spark_address::decode_spark_address;
 use spark_protos::spark::QueryTokenOutputsRequest;
-use utoipa::ToSchema;
 use tracing::instrument;
+use utoipa::ToSchema;
 
 #[derive(Deserialize, ToSchema, Debug)]
 #[schema(example = json!({

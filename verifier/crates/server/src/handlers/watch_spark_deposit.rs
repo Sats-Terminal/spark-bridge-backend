@@ -6,10 +6,10 @@ use frost::types::MusigId;
 use frost::types::TweakBytes;
 use serde::{Deserialize, Serialize};
 use tracing;
+use tracing::instrument;
 use verifier_local_db_store::schemas::deposit_address::DepositAddressStorage;
 use verifier_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositStatus, InnerAddress, TxRejectReason};
 use verifier_spark_balance_checker_client::client::GetBalanceRequest;
-use tracing::instrument;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WatchSparkDepositRequest {

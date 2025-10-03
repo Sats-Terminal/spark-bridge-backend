@@ -26,7 +26,10 @@ pub async fn handle(
     Json(request): Json<GetSparkDepositAddressRequest>,
 ) -> Result<Json<GetSparkDepositAddressResponse>, GatewayError> {
     let request_user_public_key = request.user_public_key.clone();
-    tracing::info!("Handling get spark deposit address request with user public key: {:?}", request_user_public_key);
+    tracing::info!(
+        "Handling get spark deposit address request with user public key: {:?}",
+        request_user_public_key
+    );
 
     let response = state
         .flow_sender
@@ -41,7 +44,10 @@ pub async fn handle(
         .await
         .map_err(|e| GatewayError::FlowProcessorError(format!("Failed to issue deposit address for bridging: {e}")))?;
 
-    tracing::info!("Get spark deposit address request handled request with user public key: {:?}", request_user_public_key);
+    tracing::info!(
+        "Get spark deposit address request handled request with user public key: {:?}",
+        request_user_public_key
+    );
 
     return Ok(Json(GetSparkDepositAddressResponse {
         address: response.addr_to_replenish,

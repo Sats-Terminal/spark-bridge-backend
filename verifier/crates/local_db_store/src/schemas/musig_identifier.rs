@@ -67,8 +67,8 @@ mod tests {
     use frost::traits::SignerSignSessionStorage;
     use frost::types::SigningMetadata;
     use frost::utils::generate_tweak_bytes;
-    use frost_secp256k1_tr::keys::Tweak;
     use frost_secp256k1_tr::Identifier;
+    use frost_secp256k1_tr::keys::Tweak;
     use persistent_storage::init::{PostgresPool, PostgresRepo};
     use std::collections::BTreeMap;
     use std::sync::Arc;
@@ -95,9 +95,7 @@ mod tests {
         FrostSigner::new(identifier, user_key_storage, user_session_storage, 3, 2)
     }
 
-    async fn create_verifiers_map_easy(
-        storage: Arc<LocalDbStorage>,
-    ) -> BTreeMap<Identifier, Arc<dyn SignerClient>> {
+    async fn create_verifiers_map_easy(storage: Arc<LocalDbStorage>) -> BTreeMap<Identifier, Arc<dyn SignerClient>> {
         let signer1 = create_signer(1, true, true, None).await;
         let signer2 = create_signer(2, true, true, None).await;
         let signer3 = create_signer(3, false, false, Some(storage)).await;

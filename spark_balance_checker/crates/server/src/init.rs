@@ -1,10 +1,10 @@
+use crate::error::ServerError;
 use crate::handlers;
 use axum::{Router, routing::post};
 use spark_client::client::SparkRpcClient;
 use spark_client::common::config::SparkConfig;
 use tracing::instrument;
 use utoipa::OpenApi;
-use crate::error::ServerError;
 
 #[derive(Clone)]
 pub struct AppState {

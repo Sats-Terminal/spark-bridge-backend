@@ -26,17 +26,15 @@ async fn test_rune_manager() {
         ],
         certificate_path: "../infrastructure/configurations/certificates/Flashnet-CA.pem".to_string(),
     })
-        .await
-        .unwrap();
+    .await
+    .unwrap();
 
     let mut rune_manager = RuneManager::new(bitcoin_client.clone()).await.unwrap();
     let rune_id = rune_manager.get_rune_id().await;
 
-    let mut user_wallet = UserWallet::new(
-        bitcoin_client.clone(),
-        spark_client,
-        rune_id
-    ).await.unwrap();
+    let mut user_wallet = UserWallet::new(bitcoin_client.clone(), spark_client, rune_id)
+        .await
+        .unwrap();
     rune_manager.mint_rune(user_wallet.get_address()).await.unwrap();
 
     user_wallet.unite_unspent_utxos().await.unwrap();
@@ -48,9 +46,9 @@ async fn test_rune_manager() {
     user_wallet
         .transfer(
             TransferType::RuneTransfer {
-                rune_amount: transfer_amount
+                rune_amount: transfer_amount,
             },
-            dummy_address.clone()
+            dummy_address.clone(),
         )
         .await
         .unwrap();
