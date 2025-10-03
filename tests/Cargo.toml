@@ -1,0 +1,29 @@
+[package]
+name = "tests"
+edition = "2024"
+
+[dependencies]
+lazy_static = { workspace = true }
+hex = { workspace = true }
+bitcoin = { workspace = true }
+ordinals = { workspace = true }
+ord-rs = { workspace = true }
+bitcoincore-rpc = { workspace = true }
+thiserror = { workspace = true }
+titan-client = { workspace = true }
+tokio = { workspace = true }
+reqwest = { workspace = true }
+url = { workspace = true }
+serde = { workspace = true }
+ord = { workspace = true }
+rand_core = { workspace = true }
+tracing = { workspace = true }
+global_utils = { workspace = true }
+spark-address = { workspace = true }
+spark-protos = { workspace = true }
+tonic = { workspace = true }
+token-identifier = { workspace = true }
+rustls = { workspace = true }
+lrc20 = { workspace = true }
+chrono = { workspace = true }
+proto-hasher = { workspace = true }

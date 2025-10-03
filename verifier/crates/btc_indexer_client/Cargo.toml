@@ -1,0 +1,13 @@
+[package]
+name = "verifier_btc_indexer_client"
+edition = "2024"
+
+[dependencies]
+thiserror = { workspace = true }
+tracing = { workspace = true }
+serde = { workspace = true }
+tokio = { workspace = true }
+verifier_config_parser = { workspace = true }
+reqwest = { workspace = true }
+url = { workspace = true }
+bitcoin = { workspace = true }

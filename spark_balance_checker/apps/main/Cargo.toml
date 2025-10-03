@@ -1,0 +1,19 @@
+[package]
+name = "spark_balance_checker_main"
+edition = { workspace = true }
+
+[features]
+default = []
+
+[dependencies]
+anyhow = { workspace = true }
+axum = { workspace = true }
+dotenvy = { workspace = true }
+global_utils = { workspace = true }
+spark_balance_checker_config_parser = { workspace = true }
+spark_balance_checker_server = { workspace = true }
+spark_client = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+rustls = { workspace = true }
+eyre = { workspace = true }

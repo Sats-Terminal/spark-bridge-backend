@@ -1,0 +1,20 @@
+[package]
+name = "spark_client"
+edition = { workspace = true }
+
+[dependencies]
+bech32 = { workspace = true }
+bitcoin = { workspace = true }
+global_utils = { workspace = true }
+hex = { workspace = true }
+serde = { workspace = true }
+spark-address = { workspace = true }
+spark-protos = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tonic = { workspace = true }
+tonic-health = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+anyhow = { workspace = true }

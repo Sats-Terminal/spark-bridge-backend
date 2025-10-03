@@ -1,0 +1,14 @@
+[package]
+name = "verifier_config_parser"
+edition = "2024"
+
+[dependencies]
+serde = { workspace = true }
+config = { workspace = true }
+tracing = { workspace = true }
+global_utils = { workspace = true }
+thiserror = { workspace = true }
+dotenvy = { workspace = true }
+frost = { workspace = true }
+spark_client = { workspace = true }
+bitcoin = { workspace = true }

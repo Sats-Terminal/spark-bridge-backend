@@ -1,0 +1,28 @@
+@startuml
+title Bridge interaction scheme [Runes -> Spark]
+
+note over User_BTC_wallet,Gateway:Get runes deposit address
+User_BTC_wallet->Gateway: get address for (**user_pubkey**, **rune_id**)
+Gateway<->Verifiers:Perform dkg to generate **dkg_pubkey** (if absent) \n and tweak it with random **nonce**
+Gateway->User_BTC_wallet: Retrieve **deposit_btc_address** to send tokens to
+
+note over User_BTC_wallet,Gateway:Make transfer on deposit address
+User_BTC_wallet->BTC_network: Create **tx** with appropriate amount of Runes
+note over User_BTC_wallet,Gateway:Bridge runes to spark
+User_BTC_wallet->Gateway: notify that **tx** is created and \n specify **spark_address** where to mint **wRunes**
+
+note over Gateway,Verifiers:Verify **tx** existence
+
+Gateway->Verifiers:Watch for **tx** 
+Verifiers->BTC_indexer: calls to watch for **tx**
+Verifiers<-BTC_indexer: notify that **tx** exists
+Gateway<-Verifiers: notify that **tx** exists
+
+note over Gateway,Spark_Entity:Mint **wRunes** for the user
+Gateway<->Verifiers:Perform dkg to generate **issuer_dkg_public_key**
+Gateway<->Verifiers:Create and frost sign mint transaction for **spark_address** \n with **issuer_dkg_public_key**
+Gateway->Spark_Entity: send mint transaction
+
+note over User_Spark_wallet, Spark_Entity: Tokens acquisition
+User_Spark_wallet<-Spark_Entity: **wRunes**
+@enduml

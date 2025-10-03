@@ -1,0 +1,23 @@
+[package]
+name = "btc_indexer_main"
+edition = "2024"
+version.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+readme.workspace = true
+
+[features]
+default = []
+swagger = ["btc_indexer_server/swagger"]
+
+[dependencies]
+anyhow = { workspace = true }
+axum = { workspace = true }
+btc_indexer_internals = { workspace = true }
+btc_indexer_server = { workspace = true }
+config_parser = { workspace = true }
+dotenvy = { workspace = true }
+global_utils = { workspace = true }
+local_db_store_indexer = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
