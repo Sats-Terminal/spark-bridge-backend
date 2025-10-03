@@ -17,3 +17,4 @@ spark-protos = { workspace = true }
 futures = { workspace = true }
 token-identifier = { workspace = true }
 spark-address = { workspace = true }
+global_utils = { workspace = true }

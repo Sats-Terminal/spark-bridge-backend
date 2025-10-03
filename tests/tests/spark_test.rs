@@ -163,9 +163,3 @@ async fn test_spark() {
 
     assert_eq!(balance, DEFAULT_FAUCET_AMOUNT - deposit_amount + spark_deposit_amount, "Balance should be equal to deposit amount");
 }
-
-#[tokio::test]
-async fn test_test() {
-    let addr_str = "bcrt1pe4qlnrr5l0cfxwduemrakh5zwu86d5t0s2mxwc2s9eca3e7apchs90gm2r".to_string();
-    let addr = Address::from_str(&addr_str).unwrap();
-}

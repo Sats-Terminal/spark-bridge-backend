@@ -8,7 +8,7 @@ use frost::utils::generate_tweak_bytes;
 use gateway_local_db_store::schemas::deposit_address::{
     DepositAddrInfo, DepositAddressStorage, DepositStatus, InnerAddress, VerifiersResponses,
 };
-use gateway_spark_service::utils::convert_network_to_spark_network;
+use global_utils::conversion::convert_network_to_spark_network;
 use spark_address::{SparkAddressData, encode_spark_address};
 use tracing::instrument;
 
