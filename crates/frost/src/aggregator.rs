@@ -314,7 +314,7 @@ impl FrostAggregator {
         }
     }
 
-    async fn sign_round_2(&self, musig_id: &MusigId, session_id: Uuid) -> Result<(), AggregatorError> {
+    async fn sign_round_2(&self, musig_id: &MusigId, session_id: Uuid, tap_tweek: bool) -> Result<(), AggregatorError> {
         debug!(musig_id = ?musig_id, session_id = %session_id, "Starting signing round 2");
         let musig_id_data = self.musig_id_storage.get_musig_id_data(musig_id).await?;
         let mut sign_data = self
@@ -343,10 +343,13 @@ impl FrostAggregator {
                 metadata: _,
                 sign_state: AggregatorSignState::SigningRound1 { signing_package },
             } => {
-                let tweaked_public_key_package = match tweak.clone() {
+                let mut tweaked_public_key_package = match tweak.clone() {
                     Some(tweak) => public_key_package.clone().tweak(Some(tweak.to_vec())),
                     None => public_key_package.clone(),
                 };
+                if tap_tweek {
+                    tweaked_public_key_package = tweaked_public_key_package.tweak::<Vec<u8>>(None);
+                }
                 let mut signature_shares = BTreeMap::new();
                 let mut join_handles = vec![];
 
@@ -355,6 +358,7 @@ impl FrostAggregator {
                         musig_id: musig_id.clone(),
                         session_id,
                         signing_package: signing_package.clone(),
+                        tap_tweek,
                     };
                     let join_handle = async move { (verifier_id, signer_client.sign_round_2(request).await) };
                     join_handles.push(join_handle);
@@ -398,12 +402,13 @@ impl FrostAggregator {
         message_hash: &[u8],
         metadata: SigningMetadata,
         tweak: Option<Nonce>,
+        tap_tweek: bool,
     ) -> Result<Signature, AggregatorError> {
         let session_id = global_utils::common_types::get_uuid();
 
         self.sign_round_1(&musig_id, session_id, message_hash, metadata, tweak)
             .await?;
-        self.sign_round_2(&musig_id, session_id).await?;
+        self.sign_round_2(&musig_id, session_id, tap_tweek).await?;
 
         let sign_data = self.sign_session_storage.get_sign_data(&musig_id, session_id).await?;
         let state = sign_data

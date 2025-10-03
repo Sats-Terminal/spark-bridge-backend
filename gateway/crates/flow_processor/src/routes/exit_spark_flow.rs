@@ -79,7 +79,7 @@ pub async fn handle(
             .map_err(|e| FlowProcessorError::FrostAggregatorError(format!("Failed to get public key package: {e}")))?;
         let public_key = convert_public_key_package(&public_key_package)
             .map_err(|e| FlowProcessorError::InvalidDataError(format!("Failed to convert public key package: {e}")))?;
-        let deposit_address = get_address(public_key, new_nonce, flow_router.network)
+        let deposit_address = get_address(public_key, flow_router.network)
             .map_err(|e| FlowProcessorError::InvalidDataError(format!("Failed to create address: {e}")))?;
 
         flow_router
@@ -132,6 +132,7 @@ pub async fn handle(
                 message_hash.as_ref(),
                 SigningMetadata::BtcTransactionMetadata {},
                 Some(input_deposit_addr_info.nonce),
+                true,
             )
             .await
             .map_err(|e| FlowProcessorError::FrostAggregatorError(format!("Failed to sign message hash: {e}")))?

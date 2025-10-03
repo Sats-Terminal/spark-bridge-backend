@@ -52,9 +52,11 @@ pub async fn handle(
     };
 
     let nonce = generate_nonce();
+    let public_key_package = flow_processor.frost_aggregator.get_public_key_package(request.musig_id.clone(), Some(nonce)).await
+        .map_err(|e| FlowProcessorError::FrostAggregatorError(format!("Failed to get public key package: {}", e)))?;
     let public_key = convert_public_key_package(&public_key_package)
         .map_err(|e| FlowProcessorError::InvalidDataError(format!("Failed to convert public key package: {}", e)))?;
-    let address = get_address(public_key, nonce, flow_processor.network)
+    let address = get_address(public_key, flow_processor.network)
         .map_err(|e| FlowProcessorError::InvalidDataError(format!("Failed to create address: {}", e)))?;
 
     let verifiers_responses = VerifiersResponses::new(
