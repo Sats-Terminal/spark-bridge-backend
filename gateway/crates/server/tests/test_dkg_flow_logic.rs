@@ -34,7 +34,7 @@ mod tests {
         let mut server_config = ServerConfig::init_config(CONFIG_PATH.to_string());
         let local_repo = LocalDbStorage {
             postgres_repo: PostgresRepo { pool: db },
-            btc_network: server_config.network.network,
+            network: server_config.network.network,
         }
         .into_shared();
         server_config.dkg_pregen_config.min_threshold = 15;
@@ -107,7 +107,7 @@ mod tests {
         let server_config = ServerConfig::init_config(CONFIG_PATH.to_string());
         let local_repo = Arc::new(LocalDbStorage {
             postgres_repo: PostgresRepo { pool: db },
-            btc_network: server_config.network.network,
+            network: server_config.network.network,
         });
         let verifiers_map = create_verifiers_map().await;
         let aggregator = Arc::new(FrostAggregator::new(
@@ -174,11 +174,12 @@ mod tests {
     async fn create_signer(identifier: u16) -> FrostSigner {
         FrostSigner::new(
             identifier,
-            Arc::new(MockSignerDkgShareIdStorage::new()),
+            Arc::new(MockSignerDkgShareIdStorage::default()),
             Arc::new(MockSignerSignSessionStorage::default()),
             3,
             2,
         )
+        .unwrap()
     }
 
     async fn create_verifiers_map() -> BTreeMap<Identifier, Arc<dyn SignerClient>> {

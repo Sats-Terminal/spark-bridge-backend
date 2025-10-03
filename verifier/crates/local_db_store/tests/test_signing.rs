@@ -63,7 +63,7 @@ mod tests {
         shared_local_storage: Arc<LocalDbStorage>,
     ) -> FrostSigner {
         let user_key_storage: Arc<dyn SignerDkgShareStorage> = if is_mock_key_storage {
-            Arc::new(MockSignerDkgShareIdStorage::new())
+            Arc::new(MockSignerDkgShareIdStorage::default())
         } else {
             shared_local_storage.clone()
         };
@@ -73,7 +73,7 @@ mod tests {
         } else {
             shared_local_storage
         };
-        FrostSigner::new(identifier, user_key_storage, user_session_storage, 3, 2)
+        FrostSigner::new(identifier, user_key_storage, user_session_storage, 3, 2).unwrap()
     }
 
     #[inline]
@@ -90,6 +90,7 @@ mod tests {
             total_participants,
             threshold,
         )
+        .unwrap()
     }
 
     async fn create_verifiers_map_easy(
@@ -125,7 +126,7 @@ mod tests {
 
         debug!("Verifiers ...");
         let verifiers_map = create_verifiers_map_easy(local_db_storage.clone()).await;
-        let mock_dkg_share_storage = MockAggregatorDkgShareIdStorage::new();
+        let mock_dkg_share_storage = MockAggregatorDkgShareIdStorage::default();
         mock_dkg_share_storage
             .set_dkg_share_agg_data(
                 &dkg_share_id,
@@ -139,7 +140,7 @@ mod tests {
         let aggregator = FrostAggregator::new(
             verifiers_map,
             Arc::new(mock_dkg_share_storage),
-            Arc::new(MockAggregatorSignSessionStorage::new()),
+            Arc::new(MockAggregatorSignSessionStorage::default()),
         );
 
         let secp = Secp256k1::new();

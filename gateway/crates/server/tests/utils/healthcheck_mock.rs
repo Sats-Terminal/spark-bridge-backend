@@ -1,4 +1,4 @@
-use crate::utils::common::{CERT_1_PATH, CERT_2_PATH, CERT_PATH, obtain_random_localhost_socket_addr};
+use crate::utils::common::obtain_random_localhost_socket_addr;
 use crate::utils::common::{CONFIG_PATH, PATH_TO_AMAZON_CA, PATH_TO_FLASHNET};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};

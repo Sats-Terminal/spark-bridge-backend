@@ -36,7 +36,7 @@ mod tests {
         let server_config = ServerConfig::init_config(GATEWAY_CONFIG_PATH.to_string());
         let local_repo = LocalDbStorage {
             postgres_repo: PostgresRepo { pool: db },
-            btc_network: server_config.network.network,
+            network: server_config.network.network,
         };
         let shared_local_repo = Arc::new(local_repo);
 
@@ -85,18 +85,19 @@ mod tests {
     async fn create_signer(identifier: u16) -> FrostSigner {
         FrostSigner::new(
             identifier,
-            Arc::new(MockSignerDkgShareIdStorage::new()),
+            Arc::new(MockSignerDkgShareIdStorage::default()),
             Arc::new(MockSignerSignSessionStorage::default()),
             3,
             2,
         )
+        .unwrap()
     }
 
     async fn _test_dkg_pregen_draft_flow(db: sqlx::PgPool) -> anyhow::Result<()> {
         let server_config = ServerConfig::init_config(GATEWAY_CONFIG_PATH.to_string());
         let local_repo = Arc::new(LocalDbStorage {
             postgres_repo: PostgresRepo { pool: db },
-            btc_network: server_config.network.network,
+            network: server_config.network.network,
         });
 
         let user_id = local_repo.generate_dkg_share_entity().await?;
@@ -143,7 +144,7 @@ mod tests {
         let server_config = ServerConfig::init_config(GATEWAY_CONFIG_PATH.to_string());
         let local_repo = Arc::new(LocalDbStorage {
             postgres_repo: PostgresRepo { pool: db },
-            btc_network: server_config.network.network,
+            network: server_config.network.network,
         });
 
         let user_id = local_repo.generate_dkg_share_entity().await?;

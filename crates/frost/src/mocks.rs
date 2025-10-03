@@ -95,6 +95,14 @@ pub struct MockAggregatorDkgShareIdStorage {
     storage: Arc<Mutex<BTreeMap<DkgShareId, AggregatorDkgShareData>>>,
 }
 
+impl Default for MockAggregatorDkgShareIdStorage {
+    fn default() -> Self {
+        Self {
+            storage: Arc::new(Mutex::new(BTreeMap::default())),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct MockAggregatorSignSessionStorage {
     storage: Arc<Mutex<BTreeMap<(DkgShareId, Uuid), AggregatorSignData>>>,

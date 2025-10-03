@@ -62,7 +62,7 @@ mod tests {
         let verifiers_map = create_verifiers_map_easy();
 
         let dkg_share_id: DkgShareId = get_uuid();
-        let agg_storage = MockAggregatorDkgShareIdStorage::new();
+        let agg_storage = MockAggregatorDkgShareIdStorage::default();
         agg_storage
             .set_dkg_share_agg_data(
                 &dkg_share_id,
@@ -113,7 +113,7 @@ mod tests {
         let verifiers_map = create_verifiers_map_easy();
 
         let dkg_share_id: DkgShareId = get_uuid();
-        let agg_storage = MockAggregatorDkgShareIdStorage::new();
+        let agg_storage = MockAggregatorDkgShareIdStorage::default();
         agg_storage
             .set_dkg_share_agg_data(
                 &dkg_share_id,
@@ -149,7 +149,7 @@ mod tests {
     fn create_signer(identifier: u16) -> FrostSigner {
         FrostSigner::new(
             identifier,
-            Arc::new(MockSignerMusigIdStorage::default()),
+            Arc::new(MockSignerDkgShareIdStorage::default()),
             Arc::new(MockSignerSignSessionStorage::default()),
             3,
             2,
