@@ -18,7 +18,7 @@
 // Re-export prost to ensure it's available for the generated code
 pub use prost;
 
-/// The core for Spark proto types and service definitions. This module contains `spark.proto` and `spark_tree.proto` files.
+// The core for Spark proto types and service definitions. This module contains `spark.proto` and `spark_tree.proto` files.
 
 pub mod common {
     include!(concat!(env!("OUT_DIR"), "/common.rs"));

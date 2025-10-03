@@ -6,9 +6,11 @@ use frost::types::SignerDkgState;
 use frost::types::SignerMusigIdData;
 use persistent_storage::error::DbError;
 use sqlx::types::Json;
+use tracing::instrument;
 
 #[async_trait]
 impl SignerMusigIdStorage for LocalDbStorage {
+    #[instrument(level = "trace", skip(self), ret)]
     async fn get_musig_id_data(&self, musig_id: &MusigId) -> Result<Option<SignerMusigIdData>, DbError> {
         let public_key = musig_id.get_public_key();
         let rune_id = musig_id.get_rune_id();
@@ -29,6 +31,7 @@ impl SignerMusigIdStorage for LocalDbStorage {
         }))
     }
 
+    #[instrument(level = "trace", skip(self), ret)]
     async fn set_musig_id_data(&self, musig_id: &MusigId, musig_id_data: SignerMusigIdData) -> Result<(), DbError> {
         let dkg_state = Json(musig_id_data.dkg_state);
         let public_key = musig_id.get_public_key();
@@ -63,7 +66,7 @@ mod tests {
     use frost::traits::SignerMusigIdStorage;
     use frost::traits::SignerSignSessionStorage;
     use frost::types::SigningMetadata;
-    use frost::types::TokenTransactionMetadata;
+    use frost::utils::generate_tweak_bytes;
     use frost_secp256k1_tr::Identifier;
     use frost_secp256k1_tr::keys::Tweak;
     use lrc20::token_transaction::{
@@ -80,7 +83,7 @@ mod tests {
         let arc_storage = Arc::new(storage);
 
         let user_key_storage: Arc<dyn SignerMusigIdStorage> = if is_mock_key_storage {
-            Arc::new(MockSignerMusigIdStorage::new())
+            Arc::new(MockSignerMusigIdStorage::default())
         } else {
             arc_storage.clone()
         };
@@ -114,43 +117,14 @@ mod tests {
         ])
     }
 
-    fn create_signing_metadata() -> SigningMetadata {
-        let token_transaction_metadata = TokenTransactionMetadata::PartialCreateToken {
-            token_transaction: TokenTransaction {
-                version: TokenTransactionVersion::V2,
-                input: TokenTransactionInput::Create(TokenTransactionCreateInput {
-                    issuer_public_key: PublicKey::from_secret_key(
-                        &Secp256k1::new(),
-                        &SecretKey::from_slice(&[1u8; 32]).unwrap(),
-                    ),
-                    token_name: "test_token".to_string(),
-                    token_ticker: "TEST".to_string(),
-                    decimals: 8,
-                    max_supply: 1000000000000000000,
-                    is_freezable: false,
-                    creation_entity_public_key: None,
-                }),
-                leaves_to_create: vec![],
-                spark_operator_identity_public_keys: vec![],
-                expiry_time: 0,
-                network: None,
-                client_created_timestamp: 0,
-            },
-        };
-
-        SigningMetadata {
-            token_transaction_metadata,
-        }
-    }
-
     #[tokio::test]
     async fn test_aggregator_signer_integration() {
         let verifiers_map = create_verifiers_map_easy().await;
 
         let aggregator = FrostAggregator::new(
             verifiers_map,
-            Arc::new(MockAggregatorMusigIdStorage::new()),
-            Arc::new(MockAggregatorSignSessionStorage::new()),
+            Arc::new(MockAggregatorMusigIdStorage::default()),
+            Arc::new(MockAggregatorSignSessionStorage::default()),
         );
 
         let secp = Secp256k1::new();
@@ -165,9 +139,9 @@ mod tests {
 
         let public_key_package = aggregator.run_dkg_flow(&user_id).await.unwrap();
 
-        let tweak = Some(b"test_tweak".as_slice());
+        let tweak = Some(generate_tweak_bytes());
         // let tweak = None;
-        let metadata = create_signing_metadata();
+        let metadata = SigningMetadata::Authorization;
 
         let signature = aggregator
             .run_signing_flow(user_id, message_hash, metadata, tweak)

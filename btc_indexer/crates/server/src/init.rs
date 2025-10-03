@@ -21,12 +21,11 @@ pub struct AppState<C, Db, TxValidator> {
 #[openapi(paths(crate::routes::track_tx::handler))]
 struct ApiDoc;
 
-#[instrument(skip(db_pool, btc_indexer))]
+#[instrument(skip_all, level = "trace")]
 pub async fn create_app(
     db_pool: LocalDbStorage,
     btc_indexer: BtcIndexer<TitanClient, LocalDbStorage, TxArbiter>,
 ) -> Router {
-    // We're opening already tracking task for our txs
     let (btc_indexer, db_pool) = (Arc::new(btc_indexer), Arc::new(db_pool));
 
     let state = AppState {
@@ -36,10 +35,13 @@ pub async fn create_app(
     };
     let app = Router::new()
         .route(BtcIndexerApi::TRACK_TX_ENDPOINT, post(crate::routes::track_tx::handler))
+        .route(
+            BtcIndexerApi::HEALTHCHECK_ENDPOINT,
+            post(crate::routes::healthcheck::handler),
+        )
         .with_state(state);
 
     #[cfg(feature = "swagger")]
     let app = app.merge(SwaggerUi::new("/swagger-ui/").url("/api-docs/openapi.json", ApiDoc::openapi()));
-    //todo: spawn initial task to renew unfinished ones
     app
 }

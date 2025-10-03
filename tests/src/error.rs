@@ -59,7 +59,7 @@ pub enum SparkClientError {
     #[error("Failed to decode spark address: {0}")]
     DecodeSparkAddressError(#[from] spark_address::SparkAddressError),
     #[error("Tonic request error: {0}")]
-    TonicRequestError(#[from] tonic::Status),
+    TonicRequestError(#[from] Box<tonic::Status>),
     #[error("Decode error: {0}")]
     DecodeError(String),
     #[error("Token identifier error: {0}")]

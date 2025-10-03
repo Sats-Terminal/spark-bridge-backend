@@ -4,20 +4,30 @@ edition = "2024"
 
 [dependencies]
 axum = { workspace = true }
+axum-test = { workspace = true }
 bitcoin = { workspace = true }
 frost = { workspace = true }
+gateway_deposit_verification = { workspace = true }
 gateway_flow_processor = { workspace = true }
+gateway_local_db_store = { workspace = true }
+gateway_rune_transfer = { workspace = true }
+gateway_verifier_client = { workspace = true }
 global_utils = { workspace = true }
 persistent_storage = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 titan-client = { workspace = true }
+tokio = { workspace = true }
+tokio-util = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }
 uuid = { workspace = true }
-gateway_deposit_verification = { workspace = true }
-gateway_local_db_store = { workspace = true }
-gateway_rune_transfer = { workspace = true }
 
 [dev-dependencies]
+anyhow = { workspace = true }
 serde_json = { workspace = true }
+sqlx = { workspace = true }
+spark_client = { workspace = true }
+gateway_config_parser = { workspace = true }
+verifier_server = { workspace = true }
+frost-secp256k1-tr = { workspace = true}

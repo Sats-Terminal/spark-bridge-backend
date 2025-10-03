@@ -4,6 +4,7 @@ use crate::error::ConfigParserError;
 use bitcoin::Network;
 use bitcoincore_rpc::{Auth, bitcoin};
 use config::{Config, Environment};
+use global_utils::common_types::Url;
 use global_utils::config_variant::ConfigVariant;
 use global_utils::env_parser;
 use global_utils::network::NetworkConfig;
@@ -18,6 +19,7 @@ pub const BITCOIN_RPC_HOST: &str = "BITCOIN_RPC_HOST";
 pub const BITCOIN_RPC_PORT: &str = "BITCOIN_RPC_PORT";
 pub const BITCOIN_RPC_USERNAME: &str = "BITCOIN_RPC_USERNAME";
 pub const BITCOIN_RPC_PASSWORD: &str = "BITCOIN_RPC_PASSWORD";
+pub const TITAN_URL: &str = "TITAN_URL";
 
 /// Struct used for initialization of different kinds of configurations
 ///
@@ -39,21 +41,6 @@ pub struct ServerConfig {
     pub app_config: AppConfig,
     #[serde(rename(deserialize = "btc_indexer"))]
     pub btc_indexer_config: BtcIndexerParams,
-    #[serde(rename(deserialize = "database"))]
-    pub database_config: DatabaseConfig,
-    #[serde(rename(deserialize = "network"))]
-    pub network_config: NetworkConfig,
-    #[serde(rename(deserialize = "titan"))]
-    pub titan_config: TitanConfig,
-    #[serde(rename(deserialize = "bitcoin_rpc"))]
-    pub bitcoin_rpc_config: BtcRpcConfig,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct BtcRpcConfig {
-    pub url: String,
-    pub name: String,
-    pub password: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -68,11 +55,6 @@ pub struct BtcRpcCredentials {
     pub network: Network,
     pub name: String,
     pub password: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct DatabaseConfig {
-    pub url: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
@@ -92,7 +74,19 @@ impl AppConfig {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TitanConfig {
-    pub url: String,
+    pub url: Url,
+}
+
+impl TitanConfig {
+    pub fn new() -> crate::error::Result<Self> {
+        let url_to_parse = env_parser::obtain_env_value(TITAN_URL)?;
+        Ok(Self {
+            url: Url::from_str(&url_to_parse).map_err(|e| ConfigParserError::ParseUrlError {
+                url: url_to_parse,
+                err: e,
+            })?,
+        })
+    }
 }
 
 impl ServerConfig {
@@ -102,10 +96,7 @@ impl ServerConfig {
         let format_name = |folder_path: &str, config_folder_name: &str, filename: &str| -> String {
             format!("{folder_path}{config_folder_name}/{}.toml", filename)
         };
-        if config_variant != ConfigVariant::Production {
-            let _ = dotenv::dotenv().ok();
-        }
-        let _ = dotenv::dotenv().ok();
+        let _ = dotenvy::dotenv().ok();
         let config = match &config_variant {
             ConfigVariant::Production
             | ConfigVariant::Local

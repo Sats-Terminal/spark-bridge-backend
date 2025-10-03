@@ -4,7 +4,7 @@ use crate::types::ExitSparkRequest;
 use bitcoin::OutPoint;
 use bitcoin::secp256k1::schnorr::Signature;
 use frost::types::SigningMetadata;
-use frost::utils::{convert_public_key_package, generate_nonce, get_address};
+use frost::utils::{convert_public_key_package, generate_tweak_bytes, get_tweaked_p2tr_address};
 use gateway_local_db_store::schemas::deposit_address::{
     DepositAddrInfo, DepositAddressStorage, InnerAddress, VerifiersResponses,
 };
@@ -14,20 +14,17 @@ use gateway_rune_transfer::transfer::RuneTransferOutput;
 use gateway_rune_transfer::transfer::{
     add_signature_to_transaction, create_message_hash, create_rune_partial_transaction,
 };
-use global_utils::conversion::decode_address;
 use persistent_storage::error::DbError;
-use tracing::{info, instrument};
+use tracing::instrument;
 
 const DUST_AMOUNT: u64 = 546;
 
-const LOG_PATH: &str = "flow_processor:routes:exit_spark_flow";
-
-#[instrument(level = "info", skip(flow_router), ret)]
+#[instrument(level = "trace", skip(flow_router), ret)]
 pub async fn handle(
     flow_router: &mut FlowProcessorRouter,
     request: ExitSparkRequest,
 ) -> Result<(), FlowProcessorError> {
-    info!("[{LOG_PATH}] Handling exit spark flow ...");
+    tracing::info!("Handling exit spark flow ...");
 
     let deposit_addr_info = flow_router
         .storage
@@ -70,8 +67,7 @@ pub async fn handle(
     }];
 
     if total_amount > exit_amount {
-        info!("[{LOG_PATH}] Creating new deposit address");
-        let new_nonce = generate_nonce();
+        let new_nonce = generate_tweak_bytes();
         let public_key_package = flow_router
             .frost_aggregator
             .get_public_key_package(deposit_addr_info.musig_id.clone(), Some(new_nonce))
@@ -79,7 +75,7 @@ pub async fn handle(
             .map_err(|e| FlowProcessorError::FrostAggregatorError(format!("Failed to get public key package: {e}")))?;
         let public_key = convert_public_key_package(&public_key_package)
             .map_err(|e| FlowProcessorError::InvalidDataError(format!("Failed to convert public key package: {e}")))?;
-        let deposit_address = get_address(public_key, flow_router.network)
+        let deposit_address = get_tweaked_p2tr_address(public_key, new_nonce, flow_router.network)
             .map_err(|e| FlowProcessorError::InvalidDataError(format!("Failed to create address: {e}")))?;
 
         flow_router
@@ -102,7 +98,7 @@ pub async fn handle(
         });
     }
 
-    info!("[{LOG_PATH}] Creating rune partial transaction");
+    tracing::info!("Creating rune partial transaction");
     let mut transaction = create_rune_partial_transaction(
         outputs_to_spend,
         paying_utxo,
@@ -163,7 +159,7 @@ pub async fn handle(
         flow_router.storage.insert_utxo(utxo).await?;
     }
 
-    info!("[{LOG_PATH}] Exit spark flow completed");
+    tracing::info!("Exit spark flow completed");
 
     Ok(())
 }

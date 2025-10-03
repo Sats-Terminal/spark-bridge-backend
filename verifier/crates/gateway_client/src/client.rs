@@ -3,10 +3,12 @@ use bitcoin::OutPoint;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use tracing;
+use tracing::instrument;
 use verifier_config_parser::config::GatewayConfig;
 use verifier_local_db_store::schemas::deposit_address::DepositStatus;
 
 const NOTIFY_RUNES_DEPOSIT_PATH: &str = "/api/verifier/notify-runes-deposit";
+const HEALTHCHECK_PATH: &str = "/health";
 
 #[derive(Clone, Debug)]
 pub struct GatewayClient {
@@ -30,14 +32,11 @@ impl GatewayClient {
         }
     }
 
+    #[instrument(level = "trace", skip(self), ret)]
     pub async fn notify_runes_deposit(
         &self,
         request: GatewayNotifyRunesDepositRequest,
     ) -> Result<(), GatewayClientError> {
-        tracing::info!(
-            "Sending request to notify runes deposit for verifier: {}",
-            request.verifier_id
-        );
         let url = self
             .config
             .address
@@ -59,9 +58,41 @@ impl GatewayClient {
             );
             Ok(())
         } else {
-            tracing::error!("Failed to send HTTP request with status {}", response.status());
+            tracing::error!(
+                "Failed to send HTTP request for {:?}, with status {}",
+                request,
+                response.status()
+            );
             Err(GatewayClientError::HttpError(format!(
                 "Failed to send HTTP request with status {}, error: {}",
+                response.status(),
+                response.text().await.unwrap_or_default()
+            )))
+        }
+    }
+
+    #[tracing::instrument(skip_all, err)]
+    pub async fn healthcheck(&self) -> Result<(), GatewayClientError> {
+        tracing::info!("Sending healthcheck to gateway for verifier",);
+        let url = self
+            .config
+            .address
+            .join(HEALTHCHECK_PATH)
+            .map_err(|e| GatewayClientError::DeserializeError(format!("Failed to join URL: {:?}", e)))?;
+
+        let response = self
+            .client
+            .post(url)
+            .send()
+            .await
+            .map_err(|e| GatewayClientError::HttpError(format!("Failed to send request: {:?}", e)))?;
+
+        if response.status().is_success() {
+            Ok(())
+        } else {
+            tracing::error!("Failed to send HTTP request with status {}", response.status());
+            Err(GatewayClientError::HttpError(format!(
+                "Failed to send {HEALTHCHECK_PATH} HTTP request with status {}, error: {}",
                 response.status(),
                 response.text().await.unwrap_or_default()
             )))

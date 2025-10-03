@@ -7,9 +7,7 @@ use global_utils::common_resp::Empty;
 use global_utils::common_types::get_uuid;
 use local_db_store_indexer::init::IndexerDbBounds;
 
-use tracing::{debug, error, info, instrument, trace};
-
-const PATH_TO_LOG: &str = "btc_indexer_server:track_tx";
+use tracing::instrument;
 
 #[utoipa::path(
     post,
@@ -26,8 +24,9 @@ pub async fn handler<T: titan_client::TitanApi, Db: IndexerDbBounds, TxValidator
     State(state): State<AppState<T, Db, TxValidator>>,
     Json(payload): Json<TrackTxRequest>,
 ) -> Result<TrackTxResponse, ServerError> {
-    info!("Received track tx: {:?}", payload);
+    tracing::info!("Received track tx: {:?}", payload);
     let uuid = get_uuid();
     state.btc_indexer.check_tx_changes(uuid, &payload).await?;
+    tracing::info!("Track tx finished: {:?}", payload);
     Ok(Json(Empty {}))
 }

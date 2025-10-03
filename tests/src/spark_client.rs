@@ -108,13 +108,7 @@ impl SparkClient {
 
     pub async fn authenticate(&mut self, keypair: Keypair) -> Result<SparkAuthSession, SparkClientError> {
         let need_to_authenticate = match self.session_tokens.get(&keypair.public_key()) {
-            Some(session) => {
-                if session.expiration_time < current_epoch_time_in_seconds() {
-                    false
-                } else {
-                    true
-                }
-            }
+            Some(session) => session.expiration_time >= current_epoch_time_in_seconds(),
             None => true,
         };
 
@@ -124,7 +118,8 @@ impl SparkClient {
                 .get_challenge(GetChallengeRequest {
                     public_key: keypair.public_key().serialize().to_vec(),
                 })
-                .await?
+                .await
+                .map_err(Box::new)?
                 .into_inner();
 
             let protected_challenge = response.protected_challenge;
@@ -135,7 +130,7 @@ impl SparkClient {
                 .ok_or(SparkClientError::DecodeError("Challenge is not found".to_string()))?;
 
             let message_hash = sha256::Hash::hash(challenge.encode_to_vec().as_slice());
-            let message = BitcoinMessage::from_digest(message_hash.as_byte_array().clone());
+            let message = BitcoinMessage::from_digest(*message_hash.as_byte_array());
 
             let secp = Secp256k1::new();
             let signature = secp.sign_schnorr_no_aux_rand(&message, &keypair);
@@ -147,7 +142,8 @@ impl SparkClient {
                     signature: signature.serialize().to_vec(),
                     public_key: keypair.public_key().serialize().to_vec(),
                 })
-                .await?
+                .await
+                .map_err(Box::new)?
                 .into_inner();
 
             self.session_tokens.insert(
@@ -174,7 +170,7 @@ impl SparkClient {
     ) -> Result<GetSparkAddressDataResponse, SparkClientError> {
         tracing::debug!("Getting spark address data for {}", request.spark_address);
 
-        let session_token = self.authenticate(self.keypair.clone()).await?;
+        let session_token = self.authenticate(self.keypair).await?;
 
         let address_data = decode_spark_address(&request.spark_address)?;
         let public_key = hex::decode(address_data.identity_public_key).unwrap();
@@ -198,7 +194,12 @@ impl SparkClient {
         let mut request = Request::new(request);
         create_request(&mut request, self.keypair.public_key(), session_token)?;
 
-        let response = self.client.query_token_outputs(request).await?.into_inner();
+        let response = self
+            .client
+            .query_token_outputs(request)
+            .await
+            .map_err(Box::new)?
+            .into_inner();
 
         let mut token_outputs = vec![];
         for output in response.outputs_with_previous_transaction_data {
@@ -221,7 +222,7 @@ impl SparkClient {
                         .token_amount
                         .clone()
                         .try_into()
-                        .map_err(|_| SparkClientError::DecodeError(format!("Failed to decode token amount")))?,
+                        .map_err(|_| SparkClientError::DecodeError("Failed to decode token amount".to_string()))?,
                 ),
                 prev_token_transaction_hash: output.previous_transaction_hash,
                 prev_token_transaction_vout: output.previous_transaction_vout,
@@ -242,7 +243,12 @@ impl SparkClient {
         let mut request = Request::new(request);
         create_request(&mut request, keypair.public_key(), session_token)?;
 
-        let response = self.token_client.start_transaction(request).await?.into_inner();
+        let response = self
+            .token_client
+            .start_transaction(request)
+            .await
+            .map_err(Box::new)?
+            .into_inner();
 
         Ok(response)
     }
@@ -257,7 +263,12 @@ impl SparkClient {
         let mut request = Request::new(request);
         create_request(&mut request, keypair.public_key(), session_token)?;
 
-        let response = self.token_client.commit_transaction(request).await?.into_inner();
+        let response = self
+            .token_client
+            .commit_transaction(request)
+            .await
+            .map_err(Box::new)?
+            .into_inner();
 
         Ok(response)
     }

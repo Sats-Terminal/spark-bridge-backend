@@ -1,3 +1,4 @@
+use crate::types::MusigId;
 use persistent_storage::error::DbError;
 use thiserror::Error;
 
@@ -7,14 +8,14 @@ pub enum SignerError {
     InvalidRequest(String),
     #[error("Invalid user state: {0}")]
     InvalidUserState(String),
-    #[error("Internal error: {0}")]
+    #[error("Internal error: '{0}'")]
     Internal(String),
-    #[error("Database error: {0}")]
+    #[error(transparent)]
     DatabaseError(#[from] DbError),
-    #[error("Musig already exists")]
-    MusigAlreadyExists(String),
-    #[error("Musig not found")]
-    MusigNotFound(String),
+    #[error("Musig already exists, id: {0:?}")]
+    MusigAlreadyExists(MusigId),
+    #[error("Musig not found, id: {0:?}")]
+    MusigNotFound(MusigId),
 }
 
 #[derive(Error, Debug)]
@@ -29,10 +30,12 @@ pub enum AggregatorError {
     SignerError(#[from] SignerError),
     #[error("HTTP error: {0}")]
     HttpError(String),
-    #[error("Database error: {0}")]
+    #[error(transparent)]
     DatabaseError(#[from] DbError),
-    #[error("Musig already exists")]
-    MusigAlreadyExists(String),
-    #[error("Musig not found")]
+    #[error("User unique id already exists, id: {0:?}")]
+    MusigAlreadyExists(MusigId),
+    #[error("Failed to unlock musig, id: {0:?}")]
+    FailedToUnlockMusig(MusigId),
+    #[error("User unique id not found")]
     MusigNotFound(String),
 }

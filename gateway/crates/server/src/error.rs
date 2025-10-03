@@ -20,6 +20,8 @@ pub enum GatewayError {
     UrlParseError(#[from] url::ParseError),
     #[error("Deposit verification error: {0}")]
     DepositVerificationError(String),
+    #[error("Failed to perform healthcheck: [{0}]")]
+    HealthcheckError(String),
 }
 
 impl IntoResponse for GatewayError {
@@ -38,6 +40,7 @@ impl IntoResponse for GatewayError {
             GatewayError::DepositVerificationError(message) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, message).into_response()
             }
+            GatewayError::HealthcheckError(message) => (StatusCode::INTERNAL_SERVER_ERROR, message).into_response(),
         }
     }
 }

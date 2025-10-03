@@ -5,20 +5,22 @@ use axum::extract::State;
 use serde::{Deserialize, Serialize};
 use spark_address::decode_spark_address;
 use spark_protos::spark::QueryTokenOutputsRequest;
+use tracing::instrument;
 use token_identifier::TokenIdentifier;
 use bitcoin::Network;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct GetBalanceRequest {
     spark_address: String,
     token_identifier: TokenIdentifier,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct GetBalanceResponse {
     balance: u128,
 }
 
+#[instrument(level = "trace", skip(state), ret)]
 pub async fn handle(
     State(state): State<AppState>,
     Json(payload): Json<GetBalanceRequest>,
@@ -48,6 +50,7 @@ pub async fn handle(
             let outputs = response.outputs_with_previous_transaction_data;
             // TODO: I am not sure if this is correct.
             if outputs.len() != 1 {
+                tracing::error!("For request: {:?}, expected 1 output, got {}", payload, outputs.len());
                 Err(ServerError::InvalidData(format!(
                     "Expected 1 output, got {}",
                     outputs.len()
@@ -62,7 +65,10 @@ pub async fn handle(
                         let balance = u128::from_be_bytes(encoded_balance.try_into().unwrap());
                         Ok(Json(GetBalanceResponse { balance }))
                     }
-                    None => Err(ServerError::InvalidData("Output is None".to_string())),
+                    None => {
+                        tracing::error!("For request: {:?}, output is None", payload);
+                        Err(ServerError::InvalidData("Output is None".to_string()))
+                    }
                 }
             }
         }

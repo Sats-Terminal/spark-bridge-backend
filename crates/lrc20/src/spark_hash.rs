@@ -150,7 +150,7 @@ impl SparkHash {
             hash_engine.input(Sha256Hash::hash(&attachments_len.to_be_bytes()).as_byte_array());
 
             for (_, invoice) in attachments.into_iter() {
-                hash_engine.input(Sha256Hash::hash(&invoice.as_bytes()).as_byte_array());
+                hash_engine.input(Sha256Hash::hash(invoice.as_bytes()).as_byte_array());
             }
         }
 

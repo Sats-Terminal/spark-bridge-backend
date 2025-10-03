@@ -22,7 +22,21 @@ pub struct AppState {
     pub server_config: ServerConfig,
 }
 
-#[instrument(level = "debug", skip(frost_signer), ret)]
+pub struct VerifierApi {}
+
+impl VerifierApi {
+    pub const WATCH_SPARK_DEPOSIT_ENDPOINT: &'static str = "/api/gateway/watch-spark-deposit";
+    pub const NOTIFY_RUNES_DEPOSIT_ENDPOINT: &'static str = "/api/btc-indexer/notify-runes-deposit";
+    pub const WATCH_RUNES_DEPOSIT_ENDPOINT: &'static str = "/api/gateway/watch-runes-deposit";
+    pub const DKG_ROUND1_ENDPOINT: &'static str = "/api/gateway/dkg-round-1";
+    pub const DKG_ROUND2_ENDPOINT: &'static str = "/api/gateway/dkg-round-2";
+    pub const DKG_FINALIZE_ENDPOINT: &'static str = "/api/gateway/dkg-finalize";
+    pub const SIGN_ROUND1_ENDPOINT: &'static str = "/api/gateway/sign-round-1";
+    pub const SIGN_ROUND2_ENDPOINT: &'static str = "/api/gateway/sign-round-2";
+    pub const HEALTHCHECK_ENDPOINT: &'static str = "/health";
+}
+
+#[instrument(level = "trace", skip_all)]
 pub async fn create_app(
     frost_signer: FrostSigner,
     btc_indexer_config: BtcIndexerConfig,
@@ -31,6 +45,7 @@ pub async fn create_app(
     storage: Arc<LocalDbStorage>,
     server_config: ServerConfig,
 ) -> Router {
+    tracing::info!("Creating app");
     let state = AppState {
         frost_signer,
         btc_indexer_client: BtcIndexerClient::new(btc_indexer_config),
@@ -41,21 +56,22 @@ pub async fn create_app(
     };
     Router::new()
         .route(
-            "/api/gateway/watch-spark-deposit",
+            VerifierApi::WATCH_SPARK_DEPOSIT_ENDPOINT,
             post(handlers::watch_spark_deposit::handle),
         )
         .route(
-            "/api/btc-indexer/notify-runes-deposit",
+            VerifierApi::NOTIFY_RUNES_DEPOSIT_ENDPOINT,
             post(handlers::notify_runes_deposit::handle),
         )
         .route(
-            "/api/gateway/watch-runes-deposit",
+            VerifierApi::WATCH_RUNES_DEPOSIT_ENDPOINT,
             post(handlers::watch_runes_deposit::handle),
         )
-        .route("/api/gateway/dkg-round-1", post(handlers::dkg_round_1::handle))
-        .route("/api/gateway/dkg-round-2", post(handlers::dkg_round_2::handle))
-        .route("/api/gateway/dkg-finalize", post(handlers::dkg_finalize::handle))
-        .route("/api/gateway/sign-round-1", post(handlers::sign_round_1::handle))
-        .route("/api/gateway/sign-round-2", post(handlers::sign_round_2::handle))
+        .route(VerifierApi::DKG_ROUND1_ENDPOINT, post(handlers::dkg_round_1::handle))
+        .route(VerifierApi::DKG_ROUND2_ENDPOINT, post(handlers::dkg_round_2::handle))
+        .route(VerifierApi::DKG_FINALIZE_ENDPOINT, post(handlers::dkg_finalize::handle))
+        .route(VerifierApi::SIGN_ROUND1_ENDPOINT, post(handlers::sign_round_1::handle))
+        .route(VerifierApi::SIGN_ROUND2_ENDPOINT, post(handlers::sign_round_2::handle))
+        .route(VerifierApi::HEALTHCHECK_ENDPOINT, post(handlers::healthcheck::handle))
         .with_state(state)
 }

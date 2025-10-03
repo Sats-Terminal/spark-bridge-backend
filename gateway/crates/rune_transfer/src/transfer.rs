@@ -132,8 +132,7 @@ pub fn sign_message_hash(message_hash: [u8; 32], secret_key: SecretKey) -> Signa
     let message = Message::from_digest(message_hash);
     let keypair = Keypair::from_secret_key(&ctx, &secret_key);
     let tweaked_keypair = keypair.tap_tweak(&ctx, None);
-    let signature = ctx.sign_schnorr_no_aux_rand(&message, &tweaked_keypair.to_keypair());
-    signature
+    ctx.sign_schnorr_no_aux_rand(&message, &tweaked_keypair.to_keypair())
 }
 
 pub fn add_signature_to_transaction(transaction: &mut Transaction, input_index: usize, signature: Signature) {

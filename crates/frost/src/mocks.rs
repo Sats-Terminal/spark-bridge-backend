@@ -44,8 +44,8 @@ impl SignerSignSessionStorage for MockSignerSignSessionStorage {
     }
 }
 
-impl MockSignerMusigIdStorage {
-    pub fn new() -> Self {
+impl Default for MockSignerMusigIdStorage {
+    fn default() -> Self {
         Self {
             storage: Arc::new(Mutex::new(BTreeMap::new())),
         }
@@ -74,18 +74,18 @@ pub struct MockAggregatorSignSessionStorage {
     storage: Arc<Mutex<BTreeMap<(MusigId, Uuid), AggregatorSignData>>>,
 }
 
-impl MockAggregatorMusigIdStorage {
-    pub fn new() -> Self {
+impl Default for MockAggregatorMusigIdStorage {
+    fn default() -> Self {
         Self {
-            storage: Arc::new(Mutex::new(BTreeMap::new())),
+            storage: Arc::new(Mutex::new(BTreeMap::default())),
         }
     }
 }
 
-impl MockAggregatorSignSessionStorage {
-    pub fn new() -> Self {
+impl Default for MockAggregatorSignSessionStorage {
+    fn default() -> Self {
         Self {
-            storage: Arc::new(Mutex::new(BTreeMap::new())),
+            storage: Arc::new(Mutex::new(BTreeMap::default())),
         }
     }
 }
@@ -101,7 +101,7 @@ impl AggregatorMusigIdStorage for MockAggregatorMusigIdStorage {
         Ok(())
     }
 
-    async fn get_issuer_musig_id(&self, rune_id: String) -> Result<Option<MusigId>, DbError> {
+    async fn get_issuer_musig_id(&self, _rune_id: String) -> Result<Option<MusigId>, DbError> {
         Ok(None)
     }
 }
@@ -126,7 +126,7 @@ impl AggregatorSignSessionStorage for MockAggregatorSignSessionStorage {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct MockSignerClient {
     signer: FrostSigner,
 }

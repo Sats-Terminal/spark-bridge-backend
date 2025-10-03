@@ -25,5 +25,5 @@ ordinals = { workspace = true }
 
 [dev-dependencies]
 bitcoin = { workspace = true }
-dotenv = { workspace = true }
+dotenvy = { workspace = true }
 tokio = { workspace = true }

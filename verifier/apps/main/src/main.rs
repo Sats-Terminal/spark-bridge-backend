@@ -1,3 +1,4 @@
+use eyre::Result;
 use frost::signer::FrostSigner;
 use global_utils::config_path::ConfigPath;
 use global_utils::logger::init_logger;
@@ -10,12 +11,12 @@ use verifier_local_db_store::storage::LocalDbStorage;
 
 #[instrument(level = "debug", ret)]
 #[tokio::main]
-async fn main() {
-    let _ = dotenv::dotenv();
+async fn main() -> Result<()> {
+    let _ = dotenvy::dotenv();
     let _logger_guard = init_logger();
 
     // Create Config
-    let config_path = ConfigPath::from_env().unwrap();
+    let config_path = ConfigPath::from_env().map_err(|e| eyre::eyre!("Failed to parse config path: {}", e))?;
     let server_config = ServerConfig::init_config(config_path.path);
     tracing::debug!("App config: {:?}", server_config);
 
@@ -24,7 +25,9 @@ async fn main() {
         url: server_config.database.url.clone(),
     };
     let storage = Arc::new(LocalDbStorage {
-        postgres_repo: PostgresRepo::from_config(postgres_creds).await.unwrap(),
+        postgres_repo: PostgresRepo::from_config(postgres_creds)
+            .await
+            .map_err(|e| eyre::eyre!("Failed to create DB pool: {}", e))?,
     });
 
     // Create Frost Signer
@@ -34,7 +37,8 @@ async fn main() {
         storage.clone(),
         server_config.frost_signer.total_participants,
         server_config.frost_signer.threshold,
-    );
+    )
+    .map_err(|e| eyre::eyre!("Failed to create frost signer: {}", e))?;
 
     // Create App
     let app = verifier_server::init::create_app(
@@ -49,6 +53,12 @@ async fn main() {
 
     // Run App
     let addr_to_listen = format!("{}:{}", server_config.server.ip, server_config.server.port);
-    let listener = TcpListener::bind(addr_to_listen).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    let listener = TcpListener::bind(addr_to_listen)
+        .await
+        .map_err(|e| eyre::eyre!("Failed to bind listener: {}", e))?;
+    axum::serve(listener, app)
+        .await
+        .map_err(|e| eyre::eyre!("Failed to serve app: {}", e))?;
+
+    Ok(())
 }

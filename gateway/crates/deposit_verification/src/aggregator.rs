@@ -1,7 +1,6 @@
 use crate::error::DepositVerificationError;
-use crate::traits::VerificationClient;
+use crate::traits::DepositVerificationClientTrait;
 use crate::types::*;
-use crate::types::{NotifyRunesDepositRequest, VerifyRunesDepositRequest, VerifySparkDepositRequest};
 use bitcoin::Network;
 use bitcoin::secp256k1::PublicKey;
 use frost::traits::AggregatorMusigIdStorage;
@@ -17,14 +16,16 @@ use gateway_local_db_store::schemas::paying_utxo::PayingUtxoStorage;
 use gateway_local_db_store::schemas::utxo_storage::{Utxo, UtxoStatus, UtxoStorage};
 use gateway_local_db_store::storage::LocalDbStorage;
 use gateway_spark_service::utils::create_wrunes_metadata;
+use persistent_storage::init::StorageHealthcheck;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tracing;
+use tokio::task::JoinSet;
+use tracing::instrument;
 
 #[derive(Clone, Debug)]
 pub struct DepositVerificationAggregator {
     flow_sender: FlowSender,
-    verifiers: HashMap<u16, Arc<dyn VerificationClient>>,
+    verifiers: HashMap<u16, Arc<dyn DepositVerificationClientTrait>>,
     storage: Arc<LocalDbStorage>,
     network: Network,
 }
@@ -32,7 +33,7 @@ pub struct DepositVerificationAggregator {
 impl DepositVerificationAggregator {
     pub fn new(
         flow_sender: FlowSender,
-        verifiers: HashMap<u16, Arc<dyn VerificationClient>>,
+        verifiers: HashMap<u16, Arc<dyn DepositVerificationClientTrait>>,
         storage: Arc<LocalDbStorage>,
         network: Network,
     ) -> Self {
@@ -44,6 +45,7 @@ impl DepositVerificationAggregator {
         }
     }
 
+    #[instrument(level = "trace", skip(self), ret)]
     pub async fn verify_runes_deposit(
         &self,
         request: VerifyRunesDepositRequest,
@@ -111,23 +113,17 @@ impl DepositVerificationAggregator {
         };
         self.storage.insert_utxo(utxo).await?;
 
-        tracing::info!(
-            "Runes deposit verification sent for address: {}",
-            request.btc_address.to_string()
-        );
+        tracing::info!("Runes deposit verification sent for address: {}", request.btc_address.to_string());
 
         Ok(())
     }
 
+    #[instrument(level = "debug", skip(self), ret)]
     pub async fn notify_runes_deposit(
         &self,
         request: NotifyRunesDepositRequest,
     ) -> Result<(), DepositVerificationError> {
-        tracing::info!(
-            "Retrieving confirmation status for out_point: {}, verifier: {}",
-            request.out_point,
-            request.verifier_id
-        );
+        tracing::info!("Gathering confirmation status for out point: {}", request.out_point);
 
         self.storage
             .update_sats_fee_amount(request.out_point, request.sats_fee_amount)
@@ -176,15 +172,12 @@ impl DepositVerificationAggregator {
             tracing::info!("Bridge runes request sent for address");
         }
 
-        tracing::info!(
-            "Runes deposit verification completed for verifier: {}, address: {}",
-            request.verifier_id,
-            btc_address
-        );
+        tracing::info!("Runes deposit verification completed for address: {}", btc_address);
 
         Ok(())
     }
 
+    #[instrument(level = "debug", skip(self), ret)]
     pub async fn verify_spark_deposit(
         &self,
         request: VerifySparkDepositRequest,
@@ -301,6 +294,41 @@ impl DepositVerificationAggregator {
                 })?;
         }
 
+        tracing::info!(
+            "Spark deposit verification completed for address: {}",
+            request.spark_address
+        );
+
+        Ok(())
+    }
+
+    #[instrument(level = "trace", skip(self))]
+    pub async fn healthcheck(&self) -> Result<(), DepositVerificationError> {
+        self.storage.postgres_repo.healthcheck().await?;
+        Self::check_set_of_verifiers(&self.verifiers).await?;
+        Ok(())
+    }
+
+    #[instrument(level = "trace", skip(state), ret)]
+    async fn check_set_of_verifiers(
+        state: &HashMap<u16, Arc<dyn DepositVerificationClientTrait>>,
+    ) -> Result<(), DepositVerificationError> {
+        let mut join_set = JoinSet::new();
+        for (v_id, v_client) in state.iter() {
+            join_set.spawn({
+                let (v_id, v_client) = (*v_id, v_client.clone());
+                async move {
+                    v_client
+                        .healthcheck()
+                        .await
+                        .map_err(|e| DepositVerificationError::FailedToCheckStatusOfVerifier {
+                            msg: e.to_string(),
+                            id: v_id,
+                        })
+                }
+            });
+        }
+        let _r = join_set.join_all().await.into_iter().collect::<Result<Vec<_>, _>>()?;
         Ok(())
     }
 }

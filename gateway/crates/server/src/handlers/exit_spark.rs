@@ -8,9 +8,9 @@ use gateway_rune_transfer::transfer::PayingTransferInput;
 use global_utils::conversion::decode_address;
 use serde::Deserialize;
 use std::str::FromStr;
-use tracing;
+use tracing::instrument;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct UserPayingTransferInput {
     pub txid: String,
     pub vout: u32,
@@ -33,17 +33,23 @@ impl UserPayingTransferInput {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct ExitSparkRequest {
     pub spark_address: String,
     pub paying_input: UserPayingTransferInput,
 }
 
+#[instrument(level = "trace", skip(state), ret)]
 pub async fn handle(
     State(state): State<AppState>,
     Json(request): Json<ExitSparkRequest>,
 ) -> Result<Json<()>, GatewayError> {
-    tracing::debug!("Exit spark request for spark address: {:?}", request.spark_address);
+    let request_spark_address = request.spark_address.clone();
+    tracing::info!(
+        "Handling exit spark request with spark address: {:?}",
+        request_spark_address
+    );
+
     let verify_spark_deposit_request = VerifySparkDepositRequest {
         spark_address: request.spark_address,
         paying_input: request.paying_input.try_into(state.network)?,
@@ -55,6 +61,10 @@ pub async fn handle(
         .await
         .map_err(|e| GatewayError::DepositVerificationError(format!("Failed to verify spark deposit: {}", e)))?;
 
-    tracing::debug!("Exit spark request verified");
+    tracing::info!(
+        "Exit spark request handled request with spark address: {:?}",
+        request_spark_address
+    );
+
     Ok(Json(()))
 }

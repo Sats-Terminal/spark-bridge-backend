@@ -257,7 +257,7 @@ pub(crate) fn is_google_proto_value_null(v: &Value) -> bool {
     }
 }
 
-fn value_field(message: &DynamicMessage) -> Result<Cow<Value>, ProtoHasherError> {
+fn value_field(message: &DynamicMessage) -> Result<Cow<'_, Value>, ProtoHasherError> {
     message
         .get_field_by_name(VALUE_NAME)
         .ok_or(ProtoHasherError::MissingField(VALUE_NAME.to_string()))

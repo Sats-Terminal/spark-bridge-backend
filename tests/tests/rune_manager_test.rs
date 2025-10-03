@@ -1,7 +1,7 @@
 use global_utils::logger::init_logger;
 use tests::bitcoin_client::{BitcoinClient, BitcoinClientConfig};
 use tests::rune_manager::RuneManager;
-use tests::user_wallet::UserWallet;
+use tests::user_wallet::{TransferType, UserWallet};
 use tests::utils::create_credentials;
 
 #[tokio::test]
@@ -29,7 +29,12 @@ async fn test_rune_manager() {
     let dummy_address = create_credentials().0;
     let transfer_amount = 1000;
     user_wallet
-        .transfer_runes(transfer_amount, dummy_address.clone())
+        .transfer(
+            TransferType::RuneTransfer {
+                rune_amount: transfer_amount,
+            },
+            dummy_address.clone(),
+        )
         .await
         .unwrap();
     let address_data = bitcoin_client.get_address_data(dummy_address).await.unwrap();

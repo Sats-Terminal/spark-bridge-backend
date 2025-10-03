@@ -1,11 +1,3 @@
-use std::collections::HashSet;
-
-pub fn vecs_equal_unordered<T: Eq + std::hash::Hash>(a: &[T], b: &[T]) -> bool {
-    let set_a: HashSet<_> = a.iter().collect();
-    let set_b: HashSet<_> = b.iter().collect();
-    set_a == set_b
-}
-
 fn btc_tx_review_eq(a: &btc_indexer_api::api::BtcTxReview, b: &btc_indexer_api::api::BtcTxReview) -> bool {
     use btc_indexer_api::api::{BtcTxReview, TxRejectReason};
     match (a, b) {
@@ -38,55 +30,9 @@ fn btc_tx_review_eq(a: &btc_indexer_api::api::BtcTxReview, b: &btc_indexer_api::
     }
 }
 
-fn tx_tracking_requests_to_send_response_eq(
-    a: &local_db_store_indexer::schemas::track_tx_requests_storage::TxTrackingRequestsToSendResponse,
-    b: &local_db_store_indexer::schemas::track_tx_requests_storage::TxTrackingRequestsToSendResponse,
+pub fn btc_indexer_meta_eq(
+    meta_a: &btc_indexer_api::api::ResponseMeta,
+    meta_b: &btc_indexer_api::api::ResponseMeta,
 ) -> bool {
-    a.uuid == b.uuid
-        && a.out_point == b.out_point
-        && a.callback_url == b.callback_url
-        && btc_tx_review_eq(&a.review, &b.review)
-}
-
-// Helper for comparing vectors of TxTrackingRequestsToSendResponse
-pub fn tx_tracking_requests_vec_eq(
-    a: &[local_db_store_indexer::schemas::track_tx_requests_storage::TxTrackingRequestsToSendResponse],
-    b: &[local_db_store_indexer::schemas::track_tx_requests_storage::TxTrackingRequestsToSendResponse],
-) -> bool {
-    a.len() == b.len()
-        && a.iter()
-            .zip(b.iter())
-            .all(|(x, y)| tx_tracking_requests_to_send_response_eq(x, y))
-}
-
-fn track_tx_request_eq(a: &btc_indexer_api::api::TrackTxRequest, b: &btc_indexer_api::api::TrackTxRequest) -> bool {
-    a.callback_url == b.callback_url
-        && a.btc_address == b.btc_address
-        && a.out_point == b.out_point
-        && a.rune_amount == b.rune_amount
-}
-
-pub fn btc_indexer_callback_response_eq(
-    a: &btc_indexer_api::api::BtcIndexerCallbackResponse,
-    b: &btc_indexer_api::api::BtcIndexerCallbackResponse,
-) -> bool {
-    use btc_indexer_api::api::BtcIndexerCallbackResponse;
-    match (a, b) {
-        (BtcIndexerCallbackResponse::Ok { meta: meta_a }, BtcIndexerCallbackResponse::Ok { meta: meta_b }) => {
-            meta_a.outpoint == meta_b.outpoint && btc_tx_review_eq(&meta_a.status, &meta_b.status)
-        }
-        (
-            BtcIndexerCallbackResponse::Err {
-                code: code_a,
-                msg: msg_a,
-                req_meta: req_a,
-            },
-            BtcIndexerCallbackResponse::Err {
-                code: code_b,
-                msg: msg_b,
-                req_meta: req_b,
-            },
-        ) => code_a == code_b && msg_a == msg_b && track_tx_request_eq(req_a, req_b),
-        _ => false,
-    }
+    meta_a.outpoint == meta_b.outpoint && btc_tx_review_eq(&meta_a.status, &meta_b.status)
 }
