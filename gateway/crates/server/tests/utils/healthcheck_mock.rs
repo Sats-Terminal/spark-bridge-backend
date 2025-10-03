@@ -74,7 +74,7 @@ pub async fn init_mocked_test_server(pool: PostgresPool) -> anyhow::Result<TestS
         frost_aggregator,
         server_config.network.network,
     )
-    .await;
+    .await?;
     tokio::spawn(async move {
         flow_processor.run().await;
     });
