@@ -124,7 +124,7 @@ fn _inner_response_task_spawn<Db: IndexerDbBounds>(
         let resp = ResponseMeta {
             outpoint: data.out_point,
             status: data.review,
-            sats_fee_amount: data.transaction.fee_paid_sat().unwrap_or_default(),
+            sats_fee_amount: data.transaction.output[data.out_point.vout as usize].value,
         };
         let client_resp = client.post(data.callback_url.0).json(&resp).send().await;
         tracing::debug!("Client response: {:?}", client_resp);

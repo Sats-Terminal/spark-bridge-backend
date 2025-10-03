@@ -13,13 +13,15 @@ pub struct WRunesMetadata {
     pub token_ticker: String,
 }
 
+const DEFAULT_TOKEN_TICKER: &str = "ticker";
+
 pub fn create_wrunes_metadata(
     rune_id: String,
     issuer_public_key: PublicKey,
     network: Network,
 ) -> Result<WRunesMetadata, secp256k1::Error> {
     let token_name = rune_id;
-    let token_ticker = "ticker".to_string();
+    let token_ticker = DEFAULT_TOKEN_TICKER.to_string();
 
     let token_metadata = TokenMetadata::new(
         issuer_public_key,
@@ -32,39 +34,9 @@ pub fn create_wrunes_metadata(
         network,
     );
 
-    println!("Token metadata: {:?}", token_metadata.compute_token_identifier());
-
     Ok(WRunesMetadata {
         token_identifier: token_metadata.compute_token_identifier(),
         token_name,
         token_ticker,
     })
-}
-
-pub fn convert_network_to_spark_network(network: Network) -> SparkNetwork {
-    match network {
-        Network::Bitcoin => SparkNetwork::Mainnet,
-        Network::Testnet => SparkNetwork::Testnet,
-        Network::Regtest => SparkNetwork::Regtest,
-        Network::Signet => SparkNetwork::Signet,
-        Network::Testnet4 => SparkNetwork::Local,
-    }
-}
-
-pub fn bitcoin_network_to_proto_network(network: Network) -> u32 {
-    match network {
-        Network::Bitcoin => 1,
-        Network::Regtest => 2,
-        Network::Testnet | Network::Testnet4 => 3,
-        Network::Signet => 4,
-    }
-}
-
-pub fn spark_network_to_proto_network(network: SparkNetwork) -> u32 {
-    match network {
-        SparkNetwork::Mainnet => 1,
-        SparkNetwork::Regtest => 2,
-        SparkNetwork::Testnet | SparkNetwork::Local => 3,
-        SparkNetwork::Signet => 4,
-    }
 }

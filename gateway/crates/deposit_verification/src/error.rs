@@ -13,6 +13,8 @@ pub enum DepositVerificationError {
     DbError(#[from] DbError),
     #[error("Not found: {0}")]
     NotFound(String),
+    #[error("Invalid data: {0}")]
+    InvalidDataError(String),
     #[error("Failed to check status of verifier id: {id}, msg: [{msg}]")]
     FailedToCheckStatusOfVerifier { id: u16, msg: String },
     #[error("Failed to check health of deposit verifier, msg: [{msg}]")]

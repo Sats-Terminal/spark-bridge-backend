@@ -5,7 +5,6 @@ use axum::extract::State;
 use bitcoin::OutPoint;
 use frost::types::TweakBytes;
 use serde::{Deserialize, Serialize};
-use tracing;
 use tracing::instrument;
 use verifier_btc_indexer_client::client::WatchRunesDepositRequest as IndexerWatchRunesDepositRequest;
 use verifier_config_parser::config::construct_hardcoded_callback_url;

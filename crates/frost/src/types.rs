@@ -68,6 +68,7 @@ pub struct SignRound2Request {
     pub dkg_share_id: DkgShareId,
     pub session_id: Uuid,
     pub signing_package: SigningPackage,
+    pub tap_tweek: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

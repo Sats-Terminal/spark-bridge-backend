@@ -3,17 +3,18 @@ name = "gateway_spark_service"
 edition = "2024"
 
 [dependencies]
-serde = { workspace = true }
-thiserror = { workspace = true }
-tracing = { workspace = true }
-spark_client = { workspace = true }
-frost = { workspace = true }
-lrc20 = { workspace = true }
 bitcoin = { workspace = true }
 chrono = { workspace = true }
+frost = { workspace = true }
+futures = { workspace = true }
+global_utils = { workspace = true }
+lrc20 = { workspace = true }
 proto-hasher = { workspace = true }
 prost-reflect = { workspace = true }
-spark-protos = { workspace = true }
-futures = { workspace = true }
-token-identifier = { workspace = true }
+serde = { workspace = true }
 spark-address = { workspace = true }
+spark-protos = { workspace = true }
+spark_client = { workspace = true }
+thiserror = { workspace = true }
+token-identifier = { workspace = true }
+tracing = { workspace = true }

@@ -88,8 +88,12 @@ async fn main() -> Result<()> {
 
     // Create Deposit Verification Aggregator
     let verifier_clients_hash_map = extract_verifiers(&server_config);
-    let deposit_verification_aggregator =
-        DepositVerificationAggregator::new(flow_sender.clone(), verifier_clients_hash_map, shared_db_pool.clone());
+    let deposit_verification_aggregator = DepositVerificationAggregator::new(
+        flow_sender.clone(),
+        verifier_clients_hash_map,
+        shared_db_pool.clone(),
+        server_config.network.network,
+    );
 
     // Create App
     let app = create_app(

@@ -12,6 +12,7 @@ use gateway_deposit_verification::types::{
 use gateway_local_db_store::schemas::deposit_address::DepositStatus;
 use gateway_local_db_store::schemas::user_identifier::UserUniqueId;
 use serde::{Deserialize, Serialize};
+use token_identifier::TokenIdentifier;
 use tracing::instrument;
 
 const WATCH_RUNES_DEPOSIT_PATH: &str = "/api/gateway/watch-runes-deposit";
@@ -56,6 +57,7 @@ pub struct VerifierWatchSparkDepositRequest {
     pub exit_address: String,
     pub amount: u64,
     pub spark_address: String,
+    pub token_identifier: TokenIdentifier,
 }
 
 impl From<WatchSparkDepositRequest> for VerifierWatchSparkDepositRequest {
@@ -66,6 +68,7 @@ impl From<WatchSparkDepositRequest> for VerifierWatchSparkDepositRequest {
             exit_address: request.exit_address.to_string(),
             amount: request.amount,
             spark_address: request.spark_address,
+            token_identifier: request.token_identifier,
         }
     }
 }

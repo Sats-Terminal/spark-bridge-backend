@@ -1,7 +1,6 @@
 use crate::errors::SparkServiceError;
 use crate::types::create_partial_token_transaction;
 use crate::types::*;
-use crate::utils::spark_network_to_proto_network;
 use bitcoin::hashes::sha256::Hash as Sha256Hash;
 use bitcoin::hashes::{Hash, HashEngine, sha256};
 use bitcoin::secp256k1::PublicKey;
@@ -9,6 +8,7 @@ use frost::aggregator::FrostAggregator;
 use frost::types::SigningMetadata;
 use frost::types::{DkgShareId, TweakBytes};
 use futures::future::join_all;
+use global_utils::conversion::spark_network_to_proto_network;
 use lrc20::marshal::marshal_token_transaction;
 use lrc20::marshal::unmarshal_token_transaction;
 use proto_hasher::ProtoHasher;
@@ -113,6 +113,7 @@ impl SparkService {
                 message_hash.as_byte_array().as_slice(),
                 SigningMetadata::Authorization,
                 nonce_tweak,
+                false,
             )
             .await
             .map_err(|e| SparkServiceError::FrostAggregatorError(e.to_string()))?;
@@ -187,6 +188,7 @@ impl SparkService {
                 partial_token_transaction_hash.as_ref(),
                 create_signing_metadata(partial_token_transaction.clone(), transaction_type.clone(), true)?,
                 nonce_tweak,
+                false,
             )
             .await
             .map_err(|e| SparkServiceError::FrostAggregatorError(e.to_string()))?;
@@ -267,6 +269,7 @@ impl SparkService {
                         operator_specific_signable_payload.as_ref(),
                         create_signing_metadata(final_token_transaction, transaction_type, false)?,
                         nonce_tweak,
+                        false,
                     )
                     .await
                     .map_err(|e| SparkServiceError::FrostAggregatorError(e.to_string()))?;

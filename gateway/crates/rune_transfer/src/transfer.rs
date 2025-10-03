@@ -17,7 +17,7 @@ use std::str::FromStr;
 pub struct PayingTransferInput {
     pub txid: Txid,
     pub vout: u32,
-    pub address: Address,
+    pub btc_exit_address: Address,
     pub sats_amount: u64,
     pub none_anyone_can_pay_signature: Signature,
 }
@@ -39,14 +39,6 @@ pub fn create_rune_partial_transaction(
         .map_err(|e| RuneTransferError::InvalidData(format!("Failed to parse rune id: {}", e)))?;
 
     let mut inputs = Vec::new();
-    for output in outputs_to_spend {
-        inputs.push(TxIn {
-            previous_output: OutPoint::new(output.txid, output.vout),
-            script_sig: ScriptBuf::new(),
-            sequence: Sequence::ENABLE_RBF_NO_LOCKTIME,
-            witness: Witness::new(),
-        });
-    }
 
     let paying_input = TxIn {
         previous_output: OutPoint::new(paying_input.txid, paying_input.vout),
@@ -58,6 +50,15 @@ pub fn create_rune_partial_transaction(
         }),
     };
     inputs.push(paying_input);
+
+    for output in outputs_to_spend {
+        inputs.push(TxIn {
+            previous_output: OutPoint::new(output.txid, output.vout),
+            script_sig: ScriptBuf::new(),
+            sequence: Sequence::ENABLE_RBF_NO_LOCKTIME,
+            witness: Witness::new(),
+        });
+    }
 
     let mut edicts = Vec::new();
 
@@ -137,32 +138,7 @@ pub fn sign_message_hash(message_hash: [u8; 32], secret_key: SecretKey) -> Signa
 pub fn add_signature_to_transaction(transaction: &mut Transaction, input_index: usize, signature: Signature) {
     let taproot_signature = TaprootSignature {
         signature,
-        sighash_type: TapSighashType::All,
+        sighash_type: TapSighashType::AllPlusAnyoneCanPay,
     };
     transaction.input[input_index].witness = Witness::p2tr_key_spend(&taproot_signature);
-}
-
-pub fn create_none_anyone_can_pay_message_hash(
-    address: Address,
-    sats_amount: u64,
-) -> Result<[u8; 32], RuneTransferError> {
-    let output = TxOut {
-        value: Amount::from_sat(sats_amount),
-        script_pubkey: address.script_pubkey(),
-    };
-
-    let transaction = Transaction {
-        version: Version::TWO,
-        lock_time: bitcoin::absolute::LockTime::ZERO,
-        input: vec![],
-        output: vec![output.clone()],
-    };
-
-    let mut sighash_cache = SighashCache::new(&transaction);
-    let message_hash = sighash_cache
-        .taproot_key_spend_signature_hash(0, &Prevouts::One(0, output), TapSighashType::NonePlusAnyoneCanPay)
-        .map_err(|e| RuneTransferError::HashError(format!("Failed to create message hash: {}", e)))?;
-
-    let byte_array = message_hash.to_raw_hash().to_byte_array();
-    Ok(byte_array)
 }

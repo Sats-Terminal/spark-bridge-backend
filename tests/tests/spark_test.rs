@@ -1,8 +1,9 @@
-use bitcoin::{Address, Txid};
+use bitcoin::Address;
 use global_utils::logger::init_logger;
 use std::str::FromStr;
 use std::time::Duration;
 use tests::bitcoin_client::{BitcoinClient, BitcoinClientConfig};
+use tests::constants::DEFAULT_FAUCET_AMOUNT;
 use tests::gateway_client::*;
 use tests::rune_manager::RuneManager;
 use tests::spark_client::{SparkClient, SparkClientConfig};
@@ -13,6 +14,14 @@ use tokio::time::sleep;
 #[tokio::test]
 async fn test_spark() {
     let _guard = init_logger();
+
+    // Setup
+
+    tracing::info!("Start setup");
+
+    let gateway_client = GatewayClient::new(GatewayConfig {
+        address: "http://localhost:8060".parse().unwrap(),
+    });
 
     let spark_client = SparkClient::new(SparkClientConfig {
         coordinator_url: "https://2.spark.flashnet.xyz".to_string(),
@@ -25,6 +34,7 @@ async fn test_spark() {
     })
     .await
     .unwrap();
+
     let bitcoin_client = BitcoinClient::new(BitcoinClientConfig {
         bitcoin_url: "http://127.0.0.1:18443".to_string(),
         titan_url: "http://127.0.0.1:3030".to_string(),
@@ -39,6 +49,10 @@ async fn test_spark() {
         .await
         .unwrap();
 
+    tracing::info!("Setup finished");
+
+    // Mint runes for user wallet
+
     rune_manager.mint_rune(user_wallet.get_address()).await.unwrap();
     user_wallet.unite_unspent_utxos().await.unwrap();
 
@@ -46,10 +60,6 @@ async fn test_spark() {
     assert!(rune_balance > 0, "Rune balance should be greater than 0");
 
     let deposit_amount = 100_000;
-
-    let gateway_client = GatewayClient::new(GatewayConfig {
-        address: "http://localhost:8060".parse().unwrap(),
-    });
 
     let get_runes_deposit_address_request = GetRunesDepositAddressRequest {
         user_public_key: user_wallet.get_public_key().to_string(),
@@ -69,7 +79,7 @@ async fn test_spark() {
     let deposit_address = Address::from_str(&get_runes_deposit_address_response.address)
         .unwrap()
         .assume_checked();
-    let txid = user_wallet
+    let tx = user_wallet
         .transfer(
             TransferType::RuneTransfer {
                 rune_amount: deposit_amount,
@@ -78,6 +88,8 @@ async fn test_spark() {
         )
         .await
         .unwrap();
+    let txid = tx.compute_txid();
+
     tracing::info!("txid: {:?}", txid);
 
     let spark_address = user_wallet.get_spark_address().unwrap();
@@ -94,7 +106,9 @@ async fn test_spark() {
     let bridge_runes_response = gateway_client.bridge_runes(bridge_runes_request).await.unwrap();
     tracing::info!("bridge_runes_response: {:?}", bridge_runes_response);
 
-    sleep(Duration::from_secs(10)).await;
+    sleep(Duration::from_secs(5)).await;
+
+    // get spark deposit address
 
     let spark_deposit_amount = 50_000;
 
@@ -117,9 +131,39 @@ async fn test_spark() {
     tracing::info!("Transferring spark to deposit address");
 
     user_wallet
-        .transfer_spark(spark_deposit_amount, spark_deposit_address)
+        .transfer_spark(spark_deposit_amount, spark_deposit_address.clone())
         .await
         .unwrap();
 
     tracing::info!("Spark transferred to deposit address");
+
+    // exit spark request
+
+    tracing::info!("Starting exit spark flow");
+
+    let paying_input = user_wallet.create_user_paying_transfer_input().await.unwrap();
+
+    tracing::info!("Paying input: {:?}", paying_input);
+
+    let exit_spark_request = ExitSparkRequest {
+        spark_address: spark_deposit_address.clone(),
+        paying_input: paying_input,
+    };
+
+    gateway_client.exit_spark(exit_spark_request).await.unwrap();
+
+    tracing::info!("Finish exiting spark flow");
+
+    sleep(Duration::from_secs(5)).await;
+
+    // check balance
+
+    let balance = user_wallet.get_rune_balance().await.unwrap();
+    tracing::info!("Balance: {:?}", balance);
+
+    assert_eq!(
+        balance,
+        DEFAULT_FAUCET_AMOUNT - deposit_amount + spark_deposit_amount,
+        "Balance should be equal to deposit amount"
+    );
 }

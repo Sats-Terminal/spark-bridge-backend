@@ -9,6 +9,7 @@ use sqlx::types::Json;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
+use std::string::ToString;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum InnerAddress {

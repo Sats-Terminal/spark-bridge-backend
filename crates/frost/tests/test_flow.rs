@@ -82,8 +82,8 @@ mod tests {
         let metadata = SigningMetadata::Authorization;
 
         let (sig_res_a, sig_res_b) = tokio::join!(
-            aggregator.run_signing_flow(dkg_share_id.clone(), msg_hash_a, metadata.clone(), tweak),
-            aggregator.run_signing_flow(dkg_share_id.clone(), msg_hash_b, metadata, tweak),
+            aggregator.run_signing_flow(dkg_share_id.clone(), msg_hash_a, metadata.clone(), tweak, false),
+            aggregator.run_signing_flow(dkg_share_id.clone(), msg_hash_b, metadata, tweak, false),
         );
 
         let signature_a = sig_res_a?;
@@ -133,7 +133,7 @@ mod tests {
         let metadata = SigningMetadata::Authorization;
 
         let signature = aggregator
-            .run_signing_flow(dkg_share_id.clone(), msg_hash, metadata, tweak)
+            .run_signing_flow(dkg_share_id.clone(), msg_hash, metadata, tweak, false)
             .await?;
 
         let tweaked_public_key_package = match tweak.clone() {

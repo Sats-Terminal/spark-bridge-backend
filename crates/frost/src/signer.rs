@@ -248,10 +248,13 @@ impl FrostSigner {
 
         match sign_data.sign_state {
             SignerSignState::SigningRound1 { nonces } => {
-                let tweak_key_package = match sign_data.tweak.clone() {
+                let mut tweak_key_package = match sign_data.tweak.clone() {
                     Some(tweak) => Box::new(key_package.clone().tweak(Some(tweak.to_vec()))),
                     None => key_package.clone(),
                 };
+                if request.tap_tweek {
+                    tweak_key_package = Box::new(tweak_key_package.tweak::<Vec<u8>>(None));
+                }
                 let signature_share =
                     frost_secp256k1_tr::round2::sign(&request.signing_package, &nonces, &tweak_key_package)
                         .map_err(|e| SignerError::Internal(format!("Sign round2 failed: {e}")))?;

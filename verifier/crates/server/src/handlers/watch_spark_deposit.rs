@@ -4,6 +4,7 @@ use axum::Json;
 use axum::extract::State;
 use frost::types::TweakBytes;
 use serde::{Deserialize, Serialize};
+use token_identifier::TokenIdentifier;
 use tracing;
 use tracing::instrument;
 use verifier_local_db_store::schemas::deposit_address::DepositAddressStorage;
@@ -18,6 +19,7 @@ pub struct WatchSparkDepositRequest {
     pub spark_address: String,
     pub exit_address: String,
     pub amount: u64,
+    pub token_identifier: TokenIdentifier,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -45,7 +47,7 @@ pub async fn handle(
             out_point: None,
             deposit_address: deposit_address.clone(),
             bridge_address,
-            is_btc: true, // check
+            is_btc: false,
             deposit_amount: request.amount,
             sats_fee_amount: None,
             confirmation_status: DepositStatus::WaitingForConfirmation,
@@ -53,14 +55,19 @@ pub async fn handle(
         .await
         .map_err(|e| VerifierError::Storage(format!("Failed to set deposit address info: {}", e)))?;
 
+    tracing::info!("Getting balance for spark address: {}", request.spark_address);
+
     let response = state
         .spark_balance_checker_client
         .get_balance(GetBalanceRequest {
             spark_address: request.spark_address.clone(),
-            rune_id: request.user_unique_id.rune_id,
+            // rune_id: request.user_unique_id.rune_id,
+            token_identifier: request.token_identifier,
         })
         .await
         .map_err(|e| VerifierError::SparkBalanceCheckerClient(format!("Failed to get balance: {}", e)))?;
+
+    tracing::info!("Balance: {:?}", response);
 
     let confirmation_status = match response.balance == request.amount as u128 {
         true => DepositStatus::Confirmed,

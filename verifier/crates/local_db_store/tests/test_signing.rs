@@ -155,7 +155,7 @@ mod tests {
         debug!("signing flow ...");
 
         let signature = aggregator
-            .run_signing_flow(dkg_share_id, msg_hash, metadata, tweak)
+            .run_signing_flow(dkg_share_id, msg_hash, metadata, tweak, false)
             .await?;
 
         debug!("tweak package ...");

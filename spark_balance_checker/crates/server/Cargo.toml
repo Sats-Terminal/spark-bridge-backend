@@ -4,24 +4,24 @@ edition = { workspace = true }
 
 [features]
 default = []
-swagger = []
 
 [dependencies]
 axum = { workspace = true }
 bech32 = { workspace = true }
+bitcoin = { workspace = true }
 global_utils = { workspace = true }
 hex = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 spark-address = { workspace = true }
 spark-protos = { workspace = true }
 spark_client = { workspace = true }
 thiserror = { workspace = true }
-tracing = { workspace = true }
+token-identifier = { workspace = true }
 tonic-health = { workspace = true }
+tracing = { workspace = true }
 utoipa = { workspace = true }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
-serde_json = { workspace = true }
-
 [dev-dependencies]
 anyhow = { workspace = true }
 axum-test = { workspace = true }

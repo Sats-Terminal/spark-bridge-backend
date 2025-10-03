@@ -2,6 +2,10 @@ use crate::error::DepositVerificationError;
 use crate::traits::DepositVerificationClientTrait;
 use crate::types::*;
 use crate::types::{NotifyRunesDepositRequest, VerifyRunesDepositRequest, VerifySparkDepositRequest};
+use bitcoin::Network;
+use bitcoin::secp256k1::PublicKey;
+use frost::traits::AggregatorDkgShareStorage;
+use frost::types::{AggregatorDkgShareData, AggregatorDkgState};
 use futures::future::join_all;
 use gateway_flow_processor::flow_sender::{FlowSender, TypedMessageSender};
 use gateway_flow_processor::types::{BridgeRunesRequest, ExitSparkRequest};
@@ -9,9 +13,10 @@ use gateway_local_db_store::schemas::deposit_address::{
     DepositAddressStorage, DepositStatus, InnerAddress, VerifiersResponses,
 };
 use gateway_local_db_store::schemas::paying_utxo::PayingUtxoStorage;
-use gateway_local_db_store::schemas::user_identifier::UserUniqueId;
+use gateway_local_db_store::schemas::user_identifier::{UserIdentifierStorage, UserUniqueId};
 use gateway_local_db_store::schemas::utxo_storage::{Utxo, UtxoStatus, UtxoStorage};
 use gateway_local_db_store::storage::LocalDbStorage;
+use gateway_spark_service::utils::create_wrunes_metadata;
 use persistent_storage::init::StorageHealthcheck;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -23,6 +28,7 @@ pub struct DepositVerificationAggregator {
     flow_sender: FlowSender,
     verifiers: HashMap<u16, Arc<dyn DepositVerificationClientTrait>>,
     storage: Arc<LocalDbStorage>,
+    network: Network,
 }
 
 impl DepositVerificationAggregator {
@@ -30,11 +36,13 @@ impl DepositVerificationAggregator {
         flow_sender: FlowSender,
         verifiers: HashMap<u16, Arc<dyn DepositVerificationClientTrait>>,
         storage: Arc<LocalDbStorage>,
+        network: Network,
     ) -> Self {
         Self {
             flow_sender,
             verifiers,
             storage,
+            network,
         }
     }
 
@@ -107,10 +115,7 @@ impl DepositVerificationAggregator {
         };
         self.storage.insert_utxo(utxo).await?;
 
-        tracing::info!(
-            "Runes deposit verification completed for address: {}",
-            request.btc_address
-        );
+        tracing::info!("Runes deposit verification sent to address: {}", request.btc_address);
 
         Ok(())
     }
@@ -179,14 +184,14 @@ impl DepositVerificationAggregator {
         &self,
         request: VerifySparkDepositRequest,
     ) -> Result<(), DepositVerificationError> {
-        tracing::info!("Verifying spark deposit for address: {}", request.spark_address);
+        tracing::info!("Verifying spark deposit for spark address: {}", request.spark_address);
         self.storage
             .update_bridge_address_by_deposit_address(
                 InnerAddress::SparkAddress(request.spark_address.clone()),
-                InnerAddress::BitcoinAddress(request.exit_address.clone()),
+                InnerAddress::BitcoinAddress(request.paying_input.btc_exit_address.clone()),
             )
             .await?;
-        self.storage.insert_paying_utxo(request.paying_input).await?;
+        self.storage.insert_paying_utxo(request.paying_input.clone()).await?;
 
         let deposit_addr_info = self
             .storage
@@ -195,6 +200,52 @@ impl DepositVerificationAggregator {
             .ok_or(DepositVerificationError::NotFound(
                 "Deposit address info not found".to_string(),
             ))?;
+        //todo: check begin
+        let issuer_ids = self
+            .storage
+            .get_issuer_ids(deposit_addr_info.rune_id.clone())
+            .await?
+            .ok_or(DepositVerificationError::NotFound(
+                "Issuer musig id not found".to_string(),
+            ))?;
+        let dkg_state = self.storage.get_dkg_share_agg_data(&issuer_ids.dkg_share_id).await?;
+
+        let token_identifier = match dkg_state {
+            Some(AggregatorDkgShareData {
+                dkg_state: AggregatorDkgState::DkgFinalized { public_key_package },
+            }) => {
+                let musig_public_key_bytes = public_key_package.verifying_key().serialize().map_err(|e| {
+                    DepositVerificationError::InvalidDataError(format!(
+                        "Failed to serialize issuer musig public key: {}",
+                        e
+                    ))
+                })?;
+                let musig_public_key = PublicKey::from_slice(&musig_public_key_bytes).map_err(|e| {
+                    DepositVerificationError::InvalidDataError(format!(
+                        "Failed to deserialize issuer musig public key: {}",
+                        e
+                    ))
+                })?;
+
+                let wrunes_metadata = create_wrunes_metadata(
+                    deposit_addr_info.rune_id.clone(),
+                    musig_public_key,
+                    self.network,
+                )
+                .map_err(|e| {
+                    DepositVerificationError::InvalidDataError(format!("Failed to create wrunes metadata: {}", e))
+                })?;
+                wrunes_metadata.token_identifier
+            }
+            _ => {
+                return Err(DepositVerificationError::NotFound(
+                    "Token identifier not found".to_string(),
+                ));
+            }
+        };
+
+        tracing::debug!("Token identifier: {:?}", token_identifier.encode_bech32m(self.network));
+        //todo: check finish
 
         let watch_spark_deposit_request = WatchSparkDepositRequest {
             user_unique_id: UserUniqueId {
@@ -204,7 +255,8 @@ impl DepositVerificationAggregator {
             nonce: deposit_addr_info.nonce,
             spark_address: request.spark_address.clone(),
             amount: deposit_addr_info.amount,
-            exit_address: request.exit_address.clone(),
+            exit_address: request.paying_input.btc_exit_address.clone(),
+            token_identifier,
         };
 
         let mut futures = vec![];
@@ -240,6 +292,7 @@ impl DepositVerificationAggregator {
             .await?;
 
         if all_verifiers_confirmed {
+            tracing::info!("All verifiers confirmed for spark address: {}", request.spark_address);
             self.flow_sender
                 .send(ExitSparkRequest {
                     spark_address: request.spark_address.clone(),

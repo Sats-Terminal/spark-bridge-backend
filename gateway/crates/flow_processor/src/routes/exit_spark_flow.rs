@@ -15,7 +15,6 @@ use gateway_rune_transfer::transfer::RuneTransferOutput;
 use gateway_rune_transfer::transfer::{
     add_signature_to_transaction, create_message_hash, create_rune_partial_transaction,
 };
-use global_utils::conversion::decode_address;
 use persistent_storage::error::DbError;
 use tracing::instrument;
 
@@ -47,8 +46,7 @@ pub async fn handle(
         )))?;
 
     let exit_address = match deposit_addr_info.bridge_address {
-        Some(address) => decode_address(&address.to_spark_address()?, flow_router.network)
-            .map_err(|e| FlowProcessorError::InvalidDataError(format!("Failed to parse exit address: {e}")))?,
+        Some(address) => &address.to_bitcoin_address()?,
         None => {
             return Err(FlowProcessorError::InvalidDataError(
                 "Bridge address not found".to_string(),
@@ -58,7 +56,7 @@ pub async fn handle(
 
     let paying_utxo = flow_router
         .storage
-        .get_paying_utxo_by_spark_deposit_address(request.spark_address)
+        .get_paying_utxo_by_btc_exit_address(exit_address.clone())
         .await?
         .ok_or(FlowProcessorError::DbError(DbError::NotFound(
             "Paying UTXO not found".to_string(),
@@ -120,6 +118,7 @@ pub async fn handle(
         });
     }
 
+    tracing::info!("Creating rune partial transaction");
     let mut transaction = create_rune_partial_transaction(
         outputs_to_spend,
         paying_utxo,
@@ -128,12 +127,12 @@ pub async fn handle(
     )
     .map_err(|e| FlowProcessorError::RuneTransferError(format!("Failed to create rune partial transaction: {e}")))?;
 
-    for (i, utxo_i) in utxos.iter().enumerate().take(transaction.input.len() - 1) {
-        // -1 because the last input is the paying input
-        let message_hash = create_message_hash(&transaction, exit_address.clone(), DUST_AMOUNT, i)
-            .map_err(|e| FlowProcessorError::RuneTransferError(format!("Failed to create message hash: {e}")))?;
+    for i in 1..transaction.input.len() {
+        let input_btc_address = utxos[i - 1].btc_address.clone();
+        let message_hash =
+            create_message_hash(&transaction, input_btc_address.clone(), utxos[i - 1].sats_fee_amount, i)
+                .map_err(|e| FlowProcessorError::RuneTransferError(format!("Failed to create message hash: {e}")))?;
 
-        let input_btc_address = utxo_i.btc_address.clone();
         let input_deposit_addr_info = flow_router
             .storage
             .get_row_by_deposit_address(InnerAddress::BitcoinAddress(input_btc_address.clone()))
@@ -149,6 +148,7 @@ pub async fn handle(
                 message_hash.as_ref(),
                 SigningMetadata::BtcTransactionMetadata {},
                 Some(input_deposit_addr_info.nonce),
+                true,
             )
             .await
             .map_err(|e| FlowProcessorError::FrostAggregatorError(format!("Failed to sign message hash: {e}")))?
@@ -179,6 +179,8 @@ pub async fn handle(
 
         flow_router.storage.insert_utxo(utxo).await?;
     }
+
+    tracing::info!("Exit spark flow completed");
 
     Ok(())
 }

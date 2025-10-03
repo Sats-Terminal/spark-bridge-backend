@@ -10,7 +10,8 @@ use gateway_local_db_store::schemas::user_identifier::{
     UserIdentifier, UserIdentifierData, UserIdentifierStorage, UserIds, UserUniqueId,
 };
 use gateway_spark_service::types::SparkTransactionType;
-use gateway_spark_service::utils::{convert_network_to_spark_network, create_wrunes_metadata};
+use gateway_spark_service::utils::create_wrunes_metadata;
+use global_utils::conversion::convert_network_to_spark_network;
 use spark_address::{SparkAddressData, encode_spark_address};
 use tracing::instrument;
 

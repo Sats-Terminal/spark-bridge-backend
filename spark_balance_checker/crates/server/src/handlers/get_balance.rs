@@ -2,39 +2,24 @@ use crate::error::ServerError;
 use crate::init::AppState;
 use axum::Json;
 use axum::extract::State;
-use bech32;
+use global_utils::conversion::spark_network_to_proto_network;
 use serde::{Deserialize, Serialize};
 use spark_address::decode_spark_address;
 use spark_protos::spark::QueryTokenOutputsRequest;
+use token_identifier::TokenIdentifier;
 use tracing::instrument;
-use utoipa::ToSchema;
 
-#[derive(Deserialize, ToSchema, Debug)]
-#[schema(example = json!({
-    "spark_address": "sprt1pgss8fxt9jxuv4dgjwrg539s6u06ueausq076xvfej7wdah0htvjlxunt9fa4n",
-    "rune_id": "btknrt1p2sy7a8cx5pqfm3u4p2qfqa475fgwj3eg5d03hhk47t66605zf6qg52vj2"
-}))]
+#[derive(Deserialize, Debug)]
 pub struct GetBalanceRequest {
     spark_address: String,
-    token_identifier: String,
+    token_identifier: TokenIdentifier,
 }
 
-#[derive(Serialize, ToSchema, Debug)]
-#[schema(example = json!({ "balance": 1000 }))]
+#[derive(Serialize, Debug)]
 pub struct GetBalanceResponse {
     balance: u128,
 }
 
-#[utoipa::path(
-    post,
-    path = "/balance",
-    request_body = GetBalanceRequest,
-    responses(
-        (status = 200, description = "Success", body = GetBalanceResponse),
-        (status = 400, description = "Bad Request", body = String),
-        (status = 500, description = "Internal Server Error", body = String),
-    ),
-)]
 #[instrument(level = "trace", skip(state), ret)]
 pub async fn handle(
     State(state): State<AppState>,
@@ -44,19 +29,14 @@ pub async fn handle(
         .map_err(|e| ServerError::InvalidData(format!("Failed to decode spark address: {}", e)))?;
     let identity_public_key = hex::decode(address_data.identity_public_key)
         .map_err(|e| ServerError::InvalidData(format!("Failed to decode identity public key: {}", e)))?;
-    let network = address_data.network;
 
     let response = state
         .client
         .get_token_outputs(QueryTokenOutputsRequest {
             owner_public_keys: vec![identity_public_key],
-            token_identifiers: vec![
-                bech32::decode(&payload.token_identifier)
-                    .map_err(|e| ServerError::InvalidData(format!("Failed to decode token identifier: {}", e)))?
-                    .1,
-            ],
+            token_identifiers: vec![payload.token_identifier.to_bytes().to_vec()],
             token_public_keys: vec![],
-            network: network as i32,
+            network: spark_network_to_proto_network(address_data.network) as i32,
         })
         .await;
 

@@ -1,6 +1,7 @@
 use crate::error::SparkBalanceCheckerClientError;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use token_identifier::TokenIdentifier;
 use tracing::instrument;
 pub use verifier_config_parser::config::SparkBalanceCheckerConfig;
 
@@ -16,7 +17,7 @@ pub struct SparkBalanceCheckerClient {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GetBalanceRequest {
     pub spark_address: String,
-    pub rune_id: String,
+    pub token_identifier: TokenIdentifier,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
