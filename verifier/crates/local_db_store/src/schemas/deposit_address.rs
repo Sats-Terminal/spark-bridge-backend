@@ -4,7 +4,9 @@ use bitcoin::{Address, OutPoint};
 use frost::types::MusigId;
 use frost::types::TweakBytes;
 use persistent_storage::error::DbError;
+use persistent_storage::init::{PersistentRepoTrait, StorageHealthcheck};
 use serde::{Deserialize, Serialize};
+use sqlx::Acquire;
 use sqlx::types::Json;
 use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
@@ -121,7 +123,7 @@ impl DepositAddrInfo {
 }
 
 #[async_trait]
-pub trait DepositAddressStorage: Send + Sync {
+pub trait DepositAddressStorage: Send + Sync + StorageHealthcheck {
     async fn get_deposit_addr_info(
         &self,
         musig_id: &MusigId,
@@ -134,6 +136,12 @@ pub trait DepositAddressStorage: Send + Sync {
         confirmation_status: DepositStatus,
     ) -> Result<(), DbError>;
     async fn set_sats_fee_amount_by_out_point(&self, out_point: OutPoint, sats_fee_amount: u64) -> Result<(), DbError>;
+    async fn set_status_and_fee_amount_by_out_point(
+        &self,
+        out_point: OutPoint,
+        confirmation_status: DepositStatus,
+        sats_fee_amount: u64,
+    ) -> Result<(), DbError>;
     async fn set_confirmation_status_by_deposit_address(
         &self,
         deposit_address: InnerAddress,
@@ -252,6 +260,35 @@ impl DepositAddressStorage for LocalDbStorage {
             .execute(&self.get_conn().await?)
             .await
             .map_err(|e| DbError::BadRequest(e.to_string()))?;
+
+        Ok(())
+    }
+
+    #[instrument(level = "trace", skip(self), ret)]
+    async fn set_status_and_fee_amount_by_out_point(
+        &self,
+        out_point: OutPoint,
+        confirmation_status: DepositStatus,
+        sats_fee_amount: u64,
+    ) -> Result<(), DbError> {
+        let mut conn = self.postgres_repo.get_conn().await?;
+        let mut transaction = conn.begin().await?;
+
+        let _ = sqlx::query("UPDATE verifier.deposit_address SET confirmation_status = $1 WHERE out_point = $2")
+            .bind(Json(confirmation_status))
+            .bind(out_point.to_string())
+            .execute(&mut *transaction)
+            .await
+            .map_err(|e| DbError::BadRequest(e.to_string()))?;
+
+        let _ = sqlx::query("UPDATE verifier.deposit_address SET sats_fee_amount = $1 WHERE out_point = $2")
+            .bind(sats_fee_amount as i64)
+            .bind(out_point.to_string())
+            .execute(&mut *transaction)
+            .await
+            .map_err(|e| DbError::BadRequest(e.to_string()))?;
+
+        transaction.commit().await?;
 
         Ok(())
     }

@@ -21,6 +21,7 @@ utoipa = { workspace = true }
 token-identifier = { workspace = true }
 bitcoin = { workspace = true }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
+serde_json = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }

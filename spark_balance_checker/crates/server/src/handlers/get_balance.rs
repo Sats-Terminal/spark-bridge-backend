@@ -48,20 +48,22 @@ pub async fn handle(
     match response {
         Ok(response) => {
             let outputs = response.outputs_with_previous_transaction_data;
-            // TODO: I am not sure if this is correct.
             if outputs.len() != 1 {
-                tracing::error!("For request: {:?}, expected 1 output, got {}", payload, outputs.len());
+                tracing::error!(
+                    "For request: {:?}, deposit address expects 1 output, got {}",
+                    payload,
+                    outputs.len()
+                );
                 Err(ServerError::InvalidData(format!(
                     "Expected 1 output, got {}",
                     outputs.len()
                 )))
             } else {
-                // safe to unwrap because we know there is only one output
                 let output = outputs.into_iter().next().unwrap();
                 match output.output {
                     Some(output) => {
                         let encoded_balance = output.token_amount;
-                        // safe to unwrap because we know the balance is 128 bits
+
                         let balance = u128::from_be_bytes(encoded_balance.try_into().unwrap());
                         Ok(Json(GetBalanceResponse { balance }))
                     }

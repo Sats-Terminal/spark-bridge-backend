@@ -2,6 +2,7 @@ use crate::errors::AggregatorError;
 use crate::types::*;
 use async_trait::async_trait;
 use persistent_storage::error::DbError;
+use persistent_storage::init::StorageHealthcheck;
 use uuid::Uuid;
 
 #[async_trait]
@@ -18,14 +19,14 @@ pub trait SignerClient: Send + Sync {
 }
 
 #[async_trait]
-pub trait AggregatorMusigIdStorage: Send + Sync {
+pub trait AggregatorMusigIdStorage: Send + Sync + StorageHealthcheck {
     async fn get_musig_id_data(&self, musig_id: &MusigId) -> Result<Option<AggregatorMusigIdData>, DbError>;
     async fn set_musig_id_data(&self, musig_id: &MusigId, musig_id_data: AggregatorMusigIdData) -> Result<(), DbError>;
     async fn get_issuer_musig_id(&self, rune_id: String) -> Result<Option<MusigId>, DbError>;
 }
 
 #[async_trait]
-pub trait AggregatorSignSessionStorage: Send + Sync {
+pub trait AggregatorSignSessionStorage: Send + Sync + StorageHealthcheck {
     async fn get_sign_data(&self, musig_id: &MusigId, session_id: Uuid) -> Result<Option<AggregatorSignData>, DbError>;
     async fn set_sign_data(
         &self,
@@ -36,13 +37,13 @@ pub trait AggregatorSignSessionStorage: Send + Sync {
 }
 
 #[async_trait]
-pub trait SignerMusigIdStorage: Send + Sync {
+pub trait SignerMusigIdStorage: Send + Sync + StorageHealthcheck {
     async fn get_musig_id_data(&self, musig_id: &MusigId) -> Result<Option<SignerMusigIdData>, DbError>;
     async fn set_musig_id_data(&self, musig_id: &MusigId, musig_id_data: SignerMusigIdData) -> Result<(), DbError>;
 }
 
 #[async_trait]
-pub trait SignerSignSessionStorage: Send + Sync {
+pub trait SignerSignSessionStorage: Send + Sync + StorageHealthcheck {
     async fn get_sign_data(&self, musig_id: &MusigId, session_id: Uuid) -> Result<Option<SignerSignData>, DbError>;
     async fn set_sign_data(
         &self,

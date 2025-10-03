@@ -69,38 +69,36 @@ mod tests {
     use frost::utils::generate_tweak_bytes;
     use frost_secp256k1_tr::Identifier;
     use frost_secp256k1_tr::keys::Tweak;
-    use lrc20::token_transaction::{
-        TokenTransaction, TokenTransactionCreateInput, TokenTransactionInput, TokenTransactionVersion,
-    };
+    use persistent_storage::init::{PostgresPool, PostgresRepo};
     use std::collections::BTreeMap;
     use std::sync::Arc;
+    pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
 
-    async fn create_signer(identifier: u16, is_mock_key_storage: bool, is_mock_session_storage: bool) -> FrostSigner {
-        let storage =
-            LocalDbStorage::new("postgres://admin_manager:password@localhost:5471/production_db_name".to_string())
-                .await
-                .unwrap();
-        let arc_storage = Arc::new(storage);
-
+    async fn create_signer(
+        identifier: u16,
+        is_mock_key_storage: bool,
+        is_mock_session_storage: bool,
+        storage: Option<Arc<LocalDbStorage>>,
+    ) -> FrostSigner {
         let user_key_storage: Arc<dyn SignerMusigIdStorage> = if is_mock_key_storage {
             Arc::new(MockSignerMusigIdStorage::default())
         } else {
-            arc_storage.clone()
+            storage.clone().expect("Storage required for non-mock key storage")
         };
 
         let user_session_storage: Arc<dyn SignerSignSessionStorage> = if is_mock_session_storage {
             Arc::new(MockSignerSignSessionStorage::default())
         } else {
-            arc_storage
+            storage.expect("Storage required for non-mock session storage")
         };
 
-        FrostSigner::new(identifier, user_key_storage, user_session_storage, 3, 2)
+        FrostSigner::new(identifier, user_key_storage, user_session_storage, 3, 2).unwrap()
     }
 
-    async fn create_verifiers_map_easy() -> BTreeMap<Identifier, Arc<dyn SignerClient>> {
-        let signer1 = create_signer(1, true, true).await;
-        let signer2 = create_signer(2, true, true).await;
-        let signer3 = create_signer(3, false, false).await;
+    async fn create_verifiers_map_easy(storage: Arc<LocalDbStorage>) -> BTreeMap<Identifier, Arc<dyn SignerClient>> {
+        let signer1 = create_signer(1, true, true, None).await;
+        let signer2 = create_signer(2, true, true, None).await;
+        let signer3 = create_signer(3, false, false, Some(storage)).await;
 
         let mock_signer_client1 = MockSignerClient::new(signer1);
         let mock_signer_client2 = MockSignerClient::new(signer2);
@@ -117,9 +115,13 @@ mod tests {
         ])
     }
 
-    #[tokio::test]
-    async fn test_aggregator_signer_integration() {
-        let verifiers_map = create_verifiers_map_easy().await;
+    #[sqlx::test(migrator = "MIGRATOR")]
+    async fn test_aggregator_signer_integration(db: PostgresPool) -> anyhow::Result<()> {
+        let storage = Arc::new(LocalDbStorage {
+            postgres_repo: PostgresRepo { pool: db },
+        });
+
+        let verifiers_map = create_verifiers_map_easy(storage.clone()).await;
 
         let aggregator = FrostAggregator::new(
             verifiers_map,
@@ -128,33 +130,31 @@ mod tests {
         );
 
         let secp = Secp256k1::new();
-        let secret_key = SecretKey::from_slice(&[4u8; 32]).unwrap();
+        let secret_key = SecretKey::from_slice(&[4u8; 32])?;
         let user_id = MusigId::User {
             user_public_key: PublicKey::from_secret_key(&secp, &secret_key),
             rune_id: "test_rune_id".to_string(),
         };
 
-        //let user_id = "test_user";
         let message_hash = b"test_message";
 
-        let public_key_package = aggregator.run_dkg_flow(&user_id).await.unwrap();
+        let public_key_package = aggregator.run_dkg_flow(&user_id).await?;
 
         let tweak = Some(generate_tweak_bytes());
-        // let tweak = None;
         let metadata = SigningMetadata::Authorization;
 
         let signature = aggregator
             .run_signing_flow(user_id, message_hash, metadata, tweak)
-            .await
-            .unwrap();
+            .await?;
 
-        let tweaked_public_key_package = match tweak.clone() {
+        let tweaked_public_key_package = match tweak {
             Some(tweak) => public_key_package.clone().tweak(Some(tweak.to_vec())),
             None => public_key_package.clone(),
         };
         tweaked_public_key_package
             .verifying_key()
-            .verify(message_hash, &signature)
-            .unwrap();
+            .verify(message_hash, &signature)?;
+
+        Ok(())
     }
 }

@@ -57,8 +57,6 @@ async fn test_etch() {
     })
     .expect("bitcoin client should work");
 
-    // Funding
-
     tracing::info!("Funding default address");
 
     let faucet_sats = 1_000_000;
@@ -97,9 +95,10 @@ async fn test_etch() {
 
     tracing::info!("Wallet funded");
 
-    // Create inscription struct
-
     tracing::info!("Creating inscription struct");
+
+    let amount = 1000000;
+    let cap = 1000;
 
     let etching = Etching {
         rune: Some(Rune::from_str(&random_rune_name()).unwrap()),
@@ -108,8 +107,8 @@ async fn test_etch() {
         spacers: None,
         symbol: Some('$'),
         terms: Some(Terms {
-            amount: Some(1000000),
-            cap: Some(1000),
+            amount: Some(amount),
+            cap: Some(cap),
             height: (None, None),
             offset: (None, None),
         }),
@@ -125,8 +124,6 @@ async fn test_etch() {
     };
 
     tracing::info!("Inscription struct created");
-
-    // Create inscription transaction
 
     tracing::info!("Creating inscription transaction");
 
@@ -163,7 +160,7 @@ async fn test_etch() {
 
     let tx_in = TxIn {
         previous_output: funded_outpoint,
-        script_sig: bitcoin::ScriptBuf::new(),
+        script_sig: ScriptBuf::new(),
         sequence: bitcoin::Sequence::ENABLE_RBF_NO_LOCKTIME,
         witness: Witness::new(),
     };
@@ -176,8 +173,6 @@ async fn test_etch() {
     };
 
     tracing::info!("Inscription transaction created");
-
-    // Sign inscription transaction
 
     tracing::info!("Signing inscription transaction");
 
@@ -207,8 +202,6 @@ async fn test_etch() {
     tracing::info!("inscription_txid: {:?}", inscription_txid);
     tracing::info!("Inscription transaction signed");
 
-    // Broadcast inscription transaction
-
     tracing::info!("Broadcasting inscription transaction");
 
     bitcoin_client
@@ -219,8 +212,6 @@ async fn test_etch() {
         .expect("generate blocks should work");
 
     tracing::info!("Inscription transaction broadcasted");
-
-    // Create rune etching transaction
 
     tracing::info!("Creating rune etching transaction");
 
@@ -264,8 +255,6 @@ async fn test_etch() {
 
     tracing::info!("Rune etching transaction created");
 
-    // Sign etching transaction
-
     tracing::info!("Signing rune etching transaction");
 
     let prevouts_array = vec![TxOut {
@@ -306,8 +295,6 @@ async fn test_etch() {
     tracing::info!("etching_txid: {:?}", etching_txid);
     tracing::info!("Rune etching transaction signed");
 
-    // Broadcast etching transaction
-
     tracing::info!("Broadcasting rune etching transaction");
 
     bitcoin_client
@@ -318,8 +305,6 @@ async fn test_etch() {
         .expect("generate blocks should work");
 
     tracing::info!("Rune etching transaction broadcasted");
-
-    // Check etching transaction
 
     tracing::info!("Checking rune etching transaction");
 

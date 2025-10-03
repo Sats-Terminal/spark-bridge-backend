@@ -2,6 +2,7 @@ use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
 use global_utils::common_types::get_uuid;
 use persistent_storage::error::DbError;
+use persistent_storage::init::StorageHealthcheck;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use sqlx::types::Json;
@@ -49,7 +50,7 @@ pub enum SessionStatus {
 }
 
 #[async_trait]
-pub trait SessionStorage {
+pub trait SessionStorage: Send + Sync + StorageHealthcheck {
     async fn create_session(&self, session_info: SessionInfo) -> Result<Uuid, DbError>;
     async fn update_session_status(&self, session_id: Uuid, status: SessionStatus) -> Result<(), DbError>;
     async fn get_session(&self, session_id: Uuid) -> Result<SessionInfo, DbError>;
@@ -112,7 +113,6 @@ mod tests {
     use super::*;
     use crate::storage::make_repo_with_config;
     use persistent_storage::error::DbError as DatabaseError;
-    use std::sync::Arc;
 
     pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
 
@@ -282,13 +282,16 @@ mod tests {
         Ok(())
     }
 
+    const ITERATIONS: usize = 5;
+    const ITERATIONS_V2: usize = 100;
+
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_create_multiple_sessions(db: sqlx::PgPool) -> Result<(), DatabaseError> {
         let repo = make_repo_with_config(db).await;
         cleanup_and_setup(&repo).await;
 
         let mut session_ids = Vec::new();
-        for _i in 0..5 {
+        for _i in 0..ITERATIONS {
             let session = create_test_session_with_type(RequestType::GetRunesDepositAddress, SessionStatus::Pending);
             let session_id = repo.create_session(session).await?;
             session_ids.push(session_id);
@@ -331,7 +334,7 @@ mod tests {
         use std::time::Instant;
         let start = Instant::now();
 
-        for _ in 0..100 {
+        for _ in 0..ITERATIONS_V2 {
             let session = create_test_session();
             repo.create_session(session).await?;
         }

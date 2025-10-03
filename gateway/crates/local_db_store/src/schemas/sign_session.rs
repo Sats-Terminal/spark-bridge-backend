@@ -6,9 +6,17 @@ use frost::types::AggregatorSignState;
 use frost::types::MusigId;
 use frost::types::SigningMetadata;
 use persistent_storage::error::DbError;
+use persistent_storage::init::StorageHealthcheck;
 use sqlx::types::Json;
 use tracing::instrument;
 use uuid::Uuid;
+
+#[async_trait]
+impl StorageHealthcheck for LocalDbStorage {
+    async fn healthcheck(&self) -> Result<(), DbError> {
+        self.postgres_repo.healthcheck().await
+    }
+}
 
 #[async_trait]
 impl AggregatorSignSessionStorage for LocalDbStorage {

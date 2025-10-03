@@ -301,7 +301,7 @@ pub fn create_request<T>(
     spark_session: SparkAuthSession,
 ) -> Result<(), SparkClientError> {
     let identity_public_key_str = hex::encode(user_public_key.serialize());
-    let id_meta = MetadataValue::try_from(identity_public_key_str).unwrap(); // TODO: handle error
+    let id_meta = MetadataValue::try_from(identity_public_key_str).unwrap();
     request.metadata_mut().insert("x-identity-public-key", id_meta);
 
     let session_token = MetadataValue::try_from(spark_session.session_token)

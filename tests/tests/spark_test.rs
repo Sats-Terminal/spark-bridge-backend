@@ -59,8 +59,6 @@ async fn test_spark() {
     let rune_balance = user_wallet.get_rune_balance().await.unwrap();
     assert!(rune_balance > 0, "Rune balance should be greater than 0");
 
-    // Get runes deposit address
-
     let deposit_amount = 100_000;
 
     let get_runes_deposit_address_request = GetRunesDepositAddressRequest {
@@ -78,8 +76,6 @@ async fn test_spark() {
         get_runes_deposit_address_response
     );
 
-    // send runes to deposit address
-
     let deposit_address = Address::from_str(&get_runes_deposit_address_response.address)
         .unwrap()
         .assume_checked();
@@ -95,8 +91,6 @@ async fn test_spark() {
     let txid = tx.compute_txid();
 
     tracing::info!("txid: {:?}", txid);
-
-    // bridge runes
 
     let spark_address = user_wallet.get_spark_address().unwrap();
 
@@ -133,8 +127,6 @@ async fn test_spark() {
         .address;
 
     tracing::info!("Spark deposit address: {:?}", spark_deposit_address);
-
-    // send runes to spark deposit address
 
     tracing::info!("Transferring spark to deposit address");
 

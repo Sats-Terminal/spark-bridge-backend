@@ -32,14 +32,15 @@ pub async fn handle(
     State(state): State<AppState>,
     Json(request): Json<VerifierNotifyRunesDepositRequest>,
 ) -> Result<Json<()>, GatewayError> {
-    let out_point = request.out_point.clone();
+    let out_point = request.out_point;
     tracing::info!("Handling notify runes deposit request with out point: {:?}", out_point);
 
-    // TODO: This request should spawn task and immediately return Json(())
-    let _ = state
-        .deposit_verification_aggregator
-        .notify_runes_deposit(request.into())
-        .await;
+    tokio::spawn(async move {
+        let _ = state
+            .deposit_verification_aggregator
+            .notify_runes_deposit(request.into())
+            .await;
+    });
 
     tracing::info!(
         "Notify runes deposit request handled request with out point: {:?}",

@@ -22,12 +22,11 @@ pub async fn handle(
     let public_key_package = match flow_router.storage.get_musig_id_data(&request.musig_id).await? {
         None => {
             tracing::debug!("Missing musig, running dkg from the beginning ...");
-            let pubkey_package = flow_router
+            flow_router
                 .frost_aggregator
                 .run_dkg_flow(&request.musig_id)
                 .await
-                .map_err(|e| FlowProcessorError::FrostAggregatorError(format!("Failed to run DKG flow: {}", e)))?;
-            pubkey_package
+                .map_err(|e| FlowProcessorError::FrostAggregatorError(format!("Failed to run DKG flow: {}", e)))?
         }
         Some(x) => {
             // extract data from db, get nonce and generate new one, return it to user

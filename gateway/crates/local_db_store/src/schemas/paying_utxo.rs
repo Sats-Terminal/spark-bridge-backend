@@ -3,12 +3,13 @@ use async_trait::async_trait;
 use bitcoin::{Address, Txid};
 use gateway_rune_transfer::transfer::PayingTransferInput;
 use persistent_storage::error::DbError;
+use persistent_storage::init::StorageHealthcheck;
 use std::str::FromStr;
 use global_utils::conversion::decode_address;
 use tracing::instrument;
 
 #[async_trait]
-pub trait PayingUtxoStorage: Send + Sync {
+pub trait PayingUtxoStorage: Send + Sync + StorageHealthcheck {
     async fn insert_paying_utxo(&self, paying_utxo: PayingTransferInput) -> Result<(), DbError>;
     async fn get_paying_utxo_by_btc_exit_address(
         &self,

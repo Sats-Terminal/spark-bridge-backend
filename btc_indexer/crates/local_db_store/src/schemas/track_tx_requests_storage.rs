@@ -4,6 +4,7 @@ use bitcoin::OutPoint;
 use btc_indexer_api::api::{BtcTxReview, TrackTxRequest};
 use global_utils::common_types::{TxIdWrapped, UrlWrapped};
 use persistent_storage::error::DbError;
+use persistent_storage::init::StorageHealthcheck;
 use serde::{Deserialize, Serialize};
 use sqlx::Acquire;
 use sqlx::types::Json;
@@ -39,7 +40,7 @@ pub struct TxTrackingRequestsToSendResponse {
 }
 
 #[async_trait::async_trait]
-pub trait TxRequestsTrackingStorageTrait {
+pub trait TxRequestsTrackingStorageTrait: Send + Sync + StorageHealthcheck {
     /// Inserts appropriate entry to `btc_indexer.tx_tracking` and `btc_indexer.tx_tracking_requests`
     async fn track_tx_request(&self, uuid: Uuid, req: &TrackTxRequest) -> Result<(), DbError>;
     async fn get_values_to_send_response(&self) -> Result<Vec<TxTrackingRequestsToSendResponse>, DbError>;
