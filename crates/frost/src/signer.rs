@@ -26,7 +26,8 @@ impl FrostSigner {
         Ok(Self {
             musig_id_storage,
             sign_session_storage,
-            identifier: identifier.try_into()
+            identifier: identifier
+                .try_into()
                 .map_err(|e| SignerError::Internal(format!("Failed to convert identifier: {}", e)))?,
             total_participants,
             threshold,

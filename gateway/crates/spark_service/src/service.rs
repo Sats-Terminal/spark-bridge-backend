@@ -141,7 +141,12 @@ impl SparkService {
         transaction_type: SparkTransactionType,
         network: Network,
     ) -> Result<(), SparkServiceError> {
-        tracing::info!("Start transaction: {:?}, for musig id: {:?}, with token identifier: {:?}", transaction_type, musig_id, token_identifier.to_string());
+        tracing::info!(
+            "Start transaction: {:?}, for musig id: {:?}, with token identifier: {:?}",
+            transaction_type,
+            musig_id,
+            token_identifier.to_string()
+        );
 
         self.authenticate(musig_id.clone(), nonce_tweak).await?;
 
@@ -202,11 +207,21 @@ impl SparkService {
             .await
             .map_err(|e| SparkServiceError::SparkClientError(e.to_string()))?;
 
-        tracing::debug!("Transaction: {:?} for musig id: {:?}, with token identifier: {:?}, started", transaction_type, musig_id, token_identifier.to_string());
+        tracing::debug!(
+            "Transaction: {:?} for musig id: {:?}, with token identifier: {:?}, started",
+            transaction_type,
+            musig_id,
+            token_identifier.to_string()
+        );
 
         // ----- Finalize the transaction -----
 
-        tracing::debug!("Finalize the transaction: {:?}, for musig id: {:?}, with token identifier: {:?}", transaction_type, musig_id, token_identifier.to_string());
+        tracing::debug!(
+            "Finalize the transaction: {:?}, for musig id: {:?}, with token identifier: {:?}",
+            transaction_type,
+            musig_id,
+            token_identifier.to_string()
+        );
 
         let final_token_transaction_proto = response.final_token_transaction.ok_or(SparkServiceError::DecodeError(
             "Final token transaction is not found".to_string(),
@@ -274,7 +289,12 @@ impl SparkService {
             .into_iter()
             .collect::<Result<Vec<InputTtxoSignaturesPerOperator>, SparkServiceError>>()?;
 
-        tracing::debug!("Sending commit transaction: {:?}, for musig id: {:?}, with token identifier: {:?}", transaction_type, musig_id, token_identifier.to_string());
+        tracing::debug!(
+            "Sending commit transaction: {:?}, for musig id: {:?}, with token identifier: {:?}",
+            transaction_type,
+            musig_id,
+            token_identifier.to_string()
+        );
 
         let response = self
             .spark_client
@@ -290,7 +310,12 @@ impl SparkService {
             .await
             .map_err(|e| SparkServiceError::SparkClientError(e.to_string()))?;
 
-        tracing::info!("Transaction: {:?} for musig id: {:?}, with token identifier: {:?}, committed", transaction_type, musig_id, token_identifier.to_string());
+        tracing::info!(
+            "Transaction: {:?} for musig id: {:?}, with token identifier: {:?}, committed",
+            transaction_type,
+            musig_id,
+            token_identifier.to_string()
+        );
 
         Ok(())
     }

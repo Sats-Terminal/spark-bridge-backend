@@ -59,7 +59,8 @@ pub async fn handle(
         flow_router.verifier_configs.iter().map(|v| v.id).collect(),
     );
 
-    flow_router.storage
+    flow_router
+        .storage
         .set_deposit_addr_info(DepositAddrInfo {
             musig_id: request.musig_id.clone(),
             nonce,

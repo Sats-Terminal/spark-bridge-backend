@@ -7,8 +7,8 @@ use frost::types::SignerSignState;
 use frost::types::SigningMetadata;
 use persistent_storage::error::DbError;
 use sqlx::types::Json;
-use uuid::Uuid;
 use tracing::instrument;
+use uuid::Uuid;
 
 #[async_trait]
 impl SignerSignSessionStorage for LocalDbStorage {

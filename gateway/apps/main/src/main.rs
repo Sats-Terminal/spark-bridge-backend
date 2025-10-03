@@ -1,3 +1,4 @@
+use eyre::Result;
 use frost::aggregator::FrostAggregator;
 use frost::traits::SignerClient;
 use frost_secp256k1_tr::Identifier;
@@ -10,7 +11,6 @@ use gateway_server::init::create_app;
 use gateway_verifier_client::client::VerifierClient;
 use global_utils::config_path::ConfigPath;
 use global_utils::logger::init_logger;
-use eyre::Result;
 
 use persistent_storage::config::PostgresDbCredentials;
 use persistent_storage::init::PostgresRepo;
@@ -38,8 +38,7 @@ async fn main() -> Result<()> {
     install_rustls_provider();
 
     // Create Config
-    let config_path = ConfigPath::from_env()
-        .map_err(|e| eyre::eyre!("Failed to parse config path: {}", e))?;
+    let config_path = ConfigPath::from_env().map_err(|e| eyre::eyre!("Failed to parse config path: {}", e))?;
     let server_config = ServerConfig::init_config(config_path.path);
     tracing::debug!("App config: {:?}", server_config);
 
@@ -48,7 +47,8 @@ async fn main() -> Result<()> {
         url: server_config.database.url.clone(),
     };
     let db_pool = LocalDbStorage {
-        postgres_repo: PostgresRepo::from_config(postgres_creds).await
+        postgres_repo: PostgresRepo::from_config(postgres_creds)
+            .await
             .map_err(|e| eyre::eyre!("Failed to create DB pool: {}", e))?,
         network: server_config.network.network,
     };
@@ -57,7 +57,9 @@ async fn main() -> Result<()> {
     // Create Frost Aggregator
     let mut verifiers_map = BTreeMap::<Identifier, Arc<dyn SignerClient>>::new();
     for verifier in server_config.clone().verifiers.0 {
-        let identifier: Identifier = verifier.id.try_into()
+        let identifier: Identifier = verifier
+            .id
+            .try_into()
             .map_err(|e| eyre::eyre!("Failed to parse identifier: {}", e))?;
         let verifier_client = VerifierClient::new(verifier);
         verifiers_map.insert(identifier, Arc::new(verifier_client));
@@ -95,10 +97,12 @@ async fn main() -> Result<()> {
         "{}:{}",
         server_config.server_public.ip, server_config.server_public.port
     );
-    let listener = TcpListener::bind(addr_to_listen.clone()).await
+    let listener = TcpListener::bind(addr_to_listen.clone())
+        .await
         .map_err(|e| eyre::eyre!("Failed to bind listener: {}", e))?;
     tracing::info!("Listening on {:?}", addr_to_listen);
-    axum::serve(listener, app).await
+    axum::serve(listener, app)
+        .await
         .map_err(|e| eyre::eyre!("Failed to serve app: {}", e))?;
 
     Ok(())

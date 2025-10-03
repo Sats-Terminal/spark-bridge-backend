@@ -41,7 +41,10 @@ pub async fn handle(
         .notify_runes_deposit(request.into())
         .await;
 
-    tracing::info!("Notify runes deposit request handled request with out point: {:?}", out_point);
+    tracing::info!(
+        "Notify runes deposit request handled request with out point: {:?}",
+        out_point
+    );
 
     Ok(Json(()))
 }

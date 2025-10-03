@@ -104,7 +104,10 @@ impl DepositVerificationAggregator {
         };
         self.storage.insert_utxo(utxo).await?;
 
-        tracing::info!("Runes deposit verification completed for address: {}", request.btc_address);
+        tracing::info!(
+            "Runes deposit verification completed for address: {}",
+            request.btc_address
+        );
 
         Ok(())
     }
@@ -241,7 +244,10 @@ impl DepositVerificationAggregator {
                 })?;
         }
 
-        tracing::info!("Spark deposit verification completed for address: {}", request.spark_address);
+        tracing::info!(
+            "Spark deposit verification completed for address: {}",
+            request.spark_address
+        );
 
         Ok(())
     }

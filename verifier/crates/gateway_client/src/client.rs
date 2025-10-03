@@ -3,9 +3,9 @@ use bitcoin::OutPoint;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use tracing;
+use tracing::instrument;
 use verifier_config_parser::config::GatewayConfig;
 use verifier_local_db_store::schemas::deposit_address::DepositStatus;
-use tracing::instrument;
 
 const NOTIFY_RUNES_DEPOSIT_PATH: &str = "/api/verifier/notify-runes-deposit";
 const HEALTHCHECK_PATH: &str = "/health";
@@ -58,7 +58,11 @@ impl GatewayClient {
             );
             Ok(())
         } else {
-            tracing::error!("Failed to send HTTP request for {:?}, with status {}", request, response.status());
+            tracing::error!(
+                "Failed to send HTTP request for {:?}, with status {}",
+                request,
+                response.status()
+            );
             Err(GatewayClientError::HttpError(format!(
                 "Failed to send HTTP request with status {}, error: {}",
                 response.status(),
