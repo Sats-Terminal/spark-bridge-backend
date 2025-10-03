@@ -35,7 +35,6 @@ pub async fn handle(
     let out_point = request.out_point;
     tracing::info!("Handling notify runes deposit request with out point: {:?}", out_point);
 
-    // TODO: This request should spawn task and immediately return Json(())
     tokio::spawn(async move {
         let _ = state
             .deposit_verification_aggregator
