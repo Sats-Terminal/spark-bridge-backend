@@ -35,7 +35,19 @@ pub async fn handle(
     State(state): State<AppState>,
     Json(request): Json<BtcIndexerNotifyRunesDepositRequest>,
 ) -> Result<Json<()>, VerifierError> {
-    // TODO: This request should spawn task and immediately return Json(())
+    tracing::info!("Runes deposit notified for out point: {}", request.outpoint);
+
+    tokio::spawn(async move {
+        _inner_notify(state, request.clone()).await.inspect_err(|err| {
+            tracing::error!("Failed to notify runes deposit for req: '{request:?}', err: '{err}'");
+        })
+    });
+
+    Ok(Json(()))
+}
+
+#[instrument(level = "trace", skip(state), ret)]
+async fn _inner_notify(state: AppState, request: BtcIndexerNotifyRunesDepositRequest) -> Result<(), VerifierError> {
     tracing::info!("Notifying runes deposit for out point: {}", request.outpoint);
 
     let deposit_status: DepositStatus = request.status.clone().into();
@@ -48,15 +60,14 @@ pub async fn handle(
 
     state
         .storage
-        .set_confirmation_status_by_out_point(request.outpoint, deposit_status)
+        .set_status_and_fee_amount_by_out_point(request.outpoint, deposit_status, request.sats_fee_amount)
         .await
-        .map_err(|e| VerifierError::Storage(format!("Failed to update confirmation status: {}", e)))?;
-
-    state
-        .storage
-        .set_sats_fee_amount_by_out_point(request.outpoint, request.sats_fee_amount)
-        .await
-        .map_err(|e| VerifierError::Storage(format!("Failed to update sats fee amount: {}", e)))?;
+        .map_err(|e| {
+            VerifierError::Storage(format!(
+                "Failed to update confirmation status and set sats fee amount: {}",
+                e
+            ))
+        })?;
 
     state
         .gateway_client
@@ -65,6 +76,5 @@ pub async fn handle(
         .map_err(|e| VerifierError::GatewayClient(format!("Failed to notify runes deposit: {}", e)))?;
 
     tracing::info!("Runes deposit notified for out point: {}", request.outpoint);
-
-    Ok(Json(()))
+    Ok(())
 }

@@ -2,6 +2,7 @@ use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
 use global_utils::common_types::get_uuid;
 use persistent_storage::error::DbError;
+use persistent_storage::init::StorageHealthcheck;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use sqlx::types::Json;
@@ -49,7 +50,7 @@ pub enum SessionStatus {
 }
 
 #[async_trait]
-pub trait SessionStorage {
+pub trait SessionStorage: Send + Sync + StorageHealthcheck {
     async fn create_session(&self, session_info: SessionInfo) -> Result<Uuid, DbError>;
     async fn update_session_status(&self, session_id: Uuid, status: SessionStatus) -> Result<(), DbError>;
     async fn get_session(&self, session_id: Uuid) -> Result<SessionInfo, DbError>;

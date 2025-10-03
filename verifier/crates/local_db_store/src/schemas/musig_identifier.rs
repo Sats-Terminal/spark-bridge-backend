@@ -92,7 +92,7 @@ mod tests {
             storage.expect("Storage required for non-mock session storage")
         };
 
-        FrostSigner::new(identifier, user_key_storage, user_session_storage, 3, 2)
+        FrostSigner::new(identifier, user_key_storage, user_session_storage, 3, 2).unwrap()
     }
 
     async fn create_verifiers_map_easy(storage: Arc<LocalDbStorage>) -> BTreeMap<Identifier, Arc<dyn SignerClient>> {

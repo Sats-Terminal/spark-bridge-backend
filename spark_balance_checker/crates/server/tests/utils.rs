@@ -1,3 +1,4 @@
+use axum::ServiceExt;
 use axum_test::TestServer;
 use global_utils::config_path::ConfigPath;
 use global_utils::config_variant::ConfigVariant;
@@ -28,7 +29,7 @@ pub async fn init_mocked_test_server() -> anyhow::Result<TestServer> {
         },
     ];
 
-    let app = create_app(config.spark).await;
+    let app = create_app(config.spark).await?;
     let test_server = TestServer::builder().http_transport().build(app.into_make_service())?;
     info!("Serving local axum test server on {:?}", test_server.server_address());
     Ok(test_server)

@@ -1,4 +1,5 @@
 use thiserror::Error;
+use tonic::metadata::errors::InvalidMetadataValue;
 
 #[derive(Error, Debug)]
 pub enum SparkClientError {
@@ -12,4 +13,9 @@ pub enum SparkClientError {
     DecodeError(String),
     #[error("No auth session found")]
     NoAuthSessionFound(String),
+    #[error("Invalid metadata for sending request, possible pubkey: '{possible_pubkey}', err: {err}")]
+    InvalidMetadataStr {
+        possible_pubkey: String,
+        err: InvalidMetadataValue,
+    },
 }

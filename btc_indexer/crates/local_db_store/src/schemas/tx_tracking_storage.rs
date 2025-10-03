@@ -4,6 +4,7 @@ use btc_indexer_api::api::{Amount, BtcTxReview, VOut};
 use global_utils::common_types::TxIdWrapped;
 use ordinals::RuneId;
 use persistent_storage::error::DbError;
+use persistent_storage::init::StorageHealthcheck;
 use serde::{Deserialize, Serialize};
 use sqlx::Acquire;
 use sqlx::types::Json;
@@ -41,7 +42,7 @@ pub struct TxToUpdateStatus {
 }
 
 #[async_trait::async_trait]
-pub trait TxTrackingStorageTrait {
+pub trait TxTrackingStorageTrait: Send + Sync + StorageHealthcheck {
     async fn get_txs_to_update_status(&self) -> Result<Vec<TxToUpdateStatus>, DbError>;
     async fn insert_tx_tracking_report(
         &self,

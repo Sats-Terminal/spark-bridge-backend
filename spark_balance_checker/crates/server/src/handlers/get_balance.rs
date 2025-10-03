@@ -63,9 +63,12 @@ pub async fn handle(
     match response {
         Ok(response) => {
             let outputs = response.outputs_with_previous_transaction_data;
-            // TODO: I am not sure if this is correct.
             if outputs.len() != 1 {
-                tracing::error!("For request: {:?}, expected 1 output, got {}", payload, outputs.len());
+                tracing::error!(
+                    "For request: {:?}, deposit address expects 1 output, got {}",
+                    payload,
+                    outputs.len()
+                );
                 Err(ServerError::InvalidData(format!(
                     "Expected 1 output, got {}",
                     outputs.len()

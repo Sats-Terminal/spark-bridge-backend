@@ -5,6 +5,7 @@ use persistent_storage::error::DbError;
 use tokio::sync::Mutex;
 
 use crate::{errors::AggregatorError, signer::FrostSigner, traits::*, types::*};
+use persistent_storage::init::StorageHealthcheck;
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]
@@ -21,6 +22,13 @@ impl MockSignerSignSessionStorage {
     pub async fn has_session(&self, musig_id: &MusigId, session_id: &Uuid) -> bool {
         let map = self.storage.lock().await;
         map.contains_key(&(musig_id.clone(), *session_id))
+    }
+}
+
+#[async_trait]
+impl StorageHealthcheck for MockSignerSignSessionStorage {
+    async fn healthcheck(&self) -> Result<(), DbError> {
+        Ok(())
     }
 }
 
@@ -49,6 +57,13 @@ impl Default for MockSignerMusigIdStorage {
         Self {
             storage: Arc::new(Mutex::new(BTreeMap::new())),
         }
+    }
+}
+
+#[async_trait]
+impl StorageHealthcheck for MockSignerMusigIdStorage {
+    async fn healthcheck(&self) -> Result<(), DbError> {
+        Ok(())
     }
 }
 
@@ -91,6 +106,13 @@ impl Default for MockAggregatorSignSessionStorage {
 }
 
 #[async_trait]
+impl StorageHealthcheck for MockAggregatorMusigIdStorage {
+    async fn healthcheck(&self) -> Result<(), DbError> {
+        Ok(())
+    }
+}
+
+#[async_trait]
 impl AggregatorMusigIdStorage for MockAggregatorMusigIdStorage {
     async fn get_musig_id_data(&self, musig_id: &MusigId) -> Result<Option<AggregatorMusigIdData>, DbError> {
         Ok(self.storage.lock().await.get(musig_id).cloned())
@@ -103,6 +125,13 @@ impl AggregatorMusigIdStorage for MockAggregatorMusigIdStorage {
 
     async fn get_issuer_musig_id(&self, _rune_id: String) -> Result<Option<MusigId>, DbError> {
         Ok(None)
+    }
+}
+
+#[async_trait]
+impl StorageHealthcheck for MockAggregatorSignSessionStorage {
+    async fn healthcheck(&self) -> Result<(), DbError> {
+        Ok(())
     }
 }
 
