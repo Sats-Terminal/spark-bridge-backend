@@ -53,7 +53,7 @@ impl PayingUtxoStorage for LocalDbStorage {
             Some((txid, vout, address, sats_amount, none_anyone_can_pay_signature)) => Ok(Some(PayingTransferInput {
                 txid: Txid::from_str(&txid).map_err(|e| DbError::BadRequest(format!("Failed to parse txid: {}", e)))?,
                 vout: vout as u32,
-                address: Address::from_str(&address).unwrap().assume_checked(),
+                address: Address::from_str(&address).map_err(|e| DbError::BadRequest(format!("Failed to parse address: {}", e)))?.assume_checked(),
                 sats_amount: sats_amount as u64,
                 none_anyone_can_pay_signature: none_anyone_can_pay_signature.parse().map_err(|e| {
                     DbError::BadRequest(format!("Failed to parse none anyone can pay signature: {}", e))

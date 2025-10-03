@@ -4,6 +4,7 @@ use spark_client::client::SparkRpcClient;
 use spark_client::common::config::SparkConfig;
 use tracing::instrument;
 use utoipa::OpenApi;
+use crate::error::ServerError;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -24,10 +25,10 @@ impl SparkBalanceCheckerApi {
 }
 
 #[instrument(level = "debug", ret, skip(config), fields(operators=?config.operators))]
-pub async fn create_app(config: SparkConfig) -> Router {
+pub async fn create_app(config: SparkConfig) -> Result<Router, ServerError> {
     tracing::info!("Creating app");
     let state = AppState {
-        client: SparkRpcClient::new(config).await.unwrap(),
+        client: SparkRpcClient::new(config).await?,
     };
     let app = Router::new()
         .route(
@@ -42,5 +43,5 @@ pub async fn create_app(config: SparkConfig) -> Router {
 
     #[cfg(feature = "swagger")]
     let app = app.merge(SwaggerUi::new("/swagger-ui/").url("/api-docs/openapi.json", ApiDoc::openapi()));
-    app
+    Ok(app)
 }

@@ -29,4 +29,6 @@ pub enum FlowProcessorError {
     SparkAddressError(#[from] SparkAddressError),
     #[error("SO Coordinator is missing")]
     CoordinatorNotFound,
+    #[error("Initialization error: {0}")]
+    InitializationError(String),
 }

@@ -17,3 +17,4 @@ spark_client = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 rustls = { workspace = true }
+eyre = { workspace = true }
