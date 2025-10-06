@@ -3,13 +3,14 @@ mod tests {
     use bitcoin::key::UntweakedPublicKey;
     use bitcoin::secp256k1::{PublicKey, Secp256k1};
     use frost::traits::AggregatorDkgShareStorage;
-    use frost::types::{AggregatorDkgShareData, AggregatorDkgState, DkgShareId, SigningMetadata, TweakBytes};
+    use frost::types::{AggregatorDkgShareData, AggregatorDkgState, SigningMetadata, TweakBytes};
     use frost::utils::generate_tweak_bytes;
     use frost::{aggregator::FrostAggregator, mocks::*, signer::FrostSigner, traits::SignerClient};
     use frost_secp256k1_tr::{Identifier, keys::Tweak};
     use global_utils::common_types::get_uuid;
     use std::str::FromStr;
     use std::{collections::BTreeMap, sync::Arc};
+    use uuid::Uuid;
 
     #[tokio::test]
     async fn test_aggregator_signer_integration() -> anyhow::Result<()> {
@@ -61,7 +62,7 @@ mod tests {
     ) -> anyhow::Result<()> {
         let verifiers_map = create_verifiers_map_easy();
 
-        let dkg_share_id: DkgShareId = get_uuid();
+        let dkg_share_id: Uuid = get_uuid();
         let agg_storage = MockAggregatorDkgShareIdStorage::default();
         agg_storage
             .set_dkg_share_agg_data(
@@ -112,7 +113,7 @@ mod tests {
     async fn _test_aggregator_signer_integration(msg_hash: &[u8], tweak: Option<TweakBytes>) -> anyhow::Result<()> {
         let verifiers_map = create_verifiers_map_easy();
 
-        let dkg_share_id: DkgShareId = get_uuid();
+        let dkg_share_id: Uuid = get_uuid();
         let agg_storage = MockAggregatorDkgShareIdStorage::default();
         agg_storage
             .set_dkg_share_agg_data(

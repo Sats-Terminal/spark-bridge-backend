@@ -3,14 +3,14 @@ use crate::init::AppState;
 use axum::{Json, extract::State};
 use gateway_flow_processor::flow_sender::TypedMessageSender;
 use gateway_flow_processor::types::IssueSparkDepositAddressRequest;
-use gateway_local_db_store::schemas::musig_id::MusigId;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use tracing::instrument;
+use uuid::Uuid;
 
 #[derive(Deserialize, Debug)]
 pub struct GetSparkDepositAddressRequest {
-    pub user_public_key: String,
+    pub user_id: Uuid,
     pub rune_id: String,
     pub amount: u64,
 }
@@ -26,20 +26,17 @@ pub async fn handle(
     State(state): State<AppState>,
     Json(request): Json<GetSparkDepositAddressRequest>,
 ) -> Result<Json<GetSparkDepositAddressResponse>, GatewayError> {
-    let request_user_public_key = request.user_public_key.clone();
+    let request_uuid = request.user_id.clone();
     tracing::info!(
         "Handling get spark deposit address request with user public key: {:?}",
-        request_user_public_key
+        request_uuid
     );
 
     let response = state
         .flow_sender
         .send(IssueSparkDepositAddressRequest {
-            musig_id: MusigId::User {
-                rune_id: request.rune_id,
-                user_public_key: bitcoin::secp256k1::PublicKey::from_str(&request.user_public_key)
-                    .map_err(|e| GatewayError::InvalidData(format!("Failed to parse user public key: {e}")))?,
-            },
+            user_id: request.user_id,
+            rune_id: request.rune_id,
             amount: request.amount,
         })
         .await
@@ -47,7 +44,7 @@ pub async fn handle(
 
     tracing::info!(
         "Get spark deposit address request handled request with user public key: {:?}",
-        request_user_public_key
+        request_uuid
     );
 
     Ok(Json(GetSparkDepositAddressResponse {

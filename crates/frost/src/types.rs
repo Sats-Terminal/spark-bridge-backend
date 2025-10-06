@@ -14,11 +14,10 @@ use std::fmt::{Debug, Formatter};
 use uuid::Uuid;
 
 pub type TweakBytes = [u8; 32];
-pub type DkgShareId = Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DkgRound1Request {
-    pub dkg_share_id: DkgShareId,
+    pub dkg_share_id: Uuid,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -28,7 +27,7 @@ pub struct DkgRound1Response {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DkgRound2Request {
-    pub dkg_share_id: DkgShareId,
+    pub dkg_share_id: Uuid,
     pub round1_packages: BTreeMap<Identifier, round1::Package>,
 }
 
@@ -39,7 +38,7 @@ pub struct DkgRound2Response {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DkgFinalizeRequest {
-    pub dkg_share_id: DkgShareId,
+    pub dkg_share_id: Uuid,
     pub round1_packages: BTreeMap<Identifier, round1::Package>,
     pub round2_packages: BTreeMap<Identifier, round2::Package>,
 }
@@ -51,7 +50,7 @@ pub struct DkgFinalizeResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignRound1Request {
-    pub dkg_share_id: DkgShareId,
+    pub dkg_share_id: Uuid,
     pub session_id: Uuid,
     pub metadata: SigningMetadata,
     pub message_hash: Vec<u8>,
@@ -65,7 +64,7 @@ pub struct SignRound1Response {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignRound2Request {
-    pub dkg_share_id: DkgShareId,
+    pub dkg_share_id: Uuid,
     pub session_id: Uuid,
     pub signing_package: SigningPackage,
     pub tap_tweek: bool,

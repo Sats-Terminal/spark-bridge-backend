@@ -1,6 +1,6 @@
-use crate::types::DkgShareId;
 use persistent_storage::error::DbError;
 use thiserror::Error;
+use uuid::Uuid;
 
 #[derive(Error, Debug)]
 pub enum SignerError {
@@ -13,9 +13,9 @@ pub enum SignerError {
     #[error(transparent)]
     DatabaseError(#[from] DbError),
     #[error("DkgShareId already exists")]
-    DkgShareIdAlreadyExists(DkgShareId),
+    DkgShareIdAlreadyExists(Uuid),
     #[error("DkgShareId not found")]
-    DkgShareIdNotFound(DkgShareId),
+    DkgShareIdNotFound(Uuid),
 }
 
 #[derive(Error, Debug)]
@@ -33,7 +33,7 @@ pub enum AggregatorError {
     #[error(transparent)]
     DatabaseError(#[from] DbError),
     #[error("DkgShareId already exists, id: {0}")]
-    DkgShareIdAlreadyExists(DkgShareId),
+    DkgShareIdAlreadyExists(Uuid),
     #[error("DkgShareId not found, id: {0}")]
-    DkgShareIdNotFound(DkgShareId),
+    DkgShareIdNotFound(Uuid),
 }

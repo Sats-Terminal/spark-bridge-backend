@@ -12,7 +12,7 @@ use verifier_local_db_store::schemas::deposit_address::{
     DepositAddrInfo, DepositAddressStorage, DepositStatus, InnerAddress,
 };
 use verifier_local_db_store::schemas::user_identifier::{
-    UserIdentifierData, UserIdentifierStorage, UserIds, UserUniqueId,
+    UserIdentifierStorage, UserIds,
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -41,29 +41,19 @@ pub async fn handle(
 
     state
         .storage
-        .set_user_identifier_data(
-            &request.user_ids.user_uuid,
-            &request.user_ids.dkg_share_id,
-            UserIdentifierData {
-                //todo: remove pubkey
-                public_key: "".to_string(),
-                rune_id: request.user_ids.rune_id.clone(),
-                is_issuer: false,
-            },
-        )
+        .insert_user_ids(request.user_ids.clone())
         .await
         .map_err(|e| VerifierError::Storage(format!("Failed to set identifier data: {}", e)))?;
 
     state
         .storage
         .set_deposit_addr_info(DepositAddrInfo {
-            user_uuid: request.user_ids.user_uuid,
-            rune_id: request.user_ids.rune_id.clone(),
+            dkg_share_id: request.user_ids.dkg_share_id,
             nonce: request.nonce,
             out_point: Some(request.out_point),
             deposit_address,
             bridge_address,
-            is_btc: false, // check ??
+            is_btc: false, 
             deposit_amount: request.amount,
             sats_fee_amount: None,
             confirmation_status: DepositStatus::WaitingForConfirmation,

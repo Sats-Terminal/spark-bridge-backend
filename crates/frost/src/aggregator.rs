@@ -16,7 +16,7 @@ pub struct FrostAggregator {
     verifiers: BTreeMap<Identifier, Arc<dyn SignerClient>>,
     dkg_share_storage: Arc<dyn AggregatorDkgShareStorage>,
     sign_session_storage: Arc<dyn AggregatorSignSessionStorage>,
-    locked_dkg_share_ids: Arc<Mutex<BTreeSet<DkgShareId>>>,
+    locked_dkg_share_ids: Arc<Mutex<BTreeSet<Uuid>>>,
 }
 
 impl FrostAggregator {
@@ -37,7 +37,7 @@ impl FrostAggregator {
         Arc::new(self)
     }
 
-    async fn dkg_round_1(&self, dkg_share_id: &DkgShareId) -> Result<(), AggregatorError> {
+    async fn dkg_round_1(&self, dkg_share_id: &Uuid) -> Result<(), AggregatorError> {
         debug!(dkg_share_id = ?dkg_share_id, "Starting DKG Round 1");
         let dkg_share_data = self.dkg_share_storage.get_dkg_share_agg_data(dkg_share_id).await?;
 
@@ -92,7 +92,7 @@ impl FrostAggregator {
     }
 
     #[instrument(skip(self), level = "trace")]
-    async fn dkg_round_2(&self, dkg_share_id: &DkgShareId) -> Result<(), AggregatorError> {
+    async fn dkg_round_2(&self, dkg_share_id: &Uuid) -> Result<(), AggregatorError> {
         debug!(dkg_share_id = ?dkg_share_id, "Starting DKG Round 2");
         let dkg_share_data = self.dkg_share_storage.get_dkg_share_agg_data(dkg_share_id).await?;
 
@@ -147,7 +147,7 @@ impl FrostAggregator {
     }
 
     #[instrument(skip(self), level = "trace")]
-    async fn dkg_finalize(&self, dkg_share_id: &DkgShareId) -> Result<(), AggregatorError> {
+    async fn dkg_finalize(&self, dkg_share_id: &Uuid) -> Result<(), AggregatorError> {
         debug!(dkg_share_id = ?dkg_share_id, "Starting DKG flow");
         let dkg_share_data = self.dkg_share_storage.get_dkg_share_agg_data(dkg_share_id).await?;
 
@@ -214,7 +214,7 @@ impl FrostAggregator {
     }
 
     #[instrument(skip(self), level = "trace")]
-    pub async fn lock_dkg_share(&self, dkg_share_id: &DkgShareId) -> Result<(), AggregatorError> {
+    pub async fn lock_dkg_share(&self, dkg_share_id: &Uuid) -> Result<(), AggregatorError> {
         let mut locked_dkg_shares = self.locked_dkg_share_ids.lock().await;
         if locked_dkg_shares.contains(dkg_share_id) {
             //todo: fix
@@ -225,7 +225,7 @@ impl FrostAggregator {
     }
 
     #[instrument(skip(self), level = "trace")]
-    pub async fn unlock_dkg_share_id(&self, dkg_share_id: &DkgShareId) -> Result<(), AggregatorError> {
+    pub async fn unlock_dkg_share_id(&self, dkg_share_id: &Uuid) -> Result<(), AggregatorError> {
         let mut locked_dkg_share_ids = self.locked_dkg_share_ids.lock().await;
         let removed = locked_dkg_share_ids.remove(dkg_share_id);
         if !removed {
@@ -234,7 +234,7 @@ impl FrostAggregator {
         Ok(())
     }
 
-    pub async fn run_dkg_flow(&self, dkg_share_id: &DkgShareId) -> Result<keys::PublicKeyPackage, AggregatorError> {
+    pub async fn run_dkg_flow(&self, dkg_share_id: &Uuid) -> Result<keys::PublicKeyPackage, AggregatorError> {
         self.lock_dkg_share(dkg_share_id).await?;
 
         let dkg_share_data = self.dkg_share_storage.get_dkg_share_agg_data(dkg_share_id).await?;
@@ -268,7 +268,7 @@ impl FrostAggregator {
 
     async fn sign_round_1(
         &self,
-        dkg_share_id: &DkgShareId,
+        dkg_share_id: &Uuid,
         session_id: Uuid,
         message_hash: &[u8],
         metadata: SigningMetadata,
@@ -331,7 +331,7 @@ impl FrostAggregator {
 
     async fn sign_round_2(
         &self,
-        dkg_share_id: &DkgShareId,
+        dkg_share_id: &Uuid,
         session_id: Uuid,
         tap_tweek: bool,
     ) -> Result<(), AggregatorError> {
@@ -418,7 +418,7 @@ impl FrostAggregator {
 
     pub async fn run_signing_flow(
         &self,
-        dkg_share_id: DkgShareId,
+        dkg_share_id: Uuid,
         message_hash: &[u8],
         metadata: SigningMetadata,
         tweak: Option<TweakBytes>,
@@ -450,7 +450,7 @@ impl FrostAggregator {
 
     pub async fn get_public_key_package(
         &self,
-        dkg_share_id: DkgShareId,
+        dkg_share_id: Uuid,
         tweak: Option<TweakBytes>,
     ) -> Result<keys::PublicKeyPackage, AggregatorError> {
         let dkg_share_data = self.dkg_share_storage.get_dkg_share_agg_data(&dkg_share_id).await?;

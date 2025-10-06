@@ -1,4 +1,3 @@
-use crate::schemas::user_identifier::{UserUniqueId, UserUuid};
 use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
 use bitcoin::{Address, OutPoint};
@@ -11,6 +10,7 @@ use sqlx::types::Json;
 use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
 use tracing::instrument;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum InnerAddress {
@@ -68,8 +68,7 @@ pub enum TxRejectReason {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct DepositAddrInfo {
-    pub user_uuid: UserUuid,
-    pub rune_id: String,
+    pub dkg_share_id: Uuid,
     pub nonce: TweakBytes,
     pub deposit_address: InnerAddress,
     pub bridge_address: InnerAddress,
@@ -82,6 +81,8 @@ pub struct DepositAddrInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct DbDepositAddrInfo {
+    pub dkg_share_id: Uuid,
+    pub nonce: TweakBytes,
     pub deposit_address: String,
     pub bridge_address: String,
     pub is_btc: bool,
@@ -94,6 +95,8 @@ struct DbDepositAddrInfo {
 impl DepositAddrInfo {
     fn to_db_format(&self) -> DbDepositAddrInfo {
         DbDepositAddrInfo {
+            dkg_share_id: self.dkg_share_id,
+            nonce: self.nonce,
             deposit_address: self.deposit_address.to_string(),
             bridge_address: self.bridge_address.to_string(),
             is_btc: self.is_btc,
@@ -105,9 +108,6 @@ impl DepositAddrInfo {
     }
 
     fn from_db_format(
-        user_uuid: UserUuid,
-        rune_id: String,
-        nonce: TweakBytes,
         db_info: DbDepositAddrInfo,
     ) -> Result<Self, String> {
         let deposit_address = InnerAddress::from_string_and_type(db_info.deposit_address, db_info.is_btc)?;
@@ -115,9 +115,8 @@ impl DepositAddrInfo {
         let bridge_address = InnerAddress::from_string_and_type(db_info.bridge_address, !db_info.is_btc)?;
 
         Ok(DepositAddrInfo {
-            user_uuid,
-            rune_id,
-            nonce,
+            dkg_share_id: db_info.dkg_share_id,
+            nonce: db_info.nonce,
             deposit_address,
             bridge_address,
             is_btc: db_info.is_btc,
@@ -133,7 +132,6 @@ impl DepositAddrInfo {
 pub trait DepositAddressStorage: Send + Sync + StorageHealthcheck {
     async fn get_deposit_addr_info(
         &self,
-        user_unique_id: &UserUniqueId,
         tweak: TweakBytes,
     ) -> Result<Option<DepositAddrInfo>, DbError>;
     async fn set_deposit_addr_info(&self, deposit_addr_info: DepositAddrInfo) -> Result<(), DbError>;
@@ -161,16 +159,13 @@ impl DepositAddressStorage for LocalDbStorage {
     #[instrument(level = "trace", skip(self), ret)]
     async fn get_deposit_addr_info(
         &self,
-        user_unique_id: &UserUniqueId,
         tweak: TweakBytes,
     ) -> Result<Option<DepositAddrInfo>, DbError> {
-        let result: Option<(UserUuid, String, String, String, bool, i64, Option<i64>, Option<String>, Json<DepositStatus>)> = sqlx::query_as(
-            "SELECT user_uuid, rune_id, deposit_address, bridge_address, is_btc, deposit_amount, sats_fee_amount, out_point, confirmation_status
+        let result: Option<(Uuid, TweakBytes, String, String, bool, i64, Option<i64>, Option<String>, Json<DepositStatus>)> = sqlx::query_as(
+            "SELECT dkg_share_id, nonce_tweak, deposit_address, bridge_address, is_btc, deposit_amount, sats_fee_amount, out_point, confirmation_status
             FROM verifier.deposit_address
-            WHERE user_uuid = $1 AND rune_id = $2 AND nonce_tweak = $3",
+            WHERE nonce_tweak = $1",
         )
-        .bind(user_unique_id.uuid)
-        .bind(&user_unique_id.rune_id)
         .bind(tweak)
         .fetch_optional(&self.get_conn().await?)
         .await
@@ -178,8 +173,8 @@ impl DepositAddressStorage for LocalDbStorage {
 
         match result {
             Some((
-                user_uuid,
-                rune_id,
+                dkg_share_id,
+                nonce,
                 deposit_address_str,
                 bridge_address_str,
                 is_btc,
@@ -197,6 +192,8 @@ impl DepositAddressStorage for LocalDbStorage {
                 };
 
                 let db_info = DbDepositAddrInfo {
+                    dkg_share_id,
+                    nonce,
                     deposit_address: deposit_address_str,
                     bridge_address: bridge_address_str,
                     is_btc,
@@ -206,7 +203,7 @@ impl DepositAddressStorage for LocalDbStorage {
                     confirmation_status: confirmation_status.0,
                 };
 
-                match DepositAddrInfo::from_db_format(user_uuid, rune_id, tweak, db_info) {
+                match DepositAddrInfo::from_db_format(db_info) {
                     Ok(info) => Ok(Some(info)),
                     Err(e) => Err(DbError::BadRequest(format!("Failed to parse address: {}", e))),
                 }
@@ -218,16 +215,12 @@ impl DepositAddressStorage for LocalDbStorage {
     #[instrument(level = "trace", skip(self), ret)]
     async fn set_deposit_addr_info(&self, deposit_addr_info: DepositAddrInfo) -> Result<(), DbError> {
         let db_info = deposit_addr_info.to_db_format();
-        tracing::info!("deposit addr info: {deposit_addr_info:?}");
         let _ = sqlx::query(
-            "INSERT INTO verifier.deposit_address (user_uuid, rune_id, nonce_tweak, deposit_address, bridge_address, is_btc, deposit_amount, sats_fee_amount, confirmation_status, out_point)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-            ON CONFLICT (nonce_tweak, user_uuid)
-            DO UPDATE SET deposit_address = $4, bridge_address = $5, is_btc = $6, deposit_amount = $7, sats_fee_amount = $8, confirmation_status = $9, out_point = $10",
+            "INSERT INTO verifier.deposit_address (dkg_share_id, nonce_tweak, deposit_address, bridge_address, is_btc, deposit_amount, sats_fee_amount, confirmation_status, out_point)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
         )
-            .bind(deposit_addr_info.user_uuid)
-            .bind(deposit_addr_info.rune_id)
-            .bind(deposit_addr_info.nonce)
+            .bind(db_info.dkg_share_id)
+            .bind(db_info.nonce)
             .bind(db_info.deposit_address)
             .bind(db_info.bridge_address)
             .bind(db_info.is_btc)

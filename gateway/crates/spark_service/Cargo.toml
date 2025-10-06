@@ -18,3 +18,4 @@ spark_client = { workspace = true }
 thiserror = { workspace = true }
 token-identifier = { workspace = true }
 tracing = { workspace = true }
+uuid = { workspace = true }

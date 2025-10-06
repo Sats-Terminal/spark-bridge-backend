@@ -1,11 +1,11 @@
 use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
-use frost::types::{AggregatorDkgState, DkgShareId};
+use frost::types::AggregatorDkgState;
 use persistent_storage::error::DbError;
 use sqlx::types::Json;
 use uuid::Uuid;
 
-use crate::schemas::user_identifier::{UserIdentifierData, UserIds};
+use crate::schemas::user_identifier::UserIds;
 use frost::traits::AggregatorDkgShareStorage;
 use frost::types::AggregatorDkgShareData;
 use global_utils::common_types::get_uuid;
@@ -26,9 +26,9 @@ pub enum DkgShareGenerateError {
 #[async_trait]
 pub trait DkgShareGenerate {
     /// Generated dkg share entity in Aggregator side with state `AggregatorDkgState::Initialized`
-    async fn generate_dkg_share_entity(&self) -> Result<DkgShareId, DbError>;
+    async fn generate_dkg_share_entity(&self) -> Result<Uuid, DbError>;
     /// Returns unused dkg share uuid to user and assigns at the same time user identifier to this user
-    async fn get_random_unused_dkg_share(&self, data: UserIdentifierData) -> Result<UserIds, DkgShareGenerateError>;
+    async fn get_random_unused_dkg_share(&self, rune_id: String, is_issuer: bool) -> Result<UserIds, DkgShareGenerateError>;
     async fn count_unused_dkg_shares(&self) -> Result<u64, DbError>;
     async fn count_unused_finalized_dkg_shares(&self) -> Result<u64, DbError>;
 }
@@ -36,7 +36,7 @@ pub trait DkgShareGenerate {
 #[async_trait]
 impl DkgShareGenerate for LocalDbStorage {
     #[instrument(level = "trace", skip_all, ret)]
-    async fn generate_dkg_share_entity(&self) -> Result<DkgShareId, DbError> {
+    async fn generate_dkg_share_entity(&self) -> Result<Uuid, DbError> {
         let result: (Uuid,) =
             sqlx::query_as("INSERT INTO gateway.dkg_share (dkg_aggregator_state) VALUES ($1) RETURNING dkg_share_id;")
                 .bind(Json(AggregatorDkgState::Initialized))
@@ -47,11 +47,11 @@ impl DkgShareGenerate for LocalDbStorage {
     }
 
     #[instrument(level = "debug", skip_all, ret)]
-    async fn get_random_unused_dkg_share(&self, data: UserIdentifierData) -> Result<UserIds, DkgShareGenerateError> {
+    async fn get_random_unused_dkg_share(&self, rune_id: String, is_issuer: bool) -> Result<UserIds, DkgShareGenerateError> {
         let mut conn = self.postgres_repo.get_conn().await?;
         let mut transaction = conn.begin().await.map_err(|e| DbError::from(e))?;
 
-        let dkg_share_id: Option<(DkgShareId,)> = sqlx::query_as(
+        let dkg_share_id: Option<(Uuid,)> = sqlx::query_as(
             "SELECT ds.dkg_share_id
                 FROM gateway.dkg_share ds
                 LEFT JOIN gateway.user_identifier ui ON ds.dkg_share_id = ui.dkg_share_id
@@ -69,27 +69,26 @@ impl DkgShareGenerate for LocalDbStorage {
         }
 
         let dkg_share_id = dkg_share_id.unwrap().0;
-        let user_uuid = get_uuid();
+        let user_id = get_uuid();
 
         let _ = sqlx::query(
-            "INSERT INTO gateway.user_identifier (user_uuid, dkg_share_id, public_key, rune_id, is_issuer)
-            VALUES ($1, $2, $3, $4, $5)
-            ON CONFLICT (user_uuid, rune_id) DO NOTHING",
+            "INSERT INTO gateway.user_identifier (user_id, dkg_share_id, rune_id, is_issuer)
+            VALUES ($1, $2, $3, $4)",
         )
-        .bind(user_uuid)
+        .bind(user_id)
         .bind(dkg_share_id)
-        .bind(data.public_key)
-        .bind(data.rune_id.clone())
-        .bind(data.is_issuer)
+        .bind(rune_id.clone())
+        .bind(is_issuer)
         .execute(&mut *transaction)
         .await
         .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
         transaction.commit().await.map_err(|e| DbError::from(e))?;
         Ok(UserIds {
-            user_uuid,
+            user_id,
             dkg_share_id,
-            rune_id: data.rune_id,
+            rune_id: rune_id,
+            is_issuer: is_issuer,
         })
     }
 
@@ -130,7 +129,7 @@ impl AggregatorDkgShareStorage for LocalDbStorage {
     #[instrument(level = "trace", skip(self), ret)]
     async fn get_dkg_share_agg_data(
         &self,
-        dkg_share_id: &DkgShareId,
+        dkg_share_id: &Uuid,
     ) -> Result<Option<AggregatorDkgShareData>, DbError> {
         let result: Option<(Json<AggregatorDkgState>,)> = sqlx::query_as(
             "SELECT dkg_aggregator_state
@@ -150,7 +149,7 @@ impl AggregatorDkgShareStorage for LocalDbStorage {
     #[instrument(level = "trace", skip(self), ret)]
     async fn set_dkg_share_agg_data(
         &self,
-        dkg_share_id: &DkgShareId,
+        dkg_share_id: &Uuid,
         dkg_share_data: AggregatorDkgShareData,
     ) -> Result<(), DbError> {
         let _ = sqlx::query(

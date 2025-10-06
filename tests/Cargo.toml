@@ -27,3 +27,4 @@ rustls = { workspace = true }
 lrc20 = { workspace = true }
 chrono = { workspace = true }
 proto-hasher = { workspace = true }
+uuid = { workspace = true }

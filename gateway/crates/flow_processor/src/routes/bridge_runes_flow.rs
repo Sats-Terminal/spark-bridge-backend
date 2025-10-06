@@ -6,9 +6,7 @@ use frost::traits::AggregatorDkgShareStorage;
 use frost::utils::generate_issuer_public_key;
 use gateway_local_db_store::schemas::deposit_address::{DepositAddressStorage, InnerAddress};
 use gateway_local_db_store::schemas::dkg_share::DkgShareGenerate;
-use gateway_local_db_store::schemas::user_identifier::{
-    UserIdentifier, UserIdentifierData, UserIdentifierStorage, UserIds, UserUniqueId,
-};
+use gateway_local_db_store::schemas::user_identifier::{UserIdentifierStorage, UserIds};
 use gateway_spark_service::types::SparkTransactionType;
 use gateway_spark_service::utils::create_wrunes_metadata;
 use global_utils::conversion::convert_network_to_spark_network;
@@ -35,10 +33,7 @@ pub async fn handle(
         ))?;
     let user_info = flow_router
         .storage
-        .get_row_by_user_unique_id(&UserUniqueId {
-            uuid: deposit_addr_info.user_uuid,
-            rune_id: deposit_addr_info.rune_id,
-        })
+        .get_row_by_dkg_id(deposit_addr_info.dkg_share_id)
         .await
         .map_err(FlowProcessorError::DbError)?
         .ok_or(FlowProcessorError::InvalidDataError("User info not found".to_string()))?;
@@ -58,11 +53,7 @@ pub async fn handle(
 
             let issuer_ids = flow_router
                 .storage
-                .get_random_unused_dkg_share(UserIdentifierData {
-                    rune_id: rune_id.clone(),
-                    public_key: issuer_public_key.to_string(),
-                    is_issuer: true,
-                })
+                .get_random_unused_dkg_share(rune_id.clone(), true)
                 .await?;
 
             // Dkg flow has to be already completed
@@ -87,9 +78,10 @@ pub async fn handle(
                 })?;
 
             UserIds {
-                user_uuid: issuer_ids.user_uuid,
+                user_id: issuer_ids.user_id,
                 dkg_share_id: issuer_ids.dkg_share_id,
                 rune_id: rune_id.clone(),
+                is_issuer: true,
             }
         }
     };
@@ -115,15 +107,6 @@ pub async fn handle(
         .ok_or(FlowProcessorError::InvalidDataError(
             "Deposit address info not found".to_string(),
         ))?;
-    let _user_identifier = flow_router
-        .storage
-        .get_row_by_user_unique_id(&UserUniqueId {
-            uuid: deposit_addr_info.user_uuid,
-            rune_id,
-        })
-        .await
-        .map_err(FlowProcessorError::DbError)?
-        .ok_or(FlowProcessorError::InvalidDataError("User info not found".to_string()))?;
 
     let bridge_address = deposit_addr_info
         .bridge_address

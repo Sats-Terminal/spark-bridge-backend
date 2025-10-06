@@ -5,7 +5,7 @@ erDiagram
 	direction TB
 	SIGNING_SESSION_VERIFIER {
 		UUID session_id PK ""
-		UUID user_uuid FK ""
+		UUID user_id FK ""
 		Json sign_state  ""
 		ByteA tweak  ""
 		ByteA message_hash  ""
@@ -17,14 +17,14 @@ erDiagram
 	}
 	DEPOSIT_ADDRESS_VERIFIER {
 		ByteA nonce_tweak PK ""
-		SERIAL user_uuid FK ""
+		SERIAL user_id FK ""
 		String address  ""
 		bool is_btc  ""
 		u64 amount  ""
 		Json confirmation_status  ""
 	}
 	USER_IDENTIFIER {
-		UUID user_uuid  "uuid to
+		UUID user_id  "uuid to
 						track state"
 		Bool is_issuer  ""
 		String rune_id  ""

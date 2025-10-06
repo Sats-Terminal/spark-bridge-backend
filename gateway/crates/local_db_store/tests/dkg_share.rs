@@ -133,7 +133,7 @@ mod tests {
         let user_ids = local_repo.get_random_unused_dkg_share(user_id_data.clone()).await?;
         assert_eq!(
             Some(UserIdentifier {
-                user_uuid: user_ids.user_uuid,
+                user_id: user_ids.user_id,
                 dkg_share_id: user_ids.dkg_share_id,
                 public_key: user_id_data.public_key.clone(),
                 rune_id: user_id_data.rune_id.clone(),
@@ -141,7 +141,7 @@ mod tests {
             }),
             local_repo
                 .get_row_by_user_unique_id(&UserUniqueId {
-                    uuid: user_ids.user_uuid,
+                    uuid: user_ids.user_id,
                     rune_id: user_id_data.rune_id.clone()
                 })
                 .await?

@@ -13,14 +13,12 @@ use gateway_local_db_store::schemas::deposit_address::{
     DepositAddressStorage, DepositStatus, InnerAddress, VerifiersResponses,
 };
 use gateway_local_db_store::schemas::paying_utxo::PayingUtxoStorage;
-use gateway_local_db_store::schemas::user_identifier::{UserIdentifierStorage, UserIds, UserUniqueId};
+use gateway_local_db_store::schemas::user_identifier::{UserIdentifierStorage, UserIds};
 use gateway_local_db_store::schemas::utxo_storage::{Utxo, UtxoStatus, UtxoStorage};
 use gateway_local_db_store::storage::LocalDbStorage;
 use gateway_spark_service::utils::create_wrunes_metadata;
-use persistent_storage::init::StorageHealthcheck;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::task::JoinSet;
 use tracing::instrument;
 
 #[derive(Clone, Debug)]
@@ -69,10 +67,7 @@ impl DepositVerificationAggregator {
             ))?;
         let user_ids = self
             .storage
-            .get_row_by_user_unique_id(&UserUniqueId {
-                uuid: deposit_addr_info.user_uuid,
-                rune_id: deposit_addr_info.rune_id.clone(),
-            })
+            .get_row_by_dkg_id(deposit_addr_info.dkg_share_id)
             .await?
             .ok_or(DepositVerificationError::NotFound(
                 "Deposit address info not found".to_string(),
@@ -80,9 +75,10 @@ impl DepositVerificationAggregator {
 
         let watch_runes_deposit_request = WatchRunesDepositRequest {
             user_ids: UserIds {
-                user_uuid: user_ids.user_uuid,
+                user_id: user_ids.user_id,
                 dkg_share_id: user_ids.dkg_share_id,
-                rune_id: user_ids.rune_id,
+                rune_id: user_ids.rune_id.clone(),
+                is_issuer: false
             },
             nonce: deposit_addr_info.nonce,
             amount: deposit_addr_info.amount,
@@ -120,7 +116,7 @@ impl DepositVerificationAggregator {
             out_point: request.out_point,
             btc_address: request.btc_address.clone(),
             rune_amount: deposit_addr_info.amount,
-            rune_id: deposit_addr_info.rune_id,
+            rune_id: user_ids.rune_id,
             status: UtxoStatus::Pending,
             sats_fee_amount: 0,
         };
@@ -211,14 +207,20 @@ impl DepositVerificationAggregator {
             .ok_or(DepositVerificationError::NotFound(
                 "Deposit address info not found".to_string(),
             ))?;
-        //todo: check begin
-        let issuer_ids = self
+        
+        let user_ids = self
             .storage
-            .get_issuer_ids(deposit_addr_info.rune_id.clone())
+            .get_row_by_dkg_id(deposit_addr_info.dkg_share_id)
             .await?
             .ok_or(DepositVerificationError::NotFound(
-                "Issuer musig id not found".to_string(),
+                "Deposit address info not found".to_string(),
             ))?;
+        
+        let issuer_ids = self.storage.get_issuer_ids(user_ids.rune_id.clone()).await?
+            .ok_or(DepositVerificationError::NotFound(
+                "Issuer ids not found".to_string(),
+            ))?;
+
         let dkg_state = self.storage.get_dkg_share_agg_data(&issuer_ids.dkg_share_id).await?;
 
         let token_identifier = match dkg_state {
@@ -239,7 +241,7 @@ impl DepositVerificationAggregator {
                 })?;
 
                 let wrunes_metadata = create_wrunes_metadata(
-                    deposit_addr_info.rune_id.clone(),
+                    issuer_ids.rune_id.clone(),
                     musig_public_key,
                     self.network,
                 )
@@ -259,10 +261,7 @@ impl DepositVerificationAggregator {
         //todo: check finish
 
         let watch_spark_deposit_request = WatchSparkDepositRequest {
-            user_unique_id: UserUniqueId {
-                uuid: deposit_addr_info.user_uuid,
-                rune_id: deposit_addr_info.rune_id,
-            },
+            user_ids: user_ids.clone(),
             nonce: deposit_addr_info.nonce,
             spark_address: request.spark_address.clone(),
             amount: deposit_addr_info.amount,

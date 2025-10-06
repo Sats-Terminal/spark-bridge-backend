@@ -43,6 +43,7 @@ use titan_client::SpentStatus;
 use token_identifier::TokenIdentifier;
 use tokio::time::sleep;
 use tracing;
+use uuid::Uuid;
 
 pub enum TransferType {
     RuneTransfer { rune_amount: u64 },
@@ -56,6 +57,7 @@ pub struct UserWallet {
     spark_client: SparkClient,
     rune_id: RuneId,
     proto_hasher: ProtoHasher,
+    user_id: Uuid,
 }
 
 impl UserWallet {
@@ -79,6 +81,7 @@ impl UserWallet {
             spark_client,
             rune_id,
             proto_hasher,
+            user_id: Uuid::new_v4(),
         })
     }
 
@@ -86,8 +89,8 @@ impl UserWallet {
         self.p2tr_address.clone()
     }
 
-    pub fn get_public_key(&self) -> PublicKey {
-        self.keypair.public_key()
+    pub fn get_user_id(&self) -> Uuid {
+        self.user_id.clone()
     }
 
     pub fn get_spark_address(&self) -> Result<String, RuneError> {
