@@ -12,6 +12,7 @@ use btc_indexer_internals::tx_arbiter::TxArbiterTrait;
 use btc_indexer_internals::tx_arbiter::{TxArbiterError, TxArbiterResponse};
 use btc_indexer_server::AppState;
 use config_parser::config::{BtcRpcCredentials, ServerConfig, TitanConfig};
+use eyre::eyre;
 use global_utils::config_variant::ConfigVariant;
 use local_db_store_indexer::init::LocalDbStorage;
 use local_db_store_indexer::schemas::tx_tracking_storage::TxToUpdateStatus;
@@ -132,7 +133,10 @@ pub async fn init_mocked_test_server(
     })?;
 
     let app = create_app_mocked(db_pool, btc_indexer).await;
-    let test_server = TestServer::builder().http_transport().build(app.into_make_service())?;
+    let test_server = TestServer::builder()
+        .http_transport()
+        .build(app.into_make_service())
+        .map_err(|err| eyre!(Box::new(err)))?;
     info!("Serving local axum test server on {:?}", test_server.server_address());
     Ok(test_server)
 }

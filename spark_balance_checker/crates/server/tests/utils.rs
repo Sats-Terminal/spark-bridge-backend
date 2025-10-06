@@ -1,5 +1,6 @@
 use axum::ServiceExt;
 use axum_test::TestServer;
+use eyre::eyre;
 use global_utils::config_path::ConfigPath;
 use global_utils::config_variant::ConfigVariant;
 use global_utils::logger::{LoggerGuard, init_logger};
@@ -30,7 +31,10 @@ pub async fn init_mocked_test_server() -> eyre::Result<TestServer> {
     ];
 
     let app = create_app(config.spark).await?;
-    let test_server = TestServer::builder().http_transport().build(app.into_make_service())?;
+    let test_server = TestServer::builder()
+        .http_transport()
+        .build(app.into_make_service())
+        .map_err(|err| eyre!(Box::new(err)))?;
     info!("Serving local axum test server on {:?}", test_server.server_address());
     Ok(test_server)
 }

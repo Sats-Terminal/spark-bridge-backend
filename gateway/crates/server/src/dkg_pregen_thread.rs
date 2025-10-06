@@ -8,9 +8,7 @@ use std::time::Duration;
 use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
-use tracing::{debug, error, instrument, trace};
-
-const LOG_PATH: &str = "dkg_pregen_thread";
+use tracing::instrument;
 
 static EPOCH: AtomicU64 = AtomicU64::new(0);
 
@@ -22,24 +20,24 @@ struct UpdatePossibility {
 }
 
 type Storage = Arc<LocalDbStorage>;
-type Aggreagator = Arc<FrostAggregator>;
+type Aggregator = Arc<FrostAggregator>;
 
 impl DkgPregenThread {
-    #[instrument(skip_all, level = "debug")]
+    #[instrument(skip_all, level = "debug", fields(thread = "dkg_pregen_spawning"))]
     pub async fn spawn_thread(
         task_tracker: &mut TaskTracker,
         local_db: Storage,
         dkg_pregen_config: DkgPregenConfig,
-        frost_aggregator: Aggreagator,
+        frost_aggregator: Aggregator,
         cancellation_token: CancellationToken,
     ) {
         task_tracker.spawn(async move {
-            trace!(dkg_pregen_config = ?dkg_pregen_config, "[{LOG_PATH}] Loop spawned..");
+            tracing::trace!(dkg_pregen_config = ?dkg_pregen_config, "Loop spawned..");
             let mut interval = tokio::time::interval(Duration::from_millis(dkg_pregen_config.update_interval_millis));
             'checking_loop: loop {
                 tokio::select! {
                     _ = cancellation_token.cancelled() => {
-                        trace!("[{LOG_PATH}] Closing [dkg_pregen] update task, because of cancellation token");
+                        tracing::trace!("Closing [dkg_pregen] update task, because of cancellation token");
                         break 'checking_loop;
                     },
                     _ = interval.tick() => {
@@ -50,14 +48,15 @@ impl DkgPregenThread {
         });
     }
 
-    pub async fn perform_update(local_db: Storage, dkg_aggregator: Aggreagator, dkg_pregen_config: &DkgPregenConfig) {
+    #[instrument(skip_all, level = "trace", fields(thread = "dkg_pregen"))]
+    pub async fn perform_update(local_db: Storage, dkg_aggregator: Aggregator, dkg_pregen_config: &DkgPregenConfig) {
         match Self::get_possible_update_info(local_db.clone()).await {
             Ok(UpdatePossibility {
                 dkg_available,
                 finalized_dkg_available,
             }) => match Self::get_update_decision(dkg_available, finalized_dkg_available, dkg_pregen_config) {
                 0 => {
-                    trace!(
+                    tracing::trace!(
                         "Free dkg values are available: {dkg_available}, \
                                         finalized dkgs: {finalized_dkg_available}, \
                                         not performing update for pregenerated DgkShares"
@@ -66,15 +65,16 @@ impl DkgPregenThread {
                 amount_to_gen => {
                     let _ = Self::pregenerate_shares(local_db.clone(), dkg_aggregator.clone(), amount_to_gen)
                         .await
-                        .inspect_err(|err| error!("[{LOG_PATH}] Failed to pregenerate_shares DgkShares: {err}"));
+                        .inspect_err(|err| tracing::error!("Failed to pregenerate_shares DgkShares: {err}"));
                 }
             },
             Err(err) => {
-                error!("[{LOG_PATH}] Failed to get possibility_of_update for pregenerated DgkShares: {err}");
+                tracing::error!("Failed to get possibility_of_update for pregenerated DgkShares: {err}");
             }
         }
     }
 
+    #[instrument(skip_all, level = "trace", fields(thread = "dkg_pregen", ret))]
     async fn get_possible_update_info(local_db: Storage) -> eyre::Result<UpdatePossibility> {
         Ok(UpdatePossibility {
             dkg_available: local_db.count_unused_dkg_shares().await?,
@@ -83,14 +83,16 @@ impl DkgPregenThread {
     }
 
     /// Checks availability to generate more dkg pregen values
+    #[instrument(level = "trace", fields(thread = "dkg_pregen"))]
     fn get_update_decision(_dkg_available: u64, finalized_dkg_available: u64, config: &DkgPregenConfig) -> u64 {
         config.min_threshold.saturating_sub(finalized_dkg_available)
     }
 
     /// Pregenerates shares for dkg state
-    async fn pregenerate_shares(local_db: Storage, dkg_aggregator: Aggreagator, amount: u64) -> eyre::Result<()> {
+    #[instrument(skip(local_db, dkg_aggregator), level = "debug", fields(path = "dkg_pregen_thread"))]
+    async fn pregenerate_shares(local_db: Storage, dkg_aggregator: Aggregator, amount: u64) -> eyre::Result<()> {
         let mut join_set = JoinSet::new();
-        trace!("[{LOG_PATH}] Pregenerating epoch {}", EPOCH.load(Ordering::SeqCst));
+        tracing::trace!("Pregenerating epoch {}", EPOCH.load(Ordering::SeqCst));
         for _ in 0..amount {
             join_set.spawn({
                 let (local_db, aggregator) = (local_db.clone(), dkg_aggregator.clone());
@@ -103,7 +105,7 @@ impl DkgPregenThread {
     }
 
     #[instrument(level = "trace", skip(local_db, aggregator), fields(epoch=EPOCH.load(Ordering::SeqCst)), err)]
-    async fn pregenerate_share(local_db: Storage, aggregator: Aggreagator) -> eyre::Result<()> {
+    async fn pregenerate_share(local_db: Storage, aggregator: Aggregator) -> eyre::Result<()> {
         let initialized_entity = local_db.generate_dkg_share_entity().await?;
         aggregator.run_dkg_flow(&initialized_entity).await?;
         Ok(())

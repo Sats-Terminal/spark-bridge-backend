@@ -6,6 +6,7 @@ use axum::routing::post;
 use axum::{Json, Router, debug_handler};
 use axum_test::TestServer;
 use bitcoin::Network;
+use eyre::eyre;
 use frost::aggregator::FrostAggregator;
 use frost::traits::SignerClient;
 use frost_secp256k1_tr::Identifier;
@@ -109,7 +110,10 @@ pub async fn init_mocked_test_server(pool: PostgresPool) -> eyre::Result<TestSer
     TcpListener::bind(addr_to_listen.clone()).await?;
     info!("Listening on {:?}", addr_to_listen);
 
-    let test_server = TestServer::builder().http_transport().build(app.into_make_service())?;
+    let test_server = TestServer::builder()
+        .http_transport()
+        .build(app.into_make_service())
+        .map_err(|err| eyre!(Box::new(err)))?;
     info!("Serving local axum test server on {:?}", test_server.server_address());
     Ok(test_server)
 }

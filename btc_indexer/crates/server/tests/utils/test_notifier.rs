@@ -5,6 +5,7 @@ use axum_test::TestServer;
 use btc_indexer_api::api::{BtcIndexerCallbackResponse, ResponseMeta};
 use btc_indexer_internals::api::AccountReplenishmentEvent;
 use btc_indexer_server::{AppState, error::ServerError};
+use eyre::eyre;
 use global_utils::common_resp::Empty;
 use titan_client::Transaction;
 use tokio::sync::Mutex;
@@ -34,6 +35,7 @@ pub async fn create_test_notifier_track_tx(
         .http_transport()
         .http_transport_with_ip_port(Some(socket_addr.ip()), Some(socket_addr.port()))
         .build(app.into_make_service())
+        .map_err(|err| eyre!(Box::new(err)))
 }
 
 #[instrument(skip(state))]

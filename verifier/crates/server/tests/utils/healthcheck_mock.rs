@@ -4,6 +4,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::post;
 use axum::{Json, Router, debug_handler};
 use axum_test::TestServer;
+use eyre::eyre;
 use frost::signer::FrostSigner;
 use global_utils::common_resp::Empty;
 use global_utils::config_path::ConfigPath;
@@ -57,7 +58,10 @@ pub async fn init_mocked_test_server(pool: PostgresPool) -> eyre::Result<TestSer
         server_config.clone(),
     )
     .await;
-    let test_server = TestServer::builder().http_transport().build(app.into_make_service())?;
+    let test_server = TestServer::builder()
+        .http_transport()
+        .build(app.into_make_service())
+        .map_err(|err| eyre!(Box::new(err)))?;
     info!("Serving local axum test server on {:?}", test_server.server_address());
     Ok(test_server)
 }
