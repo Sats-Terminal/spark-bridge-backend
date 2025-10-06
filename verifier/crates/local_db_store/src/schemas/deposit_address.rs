@@ -218,12 +218,12 @@ impl DepositAddressStorage for LocalDbStorage {
     #[instrument(level = "trace", skip(self), ret)]
     async fn set_deposit_addr_info(&self, deposit_addr_info: DepositAddrInfo) -> Result<(), DbError> {
         let db_info = deposit_addr_info.to_db_format();
-
+        tracing::info!("deposit addr info: {deposit_addr_info:?}");
         let _ = sqlx::query(
             "INSERT INTO verifier.deposit_address (user_uuid, rune_id, nonce_tweak, deposit_address, bridge_address, is_btc, deposit_amount, sats_fee_amount, confirmation_status, out_point)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-            ON CONFLICT (public_key, rune_id, nonce_tweak)
-            DO UPDATE SET deposit_address = $3, bridge_address = $4, is_btc = $5, deposit_amount = $6, sats_fee_amount = $7, confirmation_status = $8, out_point = $9",
+            ON CONFLICT (nonce_tweak, user_uuid)
+            DO UPDATE SET deposit_address = $4, bridge_address = $5, is_btc = $6, deposit_amount = $7, sats_fee_amount = $8, confirmation_status = $9, out_point = $10",
         )
             .bind(deposit_addr_info.user_uuid)
             .bind(deposit_addr_info.rune_id)

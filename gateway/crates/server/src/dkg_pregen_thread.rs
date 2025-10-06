@@ -25,7 +25,7 @@ type Storage = Arc<LocalDbStorage>;
 type Aggreagator = Arc<FrostAggregator>;
 
 impl DkgPregenThread {
-    #[instrument(skip_all)]
+    #[instrument(skip_all, level = "debug")]
     pub async fn spawn_thread(
         task_tracker: &mut TaskTracker,
         local_db: Storage,
@@ -39,7 +39,7 @@ impl DkgPregenThread {
             'checking_loop: loop {
                 tokio::select! {
                     _ = cancellation_token.cancelled() => {
-                        debug!("[{LOG_PATH}] Closing [Btc indexer] txs update task, because of cancellation token");
+                        trace!("[{LOG_PATH}] Closing [dkg_pregen] update task, because of cancellation token");
                         break 'checking_loop;
                     },
                     _ = interval.tick() => {

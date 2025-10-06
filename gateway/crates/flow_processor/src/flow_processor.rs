@@ -16,6 +16,7 @@ use tokio::task::JoinHandle;
 use tokio::time::Duration;
 use tokio_util::sync::CancellationToken;
 use tracing;
+use tracing::instrument;
 use uuid::Uuid;
 
 // This is core struct that handles flows execution
@@ -67,6 +68,7 @@ impl FlowProcessor {
         }
     }
 
+    #[instrument(level = "debug", skip(self))]
     pub async fn run(&mut self) {
         loop {
             tokio::select! {

@@ -27,19 +27,31 @@ pub async fn handle(
         None => {
             tracing::debug!("Missing DkgShareId, running dkg from the beginning ...");
 
+            let user_identifier_data = UserIdentifierData {
+                public_key: request.musig_id.get_public_key().to_string(),
+                rune_id: request.musig_id.get_rune_id(),
+                is_issuer: false,
+            };
             let user_ids = local_db_storage
-                .get_random_unused_dkg_share(UserIdentifierData {
-                    public_key: request.musig_id.get_public_key().to_string(),
-                    rune_id: request.musig_id.get_rune_id(),
-                    is_issuer: false,
-                })
-                .await?;
+                .get_random_unused_dkg_share(user_identifier_data.clone())
+                .await
+                .map_err(|e| FlowProcessorError::FailedToObtainRandomDkgShare {
+                    user_identifier_data,
+                    err: e.to_string(),
+                })?;
 
+            // let pubkey_package = flow_router
+            //     .frost_aggregator
+            //     .run_dkg_flow(&user_ids.dkg_share_id)
+            //     .await
+            //     .map_err(|e| FlowProcessorError::FrostAggregatorError(format!("Failed to run DKG flow: {}", e)))?;
+
+            //todo: handle error
             let pubkey_package = flow_router
                 .frost_aggregator
-                .run_dkg_flow(&user_ids.dkg_share_id)
+                .get_public_key_package(user_ids.dkg_share_id, None)
                 .await
-                .map_err(|e| FlowProcessorError::FrostAggregatorError(format!("Failed to run DKG flow: {}", e)))?;
+                .unwrap();
             tracing::debug!("DKG processing was successfully completed");
             (pubkey_package, user_ids.user_uuid, user_ids.rune_id)
         }

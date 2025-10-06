@@ -35,12 +35,19 @@ pub async fn handle(
                     })
                     .await?;
 
-                // TODO: or remove this flow?, just return error about unavailability
+                //todo: handle error
                 let pubkey_package = flow_router
                     .frost_aggregator
-                    .run_dkg_flow(&user_ids.dkg_share_id)
+                    .get_public_key_package(user_ids.dkg_share_id, None)
                     .await
-                    .map_err(|e| FlowProcessorError::FrostAggregatorError(format!("Failed to run DKG flow: {}", e)))?;
+                    .unwrap();
+
+                // TODO: or remove this flow?, just return error about unavailability
+                // let pubkey_package = flow_router
+                //     .frost_aggregator
+                //     .run_dkg_flow(&user_ids.dkg_share_id)
+                //     .await
+                //     .map_err(|e| FlowProcessorError::FrostAggregatorError(format!("Failed to run DKG flow: {}", e)))?;
                 tracing::debug!("DKG processing was successfully completed");
                 (
                     pubkey_package,

@@ -84,8 +84,12 @@ pub async fn init_mocked_test_server(pool: PostgresPool) -> anyhow::Result<TestS
     });
 
     let verifier_clients_hash_map = extract_verifiers(&server_config);
-    let deposit_verification_aggregator =
-        DepositVerificationAggregator::new(flow_sender.clone(), verifier_clients_hash_map, db_pool.clone());
+    let deposit_verification_aggregator = DepositVerificationAggregator::new(
+        flow_sender.clone(),
+        verifier_clients_hash_map,
+        db_pool.clone(),
+        Network::Regtest,
+    );
 
     let app = create_app(
         flow_sender.clone(),

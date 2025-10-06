@@ -10,7 +10,7 @@ use gateway_deposit_verification::types::{
     WatchRunesDepositRequest, WatchRunesDepositResponse, WatchSparkDepositRequest, WatchSparkDepositResponse,
 };
 use gateway_local_db_store::schemas::deposit_address::DepositStatus;
-use gateway_local_db_store::schemas::user_identifier::UserUniqueId;
+use gateway_local_db_store::schemas::user_identifier::{UserIds, UserUniqueId};
 use serde::{Deserialize, Serialize};
 use token_identifier::TokenIdentifier;
 use tracing::instrument;
@@ -20,7 +20,7 @@ const WATCH_SPARK_DEPOSIT_PATH: &str = "/api/gateway/watch-spark-deposit";
 
 #[derive(Serialize, Debug)]
 pub struct VerifierWatchRunesDepositRequest {
-    pub user_unique_id: UserUniqueId,
+    pub user_ids: UserIds,
     pub nonce: TweakBytes,
     pub amount: u64,
     pub btc_address: String,
@@ -31,7 +31,7 @@ pub struct VerifierWatchRunesDepositRequest {
 impl From<WatchRunesDepositRequest> for VerifierWatchRunesDepositRequest {
     fn from(request: WatchRunesDepositRequest) -> Self {
         Self {
-            user_unique_id: request.user_unique_id,
+            user_ids: request.user_ids,
             nonce: request.nonce,
             amount: request.amount,
             btc_address: request.btc_address.to_string(),

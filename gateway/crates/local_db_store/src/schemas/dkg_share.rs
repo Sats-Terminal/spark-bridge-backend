@@ -35,6 +35,7 @@ pub trait DkgShareGenerate {
 
 #[async_trait]
 impl DkgShareGenerate for LocalDbStorage {
+    #[instrument(level = "trace", skip_all, ret)]
     async fn generate_dkg_share_entity(&self) -> Result<DkgShareId, DbError> {
         let result: (Uuid,) =
             sqlx::query_as("INSERT INTO gateway.dkg_share (dkg_aggregator_state) VALUES ($1) RETURNING dkg_share_id;")
@@ -45,6 +46,7 @@ impl DkgShareGenerate for LocalDbStorage {
         Ok(result.0)
     }
 
+    #[instrument(level = "debug", skip_all, ret)]
     async fn get_random_unused_dkg_share(&self, data: UserIdentifierData) -> Result<UserIds, DkgShareGenerateError> {
         let mut conn = self.postgres_repo.get_conn().await?;
         let mut transaction = conn.begin().await.map_err(|e| DbError::from(e))?;
@@ -79,7 +81,7 @@ impl DkgShareGenerate for LocalDbStorage {
         .bind(data.public_key)
         .bind(data.rune_id.clone())
         .bind(data.is_issuer)
-        .execute(&self.get_conn().await?)
+        .execute(&mut *transaction)
         .await
         .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
@@ -91,6 +93,7 @@ impl DkgShareGenerate for LocalDbStorage {
         })
     }
 
+    #[instrument(level = "trace", skip_all, ret)]
     async fn count_unused_dkg_shares(&self) -> Result<u64, DbError> {
         let result: (i64,) = sqlx::query_as(
             "SELECT COUNT(*) AS unused_dkg_share_count
@@ -105,6 +108,7 @@ impl DkgShareGenerate for LocalDbStorage {
         Ok(result.0 as u64)
     }
 
+    #[instrument(level = "trace", skip_all, ret)]
     async fn count_unused_finalized_dkg_shares(&self) -> Result<u64, DbError> {
         let result: (i64,) = sqlx::query_as(
             "SELECT COUNT(*) AS unused_dkg_share_count

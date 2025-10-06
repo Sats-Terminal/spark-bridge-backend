@@ -1,5 +1,6 @@
 use bitcoin::secp256k1;
 use gateway_local_db_store::schemas::dkg_share::DkgShareGenerateError;
+use gateway_local_db_store::schemas::user_identifier::UserIdentifierData;
 use persistent_storage::error::DbError;
 use spark_address::SparkAddressError;
 use thiserror::Error;
@@ -34,4 +35,9 @@ pub enum FlowProcessorError {
     CoordinatorNotFound,
     #[error("Initialization error: {0}")]
     InitializationError(String),
+    #[error("Failed to assign dkg share to user: {user_identifier_data:?}, err: {err}")]
+    FailedToObtainRandomDkgShare {
+        user_identifier_data: UserIdentifierData,
+        err: String,
+    },
 }

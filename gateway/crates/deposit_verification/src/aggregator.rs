@@ -13,7 +13,7 @@ use gateway_local_db_store::schemas::deposit_address::{
     DepositAddressStorage, DepositStatus, InnerAddress, VerifiersResponses,
 };
 use gateway_local_db_store::schemas::paying_utxo::PayingUtxoStorage;
-use gateway_local_db_store::schemas::user_identifier::{UserIdentifierStorage, UserUniqueId};
+use gateway_local_db_store::schemas::user_identifier::{UserIdentifierStorage, UserIds, UserUniqueId};
 use gateway_local_db_store::schemas::utxo_storage::{Utxo, UtxoStatus, UtxoStorage};
 use gateway_local_db_store::storage::LocalDbStorage;
 use gateway_spark_service::utils::create_wrunes_metadata;
@@ -67,11 +67,22 @@ impl DepositVerificationAggregator {
             .ok_or(DepositVerificationError::NotFound(
                 "Deposit address info not found".to_string(),
             ))?;
-
-        let watch_runes_deposit_request = WatchRunesDepositRequest {
-            user_unique_id: UserUniqueId {
+        let user_ids = self
+            .storage
+            .get_row_by_user_unique_id(&UserUniqueId {
                 uuid: deposit_addr_info.user_uuid,
                 rune_id: deposit_addr_info.rune_id.clone(),
+            })
+            .await?
+            .ok_or(DepositVerificationError::NotFound(
+                "Deposit address info not found".to_string(),
+            ))?;
+
+        let watch_runes_deposit_request = WatchRunesDepositRequest {
+            user_ids: UserIds {
+                user_uuid: user_ids.user_uuid,
+                dkg_share_id: user_ids.dkg_share_id,
+                rune_id: user_ids.rune_id,
             },
             nonce: deposit_addr_info.nonce,
             amount: deposit_addr_info.amount,

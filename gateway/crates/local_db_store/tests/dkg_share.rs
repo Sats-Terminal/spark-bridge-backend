@@ -61,18 +61,35 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "MIGRATOR")]
-    async fn test_aggregator_signer_integration(db: PostgresPool) -> anyhow::Result<()> {
+    async fn test_aggregator_signer_integration_with_tap_tweak(db: PostgresPool) -> anyhow::Result<()> {
+        // TODO: how to fix it? does it has to work in such way?
         let _logger_guard = &*TEST_LOGGER;
 
         let tweak = None;
-        _test_aggregator_signer_integration(db, tweak).await
+        _test_aggregator_signer_integration(db, tweak, true).await
     }
 
     #[sqlx::test(migrator = "MIGRATOR")]
-    async fn test_aggregator_signer_integration_tweaked(db: PostgresPool) -> anyhow::Result<()> {
+    async fn test_aggregator_signer_integration_tweaked_with_tap_tweak(db: PostgresPool) -> anyhow::Result<()> {
+        // TODO: how to fix it? does it has to work in such way?
         let _logger_guard = &*TEST_LOGGER;
         let tweak = Some(generate_tweak_bytes());
-        _test_aggregator_signer_integration(db, tweak).await
+        _test_aggregator_signer_integration(db, tweak, true).await
+    }
+
+    #[sqlx::test(migrator = "MIGRATOR")]
+    async fn test_aggregator_signer_integration_without_tap_tweak(db: PostgresPool) -> anyhow::Result<()> {
+        let _logger_guard = &*TEST_LOGGER;
+
+        let tweak = None;
+        _test_aggregator_signer_integration(db, tweak, false).await
+    }
+
+    #[sqlx::test(migrator = "MIGRATOR")]
+    async fn test_aggregator_signer_integration_tweaked_without_tap_tweak(db: PostgresPool) -> anyhow::Result<()> {
+        let _logger_guard = &*TEST_LOGGER;
+        let tweak = Some(generate_tweak_bytes());
+        _test_aggregator_signer_integration(db, tweak, false).await
     }
 
     #[sqlx::test(migrator = "MIGRATOR")]
@@ -140,7 +157,11 @@ mod tests {
         Ok(())
     }
 
-    async fn _test_aggregator_signer_integration(db: sqlx::PgPool, tweak: Option<TweakBytes>) -> anyhow::Result<()> {
+    async fn _test_aggregator_signer_integration(
+        db: sqlx::PgPool,
+        tweak: Option<TweakBytes>,
+        tap_tweak: bool,
+    ) -> anyhow::Result<()> {
         let server_config = ServerConfig::init_config(GATEWAY_CONFIG_PATH.to_string());
         let local_repo = Arc::new(LocalDbStorage {
             postgres_repo: PostgresRepo { pool: db },
@@ -162,7 +183,7 @@ mod tests {
         let metadata = SigningMetadata::Authorization;
 
         let signature = aggregator
-            .run_signing_flow(user_id, message_hash, metadata, tweak)
+            .run_signing_flow(user_id, message_hash, metadata, tweak, tap_tweak)
             .await?;
 
         let tweaked_public_key_package = match tweak.clone() {

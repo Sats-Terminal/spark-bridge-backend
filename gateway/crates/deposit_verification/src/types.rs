@@ -2,7 +2,7 @@ use bitcoin::Address;
 use bitcoin::OutPoint;
 use frost::types::TweakBytes;
 use gateway_local_db_store::schemas::deposit_address::DepositStatus;
-use gateway_local_db_store::schemas::user_identifier::UserUniqueId;
+use gateway_local_db_store::schemas::user_identifier::{UserIds, UserUniqueId};
 use gateway_rune_transfer::transfer::PayingTransferInput;
 use token_identifier::TokenIdentifier;
 
@@ -23,7 +23,7 @@ pub struct WatchSparkDepositResponse {
 
 #[derive(Clone, Debug)]
 pub struct WatchRunesDepositRequest {
-    pub user_unique_id: UserUniqueId,
+    pub user_ids: UserIds,
     pub nonce: TweakBytes,
     pub amount: u64,
     pub btc_address: Address,

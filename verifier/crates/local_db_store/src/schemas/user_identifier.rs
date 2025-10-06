@@ -31,7 +31,7 @@ pub struct UserIdentifierData {
     pub is_issuer: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserIds {
     pub user_uuid: Uuid,
     pub dkg_share_id: Uuid,
@@ -64,7 +64,7 @@ impl UserIdentifierStorage for LocalDbStorage {
         user_identifier_data: UserIdentifierData,
     ) -> Result<(), DbError> {
         let _ = sqlx::query(
-            "INSERT INTO gateway.user_identifier (user_uuid, dkg_share_id, public_key, rune_id, is_issuer)
+            "INSERT INTO verifier.user_identifier (user_uuid, dkg_share_id, public_key, rune_id, is_issuer)
             VALUES ($1, $2, $3, $4, $5)
             ON CONFLICT (user_uuid, rune_id) DO NOTHING",
         )
@@ -83,7 +83,7 @@ impl UserIdentifierStorage for LocalDbStorage {
     #[instrument(level = "trace", skip(self), ret)]
     async fn get_row_by_user_unique_id(&self, id: &UserUniqueId) -> Result<Option<UserIdentifier>, DbError> {
         let result: Option<(Uuid, Uuid, String, String, bool,)> = sqlx::query_as(
-            "SELECT user_uuid, dkg_share_id, public_key, rune_id, is_issuer FROM gateway.user_identifier WHERE user_uuid = $1 AND rune_id = $2;",
+            "SELECT user_uuid, dkg_share_id, public_key, rune_id, is_issuer FROM verifier.user_identifier WHERE user_uuid = $1 AND rune_id = $2;",
         )
             .bind(id.uuid)
             .bind(&id.rune_id)
@@ -107,7 +107,7 @@ impl UserIdentifierStorage for LocalDbStorage {
         dkg_share_id: &DkgShareId,
     ) -> Result<Option<UserIdentifier>, DbError> {
         let result: Option<(Uuid, Uuid, String, String, bool,)> = sqlx::query_as(
-            "SELECT user_uuid, dkg_share_id, public_key, rune_id, is_issuer FROM gateway.user_identifier WHERE dkg_share_id = $1;",
+            "SELECT user_uuid, dkg_share_id, public_key, rune_id, is_issuer FROM verifier.user_identifier WHERE dkg_share_id = $1;",
         )
             .bind(dkg_share_id)
             .fetch_optional(&self.get_conn().await?)
@@ -125,10 +125,11 @@ impl UserIdentifierStorage for LocalDbStorage {
         ))
     }
 
+    #[instrument(level = "trace", skip(self))]
     async fn get_issuer_ids(&self, rune_id: String) -> Result<Option<UserIds>, DbError> {
         let result: Option<(UserUuid, DkgShareId, String)> = sqlx::query_as(
             "SELECT (user_uuid, dkg_share_id, rune_id)
-            FROM gateway.user_identifier
+            FROM verifier.user_identifier
             WHERE is_issuer = true AND rune_id = $1",
         )
         .bind(rune_id)

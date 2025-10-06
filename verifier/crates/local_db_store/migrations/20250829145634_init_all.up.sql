@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS verifier.user_identifier
 (
     user_uuid    UUID    NOT NULL,
     dkg_share_id UUID    NOT NULL,
+--     todo: remove
     public_key   TEXT    NOT NULL,
     rune_id      TEXT    NOT NULL,
     is_issuer    BOOLEAN NOT NULL,

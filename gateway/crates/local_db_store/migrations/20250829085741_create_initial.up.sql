@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS gateway.dkg_share
 
 CREATE TABLE IF NOT EXISTS gateway.user_identifier
 (
-    user_uuid    UUID    NOT NULL DEFAULT gen_random_uuid(),
+    user_uuid    UUID    NOT NULL ,
     dkg_share_id UUID    NOT NULL,
     public_key   TEXT    NOT NULL,
     rune_id      TEXT    NOT NULL,
@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS gateway.paying_utxo
 (
     txid                          TEXT   NOT NULL,
     vout                          INT    NOT NULL,
-    spark_deposit_address         TEXT   NOT NULL,
+    btc_exit_address         TEXT   NOT NULL,
     sats_amount                   BIGINT NOT NULL,
     none_anyone_can_pay_signature TEXT   NOT NULL,
     PRIMARY KEY (txid, vout)

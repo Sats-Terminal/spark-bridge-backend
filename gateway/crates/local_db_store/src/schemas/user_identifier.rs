@@ -4,9 +4,9 @@ use async_trait::async_trait;
 use frost::types::DkgShareId;
 use persistent_storage::error::DbError;
 use serde::{Deserialize, Serialize};
+use sqlx::types::Uuid;
 use std::fmt::Debug;
 use tracing::instrument;
-use uuid::Uuid;
 
 pub type UserUuid = Uuid;
 
@@ -20,6 +20,7 @@ pub struct UserUniqueId {
 pub struct UserIdentifier {
     pub user_uuid: Uuid,
     pub dkg_share_id: Uuid,
+    //todo: remove
     pub public_key: String,
     pub rune_id: String,
     pub is_issuer: bool,
@@ -32,7 +33,7 @@ pub struct UserIdentifierData {
     pub is_issuer: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserIds {
     pub user_uuid: Uuid,
     pub dkg_share_id: Uuid,
@@ -126,9 +127,10 @@ impl UserIdentifierStorage for LocalDbStorage {
         ))
     }
 
+    #[instrument(level = "trace", skip(self))]
     async fn get_issuer_ids(&self, rune_id: String) -> Result<Option<UserIds>, DbError> {
         let result: Option<(UserUuid, DkgShareId, String)> = sqlx::query_as(
-            "SELECT (user_uuid, dkg_share_id, rune_id)
+            "SELECT user_uuid, dkg_share_id, rune_id
             FROM gateway.user_identifier
             WHERE is_issuer = true AND rune_id = $1",
         )
@@ -144,12 +146,13 @@ impl UserIdentifierStorage for LocalDbStorage {
         }))
     }
 
+    #[instrument(level = "trace", skip(self))]
     async fn get_ids_by_musig_id(&self, musig_id: &MusigId) -> Result<Option<UserIds>, DbError> {
         let rune_id = musig_id.get_rune_id();
         let pubkey = musig_id.get_public_key();
         let is_issuer = musig_id.is_issuer();
         let result: Option<(UserUuid, DkgShareId, String)> = sqlx::query_as(
-            "SELECT (user_uuid, dkg_share_id, rune_id)
+            "SELECT user_uuid, dkg_share_id, rune_id
             FROM gateway.user_identifier
             WHERE is_issuer = $1 AND rune_id = $2 AND public_key = $3",
         )
@@ -256,7 +259,7 @@ mod tests {
         let metadata = SigningMetadata::Authorization;
 
         let signature = aggregator
-            .run_signing_flow(user_id, message_hash, metadata, tweak)
+            .run_signing_flow(user_id, message_hash, metadata, tweak, false)
             .await?;
 
         let tweaked_public_key_package = match tweak.clone() {
