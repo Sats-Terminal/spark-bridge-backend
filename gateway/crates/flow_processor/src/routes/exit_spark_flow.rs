@@ -119,7 +119,7 @@ pub async fn handle(
         let signature_bytes = flow_router
             .frost_aggregator
             .run_signing_flow(
-                user_info.dkg_share_id,
+                input_deposit_addr_info.dkg_share_id,
                 message_hash.as_ref(),
                 SigningMetadata::BtcTransactionMetadata {},
                 Some(input_deposit_addr_info.nonce),
