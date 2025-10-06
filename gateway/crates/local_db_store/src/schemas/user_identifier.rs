@@ -225,18 +225,18 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "MIGRATOR")]
-    async fn test_aggregator_signer_integration(db: PostgresPool) -> anyhow::Result<()> {
+    async fn test_aggregator_signer_integration(db: PostgresPool) -> eyre::Result<()> {
         let tweak = None;
         _test_aggregator_signer_integration(db, tweak).await
     }
 
     #[sqlx::test(migrator = "MIGRATOR")]
-    async fn test_aggregator_signer_integration_tweaked(db: PostgresPool) -> anyhow::Result<()> {
+    async fn test_aggregator_signer_integration_tweaked(db: PostgresPool) -> eyre::Result<()> {
         let tweak = Some(generate_tweak_bytes());
         _test_aggregator_signer_integration(db, tweak).await
     }
 
-    async fn _test_aggregator_signer_integration(db: sqlx::PgPool, tweak: Option<TweakBytes>) -> anyhow::Result<()> {
+    async fn _test_aggregator_signer_integration(db: sqlx::PgPool, tweak: Option<TweakBytes>) -> eyre::Result<()> {
         let server_config = ServerConfig::init_config(GATEWAY_CONFIG_PATH.to_string());
         let local_repo = Arc::new(LocalDbStorage {
             postgres_repo: PostgresRepo { pool: db },

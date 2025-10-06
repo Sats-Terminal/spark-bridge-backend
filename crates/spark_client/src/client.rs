@@ -298,7 +298,7 @@ mod tests {
     pub static TEST_LOGGER: LazyLock<LoggerGuard> = LazyLock::new(|| init_logger());
 
     #[tokio::test]
-    async fn test_get_balances_direct() -> anyhow::Result<()> {
+    async fn test_get_balances_direct() -> eyre::Result<()> {
         let _logger_guard = &*TEST_LOGGER;
         info!("Starting test");
 

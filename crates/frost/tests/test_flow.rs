@@ -12,14 +12,14 @@ mod tests {
     use std::{collections::BTreeMap, sync::Arc};
 
     #[tokio::test]
-    async fn test_aggregator_signer_integration() -> anyhow::Result<()> {
+    async fn test_aggregator_signer_integration() -> eyre::Result<()> {
         let msg_hash = b"test_message";
         _test_aggregator_signer_integration(msg_hash, None).await?;
         Ok(())
     }
 
     #[tokio::test]
-    async fn test_aggregator_signer_integration_tweaked() -> anyhow::Result<()> {
+    async fn test_aggregator_signer_integration_tweaked() -> eyre::Result<()> {
         let msg_hash = b"test_message";
         let tweak = generate_tweak_bytes();
         _test_aggregator_signer_integration(msg_hash, Some(tweak)).await?;
@@ -27,7 +27,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_parallel_signing_sessions_via_aggregator() -> anyhow::Result<()> {
+    async fn test_parallel_signing_sessions_via_aggregator() -> eyre::Result<()> {
         let msg_a = b"parallel message A".to_vec();
         let msg_b = b"parallel message B".to_vec();
         _test_parallel_signing_sessions_via_aggregator(&msg_a, &msg_b, None).await?;
@@ -35,7 +35,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_parallel_signing_sessions_via_aggregator_tweaked() -> anyhow::Result<()> {
+    async fn test_parallel_signing_sessions_via_aggregator_tweaked() -> eyre::Result<()> {
         let msg_a = b"parallel message A".to_vec();
         let msg_b = b"parallel message B".to_vec();
         let tweak = generate_tweak_bytes();
@@ -58,7 +58,7 @@ mod tests {
         msg_hash_a: &[u8],
         msg_hash_b: &[u8],
         tweak: Option<TweakBytes>,
-    ) -> anyhow::Result<()> {
+    ) -> eyre::Result<()> {
         let verifiers_map = create_verifiers_map_easy();
 
         let dkg_share_id: DkgShareId = get_uuid();
@@ -109,7 +109,7 @@ mod tests {
         Ok(())
     }
 
-    async fn _test_aggregator_signer_integration(msg_hash: &[u8], tweak: Option<TweakBytes>) -> anyhow::Result<()> {
+    async fn _test_aggregator_signer_integration(msg_hash: &[u8], tweak: Option<TweakBytes>) -> eyre::Result<()> {
         let verifiers_map = create_verifiers_map_easy();
 
         let dkg_share_id: DkgShareId = get_uuid();

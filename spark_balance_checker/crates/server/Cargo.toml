@@ -22,9 +22,10 @@ tonic-health = { workspace = true }
 tracing = { workspace = true }
 utoipa = { workspace = true }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
+
 [dev-dependencies]
-anyhow = { workspace = true }
 axum-test = { workspace = true }
 dotenvy = { workspace = true }
-tokio = { workspace = true }
+eyre = { workspace = true }
 spark_balance_checker_config_parser = { workspace = true }
+tokio = { workspace = true }

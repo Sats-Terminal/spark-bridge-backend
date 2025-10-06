@@ -25,7 +25,7 @@ mod test_btc_indexer_requests {
     const BLOCK_HEIGHT: u64 = 111;
 
     #[sqlx::test(migrator = "MIGRATOR")]
-    async fn test_one_inserting(pool: PostgresPool) -> anyhow::Result<()> {
+    async fn test_one_inserting(pool: PostgresPool) -> eyre::Result<()> {
         dotenvy::dotenv();
         let _logger_guard = &*TEST_LOGGER;
         let storage = LocalDbStorage {

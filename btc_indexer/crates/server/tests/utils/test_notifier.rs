@@ -23,7 +23,7 @@ pub const NOTIFY_WALLET_PATH: &'static str = "/notify_wallet";
 pub async fn create_test_notifier_track_tx(
     oneshot_sender: tokio::sync::oneshot::Sender<BtcIndexerCallbackResponse>,
     socket_addr: &SocketAddr,
-) -> anyhow::Result<TestServer> {
+) -> eyre::Result<TestServer> {
     let state = TestAppState {
         notifier: Arc::new(Mutex::new(Some(oneshot_sender))),
     };
@@ -75,7 +75,7 @@ async fn _notify_handler_inner<T: Clone + Send + Sync + Debug>(
 #[instrument]
 pub async fn spawn_notify_server_track_tx(
     socket_addr: SocketAddr,
-) -> anyhow::Result<(
+) -> eyre::Result<(
     Url,
     tokio::sync::oneshot::Receiver<BtcIndexerCallbackResponse>,
     TestServer,

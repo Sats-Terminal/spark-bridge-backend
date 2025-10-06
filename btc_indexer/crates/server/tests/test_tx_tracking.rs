@@ -21,7 +21,7 @@ mod mocked_tx_tracking {
     use tracing::{info, instrument};
 
     #[instrument(skip(pool))]
-    pub async fn init_mocked_tx_tracking_test_server(pool: PostgresPool) -> anyhow::Result<TestServer> {
+    pub async fn init_mocked_tx_tracking_test_server(pool: PostgresPool) -> eyre::Result<TestServer> {
         Ok(crate::utils::mock::init_mocked_test_server(
             || generate_mock_titan_indexer_tx_tracking(),
             || generate_mock_tx_arbiter(),
@@ -32,7 +32,7 @@ mod mocked_tx_tracking {
 
     #[instrument]
     #[sqlx::test(migrator = "MIGRATOR")]
-    async fn test_invocation_tx_tracking(pool: PostgresPool) -> anyhow::Result<()> {
+    async fn test_invocation_tx_tracking(pool: PostgresPool) -> eyre::Result<()> {
         dotenvy::dotenv();
         let _logger_guard = &*TEST_LOGGER;
         let test_server = init_mocked_tx_tracking_test_server(pool).await?;

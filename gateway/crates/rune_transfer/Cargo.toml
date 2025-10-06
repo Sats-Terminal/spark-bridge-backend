@@ -4,12 +4,12 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-ord-rs = { workspace = true }
 bitcoin = { workspace = true }
-thiserror = { workspace = true }
-ordinals = { workspace = true }
-serde = { workspace = true }
-global_utils = { workspace = true }
 bitcoincore-rpc = { workspace = true }
 eyre = { workspace = true }
 gateway_config_parser = { workspace = true }
+global_utils = { workspace = true }
+ord-rs = { workspace = true }
+ordinals = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }

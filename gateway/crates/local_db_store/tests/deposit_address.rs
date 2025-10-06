@@ -27,7 +27,7 @@ mod tests {
     use tracing::info;
 
     #[sqlx::test(migrator = "MIGRATOR")]
-    async fn test_create_session(db: PostgresPool) -> anyhow::Result<()> {
+    async fn test_create_session(db: PostgresPool) -> eyre::Result<()> {
         let _logger_guard = &*TEST_LOGGER;
 
         let server_config = ServerConfig::init_config(GATEWAY_CONFIG_PATH.to_string());

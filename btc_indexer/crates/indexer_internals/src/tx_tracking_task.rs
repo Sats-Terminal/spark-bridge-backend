@@ -87,7 +87,7 @@ pub fn spawn<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArbiterTrait>(
 async fn send_response_to_recipients<Db: IndexerDbBounds>(
     client: Arc<reqwest::Client>,
     local_db: Db,
-) -> anyhow::Result<()> {
+) -> eyre::Result<()> {
     let updated_txs = local_db.get_values_to_send_response().await?;
     tracing::info!("Already received txs to send callback response, txs: {updated_txs:?}");
     let tasks = spawn_tasks_to_send_response(client, local_db, updated_txs)?;
@@ -100,7 +100,7 @@ fn spawn_tasks_to_send_response<Db: IndexerDbBounds>(
     client: Arc<Client>,
     local_db: Db,
     txs_to_update_status: Vec<TxTrackingRequestsToSendResponse>,
-) -> anyhow::Result<JoinSet<()>> {
+) -> eyre::Result<JoinSet<()>> {
     let mut tasks = JoinSet::default();
     for x in txs_to_update_status {
         tasks.spawn({
@@ -154,7 +154,7 @@ async fn perform_status_update<C: TitanApi, Db: IndexerDbBounds, TxValidator: Tx
     local_db: Db,
     titan_client: Arc<C>,
     tx_validator: Arc<TxValidator>,
-) -> anyhow::Result<()> {
+) -> eyre::Result<()> {
     let txs = local_db.get_txs_to_update_status().await?;
     tracing::debug!("Performing update for txs: {:?}", txs);
     let tasks = spawn_tasks_to_check_txs(txs, local_db, titan_client, tx_validator).await?;
@@ -168,7 +168,7 @@ async fn spawn_tasks_to_check_txs<C: TitanApi, Db: IndexerDbBounds, TxValidator:
     local_db: Db,
     titan_client: Arc<C>,
     tx_validator: Arc<TxValidator>,
-) -> anyhow::Result<JoinSet<()>> {
+) -> eyre::Result<JoinSet<()>> {
     let mut check_txs_tasks = JoinSet::default();
     for tx_id in checked_txs {
         let local_db = local_db.clone();
@@ -221,7 +221,7 @@ async fn check_obtained_transaction<C: TitanApi, TxValidator: TxArbiterTrait>(
     tx_validator: Arc<TxValidator>,
     tx_to_check: &Transaction,
     tx_info: &TxToUpdateStatus,
-) -> anyhow::Result<TxArbiterResponse> {
+) -> eyre::Result<TxArbiterResponse> {
     tracing::debug!("Checking obtained transaction: {:?}", tx_info);
     Ok(tx_validator.check_tx(titan_client, tx_to_check, tx_info).await?)
 }

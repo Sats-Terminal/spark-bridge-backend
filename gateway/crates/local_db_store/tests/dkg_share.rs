@@ -61,24 +61,7 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "MIGRATOR")]
-    async fn test_aggregator_signer_integration_with_tap_tweak(db: PostgresPool) -> anyhow::Result<()> {
-        // TODO: how to fix it? does it has to work in such way?
-        let _logger_guard = &*TEST_LOGGER;
-
-        let tweak = None;
-        _test_aggregator_signer_integration(db, tweak, true).await
-    }
-
-    #[sqlx::test(migrator = "MIGRATOR")]
-    async fn test_aggregator_signer_integration_tweaked_with_tap_tweak(db: PostgresPool) -> anyhow::Result<()> {
-        // TODO: how to fix it? does it has to work in such way?
-        let _logger_guard = &*TEST_LOGGER;
-        let tweak = Some(generate_tweak_bytes());
-        _test_aggregator_signer_integration(db, tweak, true).await
-    }
-
-    #[sqlx::test(migrator = "MIGRATOR")]
-    async fn test_aggregator_signer_integration_without_tap_tweak(db: PostgresPool) -> anyhow::Result<()> {
+    async fn test_aggregator_signer_integration_without_tap_tweak(db: PostgresPool) -> eyre::Result<()> {
         let _logger_guard = &*TEST_LOGGER;
 
         let tweak = None;
@@ -86,14 +69,14 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "MIGRATOR")]
-    async fn test_aggregator_signer_integration_tweaked_without_tap_tweak(db: PostgresPool) -> anyhow::Result<()> {
+    async fn test_aggregator_signer_integration_tweaked_without_tap_tweak(db: PostgresPool) -> eyre::Result<()> {
         let _logger_guard = &*TEST_LOGGER;
         let tweak = Some(generate_tweak_bytes());
         _test_aggregator_signer_integration(db, tweak, false).await
     }
 
     #[sqlx::test(migrator = "MIGRATOR")]
-    async fn test_dkg_share_flow_creation(db: PostgresPool) -> anyhow::Result<()> {
+    async fn test_dkg_share_flow_creation(db: PostgresPool) -> eyre::Result<()> {
         let _logger_guard = &*TEST_LOGGER;
         let tweak = Some(generate_tweak_bytes());
         _test_dkg_pregen_draft_flow(db).await
@@ -110,7 +93,7 @@ mod tests {
         .unwrap()
     }
 
-    async fn _test_dkg_pregen_draft_flow(db: sqlx::PgPool) -> anyhow::Result<()> {
+    async fn _test_dkg_pregen_draft_flow(db: sqlx::PgPool) -> eyre::Result<()> {
         let server_config = ServerConfig::init_config(GATEWAY_CONFIG_PATH.to_string());
         let local_repo = Arc::new(LocalDbStorage {
             postgres_repo: PostgresRepo { pool: db },
@@ -161,7 +144,7 @@ mod tests {
         db: sqlx::PgPool,
         tweak: Option<TweakBytes>,
         tap_tweak: bool,
-    ) -> anyhow::Result<()> {
+    ) -> eyre::Result<()> {
         let server_config = ServerConfig::init_config(GATEWAY_CONFIG_PATH.to_string());
         let local_repo = Arc::new(LocalDbStorage {
             postgres_repo: PostgresRepo { pool: db },

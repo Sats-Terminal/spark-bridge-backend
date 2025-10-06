@@ -18,7 +18,7 @@ use verifier_config_parser::config::ServerConfig;
 use verifier_local_db_store::storage::LocalDbStorage;
 use verifier_server::init::{VerifierApi, create_app};
 
-pub async fn init_mocked_test_server(pool: PostgresPool) -> anyhow::Result<TestServer> {
+pub async fn init_mocked_test_server(pool: PostgresPool) -> eyre::Result<TestServer> {
     let config_path = ConfigPath {
         path: CONFIG_PATH.to_string(),
     };

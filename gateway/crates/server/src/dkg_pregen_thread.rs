@@ -75,7 +75,7 @@ impl DkgPregenThread {
         }
     }
 
-    async fn get_possible_update_info(local_db: Storage) -> anyhow::Result<UpdatePossibility> {
+    async fn get_possible_update_info(local_db: Storage) -> eyre::Result<UpdatePossibility> {
         Ok(UpdatePossibility {
             dkg_available: local_db.count_unused_dkg_shares().await?,
             finalized_dkg_available: local_db.count_unused_finalized_dkg_shares().await?,
@@ -88,7 +88,7 @@ impl DkgPregenThread {
     }
 
     /// Pregenerates shares for dkg state
-    async fn pregenerate_shares(local_db: Storage, dkg_aggregator: Aggreagator, amount: u64) -> anyhow::Result<()> {
+    async fn pregenerate_shares(local_db: Storage, dkg_aggregator: Aggreagator, amount: u64) -> eyre::Result<()> {
         let mut join_set = JoinSet::new();
         trace!("[{LOG_PATH}] Pregenerating epoch {}", EPOCH.load(Ordering::SeqCst));
         for _ in 0..amount {
@@ -103,7 +103,7 @@ impl DkgPregenThread {
     }
 
     #[instrument(level = "trace", skip(local_db, aggregator), fields(epoch=EPOCH.load(Ordering::SeqCst)), err)]
-    async fn pregenerate_share(local_db: Storage, aggregator: Aggreagator) -> anyhow::Result<()> {
+    async fn pregenerate_share(local_db: Storage, aggregator: Aggreagator) -> eyre::Result<()> {
         let initialized_entity = local_db.generate_dkg_share_entity().await?;
         aggregator.run_dkg_flow(&initialized_entity).await?;
         Ok(())

@@ -106,7 +106,7 @@ pub async fn init_mocked_test_server(
     generate_mocked_titan_indexer: impl Fn() -> MockTitanIndexer,
     generate_mocked_tx_arbiter: impl Fn() -> MockTxArbiter,
     pool: PostgresPool,
-) -> anyhow::Result<TestServer> {
+) -> eyre::Result<TestServer> {
     let _logger_guard = &*TEST_LOGGER;
     let (btc_creds, config_variant) = (
         BtcRpcCredentials::new()?,

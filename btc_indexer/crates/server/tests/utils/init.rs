@@ -19,7 +19,7 @@ pub const DRAFT_TITAN_URL: &str = "http://127.0.0.1:3030";
 
 /// Init test server with real docker
 #[instrument(level = "debug", ret)]
-pub async fn init_test_server() -> anyhow::Result<TestServer> {
+pub async fn init_test_server() -> eyre::Result<TestServer> {
     let _logger_guard = &*TEST_LOGGER;
     let (btc_creds, postgres_creds, config_variant) = (
         BtcRpcCredentials::new()?,
@@ -42,14 +42,14 @@ pub async fn init_test_server() -> anyhow::Result<TestServer> {
     Ok(test_server)
 }
 
-pub fn obtain_random_localhost_socket_addr() -> anyhow::Result<SocketAddr> {
+pub fn obtain_random_localhost_socket_addr() -> eyre::Result<SocketAddr> {
     let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");
     let socket_addr = listener.local_addr()?;
     info!(server_addr = ?socket_addr, "Random address:");
     Ok(socket_addr)
 }
 
-pub fn obtain_random_localhost_url() -> anyhow::Result<Url> {
+pub fn obtain_random_localhost_url() -> eyre::Result<Url> {
     Ok(Url::from_str(
         &format!("http://{}", obtain_random_localhost_socket_addr()?).to_string(),
     )?)

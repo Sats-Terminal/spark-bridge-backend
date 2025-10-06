@@ -4,6 +4,7 @@ use axum::{Json, Router, extract::State, routing::post};
 use axum_test::TestServer;
 use btc_indexer_api::api::{BtcIndexerCallbackResponse, ResponseMeta};
 use btc_indexer_internals::api::AccountReplenishmentEvent;
+use eyre::eyre;
 use global_utils::common_resp::Empty;
 use std::net::TcpListener;
 use std::{fmt::Debug, net::SocketAddr, str::FromStr, sync::Arc};
@@ -20,7 +21,7 @@ pub struct TestAppState<T: Clone + Send + Sync> {
 
 pub const NOTIFY_TX_PATH: &'static str = "/notify_tx";
 
-pub fn obtain_random_localhost_socket_addr() -> anyhow::Result<SocketAddr> {
+pub fn obtain_random_localhost_socket_addr() -> eyre::Result<SocketAddr> {
     let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");
     let socket_addr = listener.local_addr()?;
     info!(server_addr = ?socket_addr, "Random address:");
@@ -31,7 +32,7 @@ pub fn obtain_random_localhost_socket_addr() -> anyhow::Result<SocketAddr> {
 pub async fn create_test_notifier_track_tx(
     oneshot_sender: tokio::sync::oneshot::Sender<BtcIndexerCallbackResponse>,
     socket_addr: &SocketAddr,
-) -> anyhow::Result<TestServer> {
+) -> eyre::Result<TestServer> {
     let state = TestAppState {
         notifier: Arc::new(Mutex::new(Some(oneshot_sender))),
     };
@@ -42,6 +43,7 @@ pub async fn create_test_notifier_track_tx(
         .http_transport()
         .http_transport_with_ip_port(Some(socket_addr.ip()), Some(socket_addr.port()))
         .build(app.into_make_service())
+        .map_err(|err| eyre!(Box::new(err)))
 }
 
 #[instrument(skip(state))]
@@ -100,7 +102,7 @@ async fn notify_tx(
 #[instrument]
 pub async fn spawn_notify_server_track_tx(
     socket_addr: SocketAddr,
-) -> anyhow::Result<(
+) -> eyre::Result<(
     Url,
     tokio::sync::oneshot::Receiver<BtcIndexerCallbackResponse>,
     TestServer,

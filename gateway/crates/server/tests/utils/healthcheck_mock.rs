@@ -28,7 +28,7 @@ use tracing::{info, instrument};
 use verifier_server::init::VerifierApi;
 
 #[instrument(skip(pool))]
-pub async fn init_mocked_test_server(pool: PostgresPool) -> anyhow::Result<TestServer> {
+pub async fn init_mocked_test_server(pool: PostgresPool) -> eyre::Result<TestServer> {
     let config_path = ConfigPath {
         path: CONFIG_PATH.to_string(),
     };

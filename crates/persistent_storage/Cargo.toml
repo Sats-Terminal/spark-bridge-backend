@@ -20,7 +20,7 @@ url = { workspace = true }
 uuid = { workspace = true }
 
 [dev-dependencies]
-anyhow = { workspace = true }
 dotenvy = { workspace = true }
-tokio = { workspace = true }
+eyre = { workspace = true }
 global_utils = { workspace = true }
+tokio = { workspace = true }

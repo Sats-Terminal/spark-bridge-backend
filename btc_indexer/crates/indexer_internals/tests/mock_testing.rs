@@ -42,7 +42,7 @@ mod mock_testing {
     const RUNE_AMOUNT: Amount = 45678;
 
     #[sqlx::test(migrator = "MIGRATOR")]
-    async fn test_retrieving_of_finalized_tx(pool: PostgresPool) -> anyhow::Result<()> {
+    async fn test_retrieving_of_finalized_tx(pool: PostgresPool) -> eyre::Result<()> {
         dotenvy::dotenv();
         let _logger_guard = &*TEST_LOGGER;
 
@@ -92,7 +92,7 @@ mod mock_testing {
         btc_rpc_creds: BtcRpcCredentials,
         db_pool: LocalDbStorage,
         app_config: ServerConfig,
-    ) -> anyhow::Result<BtcIndexer<MockTitanIndexer, LocalDbStorage, MockTxArbiter>> {
+    ) -> eyre::Result<BtcIndexer<MockTitanIndexer, LocalDbStorage, MockTxArbiter>> {
         const MAX_I_INDEX: u64 = 5;
         let generate_transaction = |tx_id: &Txid, index: u64| Transaction {
             txid: tx_id.clone(),

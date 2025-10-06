@@ -10,7 +10,7 @@ mod test_healthcheck {
 
     #[instrument(ret)]
     #[sqlx::test(migrator = "MIGRATOR")]
-    async fn test_invocation_tx_tracking(pool: PostgresPool) -> anyhow::Result<()> {
+    async fn test_invocation_tx_tracking(pool: PostgresPool) -> eyre::Result<()> {
         let _logger_guard = &*TEST_LOGGER;
         let test_server = init_mocked_test_server(pool).await?;
         let response = test_server.post(GatewayApi::HEALTHCHECK_ENDPOINT).await;

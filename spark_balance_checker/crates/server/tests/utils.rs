@@ -15,7 +15,7 @@ const PATH_TO_AMAZON_CA: &str = "../../../infrastructure/configurations/certific
 const PATH_TO_FLASHNET: &str = "../../../infrastructure/configurations/certificates/Flashnet-CA.pem";
 
 #[instrument(ret)]
-pub async fn init_mocked_test_server() -> anyhow::Result<TestServer> {
+pub async fn init_mocked_test_server() -> eyre::Result<TestServer> {
     let config_path = ConfigPath {
         path: CONFIG_PATH.to_string(),
     };

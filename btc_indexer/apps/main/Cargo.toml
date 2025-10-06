@@ -11,12 +11,12 @@ default = []
 swagger = ["btc_indexer_server/swagger"]
 
 [dependencies]
-anyhow = { workspace = true }
 axum = { workspace = true }
 btc_indexer_internals = { workspace = true }
 btc_indexer_server = { workspace = true }
 config_parser = { workspace = true }
 dotenvy = { workspace = true }
+eyre = { workspace = true }
 global_utils = { workspace = true }
 local_db_store_indexer = { workspace = true }
 tokio = { workspace = true }

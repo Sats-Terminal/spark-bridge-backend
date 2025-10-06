@@ -24,7 +24,7 @@ mod tests {
 
     #[instrument]
     #[sqlx::test(migrator = "MIGRATOR")]
-    async fn test_signer_integration(db: PostgresPool) -> anyhow::Result<()> {
+    async fn test_signer_integration(db: PostgresPool) -> eyre::Result<()> {
         let _logger_guard = &*TEST_LOGGER;
 
         let local_repo = LocalDbStorage {
@@ -39,7 +39,7 @@ mod tests {
 
     #[instrument]
     #[sqlx::test(migrator = "MIGRATOR")]
-    async fn test_signer_integration_tweaked(db: PostgresPool) -> anyhow::Result<()> {
+    async fn test_signer_integration_tweaked(db: PostgresPool) -> eyre::Result<()> {
         let _logger_guard = &*TEST_LOGGER;
 
         let local_repo = LocalDbStorage {
@@ -120,7 +120,7 @@ mod tests {
         msg_hash: &[u8],
         tweak: Option<TweakBytes>,
         local_db_storage: Arc<LocalDbStorage>,
-    ) -> anyhow::Result<()> {
+    ) -> eyre::Result<()> {
         let dkg_share_id = get_uuid();
         // let dkg_share_id = local_db_storage.generate_dkg_share_entity().await?;
 

@@ -19,18 +19,18 @@ mod tests {
     use tokio_util::task::TaskTracker;
 
     #[sqlx::test(migrator = "crate::utils::common::MIGRATOR")]
-    async fn test_dkg_flow_logic(db: PostgresPool) -> anyhow::Result<()> {
+    async fn test_dkg_flow_logic(db: PostgresPool) -> eyre::Result<()> {
         let _logger_guard = &*TEST_LOGGER;
         _test_dkg_flow_logic(db).await
     }
 
     #[sqlx::test(migrator = "crate::utils::common::MIGRATOR")]
-    async fn test_dkg_flow_thread(db: PostgresPool) -> anyhow::Result<()> {
+    async fn test_dkg_flow_thread(db: PostgresPool) -> eyre::Result<()> {
         let _logger_guard = &*TEST_LOGGER;
         _test_dkg_flow_logic(db).await
     }
 
-    async fn _test_dkg_flow_thread(db: sqlx::PgPool) -> anyhow::Result<()> {
+    async fn _test_dkg_flow_thread(db: sqlx::PgPool) -> eyre::Result<()> {
         let mut server_config = ServerConfig::init_config(CONFIG_PATH.to_string());
         let local_repo = LocalDbStorage {
             postgres_repo: PostgresRepo { pool: db },
@@ -103,7 +103,7 @@ mod tests {
         Ok(())
     }
 
-    async fn _test_dkg_flow_logic(db: sqlx::PgPool) -> anyhow::Result<()> {
+    async fn _test_dkg_flow_logic(db: sqlx::PgPool) -> eyre::Result<()> {
         let server_config = ServerConfig::init_config(CONFIG_PATH.to_string());
         let local_repo = Arc::new(LocalDbStorage {
             postgres_repo: PostgresRepo { pool: db },
@@ -160,7 +160,7 @@ mod tests {
         Ok(())
     }
 
-    async fn use_one_dkg_share(local_repo: &Arc<LocalDbStorage>) -> anyhow::Result<()> {
+    async fn use_one_dkg_share(local_repo: &Arc<LocalDbStorage>) -> eyre::Result<()> {
         let _ = local_repo
             .get_random_unused_dkg_share(UserIdentifierData {
                 public_key: "some pubkey".to_string(),
