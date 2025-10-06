@@ -3,21 +3,14 @@ use crate::init::AppState;
 use axum::Json;
 use axum::extract::State;
 use global_utils::common_resp::Empty;
-use serde::{Deserialize, Serialize};
-use tracing::{instrument, trace};
+use tracing::instrument;
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
-pub struct TestSparkRequest {
-    pub btc_address: String,
-}
-
-#[instrument(level = "info", skip(state), ret)]
+#[instrument(level = "trace", skip(state), ret)]
 pub async fn handle(State(state): State<AppState>) -> Result<Json<Empty>, GatewayError> {
-    trace!("Handling healthcheck request...",);
-    state
-        .deposit_verification_aggregator
-        .healthcheck()
-        .await
-        .map_err(|e| GatewayError::HealthcheckError(e.to_string()))?;
+    tracing::info!("Handling healthcheck request...");
+    for verifier_client in state.verifier_clients.iter() {
+        verifier_client.healthcheck().await
+            .map_err(|_| GatewayError::HealthcheckError(format!("Failed to perform healthcheck for verifier client {}", verifier_client.get_id())))?;
+    }
     Ok(Json(Empty {}))
 }

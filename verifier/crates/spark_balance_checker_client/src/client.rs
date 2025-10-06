@@ -77,7 +77,7 @@ impl SparkBalanceCheckerClient {
             })?;
         let response = self
             .client
-            .post(url)
+            .get(url)
             .send()
             .await
             .map_err(|e| SparkBalanceCheckerClientError::HttpError(format!("Failed to send request: {:?}", e)))?;

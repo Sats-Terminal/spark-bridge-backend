@@ -4,7 +4,7 @@ use bitcoin::OutPoint;
 use frost::types::TweakBytes;
 use gateway_deposit_verification::error::DepositVerificationError;
 use gateway_deposit_verification::traits::{
-    DepositVerificationClientTrait, VerificationClient, VerificationClientHealthCheck,
+    VerificationClient,
 };
 use gateway_deposit_verification::types::{
     WatchRunesDepositRequest, WatchRunesDepositResponse, WatchSparkDepositRequest, WatchSparkDepositResponse,
@@ -126,12 +126,3 @@ impl VerificationClient for VerifierClient {
         Ok(response.into())
     }
 }
-
-#[async_trait]
-impl VerificationClientHealthCheck for VerifierClient {
-    async fn healthcheck(&self) -> Result<(), DepositVerificationError> {
-        self.healthcheck().await
-    }
-}
-
-impl DepositVerificationClientTrait for VerifierClient {}

@@ -1,5 +1,5 @@
 use crate::error::DepositVerificationError;
-use crate::traits::DepositVerificationClientTrait;
+use crate::traits::VerificationClient;
 use crate::types::*;
 use crate::types::{NotifyRunesDepositRequest, VerifyRunesDepositRequest, VerifySparkDepositRequest};
 use bitcoin::Network;
@@ -26,7 +26,7 @@ use tracing::instrument;
 #[derive(Clone, Debug)]
 pub struct DepositVerificationAggregator {
     flow_sender: FlowSender,
-    verifiers: HashMap<u16, Arc<dyn DepositVerificationClientTrait>>,
+    verifiers: HashMap<u16, Arc<dyn VerificationClient>>,
     storage: Arc<LocalDbStorage>,
     network: Network,
 }
@@ -34,7 +34,7 @@ pub struct DepositVerificationAggregator {
 impl DepositVerificationAggregator {
     pub fn new(
         flow_sender: FlowSender,
-        verifiers: HashMap<u16, Arc<dyn DepositVerificationClientTrait>>,
+        verifiers: HashMap<u16, Arc<dyn VerificationClient>>,
         storage: Arc<LocalDbStorage>,
         network: Network,
     ) -> Self {
@@ -319,36 +319,6 @@ impl DepositVerificationAggregator {
             request.spark_address
         );
 
-        Ok(())
-    }
-
-    #[instrument(level = "trace", skip(self))]
-    pub async fn healthcheck(&self) -> Result<(), DepositVerificationError> {
-        self.storage.postgres_repo.healthcheck().await?;
-        Self::check_set_of_verifiers(&self.verifiers).await?;
-        Ok(())
-    }
-
-    #[instrument(level = "trace", skip(state), ret)]
-    async fn check_set_of_verifiers(
-        state: &HashMap<u16, Arc<dyn DepositVerificationClientTrait>>,
-    ) -> Result<(), DepositVerificationError> {
-        let mut join_set = JoinSet::new();
-        for (v_id, v_client) in state.iter() {
-            join_set.spawn({
-                let (v_id, v_client) = (*v_id, v_client.clone());
-                async move {
-                    v_client
-                        .healthcheck()
-                        .await
-                        .map_err(|e| DepositVerificationError::FailedToCheckStatusOfVerifier {
-                            msg: e.to_string(),
-                            id: v_id,
-                        })
-                }
-            });
-        }
-        let _r = join_set.join_all().await.into_iter().collect::<Result<Vec<_>, _>>()?;
         Ok(())
     }
 }

@@ -4,7 +4,7 @@ use frost::traits::SignerClient;
 use frost_secp256k1_tr::Identifier;
 use gateway_config_parser::config::ServerConfig;
 use gateway_deposit_verification::aggregator::DepositVerificationAggregator;
-use gateway_deposit_verification::traits::DepositVerificationClientTrait;
+use gateway_deposit_verification::traits::VerificationClient;
 use gateway_flow_processor::init::create_flow_processor;
 use gateway_local_db_store::storage::LocalDbStorage;
 use gateway_server::init::create_app;
@@ -87,7 +87,7 @@ async fn main() -> Result<()> {
     });
 
     // Create Deposit Verification Aggregator
-    let verifier_clients_hash_map = extract_verifiers(&server_config);
+    let verifier_clients_hash_map = extract_verification_clients(&server_config);
     let deposit_verification_aggregator = DepositVerificationAggregator::new(
         flow_sender.clone(),
         verifier_clients_hash_map,
@@ -104,6 +104,7 @@ async fn main() -> Result<()> {
         frost_aggregator,
         task_tracker,
         server_config.dkg_pregen_config,
+        server_config.verifiers,
     )
     .await;
 
@@ -123,8 +124,8 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-fn extract_verifiers(server_config: &ServerConfig) -> HashMap<u16, Arc<dyn DepositVerificationClientTrait>> {
-    let mut verifier_clients_hash_map = HashMap::<u16, Arc<dyn DepositVerificationClientTrait>>::new();
+fn extract_verification_clients(server_config: &ServerConfig) -> HashMap<u16, Arc<dyn VerificationClient>> {
+    let mut verifier_clients_hash_map = HashMap::<u16, Arc<dyn VerificationClient>>::new();
     for verifier in server_config.clone().verifiers.0 {
         let verifier_client = VerifierClient::new(verifier.clone());
         verifier_clients_hash_map.insert(verifier.id, Arc::new(verifier_client.clone()));

@@ -1,6 +1,6 @@
 use crate::error::ServerError;
 use crate::handlers;
-use axum::{Router, routing::post};
+use axum::{Router, routing::{post, get}};
 use spark_client::client::SparkRpcClient;
 use spark_client::common::config::SparkConfig;
 use tracing::instrument;
@@ -31,7 +31,7 @@ pub async fn create_app(config: SparkConfig) -> Result<Router, ServerError> {
         )
         .route(
             SparkBalanceCheckerApi::HEALTHCHECK_ENDPOINT,
-            post(handlers::healthcheck::handle),
+            get(handlers::healthcheck::handle),
         )
         .with_state(state);
 

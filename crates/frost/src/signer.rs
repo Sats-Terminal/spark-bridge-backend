@@ -276,10 +276,4 @@ impl FrostSigner {
             )),
         }
     }
-
-    pub async fn healthcheck(&self) -> Result<(), SignerError> {
-        self.sign_session_storage.healthcheck().await?;
-        self.dkg_share_storage.healthcheck().await?;
-        Ok(())
-    }
 }

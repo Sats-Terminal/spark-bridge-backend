@@ -99,6 +99,7 @@ pub async fn init_mocked_test_server(pool: PostgresPool) -> anyhow::Result<TestS
         frost_aggregator,
         task_tracker,
         server_config.dkg_pregen_config,
+        server_config.verifiers,
     )
     .await;
 

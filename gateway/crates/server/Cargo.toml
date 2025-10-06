@@ -33,3 +33,4 @@ spark_client = { workspace = true }
 gateway_config_parser = { workspace = true }
 verifier_server = { workspace = true }
 frost-secp256k1-tr = { workspace = true}
+gateway_verifier_client = { workspace = true }

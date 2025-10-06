@@ -1,9 +1,9 @@
 use crate::handlers;
 use axum::Router;
-use axum::routing::post;
+use axum::routing::{post, get};
 use bitcoin::Network;
 use frost::aggregator::FrostAggregator;
-use gateway_config_parser::config::DkgPregenConfig;
+use gateway_config_parser::config::{DkgPregenConfig, VerifiersConfig};
 use gateway_deposit_verification::aggregator::DepositVerificationAggregator;
 use gateway_flow_processor::flow_sender::FlowSender;
 use gateway_local_db_store::storage::LocalDbStorage;
@@ -11,6 +11,7 @@ use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 use tracing::instrument;
+use gateway_verifier_client::client::VerifierClient;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -19,6 +20,7 @@ pub struct AppState {
     pub network: Network,
     pub thread: TaskTracker,
     pub cancellation_token: CancellationToken,
+    pub verifier_clients: Arc<Vec<VerifierClient>>,
 }
 
 pub struct GatewayApi;
@@ -43,6 +45,7 @@ pub async fn create_app(
     frost_aggregator: Arc<FrostAggregator>,
     mut task_tracker: TaskTracker,
     dkg_pregen_config: DkgPregenConfig,
+    verifiers_config: VerifiersConfig,
 ) -> Router {
     let cancellation_token = CancellationToken::new();
     let deposit_verification_aggregator = Arc::new(deposit_verification_aggregator);
@@ -52,15 +55,15 @@ pub async fn create_app(
         dkg_pregen_config,
         frost_aggregator,
         cancellation_token.clone(),
-    )
-    .await;
-    tracing::info!("Creating app");
+    ).await;
+    let verifier_clients = verifiers_config.0.iter().map(|v| VerifierClient::new(v.clone())).collect();
     let state = AppState {
         network,
         flow_sender,
         deposit_verification_aggregator,
         thread: task_tracker,
         cancellation_token,
+        verifier_clients: Arc::new(verifier_clients),
     };
     Router::new()
         .route(
@@ -87,6 +90,6 @@ pub async fn create_app(
             GatewayApi::BRIDGE_RUNES_ADDRESS_ENDPOINT,
             post(handlers::bridge_runes::handle),
         )
-        .route(GatewayApi::HEALTHCHECK_ENDPOINT, post(handlers::healthcheck::handle))
+        .route(GatewayApi::HEALTHCHECK_ENDPOINT, get(handlers::healthcheck::handle))
         .with_state(state)
 }

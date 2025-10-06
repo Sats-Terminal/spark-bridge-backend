@@ -1,6 +1,6 @@
 use crate::handlers;
 use axum::Router;
-use axum::routing::post;
+use axum::routing::{post, get};
 use frost::signer::FrostSigner;
 use std::sync::Arc;
 use tracing::instrument;
@@ -72,6 +72,6 @@ pub async fn create_app(
         .route(VerifierApi::DKG_FINALIZE_ENDPOINT, post(handlers::dkg_finalize::handle))
         .route(VerifierApi::SIGN_ROUND1_ENDPOINT, post(handlers::sign_round_1::handle))
         .route(VerifierApi::SIGN_ROUND2_ENDPOINT, post(handlers::sign_round_2::handle))
-        .route(VerifierApi::HEALTHCHECK_ENDPOINT, post(handlers::healthcheck::handle))
+        .route(VerifierApi::HEALTHCHECK_ENDPOINT, get(handlers::healthcheck::handle))
         .with_state(state)
 }
