@@ -12,6 +12,7 @@ use gateway_verifier_client::client::VerifierClient;
 use global_utils::config_path::ConfigPath;
 use global_utils::logger::init_logger;
 
+use gateway_dkg_pregen::dkg_pregen_thread::DkgPregenThread;
 use persistent_storage::config::PostgresDbCredentials;
 use persistent_storage::init::PostgresRepo;
 use std::collections::{BTreeMap, HashMap};
@@ -86,6 +87,13 @@ async fn main() -> Result<()> {
         flow_processor.run().await;
     });
 
+    let dkg_pregen = DkgPregenThread::start(
+        shared_db_pool.clone(),
+        server_config.dkg_pregen_config,
+        frost_aggregator.clone(),
+    )
+    .await;
+
     // Create Deposit Verification Aggregator
     let verifier_clients_hash_map = extract_verifiers(&server_config);
     let deposit_verification_aggregator = DepositVerificationAggregator::new(
@@ -103,7 +111,7 @@ async fn main() -> Result<()> {
         shared_db_pool,
         frost_aggregator,
         task_tracker,
-        server_config.dkg_pregen_config,
+        dkg_pregen,
     )
     .await;
 

@@ -51,7 +51,9 @@ pub async fn handle(
                 .frost_aggregator
                 .get_public_key_package(user_ids.dkg_share_id, None)
                 .await
-                .unwrap();
+                .map_err(|e| {
+                    FlowProcessorError::FrostAggregatorError(format!("Failed to get public key package, err: {}", e))
+                })?;
             tracing::debug!("DKG processing was successfully completed");
             (pubkey_package, user_ids.user_uuid, user_ids.rune_id)
         }

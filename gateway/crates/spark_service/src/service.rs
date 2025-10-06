@@ -58,7 +58,9 @@ impl SparkService {
             .frost_aggregator
             .get_public_key_package(issuer_dkg_share_id, nonce_tweak)
             .await
-            .map_err(|err| SparkServiceError::FrostAggregatorError(err.to_string()))?;
+            .map_err(|err| {
+                SparkServiceError::FrostAggregatorError(format!("Failed to get public key package, err: {err}"))
+            })?;
 
         let issuer_public_key_bytes = public_key_package
             .verifying_key()

@@ -98,7 +98,9 @@ pub async fn handle(
         .frost_aggregator
         .get_public_key_package(issuer_user_ids.dkg_share_id, None)
         .await
-        .map_err(|e| FlowProcessorError::FrostAggregatorError(format!("Failed to get public key package: {}", e)))?;
+        .map_err(|e| {
+            FlowProcessorError::FrostAggregatorError(format!("Failed to get public key package, err: {}", e))
+        })?;
 
     let issuer_musig_public_key_bytes = issuer_public_key_package.verifying_key().serialize().map_err(|e| {
         FlowProcessorError::InvalidDataError(format!("Failed to serialize issuer musig public key: {}", e))

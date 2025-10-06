@@ -13,7 +13,6 @@ use persistent_storage::init::PersistentRepoTrait;
 use sqlx::Acquire;
 use thiserror::Error;
 use tracing::instrument;
-// TODO: think about, maybe add another field that would be as flag, whether the entry were used or not
 
 #[derive(Debug, Error)]
 pub enum DkgShareGenerateError {

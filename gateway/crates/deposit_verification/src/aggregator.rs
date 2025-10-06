@@ -211,7 +211,6 @@ impl DepositVerificationAggregator {
             .ok_or(DepositVerificationError::NotFound(
                 "Deposit address info not found".to_string(),
             ))?;
-        //todo: check begin
         let issuer_ids = self
             .storage
             .get_issuer_ids(deposit_addr_info.rune_id.clone())
@@ -256,7 +255,6 @@ impl DepositVerificationAggregator {
         };
 
         tracing::debug!("Token identifier: {:?}", token_identifier.encode_bech32m(self.network));
-        //todo: check finish
 
         let watch_spark_deposit_request = WatchSparkDepositRequest {
             user_unique_id: UserUniqueId {

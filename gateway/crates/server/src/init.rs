@@ -5,6 +5,7 @@ use bitcoin::Network;
 use frost::aggregator::FrostAggregator;
 use gateway_config_parser::config::DkgPregenConfig;
 use gateway_deposit_verification::aggregator::DepositVerificationAggregator;
+use gateway_dkg_pregen::dkg_pregen_thread::DkgPregenThread;
 use gateway_flow_processor::flow_sender::FlowSender;
 use gateway_local_db_store::storage::LocalDbStorage;
 use std::sync::Arc;
@@ -18,6 +19,7 @@ pub struct AppState {
     pub deposit_verification_aggregator: Arc<DepositVerificationAggregator>,
     pub network: Network,
     pub thread: TaskTracker,
+    pub dkg_pregen_thread: DkgPregenThread,
     pub cancellation_token: CancellationToken,
 }
 
@@ -41,25 +43,19 @@ pub async fn create_app(
     network: Network,
     local_db: Arc<LocalDbStorage>,
     frost_aggregator: Arc<FrostAggregator>,
-    mut task_tracker: TaskTracker,
-    dkg_pregen_config: DkgPregenConfig,
+    task_tracker: TaskTracker,
+    dkg_pregen_thread: DkgPregenThread,
 ) -> Router {
     let cancellation_token = CancellationToken::new();
     let deposit_verification_aggregator = Arc::new(deposit_verification_aggregator);
-    crate::dkg_pregen_thread::DkgPregenThread::spawn_thread(
-        &mut task_tracker,
-        local_db,
-        dkg_pregen_config,
-        frost_aggregator,
-        cancellation_token.clone(),
-    )
-    .await;
+
     tracing::info!("Creating app");
     let state = AppState {
         network,
         flow_sender,
         deposit_verification_aggregator,
         thread: task_tracker,
+        dkg_pregen_thread,
         cancellation_token,
     };
     Router::new()

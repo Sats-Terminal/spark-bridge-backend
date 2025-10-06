@@ -12,7 +12,11 @@ use tracing::instrument;
 
 static EPOCH: AtomicU64 = AtomicU64::new(0);
 
-pub struct DkgPregenThread {}
+#[derive(Clone)]
+pub struct DkgPregenThread {
+    task_tracker: TaskTracker,
+    cancellation_token: CancellationToken,
+}
 
 struct UpdatePossibility {
     dkg_available: u64,
@@ -24,7 +28,25 @@ type Aggregator = Arc<FrostAggregator>;
 
 impl DkgPregenThread {
     #[instrument(skip_all, level = "debug", fields(thread = "dkg_pregen_spawning"))]
-    pub async fn spawn_thread(
+    pub async fn start(local_db: Storage, dkg_pregen_config: DkgPregenConfig, frost_aggregator: Aggregator) -> Self {
+        let cancellation_token = CancellationToken::new();
+        let mut task_tracker = TaskTracker::default();
+        Self::spawn_thread(
+            &mut task_tracker,
+            local_db,
+            dkg_pregen_config,
+            frost_aggregator,
+            cancellation_token.clone(),
+        )
+        .await;
+        Self {
+            task_tracker,
+            cancellation_token,
+        }
+    }
+
+    #[instrument(skip_all, level = "debug", fields(thread = "dkg_pregen_spawning"))]
+    async fn spawn_thread(
         task_tracker: &mut TaskTracker,
         local_db: Storage,
         dkg_pregen_config: DkgPregenConfig,
@@ -104,10 +126,18 @@ impl DkgPregenThread {
         Ok(())
     }
 
-    #[instrument(level = "trace", skip(local_db, aggregator), fields(epoch=EPOCH.load(Ordering::SeqCst)), err)]
+    #[instrument(level = "trace", skip(local_db, aggregator), fields(epoch=EPOCH.load(Ordering::SeqCst)
+    ), err)]
     async fn pregenerate_share(local_db: Storage, aggregator: Aggregator) -> eyre::Result<()> {
         let initialized_entity = local_db.generate_dkg_share_entity().await?;
         aggregator.run_dkg_flow(&initialized_entity).await?;
         Ok(())
+    }
+}
+
+impl Drop for DkgPregenThread {
+    fn drop(&mut self) {
+        self.cancellation_token.cancel();
+        self.task_tracker.close();
     }
 }

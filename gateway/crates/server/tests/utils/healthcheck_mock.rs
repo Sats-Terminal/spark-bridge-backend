@@ -13,6 +13,7 @@ use frost_secp256k1_tr::Identifier;
 use gateway_config_parser::config::ServerConfig;
 use gateway_deposit_verification::aggregator::DepositVerificationAggregator;
 use gateway_deposit_verification::traits::DepositVerificationClientTrait;
+use gateway_dkg_pregen::dkg_pregen_thread::DkgPregenThread;
 use gateway_flow_processor::init::create_flow_processor;
 use gateway_local_db_store::storage::LocalDbStorage;
 use gateway_server::init::create_app;
@@ -91,6 +92,12 @@ pub async fn init_mocked_test_server(pool: PostgresPool) -> eyre::Result<TestSer
         db_pool.clone(),
         Network::Regtest,
     );
+    let _pregen_thread = DkgPregenThread::start(
+        db_pool.clone(),
+        server_config.dkg_pregen_config,
+        frost_aggregator.clone(),
+    )
+    .await;
 
     let app = create_app(
         flow_sender.clone(),
@@ -99,7 +106,7 @@ pub async fn init_mocked_test_server(pool: PostgresPool) -> eyre::Result<TestSer
         db_pool,
         frost_aggregator,
         task_tracker,
-        server_config.dkg_pregen_config,
+        _pregen_thread,
     )
     .await;
 

@@ -2,36 +2,35 @@
 title: Gateway | Verifier
 ---
 erDiagram
-	direction TB
-	SIGNING_SESSION_VERIFIER {
-		UUID session_id PK ""
-		UUID user_uuid FK ""
-		Json sign_state  ""
-		ByteA tweak  ""
-		ByteA message_hash  ""
-		Json metadata  ""
-	}
-	DKG_SHARE_VERIFIER {
-		SERIAL dkg_share_id  ""
-		Json dkg_state  ""
-	}
-	DEPOSIT_ADDRESS_VERIFIER {
-		ByteA nonce_tweak PK ""
-		SERIAL user_uuid FK ""
-		String address  ""
-		bool is_btc  ""
-		u64 amount  ""
-		Json confirmation_status  ""
-	}
-	USER_IDENTIFIER {
-		UUID user_uuid  "uuid to
-						track state"
-		Bool is_issuer  ""
-		String rune_id  ""
-		String user_pubkey  ""
-		SERIAL dkg_share_id FK ""
-	}
+  direction TB
+  SIGNING_SESSION_VERIFIER {
+    UUID session_id PK ""
+    UUID dkg_share_id FK ""
+    Json sign_state  ""
+    ByteA tweak  ""
+    ByteA message_hash  ""
+    Json metadata  ""
+  }
+  DKG_SHARE_VERIFIER {
+    UUID dkg_share_id PK
+    Json dkg_state
+  }
+  DEPOSIT_ADDRESS_VERIFIER {
+    ByteA nonce_tweak PK ""
+    UUID dkg_share_id FK ""
+    String deposit_address  ""
+        String bridge_address  ""
+    bool is_btc  ""
+    u64 amount  ""
+    Json confirmation_status  ""
+  }
+  USER_IDENTIFIER {
+    UUID user_uuid  ""
+    Bool is_issuer  ""
+    String rune_id  ""
+    UUID dkg_share_id PK ""
+  }
 
-	USER_IDENTIFIER}|--|{DKG_SHARE_VERIFIER:"  "
-	DEPOSIT_ADDRESS_VERIFIER}|--|{USER_IDENTIFIER:"  "
-	SIGNING_SESSION_VERIFIER}|--|{USER_IDENTIFIER:"  "
+  USER_IDENTIFIER}|--|{DKG_SHARE_VERIFIER:"  "
+  DEPOSIT_ADDRESS_VERIFIER}|--|{DKG_SHARE_VERIFIER:"  "
+  SIGNING_SESSION_VERIFIER}|--|{DKG_SHARE_VERIFIER:"  "

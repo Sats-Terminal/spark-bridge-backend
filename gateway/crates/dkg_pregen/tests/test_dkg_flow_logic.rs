@@ -7,16 +7,14 @@ mod tests {
     use frost::traits::SignerClient;
     use frost_secp256k1_tr::Identifier;
     use gateway_config_parser::config::ServerConfig;
+    use gateway_dkg_pregen::dkg_pregen_thread::DkgPregenThread;
     use gateway_local_db_store::schemas::dkg_share::DkgShareGenerate;
     use gateway_local_db_store::schemas::user_identifier::UserIdentifierData;
     use gateway_local_db_store::storage::LocalDbStorage;
-    use gateway_server::dkg_pregen_thread::DkgPregenThread;
     use persistent_storage::init::{PostgresPool, PostgresRepo};
     use std::collections::BTreeMap;
     use std::sync::Arc;
     use std::time::Duration;
-    use tokio_util::sync::CancellationToken;
-    use tokio_util::task::TaskTracker;
 
     #[sqlx::test(migrator = "crate::utils::common::MIGRATOR")]
     async fn test_dkg_flow_logic(db: PostgresPool) -> eyre::Result<()> {
@@ -40,17 +38,9 @@ mod tests {
         server_config.dkg_pregen_config.min_threshold = 15;
         let verifiers_map = create_verifiers_map().await;
         let aggregator = FrostAggregator::new(verifiers_map, local_repo.clone(), local_repo.clone()).into_shared();
-        let cancellation_token = CancellationToken::new();
-        let mut task_tracker = TaskTracker::new();
 
-        DkgPregenThread::spawn_thread(
-            &mut task_tracker,
-            local_repo.clone(),
-            server_config.dkg_pregen_config,
-            aggregator,
-            cancellation_token.clone(),
-        )
-        .await;
+        let _pregen_thread =
+            DkgPregenThread::start(local_repo.clone(), server_config.dkg_pregen_config, aggregator).await;
 
         // Wait for filling dkg pregens
         tokio::time::sleep(Duration::from_millis(
@@ -98,8 +88,6 @@ mod tests {
             server_config.dkg_pregen_config.min_threshold
         );
 
-        // Close thread
-        cancellation_token.cancel();
         Ok(())
     }
 
