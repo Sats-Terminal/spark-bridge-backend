@@ -1,13 +1,12 @@
 use crate::handlers;
 use axum::Router;
-use axum::routing::post;
+use axum::routing::{get, post};
 use bitcoin::Network;
-use frost::aggregator::FrostAggregator;
-use gateway_config_parser::config::DkgPregenConfig;
+use gateway_config_parser::config::VerifiersConfig;
 use gateway_deposit_verification::aggregator::DepositVerificationAggregator;
 use gateway_dkg_pregen::dkg_pregen_thread::DkgPregenThread;
 use gateway_flow_processor::flow_sender::FlowSender;
-use gateway_local_db_store::storage::LocalDbStorage;
+use gateway_verifier_client::client::VerifierClient;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
@@ -19,8 +18,9 @@ pub struct AppState {
     pub deposit_verification_aggregator: Arc<DepositVerificationAggregator>,
     pub network: Network,
     pub thread: TaskTracker,
-    pub dkg_pregen_thread: DkgPregenThread,
+    pub _dkg_pregen_thread: Arc<DkgPregenThread>,
     pub cancellation_token: CancellationToken,
+    pub verifier_clients: Arc<Vec<VerifierClient>>,
 }
 
 pub struct GatewayApi;
@@ -41,22 +41,26 @@ pub async fn create_app(
     flow_sender: FlowSender,
     deposit_verification_aggregator: DepositVerificationAggregator,
     network: Network,
-    local_db: Arc<LocalDbStorage>,
-    frost_aggregator: Arc<FrostAggregator>,
     task_tracker: TaskTracker,
     dkg_pregen_thread: DkgPregenThread,
+    verifiers_config: VerifiersConfig,
 ) -> Router {
     let cancellation_token = CancellationToken::new();
     let deposit_verification_aggregator = Arc::new(deposit_verification_aggregator);
 
-    tracing::info!("Creating app");
+    let verifier_clients = verifiers_config
+        .0
+        .iter()
+        .map(|v| VerifierClient::new(v.clone()))
+        .collect();
     let state = AppState {
         network,
         flow_sender,
         deposit_verification_aggregator,
         thread: task_tracker,
-        dkg_pregen_thread,
+        _dkg_pregen_thread: Arc::new(dkg_pregen_thread),
         cancellation_token,
+        verifier_clients: Arc::new(verifier_clients),
     };
     Router::new()
         .route(
@@ -83,6 +87,6 @@ pub async fn create_app(
             GatewayApi::BRIDGE_RUNES_ADDRESS_ENDPOINT,
             post(handlers::bridge_runes::handle),
         )
-        .route(GatewayApi::HEALTHCHECK_ENDPOINT, post(handlers::healthcheck::handle))
+        .route(GatewayApi::HEALTHCHECK_ENDPOINT, get(handlers::healthcheck::handle))
         .with_state(state)
 }

@@ -1,8 +1,6 @@
 use crate::types::TweakBytes;
 use bitcoin::Address;
 use bitcoin::Network;
-use bitcoin::TapNodeHash;
-use bitcoin::hashes::Hash;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin::secp256k1::{Keypair, PublicKey};
 use frost_secp256k1_tr::keys::PublicKeyPackage;

@@ -1,7 +1,6 @@
 use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
 use frost::traits::SignerSignSessionStorage;
-use frost::types::DkgShareId;
 use frost::types::SignerSignData;
 use frost::types::SignerSignState;
 use frost::types::SigningMetadata;
@@ -13,11 +12,7 @@ use uuid::Uuid;
 #[async_trait]
 impl SignerSignSessionStorage for LocalDbStorage {
     #[instrument(level = "trace", skip(self), ret)]
-    async fn get_sign_data(
-        &self,
-        dkg_share_id: &DkgShareId,
-        session_id: Uuid,
-    ) -> Result<Option<SignerSignData>, DbError> {
+    async fn get_sign_data(&self, dkg_share_id: &Uuid, session_id: Uuid) -> Result<Option<SignerSignData>, DbError> {
         let result: Option<(Json<SignerSignState>, Json<SigningMetadata>, Vec<u8>, Option<Vec<u8>>)> = sqlx::query_as(
             "SELECT sign_state, metadata, message_hash, tweak
             FROM verifier.sign_session
@@ -42,7 +37,7 @@ impl SignerSignSessionStorage for LocalDbStorage {
     #[instrument(level = "trace", skip(self, sign_session_data), ret)]
     async fn set_sign_data(
         &self,
-        dkg_share_id: &DkgShareId,
+        dkg_share_id: &Uuid,
         session_id: Uuid,
         sign_session_data: SignerSignData,
     ) -> Result<(), DbError> {

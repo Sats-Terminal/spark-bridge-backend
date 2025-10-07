@@ -29,7 +29,9 @@ uuid = { workspace = true }
 [dev-dependencies]
 frost-secp256k1-tr = { workspace = true }
 gateway_config_parser = { workspace = true }
+gateway_verifier_client = { workspace = true }
 serde_json = { workspace = true }
 spark_client = { workspace = true }
 sqlx = { workspace = true }
+uuid = { workspace = true }
 verifier_server = { workspace = true }

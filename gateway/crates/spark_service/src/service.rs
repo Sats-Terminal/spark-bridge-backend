@@ -6,7 +6,7 @@ use bitcoin::hashes::{Hash, HashEngine, sha256};
 use bitcoin::secp256k1::PublicKey;
 use frost::aggregator::FrostAggregator;
 use frost::types::SigningMetadata;
-use frost::types::{DkgShareId, TweakBytes};
+use frost::types::TweakBytes;
 use futures::future::join_all;
 use global_utils::conversion::spark_network_to_proto_network;
 use lrc20::marshal::marshal_token_transaction;
@@ -24,6 +24,7 @@ use spark_protos::spark_token::SignatureWithIndex;
 use spark_protos::spark_token::StartTransactionRequest;
 use std::sync::Arc;
 use token_identifier::TokenIdentifier;
+use uuid::Uuid;
 
 const DEFAULT_VALIDITY_DURATION_SECONDS: u64 = 300;
 
@@ -51,7 +52,7 @@ impl SparkService {
     #[tracing::instrument(level = "trace", skip(self), ret)]
     async fn get_musig_public_key(
         &self,
-        issuer_dkg_share_id: DkgShareId,
+        issuer_dkg_share_id: Uuid,
         nonce_tweak: Option<TweakBytes>,
     ) -> Result<PublicKey, SparkServiceError> {
         let public_key_package = self
@@ -76,7 +77,7 @@ impl SparkService {
     #[tracing::instrument(level = "trace", skip(self), ret)]
     async fn authenticate(
         &self,
-        issuer_dkg_share_id: DkgShareId,
+        issuer_dkg_share_id: Uuid,
         nonce_tweak: Option<TweakBytes>,
     ) -> Result<(), SparkServiceError> {
         tracing::debug!(
@@ -142,7 +143,7 @@ impl SparkService {
     #[tracing::instrument(level = "trace", skip(self), ret)]
     pub async fn send_spark_transaction(
         &self,
-        issuer_dkg_share_id: DkgShareId,
+        issuer_dkg_share_id: Uuid,
         nonce_tweak: Option<TweakBytes>,
         token_identifier: TokenIdentifier,
         transaction_type: SparkTransactionType,

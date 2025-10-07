@@ -286,7 +286,6 @@ impl TokenMetadata {
 
         if self.symbol.len() < MIN_SYMBOL_SIZE || self.symbol.len() > MAX_SYMBOL_SIZE {
             return Err(TokenMetadataParseError::InvalidSymbolLength(self.symbol.len()));
-            return Err(TokenMetadataParseError::InvalidSymbolLength(self.symbol.len()));
         }
 
         Ok(())

@@ -9,7 +9,6 @@ mod tests {
     use gateway_config_parser::config::ServerConfig;
     use gateway_dkg_pregen::dkg_pregen_thread::DkgPregenThread;
     use gateway_local_db_store::schemas::dkg_share::DkgShareGenerate;
-    use gateway_local_db_store::schemas::user_identifier::UserIdentifierData;
     use gateway_local_db_store::storage::LocalDbStorage;
     use persistent_storage::init::{PostgresPool, PostgresRepo};
     use std::collections::BTreeMap;
@@ -150,11 +149,7 @@ mod tests {
 
     async fn use_one_dkg_share(local_repo: &Arc<LocalDbStorage>) -> eyre::Result<()> {
         let _ = local_repo
-            .get_random_unused_dkg_share(UserIdentifierData {
-                public_key: "some pubkey".to_string(),
-                rune_id: "1:124000".to_string(),
-                is_issuer: false,
-            })
+            .get_random_unused_dkg_share("1:124000".to_string(), false)
             .await?;
         Ok(())
     }

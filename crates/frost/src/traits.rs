@@ -16,27 +16,21 @@ pub trait SignerClient: Send + Sync {
 
 #[async_trait]
 pub trait AggregatorDkgShareStorage: Send + Sync + StorageHealthcheck {
-    async fn get_dkg_share_agg_data(
-        &self,
-        dkg_share_id: &DkgShareId,
-    ) -> Result<Option<AggregatorDkgShareData>, DbError>;
+    async fn get_dkg_share_agg_data(&self, dkg_share_id: &Uuid) -> Result<Option<AggregatorDkgShareData>, DbError>;
     async fn set_dkg_share_agg_data(
         &self,
-        dkg_share_id: &DkgShareId,
+        dkg_share_id: &Uuid,
         dkg_share_data: AggregatorDkgShareData,
     ) -> Result<(), DbError>;
 }
 
 #[async_trait]
 pub trait AggregatorSignSessionStorage: Send + Sync + StorageHealthcheck {
-    async fn get_sign_data(
-        &self,
-        dkg_share_id: &DkgShareId,
-        session_id: Uuid,
-    ) -> Result<Option<AggregatorSignData>, DbError>;
+    async fn get_sign_data(&self, dkg_share_id: &Uuid, session_id: Uuid)
+    -> Result<Option<AggregatorSignData>, DbError>;
     async fn set_sign_data(
         &self,
-        dkg_share_id: &DkgShareId,
+        dkg_share_id: &Uuid,
         session_id: Uuid,
         sign_session_data: AggregatorSignData,
     ) -> Result<(), DbError>;
@@ -44,27 +38,20 @@ pub trait AggregatorSignSessionStorage: Send + Sync + StorageHealthcheck {
 
 #[async_trait]
 pub trait SignerDkgShareStorage: Send + Sync + StorageHealthcheck {
-    async fn get_dkg_share_signer_data(
-        &self,
-        dkg_share_id: &DkgShareId,
-    ) -> Result<Option<SignerDkgShareIdData>, DbError>;
+    async fn get_dkg_share_signer_data(&self, dkg_share_id: &Uuid) -> Result<Option<SignerDkgShareIdData>, DbError>;
     async fn set_dkg_share_signer_data(
         &self,
-        dkg_share_id: &DkgShareId,
+        dkg_share_id: &Uuid,
         dkg_share_data: SignerDkgShareIdData,
     ) -> Result<(), DbError>;
 }
 
 #[async_trait]
 pub trait SignerSignSessionStorage: Send + Sync + StorageHealthcheck {
-    async fn get_sign_data(
-        &self,
-        dkg_share_id: &DkgShareId,
-        session_id: Uuid,
-    ) -> Result<Option<SignerSignData>, DbError>;
+    async fn get_sign_data(&self, dkg_share_id: &Uuid, session_id: Uuid) -> Result<Option<SignerSignData>, DbError>;
     async fn set_sign_data(
         &self,
-        dkg_share_id: &DkgShareId,
+        dkg_share_id: &Uuid,
         session_id: Uuid,
         sign_session_data: SignerSignData,
     ) -> Result<(), DbError>;

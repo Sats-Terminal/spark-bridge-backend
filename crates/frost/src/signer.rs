@@ -4,6 +4,7 @@ use rand_core::OsRng;
 use std::{collections::BTreeSet, sync::Arc};
 use tokio::sync::Mutex;
 use tracing::debug;
+use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct FrostSigner {
@@ -12,7 +13,7 @@ pub struct FrostSigner {
     sign_session_storage: Arc<dyn SignerSignSessionStorage>,
     total_participants: u16,
     threshold: u16,
-    locked_dkg_share_ids: Arc<Mutex<BTreeSet<DkgShareId>>>,
+    locked_dkg_share_ids: Arc<Mutex<BTreeSet<Uuid>>>,
 }
 
 impl FrostSigner {
@@ -35,7 +36,7 @@ impl FrostSigner {
         })
     }
 
-    pub async fn lock_dkg_share_id(&self, dkg_share_id: &DkgShareId) -> Result<(), SignerError> {
+    pub async fn lock_dkg_share_id(&self, dkg_share_id: &Uuid) -> Result<(), SignerError> {
         let mut locked_dkg_share_ids = self.locked_dkg_share_ids.lock().await;
         if locked_dkg_share_ids.contains(dkg_share_id) {
             return Err(SignerError::DkgShareIdAlreadyExists(*dkg_share_id));
@@ -44,7 +45,7 @@ impl FrostSigner {
         Ok(())
     }
 
-    pub async fn unlock_dkg_share_id(&self, dkg_share_id: &DkgShareId) -> Result<(), SignerError> {
+    pub async fn unlock_dkg_share_id(&self, dkg_share_id: &Uuid) -> Result<(), SignerError> {
         let mut locked_dkg_share_ids = self.locked_dkg_share_ids.lock().await;
         let removed = locked_dkg_share_ids.remove(dkg_share_id);
         if !removed {
@@ -275,11 +276,5 @@ impl FrostSigner {
                 "User session state is not SigningRound1".to_string(),
             )),
         }
-    }
-
-    pub async fn healthcheck(&self) -> Result<(), SignerError> {
-        self.sign_session_storage.healthcheck().await?;
-        self.dkg_share_storage.healthcheck().await?;
-        Ok(())
     }
 }

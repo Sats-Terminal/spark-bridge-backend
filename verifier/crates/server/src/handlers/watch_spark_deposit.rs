@@ -9,12 +9,12 @@ use tracing;
 use tracing::instrument;
 use verifier_local_db_store::schemas::deposit_address::DepositAddressStorage;
 use verifier_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositStatus, InnerAddress, TxRejectReason};
-use verifier_local_db_store::schemas::user_identifier::UserUniqueId;
+use verifier_local_db_store::schemas::user_identifier::{UserIdentifierStorage, UserIds};
 use verifier_spark_balance_checker_client::client::GetBalanceRequest;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WatchSparkDepositRequest {
-    pub user_unique_id: UserUniqueId,
+    pub user_ids: UserIds,
     pub nonce: TweakBytes,
     pub spark_address: String,
     pub exit_address: String,
@@ -40,9 +40,14 @@ pub async fn handle(
 
     state
         .storage
+        .insert_user_ids(request.user_ids.clone())
+        .await
+        .map_err(|e| VerifierError::Storage(format!("Failed to set identifier data: {}", e)))?;
+
+    state
+        .storage
         .set_deposit_addr_info(DepositAddrInfo {
-            user_uuid: request.user_unique_id.uuid,
-            rune_id: request.user_unique_id.rune_id.clone(),
+            dkg_share_id: request.user_ids.dkg_share_id,
             nonce: request.nonce,
             out_point: None,
             deposit_address: deposit_address.clone(),

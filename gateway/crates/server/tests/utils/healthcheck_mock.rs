@@ -107,6 +107,7 @@ pub async fn init_mocked_test_server(pool: PostgresPool) -> eyre::Result<TestSer
         frost_aggregator,
         task_tracker,
         _pregen_thread,
+        server_config.verifiers,
     )
     .await;
 

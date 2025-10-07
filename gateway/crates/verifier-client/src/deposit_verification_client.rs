@@ -3,14 +3,12 @@ use async_trait::async_trait;
 use bitcoin::OutPoint;
 use frost::types::TweakBytes;
 use gateway_deposit_verification::error::DepositVerificationError;
-use gateway_deposit_verification::traits::{
-    DepositVerificationClientTrait, VerificationClient, VerificationClientHealthCheck,
-};
+use gateway_deposit_verification::traits::VerificationClient;
 use gateway_deposit_verification::types::{
     WatchRunesDepositRequest, WatchRunesDepositResponse, WatchSparkDepositRequest, WatchSparkDepositResponse,
 };
 use gateway_local_db_store::schemas::deposit_address::DepositStatus;
-use gateway_local_db_store::schemas::user_identifier::{UserIds, UserUniqueId};
+use gateway_local_db_store::schemas::user_identifier::UserIds;
 use serde::{Deserialize, Serialize};
 use token_identifier::TokenIdentifier;
 use tracing::instrument;
@@ -52,7 +50,7 @@ impl From<VerifierWatchRunesDepositResponse> for WatchRunesDepositResponse {
 
 #[derive(Debug, Serialize)]
 pub struct VerifierWatchSparkDepositRequest {
-    pub user_unique_id: UserUniqueId,
+    pub user_ids: UserIds,
     pub nonce: TweakBytes,
     pub exit_address: String,
     pub amount: u64,
@@ -63,7 +61,7 @@ pub struct VerifierWatchSparkDepositRequest {
 impl From<WatchSparkDepositRequest> for VerifierWatchSparkDepositRequest {
     fn from(request: WatchSparkDepositRequest) -> Self {
         Self {
-            user_unique_id: request.user_unique_id,
+            user_ids: request.user_ids,
             nonce: request.nonce,
             exit_address: request.exit_address.to_string(),
             amount: request.amount,
@@ -126,12 +124,3 @@ impl VerificationClient for VerifierClient {
         Ok(response.into())
     }
 }
-
-#[async_trait]
-impl VerificationClientHealthCheck for VerifierClient {
-    async fn healthcheck(&self) -> Result<(), DepositVerificationError> {
-        self.healthcheck().await
-    }
-}
-
-impl DepositVerificationClientTrait for VerifierClient {}

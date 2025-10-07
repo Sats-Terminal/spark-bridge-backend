@@ -10,16 +10,16 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone)]
 pub struct MockSignerDkgShareIdStorage {
-    storage: Arc<Mutex<BTreeMap<DkgShareId, SignerDkgShareIdData>>>,
+    storage: Arc<Mutex<BTreeMap<Uuid, SignerDkgShareIdData>>>,
 }
 
 #[derive(Default, Debug, Clone)]
 pub struct MockSignerSignSessionStorage {
-    storage: Arc<Mutex<BTreeMap<(DkgShareId, Uuid), SignerSignData>>>,
+    storage: Arc<Mutex<BTreeMap<(Uuid, Uuid), SignerSignData>>>,
 }
 
 impl MockSignerSignSessionStorage {
-    pub async fn has_session(&self, dkg_share_id: &DkgShareId, session_id: &Uuid) -> bool {
+    pub async fn has_session(&self, dkg_share_id: &Uuid, session_id: &Uuid) -> bool {
         let map = self.storage.lock().await;
         map.contains_key(&(*dkg_share_id, *session_id))
     }
@@ -34,17 +34,13 @@ impl StorageHealthcheck for MockSignerSignSessionStorage {
 
 #[async_trait]
 impl SignerSignSessionStorage for MockSignerSignSessionStorage {
-    async fn get_sign_data(
-        &self,
-        dkg_share_id: &DkgShareId,
-        session_id: Uuid,
-    ) -> Result<Option<SignerSignData>, DbError> {
+    async fn get_sign_data(&self, dkg_share_id: &Uuid, session_id: Uuid) -> Result<Option<SignerSignData>, DbError> {
         Ok(self.storage.lock().await.get(&(*dkg_share_id, session_id)).cloned())
     }
 
     async fn set_sign_data(
         &self,
-        dkg_share_data: &DkgShareId,
+        dkg_share_data: &Uuid,
         session_id: Uuid,
         sign_session_data: SignerSignData,
     ) -> Result<(), DbError> {
@@ -73,16 +69,13 @@ impl StorageHealthcheck for MockSignerDkgShareIdStorage {
 
 #[async_trait]
 impl SignerDkgShareStorage for MockSignerDkgShareIdStorage {
-    async fn get_dkg_share_signer_data(
-        &self,
-        dkg_share_id: &DkgShareId,
-    ) -> Result<Option<SignerDkgShareIdData>, DbError> {
+    async fn get_dkg_share_signer_data(&self, dkg_share_id: &Uuid) -> Result<Option<SignerDkgShareIdData>, DbError> {
         Ok(self.storage.lock().await.get(dkg_share_id).cloned())
     }
 
     async fn set_dkg_share_signer_data(
         &self,
-        dkg_share_id: &DkgShareId,
+        dkg_share_id: &Uuid,
         dkkg_share_data: SignerDkgShareIdData,
     ) -> Result<(), DbError> {
         self.storage.lock().await.insert(*dkg_share_id, dkkg_share_data);
@@ -92,7 +85,7 @@ impl SignerDkgShareStorage for MockSignerDkgShareIdStorage {
 
 #[derive(Debug, Clone)]
 pub struct MockAggregatorDkgShareIdStorage {
-    storage: Arc<Mutex<BTreeMap<DkgShareId, AggregatorDkgShareData>>>,
+    storage: Arc<Mutex<BTreeMap<Uuid, AggregatorDkgShareData>>>,
 }
 
 impl Default for MockAggregatorDkgShareIdStorage {
@@ -105,7 +98,7 @@ impl Default for MockAggregatorDkgShareIdStorage {
 
 #[derive(Debug, Clone)]
 pub struct MockAggregatorSignSessionStorage {
-    storage: Arc<Mutex<BTreeMap<(DkgShareId, Uuid), AggregatorSignData>>>,
+    storage: Arc<Mutex<BTreeMap<(Uuid, Uuid), AggregatorSignData>>>,
 }
 
 impl Default for MockAggregatorSignSessionStorage {
@@ -125,13 +118,13 @@ impl StorageHealthcheck for MockAggregatorDkgShareIdStorage {
 
 #[async_trait]
 impl AggregatorDkgShareStorage for MockAggregatorDkgShareIdStorage {
-    async fn get_dkg_share_agg_data(&self, musig_id: &DkgShareId) -> Result<Option<AggregatorDkgShareData>, DbError> {
+    async fn get_dkg_share_agg_data(&self, musig_id: &Uuid) -> Result<Option<AggregatorDkgShareData>, DbError> {
         Ok(self.storage.lock().await.get(musig_id).cloned())
     }
 
     async fn set_dkg_share_agg_data(
         &self,
-        musig_id: &DkgShareId,
+        musig_id: &Uuid,
         dkg_share_data: AggregatorDkgShareData,
     ) -> Result<(), DbError> {
         self.storage.lock().await.insert(*musig_id, dkg_share_data);
@@ -150,7 +143,7 @@ impl StorageHealthcheck for MockAggregatorSignSessionStorage {
 impl AggregatorSignSessionStorage for MockAggregatorSignSessionStorage {
     async fn get_sign_data(
         &self,
-        dkg_share_id: &DkgShareId,
+        dkg_share_id: &Uuid,
         session_id: Uuid,
     ) -> Result<Option<AggregatorSignData>, DbError> {
         Ok(self.storage.lock().await.get(&(*dkg_share_id, session_id)).cloned())
@@ -158,7 +151,7 @@ impl AggregatorSignSessionStorage for MockAggregatorSignSessionStorage {
 
     async fn set_sign_data(
         &self,
-        dkg_share_id: &DkgShareId,
+        dkg_share_id: &Uuid,
         session_id: Uuid,
         sign_session_data: AggregatorSignData,
     ) -> Result<(), DbError> {

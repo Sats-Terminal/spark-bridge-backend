@@ -3,6 +3,7 @@ use bitcoin::secp256k1::schnorr::Signature;
 use reqwest::Client;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use url::Url;
+use uuid::Uuid;
 
 #[derive(Clone, Debug)]
 pub struct GatewayClient {
@@ -19,7 +20,7 @@ const GET_RUNES_DEPOSIT_ADDRESS_PATH: &str = "/api/user/get-btc-deposit-address"
 
 #[derive(Serialize, Debug)]
 pub struct GetRunesDepositAddressRequest {
-    pub user_public_key: String,
+    pub user_id: Uuid,
     pub rune_id: String,
     pub amount: u64,
 }
@@ -33,7 +34,7 @@ const GET_SPARK_DEPOSIT_ADDRESS_PATH: &str = "/api/user/get-spark-deposit-addres
 
 #[derive(Serialize, Debug)]
 pub struct GetSparkDepositAddressRequest {
-    pub user_public_key: String,
+    pub user_id: Uuid,
     pub rune_id: String,
     pub amount: u64,
 }

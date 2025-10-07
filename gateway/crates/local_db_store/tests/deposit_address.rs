@@ -41,7 +41,7 @@ mod tests {
         info!("{dkg_share_id}");
 
         let user_identifier = UserIdentifier {
-            user_uuid: get_uuid(),
+            user_id: get_uuid(),
             dkg_share_id,
             public_key: "02D3092CFC205DD827BE5B59DB23E93A8A2A1F56858A448B2A2F0DE63E52CB8741".to_string(),
             rune_id: "1:18000".to_string(),
@@ -49,7 +49,7 @@ mod tests {
         };
         shared_local_repo
             .set_user_identifier_data(
-                &user_identifier.user_uuid,
+                &user_identifier.user_id,
                 &dkg_share_id,
                 UserIdentifierData {
                     public_key: user_identifier.public_key.clone(),
@@ -62,14 +62,14 @@ mod tests {
             Some(user_identifier.clone()),
             shared_local_repo
                 .get_row_by_user_unique_id(&UserUniqueId {
-                    uuid: user_identifier.user_uuid,
+                    uuid: user_identifier.user_id,
                     rune_id: user_identifier.rune_id.clone()
                 })
                 .await?
         );
 
         let deposit_addr_info = DepositAddrInfo {
-            user_uuid: user_identifier.user_uuid,
+            user_id: user_identifier.user_id,
             rune_id: user_identifier.rune_id,
             nonce: generate_tweak_bytes(),
             deposit_address: InnerAddress::BitcoinAddress(
@@ -92,7 +92,7 @@ mod tests {
             shared_local_repo
                 .get_deposit_addr_info(
                     &UserUniqueId {
-                        uuid: deposit_addr_info.user_uuid,
+                        uuid: deposit_addr_info.user_id,
                         rune_id: deposit_addr_info.rune_id.to_string()
                     },
                     deposit_addr_info.nonce.clone()

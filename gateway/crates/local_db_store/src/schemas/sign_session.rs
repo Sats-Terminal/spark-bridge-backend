@@ -1,9 +1,9 @@
 use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
 use frost::traits::AggregatorSignSessionStorage;
+use frost::types::AggregatorSignData;
 use frost::types::AggregatorSignState;
 use frost::types::SigningMetadata;
-use frost::types::{AggregatorSignData, DkgShareId};
 use persistent_storage::error::DbError;
 use persistent_storage::init::StorageHealthcheck;
 use sqlx::types::Json;
@@ -22,7 +22,7 @@ impl AggregatorSignSessionStorage for LocalDbStorage {
     #[instrument(level = "trace", skip_all)]
     async fn get_sign_data(
         &self,
-        dkg_share_id: &DkgShareId,
+        dkg_share_id: &Uuid,
         session_id: Uuid,
     ) -> Result<Option<AggregatorSignData>, DbError> {
         let result: Option<(
@@ -54,7 +54,7 @@ impl AggregatorSignSessionStorage for LocalDbStorage {
     #[instrument(level = "trace", skip_all)]
     async fn set_sign_data(
         &self,
-        dkg_share_id: &DkgShareId,
+        dkg_share_id: &Uuid,
         session_id: Uuid,
         sign_session_data: AggregatorSignData,
     ) -> Result<(), DbError> {

@@ -39,6 +39,7 @@ impl DkgPregenThread {
             cancellation_token.clone(),
         )
         .await;
+        tracing::debug!("Dkg pregen thread started..");
         Self {
             task_tracker,
             cancellation_token,
@@ -137,6 +138,7 @@ impl DkgPregenThread {
 
 impl Drop for DkgPregenThread {
     fn drop(&mut self) {
+        tracing::trace!("Dropping DkgPregenThread, closing thread..");
         self.cancellation_token.cancel();
         self.task_tracker.close();
     }

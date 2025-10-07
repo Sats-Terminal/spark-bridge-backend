@@ -8,17 +8,17 @@ use crate::spark_client::GetSparkAddressDataRequest;
 use crate::spark_client::SparkClient;
 use crate::utils::create_credentials;
 use crate::utils::sign_transaction;
+use bitcoin::Address;
 use bitcoin::Transaction;
 use bitcoin::Txid;
 use bitcoin::hashes::sha256::Hash as Sha256Hash;
 use bitcoin::hashes::{Hash, HashEngine};
-use bitcoin::key::{TapTweak, TweakedPublicKey};
+use bitcoin::key::TapTweak;
 use bitcoin::secp256k1::Message;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin::secp256k1::{Keypair, PublicKey};
 use bitcoin::sighash::{Prevouts, SighashCache, TapSighashType};
 use bitcoin::transaction::Version;
-use bitcoin::{Address, Network, XOnlyPublicKey, secp256k1};
 use bitcoin::{Amount, OutPoint, ScriptBuf, Sequence, TxIn, TxOut, Witness};
 use chrono::Utc;
 use lrc20::marshal::marshal_token_transaction;
@@ -43,6 +43,7 @@ use titan_client::SpentStatus;
 use token_identifier::TokenIdentifier;
 use tokio::time::sleep;
 use tracing;
+use uuid::Uuid;
 
 pub enum TransferType {
     RuneTransfer { rune_amount: u64 },
@@ -56,6 +57,7 @@ pub struct UserWallet {
     spark_client: SparkClient,
     rune_id: RuneId,
     proto_hasher: ProtoHasher,
+    user_id: Uuid,
 }
 
 impl UserWallet {
@@ -79,6 +81,7 @@ impl UserWallet {
             spark_client,
             rune_id,
             proto_hasher,
+            user_id: Uuid::new_v4(),
         })
     }
 
@@ -86,8 +89,8 @@ impl UserWallet {
         self.p2tr_address.clone()
     }
 
-    pub fn get_public_key(&self) -> PublicKey {
-        self.keypair.public_key()
+    pub fn get_user_id(&self) -> Uuid {
+        self.user_id.clone()
     }
 
     pub fn get_spark_address(&self) -> Result<String, RuneError> {
