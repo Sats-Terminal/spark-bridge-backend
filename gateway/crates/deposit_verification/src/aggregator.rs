@@ -53,14 +53,14 @@ impl DepositVerificationAggregator {
 
         self.storage
             .update_bridge_address_by_deposit_address(
-                InnerAddress::BitcoinAddress(request.btc_address.clone()),
-                InnerAddress::SparkAddress(request.bridge_address.clone()),
+                &InnerAddress::BitcoinAddress(request.btc_address.clone()),
+                &InnerAddress::SparkAddress(request.bridge_address.clone()),
             )
             .await?;
 
         let deposit_addr_info = self
             .storage
-            .get_row_by_deposit_address(InnerAddress::BitcoinAddress(request.btc_address.clone()))
+            .get_row_by_deposit_address(&InnerAddress::BitcoinAddress(request.btc_address.clone()))
             .await?
             .ok_or(DepositVerificationError::NotFound(
                 "Deposit address info not found".to_string(),
@@ -107,7 +107,7 @@ impl DepositVerificationAggregator {
 
         self.storage
             .set_confirmation_status_by_deposit_address(
-                InnerAddress::BitcoinAddress(request.btc_address.clone()),
+                &InnerAddress::BitcoinAddress(request.btc_address.clone()),
                 verifiers_responses,
             )
             .await?;
@@ -148,7 +148,7 @@ impl DepositVerificationAggregator {
 
         self.storage
             .update_confirmation_status_by_deposit_address(
-                InnerAddress::BitcoinAddress(btc_address.clone()),
+                &InnerAddress::BitcoinAddress(btc_address.clone()),
                 request.verifier_id,
                 request.status,
             )
@@ -156,7 +156,7 @@ impl DepositVerificationAggregator {
 
         let confirmation_status_info = self
             .storage
-            .get_row_by_deposit_address(InnerAddress::BitcoinAddress(btc_address.clone()))
+            .get_row_by_deposit_address(&InnerAddress::BitcoinAddress(btc_address.clone()))
             .await?
             .ok_or(DepositVerificationError::NotFound(
                 "Confirmation status not found".to_string(),
@@ -194,15 +194,15 @@ impl DepositVerificationAggregator {
         tracing::info!("Verifying spark deposit for spark address: {}", request.spark_address);
         self.storage
             .update_bridge_address_by_deposit_address(
-                InnerAddress::SparkAddress(request.spark_address.clone()),
-                InnerAddress::BitcoinAddress(request.paying_input.btc_exit_address.clone()),
+                &InnerAddress::SparkAddress(request.spark_address.clone()),
+                &InnerAddress::BitcoinAddress(request.paying_input.btc_exit_address.clone()),
             )
             .await?;
-        self.storage.insert_paying_utxo(request.paying_input.clone()).await?;
+        self.storage.insert_paying_utxo(&request.paying_input).await?;
 
         let deposit_addr_info = self
             .storage
-            .get_row_by_deposit_address(InnerAddress::SparkAddress(request.spark_address.clone()))
+            .get_row_by_deposit_address(&InnerAddress::SparkAddress(request.spark_address.clone()))
             .await?
             .ok_or(DepositVerificationError::NotFound(
                 "Deposit address info not found".to_string(),
@@ -218,7 +218,7 @@ impl DepositVerificationAggregator {
 
         let issuer_ids = self
             .storage
-            .get_issuer_ids(user_ids.rune_id.clone())
+            .get_issuer_ids(&user_ids.rune_id)
             .await?
             .ok_or(DepositVerificationError::NotFound("Issuer ids not found".to_string()))?;
 
@@ -296,7 +296,7 @@ impl DepositVerificationAggregator {
 
         self.storage
             .set_confirmation_status_by_deposit_address(
-                InnerAddress::SparkAddress(request.spark_address.clone()),
+                &InnerAddress::SparkAddress(request.spark_address.clone()),
                 verifiers_responses,
             )
             .await?;

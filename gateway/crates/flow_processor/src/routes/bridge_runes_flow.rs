@@ -23,7 +23,7 @@ pub async fn handle(
 
     let deposit_addr_info = flow_router
         .storage
-        .get_row_by_deposit_address(InnerAddress::BitcoinAddress(request.btc_address.clone()))
+        .get_row_by_deposit_address(&InnerAddress::BitcoinAddress(request.btc_address.clone()))
         .await
         .map_err(FlowProcessorError::DbError)?
         .ok_or(FlowProcessorError::InvalidDataError(
@@ -39,7 +39,7 @@ pub async fn handle(
 
     let possible_issuer_user_ids = flow_router
         .storage
-        .get_issuer_ids(rune_id.clone())
+        .get_issuer_ids(&rune_id)
         .await
         .map_err(FlowProcessorError::DbError)?;
 
@@ -49,10 +49,7 @@ pub async fn handle(
             tracing::debug!("Issuer musig id not found, running dkg for issuer ...");
             let issuer_public_key = generate_issuer_public_key();
 
-            let issuer_ids = flow_router
-                .storage
-                .get_random_unused_dkg_share(rune_id.clone(), true)
-                .await?;
+            let issuer_ids = flow_router.storage.get_random_unused_dkg_share(&rune_id, true).await?;
 
             // Dkg flow has to be already completed
 
@@ -101,7 +98,7 @@ pub async fn handle(
 
     let deposit_addr_info = flow_router
         .storage
-        .get_row_by_deposit_address(InnerAddress::BitcoinAddress(request.btc_address.clone()))
+        .get_row_by_deposit_address(&InnerAddress::BitcoinAddress(request.btc_address.clone()))
         .await
         .map_err(FlowProcessorError::DbError)?
         .ok_or(FlowProcessorError::InvalidDataError(

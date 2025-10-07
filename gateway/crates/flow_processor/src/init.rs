@@ -1,5 +1,5 @@
 use crate::error::FlowProcessorError;
-use crate::flow_processor::FlowProcessor;
+use crate::flow_processor::{FlowProcessor, FlowProcessorInitArgs};
 use crate::flow_sender::FlowSender;
 use bitcoin::Network;
 use bitcoin::secp256k1::PublicKey;
@@ -48,18 +48,18 @@ pub async fn create_flow_processor(
     let bitcoin_client = BitcoinClient::new(server_config.bitcoin_client.clone())
         .map_err(|e| FlowProcessorError::InitializationError(format!("Failed to create bitcoin client: {}", e)))?;
 
-    let flow_processor = FlowProcessor::new(
-        Arc::new(server_config.verifiers.0),
+    let flow_processor = FlowProcessor::new(FlowProcessorInitArgs {
+        verifier_configs: Arc::new(server_config.verifiers.0),
         tx_receiver,
         storage,
         cancellation_retries,
         frost_aggregator,
         network,
-        cancellation_token.clone(),
-        Arc::new(spark_service),
-        Arc::new(spark_client),
-        Arc::new(bitcoin_client),
-    );
+        cancellation_token: cancellation_token.clone(),
+        spark_service: Arc::new(spark_service),
+        spark_client: Arc::new(spark_client),
+        bitcoin_client: Arc::new(bitcoin_client),
+    });
 
     let flow_sender = FlowSender::new(tx_sender, cancellation_token);
     Ok((flow_processor, flow_sender))

@@ -176,20 +176,20 @@ pub trait DepositAddressStorage: Send + Sync {
     async fn insert_deposit_addr_info(&self, deposit_addr_info: DepositAddrInfo) -> Result<(), DbError>;
     async fn set_confirmation_status_by_deposit_address(
         &self,
-        address: InnerAddress,
+        address: &InnerAddress,
         confirmation_status: VerifiersResponses,
     ) -> Result<(), DbError>;
-    async fn get_row_by_deposit_address(&self, address: InnerAddress) -> Result<Option<DepositAddrInfo>, DbError>;
+    async fn get_row_by_deposit_address(&self, address: &InnerAddress) -> Result<Option<DepositAddrInfo>, DbError>;
     async fn update_confirmation_status_by_deposit_address(
         &self,
-        deposit_address: InnerAddress,
+        deposit_address: &InnerAddress,
         verifier_id: u16,
         verifier_response: DepositStatus,
     ) -> Result<(), DbError>;
     async fn update_bridge_address_by_deposit_address(
         &self,
-        deposit_address: InnerAddress,
-        bridge_address: InnerAddress,
+        deposit_address: &InnerAddress,
+        bridge_address: &InnerAddress,
     ) -> Result<(), DbError>;
 }
 
@@ -221,7 +221,7 @@ impl DepositAddressStorage for LocalDbStorage {
     #[tracing::instrument(level = "trace", skip_all)]
     async fn set_confirmation_status_by_deposit_address(
         &self,
-        address: InnerAddress,
+        address: &InnerAddress,
         confirmation_status: VerifiersResponses,
     ) -> Result<(), DbError> {
         let address_str = address.to_string();
@@ -238,7 +238,7 @@ impl DepositAddressStorage for LocalDbStorage {
     #[tracing::instrument(level = "trace", skip_all)]
     async fn get_row_by_deposit_address(
         &self,
-        deposit_address: InnerAddress,
+        deposit_address: &InnerAddress,
     ) -> Result<Option<DepositAddrInfo>, DbError> {
         let address_str = deposit_address.to_string();
 
@@ -291,7 +291,7 @@ impl DepositAddressStorage for LocalDbStorage {
     #[tracing::instrument(level = "trace", skip_all)]
     async fn update_confirmation_status_by_deposit_address(
         &self,
-        deposit_address: InnerAddress,
+        deposit_address: &InnerAddress,
         verifier_id: u16,
         verifier_response: DepositStatus,
     ) -> Result<(), DbError> {
@@ -338,8 +338,8 @@ impl DepositAddressStorage for LocalDbStorage {
     #[tracing::instrument(level = "trace", skip_all)]
     async fn update_bridge_address_by_deposit_address(
         &self,
-        deposit_address: InnerAddress,
-        bridge_address: InnerAddress,
+        deposit_address: &InnerAddress,
+        bridge_address: &InnerAddress,
     ) -> Result<(), DbError> {
         let deposit_addr_str = deposit_address.to_string();
         let bridge_addr_str = bridge_address.to_string();

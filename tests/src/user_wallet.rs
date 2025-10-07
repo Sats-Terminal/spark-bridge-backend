@@ -21,6 +21,7 @@ use bitcoin::sighash::{Prevouts, SighashCache, TapSighashType};
 use bitcoin::transaction::Version;
 use bitcoin::{Amount, OutPoint, ScriptBuf, Sequence, TxIn, TxOut, Witness};
 use chrono::Utc;
+use global_utils::common_types::get_uuid;
 use lrc20::marshal::marshal_token_transaction;
 use lrc20::token_leaf::TokenLeafOutput;
 use lrc20::token_leaf::TokenLeafToSpend;
@@ -81,7 +82,7 @@ impl UserWallet {
             spark_client,
             rune_id,
             proto_hasher,
-            user_id: Uuid::new_v4(),
+            user_id: get_uuid(),
         })
     }
 
@@ -90,7 +91,7 @@ impl UserWallet {
     }
 
     pub fn get_user_id(&self) -> Uuid {
-        self.user_id.clone()
+        self.user_id
     }
 
     pub fn get_spark_address(&self) -> Result<String, RuneError> {
@@ -238,7 +239,7 @@ impl UserWallet {
 
         sign_transaction(&mut transaction, vec![value], self.p2tr_address.clone(), self.keypair)?;
 
-        let txid = transaction.compute_txid();
+        let _txid = transaction.compute_txid();
 
         self.bitcoin_client.broadcast_transaction(transaction.clone())?;
         self.bitcoin_client.generate_blocks(BLOCKS_TO_GENERATE, None)?;
@@ -359,7 +360,7 @@ impl UserWallet {
         let mut token_leaves_to_spend = vec![];
         for token_output in spark_address_data.token_outputs.iter() {
             token_leaves_to_spend.push(TokenLeafToSpend {
-                parent_leaf_hash: Sha256Hash::from_bytes_ref(
+                parent_leaf_hash: *Sha256Hash::from_bytes_ref(
                     token_output
                         .prev_token_transaction_hash
                         .clone()
@@ -370,8 +371,7 @@ impl UserWallet {
                                 "Failed to convert prev_token_transaction_hash to Sha256Hash".to_string(),
                             )
                         })?,
-                )
-                .clone(),
+                ),
                 parent_leaf_index: token_output.prev_token_transaction_vout,
             });
         }
@@ -437,7 +437,7 @@ impl UserWallet {
         };
         let start_transaction_response = self
             .spark_client
-            .start_spark_transaction(start_transaction_request, self.keypair.clone())
+            .start_spark_transaction(start_transaction_request, self.keypair)
             .await?;
 
         let final_token_transaction_proto = start_transaction_response
@@ -484,7 +484,7 @@ impl UserWallet {
 
         let _ = self
             .spark_client
-            .commit_spark_transaction(commit_transaction_request, self.keypair.clone())
+            .commit_spark_transaction(commit_transaction_request, self.keypair)
             .await?;
 
         Ok(())
@@ -501,7 +501,7 @@ impl UserWallet {
             .await?;
         let txid = tx.compute_txid();
 
-        let previous_output = OutPoint { txid: txid, vout: 1 };
+        let previous_output = OutPoint { txid, vout: 1 };
         let txin = TxIn {
             previous_output,
             script_sig: ScriptBuf::new(),

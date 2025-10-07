@@ -14,6 +14,8 @@ use sqlx::Acquire;
 use thiserror::Error;
 use tracing::instrument;
 
+pub type DkgShareId = Uuid;
+
 #[derive(Debug, Error)]
 pub enum DkgShareGenerateError {
     #[error(transparent)]
@@ -25,11 +27,11 @@ pub enum DkgShareGenerateError {
 #[async_trait]
 pub trait DkgShareGenerate {
     /// Generated dkg share entity in Aggregator side with state `AggregatorDkgState::Initialized`
-    async fn generate_dkg_share_entity(&self) -> Result<Uuid, DbError>;
+    async fn generate_dkg_share_entity(&self) -> Result<DkgShareId, DbError>;
     /// Returns unused dkg share uuid to user and assigns at the same time user identifier to this user
     async fn get_random_unused_dkg_share(
         &self,
-        rune_id: String,
+        rune_id: &str,
         is_issuer: bool,
     ) -> Result<UserIds, DkgShareGenerateError>;
     async fn count_unused_dkg_shares(&self) -> Result<u64, DbError>;
@@ -39,8 +41,8 @@ pub trait DkgShareGenerate {
 #[async_trait]
 impl DkgShareGenerate for LocalDbStorage {
     #[instrument(level = "trace", skip_all, ret)]
-    async fn generate_dkg_share_entity(&self) -> Result<Uuid, DbError> {
-        let result: (Uuid,) =
+    async fn generate_dkg_share_entity(&self) -> Result<DkgShareId, DbError> {
+        let result: (DkgShareId,) =
             sqlx::query_as("INSERT INTO gateway.dkg_share (dkg_aggregator_state) VALUES ($1) RETURNING dkg_share_id;")
                 .bind(Json(AggregatorDkgState::Initialized))
                 .fetch_one(&self.get_conn().await?)
@@ -52,11 +54,11 @@ impl DkgShareGenerate for LocalDbStorage {
     #[instrument(level = "debug", skip_all, ret)]
     async fn get_random_unused_dkg_share(
         &self,
-        rune_id: String,
+        rune_id: &str,
         is_issuer: bool,
     ) -> Result<UserIds, DkgShareGenerateError> {
         let mut conn = self.postgres_repo.get_conn().await?;
-        let mut transaction = conn.begin().await.map_err(|e| DbError::from(e))?;
+        let mut transaction = conn.begin().await.map_err(DbError::from)?;
 
         let dkg_share_id: Option<(Uuid,)> = sqlx::query_as(
             "SELECT ds.dkg_share_id
@@ -84,18 +86,18 @@ impl DkgShareGenerate for LocalDbStorage {
         )
         .bind(user_id)
         .bind(dkg_share_id)
-        .bind(rune_id.clone())
+        .bind(rune_id)
         .bind(is_issuer)
         .execute(&mut *transaction)
         .await
         .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
-        transaction.commit().await.map_err(|e| DbError::from(e))?;
+        transaction.commit().await.map_err(DbError::from)?;
         Ok(UserIds {
             user_id,
             dkg_share_id,
-            rune_id: rune_id,
-            is_issuer: is_issuer,
+            rune_id: rune_id.to_string(),
+            is_issuer,
         })
     }
 

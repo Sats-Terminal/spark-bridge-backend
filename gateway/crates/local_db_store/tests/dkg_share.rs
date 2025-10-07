@@ -1,6 +1,10 @@
+use frost::traits::SignerClient;
+
 mod utils;
 mod tests {
-    use crate::utils::common::{GATEWAY_CONFIG_PATH, MIGRATOR, TEST_LOGGER};
+    use crate::utils::common::{
+        GATEWAY_CONFIG_PATH, MIGRATOR, TEST_LOGGER, create_mock_signer, create_mock_verifiers_map,
+    };
     use bitcoin::Network;
     use bitcoin::key::Secp256k1;
     use bitcoin::secp256k1::SecretKey;
@@ -14,9 +18,7 @@ mod tests {
     use frost_secp256k1_tr::keys::Tweak;
     use gateway_config_parser::config::{ServerConfig, VerifierConfig};
     use gateway_local_db_store::schemas::dkg_share::{DkgShareGenerate, DkgShareGenerateError};
-    use gateway_local_db_store::schemas::user_identifier::{
-        UserIdentifier, UserIdentifierData, UserIdentifierStorage, UserIds, UserUniqueId,
-    };
+    use gateway_local_db_store::schemas::user_identifier::{UserIdentifierStorage, UserIds};
     use gateway_local_db_store::storage::LocalDbStorage;
     use global_utils::common_types::get_uuid;
     use global_utils::config_path::ConfigPath;
@@ -47,7 +49,7 @@ mod tests {
         let mut verifiers_map = BTreeMap::<Identifier, Arc<dyn SignerClient>>::new();
         for verifier in server_config.clone().verifiers.0 {
             let identifier: Identifier = verifier.id.try_into().unwrap();
-            let verifier_client = MockSignerClient::new(create_signer(verifier.id).await);
+            let verifier_client = MockSignerClient::new(create_mock_signer(verifier.id).await);
             verifiers_map.insert(identifier, Arc::new(verifier_client));
         }
         let frost_aggregator =
@@ -78,19 +80,7 @@ mod tests {
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_dkg_share_flow_creation(db: PostgresPool) -> eyre::Result<()> {
         let _logger_guard = &*TEST_LOGGER;
-        let tweak = Some(generate_tweak_bytes());
         _test_dkg_pregen_draft_flow(db).await
-    }
-
-    async fn create_signer(identifier: u16) -> FrostSigner {
-        FrostSigner::new(
-            identifier,
-            Arc::new(MockSignerDkgShareIdStorage::default()),
-            Arc::new(MockSignerSignSessionStorage::default()),
-            3,
-            2,
-        )
-        .unwrap()
     }
 
     async fn _test_dkg_pregen_draft_flow(db: sqlx::PgPool) -> eyre::Result<()> {
@@ -100,38 +90,28 @@ mod tests {
             network: server_config.network.network,
         });
 
-        let user_id = local_repo.generate_dkg_share_entity().await?;
+        let dkg_share_id = local_repo.generate_dkg_share_entity().await?;
 
-        let verifiers_map = create_verifiers_map().await;
+        let verifiers_map = create_mock_verifiers_map().await;
         let aggregator = FrostAggregator::new(verifiers_map, local_repo.clone(), local_repo.clone());
 
-        let _public_key_package = aggregator.run_dkg_flow(&user_id).await?;
+        let _public_key_package = aggregator.run_dkg_flow(&dkg_share_id).await?;
 
-        let user_id_data = UserIdentifierData {
-            public_key: "some pubkey".to_string(),
-            rune_id: "1:18000".to_string(),
-            is_issuer: false,
-        };
+        let (rune_id, is_issuer) = ("1:18000".to_string(), false);
         assert_eq!(local_repo.count_unused_dkg_shares().await?, 1);
-        let user_ids = local_repo.get_random_unused_dkg_share(user_id_data.clone()).await?;
+        let user_ids = local_repo.get_random_unused_dkg_share(&rune_id, is_issuer).await?;
         assert_eq!(
-            Some(UserIdentifier {
+            Some(UserIds {
                 user_id: user_ids.user_id,
-                dkg_share_id: user_ids.dkg_share_id,
-                public_key: user_id_data.public_key.clone(),
-                rune_id: user_id_data.rune_id.clone(),
-                is_issuer: user_id_data.is_issuer,
+                dkg_share_id,
+                rune_id: rune_id.clone(),
+                is_issuer,
             }),
-            local_repo
-                .get_row_by_user_unique_id(&UserUniqueId {
-                    uuid: user_ids.user_id,
-                    rune_id: user_id_data.rune_id.clone()
-                })
-                .await?
+            local_repo.get_row_by_user_id(user_ids.user_id, &rune_id).await?
         );
 
         assert_eq!(local_repo.count_unused_dkg_shares().await?, 0);
-        let obtained_value = local_repo.get_random_unused_dkg_share(user_id_data).await;
+        let obtained_value = local_repo.get_random_unused_dkg_share(&rune_id, false).await;
         assert!(matches!(
             Err::<UserIds, DkgShareGenerateError>(DkgShareGenerateError::DkgPregenFailed),
             obtained_value
@@ -153,11 +133,8 @@ mod tests {
 
         let user_id = local_repo.generate_dkg_share_entity().await?;
 
-        let verifiers_map = create_verifiers_map().await;
+        let verifiers_map = create_mock_verifiers_map().await;
         let aggregator = FrostAggregator::new(verifiers_map, local_repo.clone(), local_repo);
-
-        let secp = Secp256k1::new();
-        let secret_key = SecretKey::from_slice(&[4u8; 32])?;
 
         let message_hash = b"test_message";
 
@@ -178,25 +155,5 @@ mod tests {
             .verify(message_hash, &signature)?;
 
         Ok(())
-    }
-
-    async fn create_verifiers_map() -> BTreeMap<Identifier, Arc<dyn SignerClient>> {
-        let signer1 = create_signer(1).await;
-        let signer2 = create_signer(2).await;
-        let signer3 = create_signer(3).await;
-
-        let mock_signer_client1 = MockSignerClient::new(signer1);
-        let mock_signer_client2 = MockSignerClient::new(signer2);
-        let mock_signer_client3 = MockSignerClient::new(signer3);
-
-        let identifier_1: Identifier = 1.try_into().unwrap();
-        let identifier_2: Identifier = 2.try_into().unwrap();
-        let identifier_3: Identifier = 3.try_into().unwrap();
-
-        BTreeMap::from([
-            (identifier_1, Arc::new(mock_signer_client1) as Arc<dyn SignerClient>),
-            (identifier_2, Arc::new(mock_signer_client2) as Arc<dyn SignerClient>),
-            (identifier_3, Arc::new(mock_signer_client3) as Arc<dyn SignerClient>),
-        ])
     }
 }

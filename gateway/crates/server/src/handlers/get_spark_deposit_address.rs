@@ -25,7 +25,7 @@ pub async fn handle(
     State(state): State<AppState>,
     Json(request): Json<GetSparkDepositAddressRequest>,
 ) -> Result<Json<GetSparkDepositAddressResponse>, GatewayError> {
-    let request_uuid = request.user_id.clone();
+    let request_uuid = request.user_id;
     tracing::info!(
         "Handling get spark deposit address request with user public key: {:?}",
         request_uuid

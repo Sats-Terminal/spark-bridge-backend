@@ -50,7 +50,7 @@ pub async fn etch_rune(params: EtchRuneParams, mut bitcoin_client: BitcoinClient
 
     tracing::debug!("address_data: {:?}", address_data);
 
-    if address_data.outputs.len() == 0 {
+    if address_data.outputs.is_empty() {
         return Err(RuneError::EtchRuneError(
             "Address should have more than output".to_string(),
         ));

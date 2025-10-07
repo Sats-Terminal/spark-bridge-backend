@@ -148,9 +148,7 @@ mod tests {
     }
 
     async fn use_one_dkg_share(local_repo: &Arc<LocalDbStorage>) -> eyre::Result<()> {
-        let _ = local_repo
-            .get_random_unused_dkg_share("1:124000".to_string(), false)
-            .await?;
+        let _ = local_repo.get_random_unused_dkg_share("1:124000", false).await?;
         Ok(())
     }
 

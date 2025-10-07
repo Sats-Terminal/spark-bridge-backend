@@ -41,7 +41,7 @@ impl FrostSigner {
         if locked_dkg_share_ids.contains(dkg_share_id) {
             return Err(SignerError::DkgShareIdAlreadyExists(*dkg_share_id));
         }
-        locked_dkg_share_ids.insert(dkg_share_id.clone());
+        locked_dkg_share_ids.insert(*dkg_share_id);
         Ok(())
     }
 

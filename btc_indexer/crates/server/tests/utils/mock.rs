@@ -2,6 +2,7 @@ use std::{collections::HashMap, str::FromStr, sync::Arc};
 
 use crate::utils::init::{DRAFT_TITAN_URL, TEST_LOGGER};
 use async_trait::async_trait;
+use axum::routing::get;
 use axum::{Router, routing::post};
 use axum_test::TestServer;
 use bitcoin::{BlockHash, OutPoint, hashes::Hash};
@@ -279,7 +280,7 @@ pub async fn create_app_mocked(
         )
         .route(
             BtcIndexerApi::HEALTHCHECK_ENDPOINT,
-            post(btc_indexer_server::routes::healthcheck::handler),
+            get(btc_indexer_server::routes::healthcheck::handler),
         )
         .with_state(state);
     app

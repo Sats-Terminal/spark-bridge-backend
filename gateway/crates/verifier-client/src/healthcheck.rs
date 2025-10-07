@@ -2,7 +2,7 @@ use crate::client::VerifierClient;
 use crate::error::VerifierClientError;
 use tracing::instrument;
 
-const HEALTHCHECK_PATH: &'static str = "/health";
+const HEALTHCHECK_PATH: &str = "/health";
 
 impl VerifierClient {
     #[instrument(skip(self), err)]

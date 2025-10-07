@@ -31,7 +31,7 @@ mod mocked_healthcheck {
         let (_url_to_listen, _oneshot_chan, _notify_server) =
             spawn_notify_server_track_tx(obtain_random_localhost_socket_addr()?).await?;
 
-        let response = test_server.post(BtcIndexerApi::HEALTHCHECK_ENDPOINT).await;
+        let response = test_server.get(BtcIndexerApi::HEALTHCHECK_ENDPOINT).await;
         assert_eq!(response.status_code(), StatusCode::OK);
         Ok(())
     }

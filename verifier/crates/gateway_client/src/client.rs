@@ -8,7 +8,6 @@ use verifier_config_parser::config::GatewayConfig;
 use verifier_local_db_store::schemas::deposit_address::DepositStatus;
 
 const NOTIFY_RUNES_DEPOSIT_PATH: &str = "/api/verifier/notify-runes-deposit";
-const HEALTHCHECK_PATH: &str = "/health";
 
 #[derive(Clone, Debug)]
 pub struct GatewayClient {

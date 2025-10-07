@@ -1,7 +1,7 @@
 use crate::utils::common::{CONFIG_PATH, obtain_random_localhost_socket_addr};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use axum::routing::post;
+use axum::routing::{get, post};
 use axum::{Json, Router, debug_handler};
 use axum_test::TestServer;
 use eyre::eyre;
@@ -67,7 +67,7 @@ pub async fn init_mocked_test_server(pool: PostgresPool) -> eyre::Result<TestSer
 }
 
 fn create_mock_healthcheck_app() -> Router {
-    Router::new().route(VerifierApi::HEALTHCHECK_ENDPOINT, post(handle_healthcheck))
+    Router::new().route(VerifierApi::HEALTHCHECK_ENDPOINT, get(handle_healthcheck))
 }
 
 #[derive(thiserror::Error, Debug)]

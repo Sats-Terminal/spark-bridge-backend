@@ -37,34 +37,36 @@ pub struct FlowProcessor {
     pub network: Network,
 }
 
+pub struct FlowProcessorInitArgs {
+    pub verifier_configs: Arc<Vec<VerifierConfig>>,
+    pub tx_receiver: mpsc::Receiver<(FlowProcessorMessage, OneshotFlowProcessorSender)>,
+    pub storage: Arc<LocalDbStorage>,
+    pub cancellation_retries: u64,
+    pub frost_aggregator: Arc<FrostAggregator>,
+    pub network: Network,
+    pub cancellation_token: CancellationToken,
+    pub spark_service: Arc<SparkService>,
+    pub spark_client: Arc<SparkRpcClient>,
+    pub bitcoin_client: Arc<BitcoinClient>,
+}
+
 impl FlowProcessor {
-    pub fn new(
-        verifier_configs: Arc<Vec<VerifierConfig>>,
-        tx_receiver: mpsc::Receiver<(FlowProcessorMessage, OneshotFlowProcessorSender)>,
-        storage: Arc<LocalDbStorage>,
-        cancellation_retries: u64,
-        frost_aggregator: Arc<FrostAggregator>,
-        network: Network,
-        cancellation_token: CancellationToken,
-        spark_service: Arc<SparkService>,
-        spark_client: Arc<SparkRpcClient>,
-        bitcoin_client: Arc<BitcoinClient>,
-    ) -> Self {
+    pub fn new(flow_processor_config: FlowProcessorInitArgs) -> Self {
         let (flow_sender, flow_receiver) = mpsc::channel::<Uuid>(1000);
         Self {
-            verifier_configs,
-            tx_receiver,
+            verifier_configs: flow_processor_config.verifier_configs,
+            tx_receiver: flow_processor_config.tx_receiver,
             flow_receiver,
             flow_sender,
-            storage,
+            storage: flow_processor_config.storage,
             flows: HashMap::default(),
-            cancellation_token,
-            cancellation_retries,
-            frost_aggregator,
-            spark_service,
-            spark_client,
-            bitcoin_client,
-            network,
+            cancellation_token: flow_processor_config.cancellation_token,
+            cancellation_retries: flow_processor_config.cancellation_retries,
+            frost_aggregator: flow_processor_config.frost_aggregator,
+            spark_service: flow_processor_config.spark_service,
+            spark_client: flow_processor_config.spark_client,
+            bitcoin_client: flow_processor_config.bitcoin_client,
+            network: flow_processor_config.network,
         }
     }
 

@@ -27,7 +27,7 @@ pub async fn handle(
 
     let deposit_addr_info = flow_router
         .storage
-        .get_row_by_deposit_address(InnerAddress::SparkAddress(request.spark_address.clone()))
+        .get_row_by_deposit_address(&InnerAddress::SparkAddress(request.spark_address.clone()))
         .await?
         .ok_or(FlowProcessorError::DbError(DbError::NotFound(
             "Deposit address info not found".to_string(),
@@ -108,7 +108,7 @@ pub async fn handle(
 
         let input_deposit_addr_info = flow_router
             .storage
-            .get_row_by_deposit_address(InnerAddress::BitcoinAddress(input_btc_address.clone()))
+            .get_row_by_deposit_address(&InnerAddress::BitcoinAddress(input_btc_address.clone()))
             .await?
             .ok_or(FlowProcessorError::DbError(DbError::NotFound(
                 "Input deposit address info not found".to_string(),

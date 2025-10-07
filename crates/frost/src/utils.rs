@@ -18,7 +18,7 @@ pub fn generate_tweak_bytes() -> TweakBytes {
     nonce
 }
 
-pub fn get_tweaked_p2tr_address(public_key: PublicKey, tweak: TweakBytes, network: Network) -> eyre::Result<Address> {
+pub fn get_tweaked_p2tr_address(public_key: PublicKey, _tweak: TweakBytes, network: Network) -> eyre::Result<Address> {
     let ctx = Secp256k1::new();
     let (x_only_public_key, _) = public_key.x_only_public_key();
 

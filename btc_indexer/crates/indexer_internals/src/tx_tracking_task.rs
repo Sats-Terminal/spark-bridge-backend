@@ -1,6 +1,6 @@
 use crate::tx_arbiter::{TxArbiterResponse, TxArbiterTrait};
 
-use btc_indexer_api::api::ResponseMeta;
+use btc_indexer_api::api::{BtcIndexerCallbackResponse, ResponseMeta};
 use config_parser::config::BtcIndexerParams;
 use local_db_store_indexer::init::IndexerDbBounds;
 use local_db_store_indexer::schemas::track_tx_requests_storage::{TrackedReqStatus, TxTrackingRequestsToSendResponse};
@@ -89,13 +89,17 @@ async fn send_response_to_recipients<Db: IndexerDbBounds>(
     local_db: Db,
 ) -> eyre::Result<()> {
     let updated_txs = local_db.get_values_to_send_response().await?;
-    tracing::info!("Already received txs to send callback response, txs: {updated_txs:?}");
+    tracing::debug!("Already received txs to send callback response, txs: {updated_txs:?}");
     let tasks = spawn_tasks_to_send_response(client, local_db, updated_txs)?;
-    tasks.join_all().await;
+    if !tasks.is_empty() {
+        tracing::trace!("Awaiting responses sending to finish...");
+        tasks.join_all().await;
+        tracing::trace!("Awaiting responses sending Finished!");
+    }
     Ok(())
 }
 
-#[instrument(skip_all, level = "trace")]
+#[instrument(skip(client, local_db), level = "trace")]
 fn spawn_tasks_to_send_response<Db: IndexerDbBounds>(
     client: Arc<Client>,
     local_db: Db,
@@ -104,7 +108,7 @@ fn spawn_tasks_to_send_response<Db: IndexerDbBounds>(
     let mut tasks = JoinSet::default();
     for x in txs_to_update_status {
         tasks.spawn({
-            tracing::debug!("Request uuid: {:?}", x.uuid);
+            tracing::debug!("Spawning task to handle response for request uuid: {:?}", x.uuid);
             let client = client.clone();
             let local_db = local_db.clone();
             _inner_response_task_spawn(x, client, local_db)
@@ -113,7 +117,7 @@ fn spawn_tasks_to_send_response<Db: IndexerDbBounds>(
     Ok(tasks)
 }
 
-#[instrument(skip(local_db, client), level = "trace")]
+#[instrument(skip(local_db, client), level = "trace", fields(req_uuid =? data.uuid), ret)]
 fn _inner_response_task_spawn<Db: IndexerDbBounds>(
     data: TxTrackingRequestsToSendResponse,
     client: Arc<Client>,
@@ -121,11 +125,12 @@ fn _inner_response_task_spawn<Db: IndexerDbBounds>(
 ) -> impl Future<Output = ()> {
     tracing::debug!("Sending response to recipient to url: {}", data.callback_url.0);
     async move {
-        let resp = ResponseMeta {
+        let resp = BtcIndexerCallbackResponse {
             outpoint: data.out_point,
             status: data.review,
             sats_fee_amount: data.transaction.output[data.out_point.vout as usize].value,
         };
+        tracing::debug!("Sending response...");
         let client_resp = client.post(data.callback_url.0).json(&resp).send().await;
         tracing::debug!("Client response: {:?}", client_resp);
         match client_resp {
@@ -198,7 +203,7 @@ fn _inner_update_task_spawn<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArb
                     .inspect_err(|e| {
                         tracing::error!("Failed to check obtained transaction: {e}, tx_id: {}", tx_to_check.txid)
                     });
-                tracing::debug!("Review finihsed: {:?}", r);
+                tracing::debug!("Review finished: {:?}", r);
                 if let Ok(res) = r
                     && let TxArbiterResponse::ReviewFormed(review, out_point) = res
                 {
