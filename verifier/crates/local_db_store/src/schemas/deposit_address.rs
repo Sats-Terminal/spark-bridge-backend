@@ -107,9 +107,7 @@ impl DepositAddrInfo {
         }
     }
 
-    fn from_db_format(
-        db_info: DbDepositAddrInfo,
-    ) -> Result<Self, String> {
+    fn from_db_format(db_info: DbDepositAddrInfo) -> Result<Self, String> {
         let deposit_address = InnerAddress::from_string_and_type(db_info.deposit_address, db_info.is_btc)?;
 
         let bridge_address = InnerAddress::from_string_and_type(db_info.bridge_address, !db_info.is_btc)?;
@@ -130,10 +128,7 @@ impl DepositAddrInfo {
 
 #[async_trait]
 pub trait DepositAddressStorage: Send + Sync + StorageHealthcheck {
-    async fn get_deposit_addr_info(
-        &self,
-        tweak: TweakBytes,
-    ) -> Result<Option<DepositAddrInfo>, DbError>;
+    async fn get_deposit_addr_info(&self, tweak: TweakBytes) -> Result<Option<DepositAddrInfo>, DbError>;
     async fn set_deposit_addr_info(&self, deposit_addr_info: DepositAddrInfo) -> Result<(), DbError>;
     async fn set_confirmation_status_by_out_point(
         &self,
@@ -157,10 +152,7 @@ pub trait DepositAddressStorage: Send + Sync + StorageHealthcheck {
 #[async_trait]
 impl DepositAddressStorage for LocalDbStorage {
     #[instrument(level = "trace", skip(self), ret)]
-    async fn get_deposit_addr_info(
-        &self,
-        tweak: TweakBytes,
-    ) -> Result<Option<DepositAddrInfo>, DbError> {
+    async fn get_deposit_addr_info(&self, tweak: TweakBytes) -> Result<Option<DepositAddrInfo>, DbError> {
         let result: Option<(Uuid, TweakBytes, String, String, bool, i64, Option<i64>, Option<String>, Json<DepositStatus>)> = sqlx::query_as(
             "SELECT dkg_share_id, nonce_tweak, deposit_address, bridge_address, is_btc, deposit_amount, sats_fee_amount, out_point, confirmation_status
             FROM verifier.deposit_address

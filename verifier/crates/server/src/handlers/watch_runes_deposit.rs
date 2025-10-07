@@ -11,9 +11,7 @@ use verifier_config_parser::config::construct_hardcoded_callback_url;
 use verifier_local_db_store::schemas::deposit_address::{
     DepositAddrInfo, DepositAddressStorage, DepositStatus, InnerAddress,
 };
-use verifier_local_db_store::schemas::user_identifier::{
-    UserIdentifierStorage, UserIds,
-};
+use verifier_local_db_store::schemas::user_identifier::{UserIdentifierStorage, UserIds};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WatchRunesDepositRequest {
@@ -53,7 +51,7 @@ pub async fn handle(
             out_point: Some(request.out_point),
             deposit_address,
             bridge_address,
-            is_btc: false, 
+            is_btc: false,
             deposit_amount: request.amount,
             sats_fee_amount: None,
             confirmation_status: DepositStatus::WaitingForConfirmation,

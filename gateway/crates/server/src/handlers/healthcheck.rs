@@ -9,8 +9,12 @@ use tracing::instrument;
 pub async fn handle(State(state): State<AppState>) -> Result<Json<Empty>, GatewayError> {
     tracing::info!("Handling healthcheck request...");
     for verifier_client in state.verifier_clients.iter() {
-        verifier_client.healthcheck().await
-            .map_err(|_| GatewayError::HealthcheckError(format!("Failed to perform healthcheck for verifier client {}", verifier_client.get_id())))?;
+        verifier_client.healthcheck().await.map_err(|_| {
+            GatewayError::HealthcheckError(format!(
+                "Failed to perform healthcheck for verifier client {}",
+                verifier_client.get_id()
+            ))
+        })?;
     }
     Ok(Json(Empty {}))
 }

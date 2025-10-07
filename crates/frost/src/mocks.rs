@@ -34,11 +34,7 @@ impl StorageHealthcheck for MockSignerSignSessionStorage {
 
 #[async_trait]
 impl SignerSignSessionStorage for MockSignerSignSessionStorage {
-    async fn get_sign_data(
-        &self,
-        dkg_share_id: &Uuid,
-        session_id: Uuid,
-    ) -> Result<Option<SignerSignData>, DbError> {
+    async fn get_sign_data(&self, dkg_share_id: &Uuid, session_id: Uuid) -> Result<Option<SignerSignData>, DbError> {
         Ok(self.storage.lock().await.get(&(*dkg_share_id, session_id)).cloned())
     }
 
@@ -73,10 +69,7 @@ impl StorageHealthcheck for MockSignerDkgShareIdStorage {
 
 #[async_trait]
 impl SignerDkgShareStorage for MockSignerDkgShareIdStorage {
-    async fn get_dkg_share_signer_data(
-        &self,
-        dkg_share_id: &Uuid,
-    ) -> Result<Option<SignerDkgShareIdData>, DbError> {
+    async fn get_dkg_share_signer_data(&self, dkg_share_id: &Uuid) -> Result<Option<SignerDkgShareIdData>, DbError> {
         Ok(self.storage.lock().await.get(dkg_share_id).cloned())
     }
 

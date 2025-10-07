@@ -1,8 +1,8 @@
 use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
 use frost::traits::SignerDkgShareStorage;
-use frost::types::SignerDkgState;
 use frost::types::SignerDkgShareIdData;
+use frost::types::SignerDkgState;
 use persistent_storage::error::DbError;
 use sqlx::types::Json;
 use tracing::info;
@@ -10,10 +10,7 @@ use uuid::Uuid;
 
 #[async_trait]
 impl SignerDkgShareStorage for LocalDbStorage {
-    async fn get_dkg_share_signer_data(
-        &self,
-        dkg_share_id: &Uuid,
-    ) -> Result<Option<SignerDkgShareIdData>, DbError> {
+    async fn get_dkg_share_signer_data(&self, dkg_share_id: &Uuid) -> Result<Option<SignerDkgShareIdData>, DbError> {
         info!("here signer");
         let result: Option<(Json<SignerDkgState>,)> = sqlx::query_as(
             "SELECT dkg_signer_state

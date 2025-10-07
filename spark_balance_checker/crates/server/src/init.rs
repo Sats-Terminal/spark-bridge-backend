@@ -1,6 +1,9 @@
 use crate::error::ServerError;
 use crate::handlers;
-use axum::{Router, routing::{post, get}};
+use axum::{
+    Router,
+    routing::{get, post},
+};
 use spark_client::client::SparkRpcClient;
 use spark_client::common::config::SparkConfig;
 use tracing::instrument;

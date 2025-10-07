@@ -1,11 +1,10 @@
-
 use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
 use persistent_storage::error::DbError;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use std::fmt::Debug;
 use tracing::instrument;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserIds {
@@ -44,21 +43,19 @@ impl UserIdentifierStorage for LocalDbStorage {
 
     #[instrument(level = "trace", skip(self), ret)]
     async fn get_row_by_dkg_id(&self, dkg_share_id: Uuid) -> Result<Option<UserIds>, DbError> {
-        let result: Option<(Uuid, Uuid, String, bool,)> = sqlx::query_as(
+        let result: Option<(Uuid, Uuid, String, bool)> = sqlx::query_as(
             "SELECT user_id, dkg_share_id, rune_id, is_issuer FROM gateway.user_identifier WHERE dkg_share_id = $1;",
         )
-            .bind(dkg_share_id)
-            .fetch_optional(&self.get_conn().await?)
-            .await
-            .map_err(|e| DbError::BadRequest(e.to_string()))?;
-        Ok(result.map(
-            |(user_id, dkg_share_id, rune_id, is_issuer)| UserIds {
-                user_id,
-                dkg_share_id,
-                rune_id,
-                is_issuer,
-            },
-        ))
+        .bind(dkg_share_id)
+        .fetch_optional(&self.get_conn().await?)
+        .await
+        .map_err(|e| DbError::BadRequest(e.to_string()))?;
+        Ok(result.map(|(user_id, dkg_share_id, rune_id, is_issuer)| UserIds {
+            user_id,
+            dkg_share_id,
+            rune_id,
+            is_issuer,
+        }))
     }
 
     async fn get_row_by_user_id(&self, user_id: Uuid, rune_id: String) -> Result<Option<UserIds>, DbError> {
@@ -71,19 +68,17 @@ impl UserIdentifierStorage for LocalDbStorage {
             .await
             .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
-        Ok(result.map(
-            |(user_id, dkg_share_id, rune_id, is_issuer)| UserIds {
-                user_id,
-                dkg_share_id,
-                rune_id,
-                is_issuer,
-            },
-        ))
+        Ok(result.map(|(user_id, dkg_share_id, rune_id, is_issuer)| UserIds {
+            user_id,
+            dkg_share_id,
+            rune_id,
+            is_issuer,
+        }))
     }
 
     #[instrument(level = "trace", skip(self))]
     async fn get_issuer_ids(&self, rune_id: String) -> Result<Option<UserIds>, DbError> {
-        let result: Option<(Uuid, Uuid, String, bool,)> = sqlx::query_as(
+        let result: Option<(Uuid, Uuid, String, bool)> = sqlx::query_as(
             "SELECT user_id, dkg_share_id, rune_id, is_issuer
             FROM gateway.user_identifier
             WHERE is_issuer = true AND rune_id = $1",

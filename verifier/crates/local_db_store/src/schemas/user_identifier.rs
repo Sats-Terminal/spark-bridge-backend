@@ -53,33 +53,29 @@ impl UserIdentifierStorage for LocalDbStorage {
             .await
             .map_err(|e| DbError::BadRequest(e.to_string()))?;
         info!("result: {result:?}");
-        Ok(result.map(
-            |(user_id, dkg_share_id, rune_id, is_issuer)| UserIds {
-                user_id,
-                dkg_share_id,
-                rune_id,
-                is_issuer,
-            },
-        ))
+        Ok(result.map(|(user_id, dkg_share_id, rune_id, is_issuer)| UserIds {
+            user_id,
+            dkg_share_id,
+            rune_id,
+            is_issuer,
+        }))
     }
 
     async fn get_row_by_dkg_id(&self, dkg_share_id: Uuid) -> Result<Option<UserIds>, DbError> {
-        let result: Option<(Uuid, Uuid, String, bool,)> = sqlx::query_as(
+        let result: Option<(Uuid, Uuid, String, bool)> = sqlx::query_as(
             "SELECT user_id, dkg_share_id, rune_id, is_issuer FROM verifier.user_identifier WHERE dkg_share_id = $1;",
         )
-            .bind(dkg_share_id)
-            .fetch_optional(&self.get_conn().await?)
-            .await
-            .map_err(|e| DbError::BadRequest(e.to_string()))?;
+        .bind(dkg_share_id)
+        .fetch_optional(&self.get_conn().await?)
+        .await
+        .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
-        Ok(result.map(
-            |(user_id, dkg_share_id, rune_id, is_issuer)| UserIds {
-                user_id,
-                dkg_share_id,
-                rune_id,
-                is_issuer,
-            },
-        ))
+        Ok(result.map(|(user_id, dkg_share_id, rune_id, is_issuer)| UserIds {
+            user_id,
+            dkg_share_id,
+            rune_id,
+            is_issuer,
+        }))
     }
 
     #[instrument(level = "trace", skip(self))]

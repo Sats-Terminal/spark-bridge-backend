@@ -1,17 +1,17 @@
 use crate::handlers;
 use axum::Router;
-use axum::routing::{post, get};
+use axum::routing::{get, post};
 use bitcoin::Network;
 use frost::aggregator::FrostAggregator;
 use gateway_config_parser::config::{DkgPregenConfig, VerifiersConfig};
 use gateway_deposit_verification::aggregator::DepositVerificationAggregator;
 use gateway_flow_processor::flow_sender::FlowSender;
 use gateway_local_db_store::storage::LocalDbStorage;
+use gateway_verifier_client::client::VerifierClient;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 use tracing::instrument;
-use gateway_verifier_client::client::VerifierClient;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -55,8 +55,13 @@ pub async fn create_app(
         dkg_pregen_config,
         frost_aggregator,
         cancellation_token.clone(),
-    ).await;
-    let verifier_clients = verifiers_config.0.iter().map(|v| VerifierClient::new(v.clone())).collect();
+    )
+    .await;
+    let verifier_clients = verifiers_config
+        .0
+        .iter()
+        .map(|v| VerifierClient::new(v.clone()))
+        .collect();
     let state = AppState {
         network,
         flow_sender,

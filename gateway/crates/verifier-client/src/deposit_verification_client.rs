@@ -3,9 +3,7 @@ use async_trait::async_trait;
 use bitcoin::OutPoint;
 use frost::types::TweakBytes;
 use gateway_deposit_verification::error::DepositVerificationError;
-use gateway_deposit_verification::traits::{
-    VerificationClient,
-};
+use gateway_deposit_verification::traits::VerificationClient;
 use gateway_deposit_verification::types::{
     WatchRunesDepositRequest, WatchRunesDepositResponse, WatchSparkDepositRequest, WatchSparkDepositResponse,
 };

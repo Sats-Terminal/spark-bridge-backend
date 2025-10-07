@@ -28,7 +28,11 @@ pub trait DkgShareGenerate {
     /// Generated dkg share entity in Aggregator side with state `AggregatorDkgState::Initialized`
     async fn generate_dkg_share_entity(&self) -> Result<Uuid, DbError>;
     /// Returns unused dkg share uuid to user and assigns at the same time user identifier to this user
-    async fn get_random_unused_dkg_share(&self, rune_id: String, is_issuer: bool) -> Result<UserIds, DkgShareGenerateError>;
+    async fn get_random_unused_dkg_share(
+        &self,
+        rune_id: String,
+        is_issuer: bool,
+    ) -> Result<UserIds, DkgShareGenerateError>;
     async fn count_unused_dkg_shares(&self) -> Result<u64, DbError>;
     async fn count_unused_finalized_dkg_shares(&self) -> Result<u64, DbError>;
 }
@@ -47,7 +51,11 @@ impl DkgShareGenerate for LocalDbStorage {
     }
 
     #[instrument(level = "debug", skip_all, ret)]
-    async fn get_random_unused_dkg_share(&self, rune_id: String, is_issuer: bool) -> Result<UserIds, DkgShareGenerateError> {
+    async fn get_random_unused_dkg_share(
+        &self,
+        rune_id: String,
+        is_issuer: bool,
+    ) -> Result<UserIds, DkgShareGenerateError> {
         let mut conn = self.postgres_repo.get_conn().await?;
         let mut transaction = conn.begin().await.map_err(|e| DbError::from(e))?;
 
@@ -127,10 +135,7 @@ impl DkgShareGenerate for LocalDbStorage {
 #[async_trait]
 impl AggregatorDkgShareStorage for LocalDbStorage {
     #[instrument(level = "trace", skip(self), ret)]
-    async fn get_dkg_share_agg_data(
-        &self,
-        dkg_share_id: &Uuid,
-    ) -> Result<Option<AggregatorDkgShareData>, DbError> {
+    async fn get_dkg_share_agg_data(&self, dkg_share_id: &Uuid) -> Result<Option<AggregatorDkgShareData>, DbError> {
         let result: Option<(Json<AggregatorDkgState>,)> = sqlx::query_as(
             "SELECT dkg_aggregator_state
             FROM gateway.dkg_share

@@ -21,10 +21,17 @@ pub async fn handle(
     tracing::info!("Handling btc addr issuing for musig id: {:?}", request.user_id);
     let local_db_storage = flow_router.storage.clone();
 
-    let dkg_share_id = match flow_router.storage.get_row_by_user_id(request.user_id, request.rune_id.clone()).await? {
+    let dkg_share_id = match flow_router
+        .storage
+        .get_row_by_user_id(request.user_id, request.rune_id.clone())
+        .await?
+    {
         Some(user_ids) => user_ids.dkg_share_id,
         None => {
-            flow_router.storage.get_random_unused_dkg_share(request.rune_id.clone(), false).await?
+            flow_router
+                .storage
+                .get_random_unused_dkg_share(request.rune_id.clone(), false)
+                .await?
                 .dkg_share_id
         }
     };

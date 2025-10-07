@@ -9,7 +9,7 @@ use tracing;
 use tracing::instrument;
 use verifier_local_db_store::schemas::deposit_address::DepositAddressStorage;
 use verifier_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositStatus, InnerAddress, TxRejectReason};
-use verifier_local_db_store::schemas::user_identifier::{UserIds, UserIdentifierStorage};
+use verifier_local_db_store::schemas::user_identifier::{UserIdentifierStorage, UserIds};
 use verifier_spark_balance_checker_client::client::GetBalanceRequest;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

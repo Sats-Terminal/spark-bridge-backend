@@ -1,9 +1,9 @@
 use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
 use frost::traits::AggregatorSignSessionStorage;
+use frost::types::AggregatorSignData;
 use frost::types::AggregatorSignState;
 use frost::types::SigningMetadata;
-use frost::types::AggregatorSignData;
 use persistent_storage::error::DbError;
 use persistent_storage::init::StorageHealthcheck;
 use sqlx::types::Json;

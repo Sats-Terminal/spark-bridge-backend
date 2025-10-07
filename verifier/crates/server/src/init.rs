@@ -1,6 +1,6 @@
 use crate::handlers;
 use axum::Router;
-use axum::routing::{post, get};
+use axum::routing::{get, post};
 use frost::signer::FrostSigner;
 use std::sync::Arc;
 use tracing::instrument;

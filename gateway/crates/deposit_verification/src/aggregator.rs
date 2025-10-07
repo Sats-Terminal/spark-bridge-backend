@@ -78,7 +78,7 @@ impl DepositVerificationAggregator {
                 user_id: user_ids.user_id,
                 dkg_share_id: user_ids.dkg_share_id,
                 rune_id: user_ids.rune_id.clone(),
-                is_issuer: false
+                is_issuer: false,
             },
             nonce: deposit_addr_info.nonce,
             amount: deposit_addr_info.amount,
@@ -207,7 +207,7 @@ impl DepositVerificationAggregator {
             .ok_or(DepositVerificationError::NotFound(
                 "Deposit address info not found".to_string(),
             ))?;
-        
+
         let user_ids = self
             .storage
             .get_row_by_dkg_id(deposit_addr_info.dkg_share_id)
@@ -215,11 +215,12 @@ impl DepositVerificationAggregator {
             .ok_or(DepositVerificationError::NotFound(
                 "Deposit address info not found".to_string(),
             ))?;
-        
-        let issuer_ids = self.storage.get_issuer_ids(user_ids.rune_id.clone()).await?
-            .ok_or(DepositVerificationError::NotFound(
-                "Issuer ids not found".to_string(),
-            ))?;
+
+        let issuer_ids = self
+            .storage
+            .get_issuer_ids(user_ids.rune_id.clone())
+            .await?
+            .ok_or(DepositVerificationError::NotFound("Issuer ids not found".to_string()))?;
 
         let dkg_state = self.storage.get_dkg_share_agg_data(&issuer_ids.dkg_share_id).await?;
 
