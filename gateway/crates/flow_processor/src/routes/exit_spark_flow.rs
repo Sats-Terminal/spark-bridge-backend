@@ -5,7 +5,7 @@ use bitcoin::OutPoint;
 use bitcoin::secp256k1::schnorr::Signature;
 use frost::types::SigningMetadata;
 use frost::utils::{convert_public_key_package, generate_tweak_bytes, get_tweaked_p2tr_address};
-use gateway_local_db_store::schemas::deposit_address::{DepositAddressStorage, InnerAddress};
+use gateway_local_db_store::schemas::deposit_address::{DepositAddressStorage, InnerAddress, DepositAddrInfo, DepositStatus, VerifiersResponses};
 use gateway_local_db_store::schemas::paying_utxo::PayingUtxoStorage;
 use gateway_local_db_store::schemas::user_identifier::UserIdentifierStorage;
 use gateway_local_db_store::schemas::utxo_storage::{Utxo, UtxoStatus, UtxoStorage};
@@ -83,6 +83,16 @@ pub async fn handle(
             .map_err(|e| FlowProcessorError::InvalidDataError(format!("Failed to convert public key package: {e}")))?;
         let deposit_address = get_tweaked_p2tr_address(public_key, new_nonce, flow_router.network)
             .map_err(|e| FlowProcessorError::InvalidDataError(format!("Failed to create address: {e}")))?;
+
+        flow_router.storage.insert_deposit_addr_info(DepositAddrInfo {
+            dkg_share_id: user_info.dkg_share_id,
+            nonce: new_nonce,
+            deposit_address: InnerAddress::BitcoinAddress(deposit_address.clone()),
+            bridge_address: None,
+            is_btc: true,
+            amount: total_amount - exit_amount,
+            confirmation_status: VerifiersResponses::new(DepositStatus::Confirmed, flow_router.verifier_configs.iter().map(|v| v.id).collect()),
+        }).await?;
 
         rune_transfer_outputs.push(RuneTransferOutput {
             address: deposit_address,
