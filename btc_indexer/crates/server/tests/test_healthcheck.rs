@@ -1,10 +1,10 @@
 mod utils;
 mod mocked_healthcheck {
     use crate::utils::init::MIGRATOR;
-    use crate::utils::mock::generate_mock_tx_arbiter;
+    use crate::utils::mock::{generate_mock_titan_indexer_tx_tracking_empty, generate_mock_tx_arbiter};
     use crate::utils::{
         init::{TEST_LOGGER, obtain_random_localhost_socket_addr},
-        mock::generate_mock_titan_indexer_tx_tracking,
+        mock::generate_mock_titan_indexer_tx_tracking_custom,
         test_notifier::spawn_notify_server_track_tx,
     };
     use axum_test::TestServer;
@@ -15,7 +15,7 @@ mod mocked_healthcheck {
 
     pub async fn init_mocked_tx_tracking_test_server(pool: PostgresPool) -> eyre::Result<TestServer> {
         Ok(crate::utils::mock::init_mocked_test_server(
-            || generate_mock_titan_indexer_tx_tracking(),
+            || generate_mock_titan_indexer_tx_tracking_empty(),
             || generate_mock_tx_arbiter(),
             pool,
         )

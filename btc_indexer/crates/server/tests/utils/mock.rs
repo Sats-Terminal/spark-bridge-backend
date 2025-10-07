@@ -143,7 +143,7 @@ pub async fn init_mocked_test_server(
 }
 
 #[instrument(level = "trace")]
-pub fn generate_mock_titan_indexer_tx_tracking() -> MockTitanIndexer {
+pub fn generate_mock_titan_indexer_tx_tracking_empty() -> MockTitanIndexer {
     let generate_transaction = |tx_id: &Txid, index: u64| Transaction {
         txid: tx_id.clone(),
         version: 0,
@@ -180,6 +180,59 @@ pub fn generate_mock_titan_indexer_tx_tracking() -> MockTitanIndexer {
                 let utxos = generate_transaction(tx_id, i);
                 i += 1;
                 Ok(generate_transaction(tx_id, i))
+            });
+            cloned_mocked_indexer.expect_get_status().returning(move || {
+                Ok(Status {
+                    block_tip: BlockTip {
+                        height: 27,
+                        hash: "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824".to_string(),
+                        is_at_tip: true,
+                    },
+                    runes_count: 10,
+                    mempool_tx_count: 100_000,
+                })
+            });
+            cloned_mocked_indexer
+                .expect_clone()
+                .returning(|| MockTitanIndexer::new());
+            cloned_mocked_indexer
+        });
+    };
+
+    debug!("Initializing mocked indexer");
+    let mut mocked_indexer = MockTitanIndexer::new();
+    generate_mocking_invocations(&mut mocked_indexer);
+    mocked_indexer
+}
+
+#[instrument(level = "trace")]
+pub fn generate_mock_titan_indexer_tx_tracking_custom(tx: Transaction) -> MockTitanIndexer {
+    // Leak the transaction to get a 'static reference
+    let tx_ref: &'static Transaction = Box::leak(Box::new(tx));
+
+    let generate_mocking_invocations = |indexer: &mut MockTitanIndexer| {
+        indexer.expect_get_transaction().returning(move |tx_id| {
+            let mut tx = tx_ref.clone();
+            tx.txid = tx_id.clone();
+            Ok(tx)
+        });
+        indexer.expect_get_status().returning(move || {
+            Ok(Status {
+                block_tip: BlockTip {
+                    height: 27,
+                    hash: "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824".to_string(),
+                    is_at_tip: true,
+                },
+                runes_count: 10,
+                mempool_tx_count: 100_000,
+            })
+        });
+        indexer.expect_clone().returning(move || {
+            let mut cloned_mocked_indexer = MockTitanIndexer::new();
+            cloned_mocked_indexer.expect_get_transaction().returning(move |tx_id| {
+                let mut tx = tx_ref.clone();
+                tx.txid = tx_id.clone();
+                Ok(tx)
             });
             cloned_mocked_indexer.expect_get_status().returning(move || {
                 Ok(Status {

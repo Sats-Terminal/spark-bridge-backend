@@ -59,7 +59,7 @@ pub type BtcIndexerCallbackResponse = ResponseMeta;
 pub struct ResponseMeta {
     pub outpoint: OutPoint,
     pub status: BtcTxReview,
-    pub sats_fee_amount: Amount,
+    pub sats_amount: Amount,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]

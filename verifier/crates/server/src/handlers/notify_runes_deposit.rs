@@ -27,7 +27,7 @@ impl From<BtcTxReview> for DepositStatus {
 pub struct BtcIndexerNotifyRunesDepositRequest {
     pub outpoint: OutPoint,
     pub status: BtcTxReview,
-    pub sats_fee_amount: u64,
+    pub sats_amount: u64,
 }
 
 #[instrument(level = "trace", skip(state), ret)]
@@ -54,13 +54,13 @@ async fn _inner_notify(state: AppState, request: BtcIndexerNotifyRunesDepositReq
     let gateway_request = GatewayNotifyRunesDepositRequest {
         verifier_id: state.server_config.frost_signer.identifier,
         out_point: request.outpoint,
-        sats_fee_amount: request.sats_fee_amount,
+        sats_fee_amount: request.sats_amount,
         status: deposit_status.clone(),
     };
 
     state
         .storage
-        .set_status_and_fee_amount_by_out_point(request.outpoint, deposit_status, request.sats_fee_amount)
+        .set_status_and_fee_amount_by_out_point(request.outpoint, deposit_status, request.sats_amount)
         .await
         .map_err(|e| {
             VerifierError::Storage(format!(

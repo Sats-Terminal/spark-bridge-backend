@@ -1,6 +1,6 @@
 use crate::tx_arbiter::{TxArbiterResponse, TxArbiterTrait};
 
-use btc_indexer_api::api::{BtcIndexerCallbackResponse, ResponseMeta};
+use btc_indexer_api::api::{BtcIndexerCallbackResponse, BtcTxReview, TxRejectReason};
 use config_parser::config::BtcIndexerParams;
 use local_db_store_indexer::init::IndexerDbBounds;
 use local_db_store_indexer::schemas::track_tx_requests_storage::{TrackedReqStatus, TxTrackingRequestsToSendResponse};
@@ -15,6 +15,7 @@ use titan_types::Transaction;
 
 use tokio::task::JoinSet;
 
+use persistent_storage::error::DbError;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 use tracing::instrument;
@@ -92,9 +93,7 @@ async fn send_response_to_recipients<Db: IndexerDbBounds>(
     tracing::debug!("Already received txs to send callback response, txs: {updated_txs:?}");
     let tasks = spawn_tasks_to_send_response(client, local_db, updated_txs)?;
     if !tasks.is_empty() {
-        tracing::trace!("Awaiting responses sending to finish...");
         tasks.join_all().await;
-        tracing::trace!("Awaiting responses sending Finished!");
     }
     Ok(())
 }
@@ -125,33 +124,72 @@ fn _inner_response_task_spawn<Db: IndexerDbBounds>(
 ) -> impl Future<Output = ()> {
     tracing::debug!("Sending response to recipient to url: {}", data.callback_url.0);
     async move {
-        let resp = BtcIndexerCallbackResponse {
-            outpoint: data.out_point,
-            status: data.review,
-            sats_fee_amount: data.transaction.output[data.out_point.vout as usize].value,
-        };
-        tracing::debug!("Sending response...");
-        let client_resp = client.post(data.callback_url.0).json(&resp).send().await;
-        tracing::debug!("Client response: {:?}", client_resp);
-        match client_resp {
-            Ok(client_resp) => {
-                let status = TrackedReqStatus::Finished;
-                let _ = local_db
-                    .finalize_tx_request(data.uuid, status)
-                    .await
-                    .inspect_err(|e| tracing::error!("Db finalization error: {}, status: {:?}", e, status));
-                tracing::debug!("Got response: {:?}", client_resp);
+        let formed_resp = form_response(&data, local_db.clone()).await;
+        match formed_resp {
+            Ok(resp) => {
+                tracing::debug!("Sending response...");
+                let client_resp = client.post(data.callback_url.0).json(&resp).send().await;
+                tracing::debug!("Client response: {:?}", client_resp);
+                match client_resp {
+                    Ok(client_resp) => {
+                        let status = TrackedReqStatus::Finished;
+                        let _ = local_db
+                            .finalize_tx_request(data.uuid, status)
+                            .await
+                            .inspect_err(|e| tracing::error!("Db finalization error: {}, status: {:?}", e, status));
+                        tracing::debug!("Got response: {:?}", client_resp);
+                    }
+                    Err(e) => {
+                        let status = TrackedReqStatus::FailedToSend;
+                        let _ = local_db
+                            .finalize_tx_request(data.uuid, status)
+                            .await
+                            .inspect_err(|e| tracing::error!("Db finalization error: {}, status: {:?}", e, status));
+                        tracing::error!("Error: {}", e);
+                    }
+                }
             }
             Err(e) => {
-                let status = TrackedReqStatus::FailedToSend;
-                let _ = local_db
-                    .finalize_tx_request(data.uuid, status)
-                    .await
-                    .inspect_err(|e| tracing::error!("Db finalization error: {}, status: {:?}", e, status));
-                tracing::error!("Error: {}", e);
+                tracing::error!(
+                    "Occurred error with db: {}, response uuid: {}, outpoint: {} would retry sending",
+                    e,
+                    data.uuid,
+                    data.out_point
+                );
             }
         }
     }
+}
+
+#[instrument(skip(local_db), level = "trace", fields(req_uuid =? data.uuid), ret)]
+async fn form_response<Db: IndexerDbBounds>(
+    data: &TxTrackingRequestsToSendResponse,
+    local_db: Db,
+) -> Result<BtcIndexerCallbackResponse, DbError> {
+    let resp = match data.transaction.output.get(data.out_point.vout as usize) {
+        None => {
+            let resp = BtcIndexerCallbackResponse {
+                outpoint: data.out_point,
+                status: BtcTxReview::Failure {
+                    reason: TxRejectReason::NoExpectedVOutInOutputs {
+                        got: data.transaction.output.len() as u64,
+                        expected: data.out_point.vout as u64 + 1,
+                    },
+                },
+                sats_amount: 0,
+            };
+            local_db
+                .insert_tx_tracking_report(resp.outpoint, &resp.status, &data.transaction)
+                .await?;
+            resp
+        }
+        Some(tx_out) => BtcIndexerCallbackResponse {
+            outpoint: data.out_point,
+            status: data.review.clone(),
+            sats_amount: tx_out.value,
+        },
+    };
+    Ok(resp)
 }
 
 #[instrument(skip_all, level = "trace", ret)]
