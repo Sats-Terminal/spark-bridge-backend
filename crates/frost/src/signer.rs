@@ -39,7 +39,7 @@ impl FrostSigner {
     pub async fn lock_dkg_share_id(&self, dkg_share_id: &Uuid) -> Result<(), SignerError> {
         let mut locked_dkg_share_ids = self.locked_dkg_share_ids.lock().await;
         if locked_dkg_share_ids.contains(dkg_share_id) {
-            return Err(SignerError::DkgShareIdAlreadyExists(*dkg_share_id));
+            return Err(SignerError::DkgShareAlreadyExists(*dkg_share_id));
         }
         locked_dkg_share_ids.insert(*dkg_share_id);
         Ok(())
@@ -49,7 +49,7 @@ impl FrostSigner {
         let mut locked_dkg_share_ids = self.locked_dkg_share_ids.lock().await;
         let removed = locked_dkg_share_ids.remove(dkg_share_id);
         if !removed {
-            return Err(SignerError::DkgShareIdNotFound(*dkg_share_id));
+            return Err(SignerError::DkgShareNotFound(*dkg_share_id));
         }
         Ok(())
     }
@@ -89,7 +89,7 @@ impl FrostSigner {
             }
             _ => {
                 self.unlock_dkg_share_id(&dkg_share_id).await?;
-                Err(SignerError::DkgShareIdAlreadyExists(dkg_share_id))
+                Err(SignerError::DkgShareAlreadyExists(dkg_share_id))
             }
         }
     }

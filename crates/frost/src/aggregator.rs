@@ -16,20 +16,18 @@ pub struct FrostAggregator {
     verifiers: BTreeMap<Identifier, Arc<dyn SignerClient>>,
     dkg_share_storage: Arc<dyn AggregatorDkgShareStorage>,
     sign_session_storage: Arc<dyn AggregatorSignSessionStorage>,
-    locked_dkg_share_ids: Arc<Mutex<BTreeSet<Uuid>>>,
 }
 
 impl FrostAggregator {
     pub fn new(
         verifiers: BTreeMap<Identifier, Arc<dyn SignerClient>>,
-        musig_id_storage: Arc<dyn AggregatorDkgShareStorage>,
+        dkg_share_storage: Arc<dyn AggregatorDkgShareStorage>,
         sign_session_storage: Arc<dyn AggregatorSignSessionStorage>,
     ) -> Self {
         Self {
             verifiers,
-            dkg_share_storage: musig_id_storage,
+            dkg_share_storage,
             sign_session_storage,
-            locked_dkg_share_ids: Arc::new(Mutex::new(BTreeSet::new())),
         }
     }
 
@@ -213,37 +211,13 @@ impl FrostAggregator {
         }
     }
 
-    #[instrument(skip(self), level = "trace")]
-    pub async fn lock_dkg_share(&self, dkg_share_id: &Uuid) -> Result<(), AggregatorError> {
-        let mut locked_dkg_shares = self.locked_dkg_share_ids.lock().await;
-        if locked_dkg_shares.contains(dkg_share_id) {
-            //todo: fix
-            return Err(AggregatorError::DkgShareIdAlreadyExists(*dkg_share_id));
-        }
-        locked_dkg_shares.insert(*dkg_share_id);
-        Ok(())
-    }
-
-    #[instrument(skip(self), level = "trace")]
-    pub async fn unlock_dkg_share_id(&self, dkg_share_id: &Uuid) -> Result<(), AggregatorError> {
-        let mut locked_dkg_share_ids = self.locked_dkg_share_ids.lock().await;
-        let removed = locked_dkg_share_ids.remove(dkg_share_id);
-        if !removed {
-            return Err(AggregatorError::DkgShareIdNotFound(*dkg_share_id));
-        }
-        Ok(())
-    }
-
     pub async fn run_dkg_flow(&self, dkg_share_id: &Uuid) -> Result<keys::PublicKeyPackage, AggregatorError> {
-        self.lock_dkg_share(dkg_share_id).await?;
-
         let dkg_share_data = self.dkg_share_storage.get_dkg_share_agg_data(dkg_share_id).await?;
         if let Some(x) = dkg_share_data.as_ref() {
             match &x.dkg_state {
                 AggregatorDkgState::Initialized => {}
                 _ => {
-                    self.unlock_dkg_share_id(dkg_share_id).await?;
-                    return Err(AggregatorError::DkgShareIdAlreadyExists(*dkg_share_id));
+                    return Err(AggregatorError::DkgShareAlreadyExists(*dkg_share_id));
                 }
             }
         }
@@ -257,7 +231,6 @@ impl FrostAggregator {
             Some(AggregatorDkgShareData {
                 dkg_state: AggregatorDkgState::DkgFinalized { public_key_package },
             }) => {
-                self.unlock_dkg_share_id(dkg_share_id).await?;
                 Ok(public_key_package)
             }
             _ => Err(AggregatorError::InvalidUserState(

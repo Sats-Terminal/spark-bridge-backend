@@ -23,8 +23,6 @@ services:
     image: bitcoin/bitcoin
     ports:
       - 0.0.0.0:18443:18443
-    volumes:
-      - "btcd-data:/var/lib/bitcoin-core"
     command: |
       -regtest
       -rpcallowip=0.0.0.0/0
@@ -52,4 +50,3 @@ services:
 
 volumes:
   titan-data:
-  btcd-data:

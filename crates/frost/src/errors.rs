@@ -12,10 +12,10 @@ pub enum SignerError {
     Internal(String),
     #[error(transparent)]
     DatabaseError(#[from] DbError),
-    #[error("DkgShareId already exists")]
-    DkgShareIdAlreadyExists(Uuid),
-    #[error("DkgShareId not found")]
-    DkgShareIdNotFound(Uuid),
+    #[error("DkgShare already exists")]
+    DkgShareAlreadyExists(Uuid),
+    #[error("DkgShare not found")]
+    DkgShareNotFound(Uuid),
 }
 
 #[derive(Error, Debug)]
@@ -32,8 +32,8 @@ pub enum AggregatorError {
     HttpError(String),
     #[error(transparent)]
     DatabaseError(#[from] DbError),
-    #[error("DkgShareId already exists, id: {0}")]
-    DkgShareIdAlreadyExists(Uuid),
-    #[error("DkgShareId not found, id: {0}")]
-    DkgShareIdNotFound(Uuid),
+    #[error("DkgShare already exists, id: {0}")]
+    DkgShareAlreadyExists(Uuid),
+    #[error("DkgShare not found, id: {0}")]
+    DkgShareNotFound(Uuid),
 }

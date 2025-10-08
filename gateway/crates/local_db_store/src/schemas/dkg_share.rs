@@ -14,8 +14,6 @@ use sqlx::Acquire;
 use thiserror::Error;
 use tracing::instrument;
 
-pub type DkgShareId = Uuid;
-
 #[derive(Debug, Error)]
 pub enum DkgShareGenerateError {
     #[error(transparent)]
@@ -27,7 +25,7 @@ pub enum DkgShareGenerateError {
 #[async_trait]
 pub trait DkgShareGenerate {
     /// Generated dkg share entity in Aggregator side with state `AggregatorDkgState::Initialized`
-    async fn generate_dkg_share_entity(&self) -> Result<DkgShareId, DbError>;
+    async fn generate_dkg_share_entity(&self) -> Result<Uuid, DbError>;
     /// Returns unused dkg share uuid to user and assigns at the same time user identifier to this user
     async fn get_random_unused_dkg_share(
         &self,
@@ -41,8 +39,8 @@ pub trait DkgShareGenerate {
 #[async_trait]
 impl DkgShareGenerate for LocalDbStorage {
     #[instrument(level = "trace", skip_all, ret)]
-    async fn generate_dkg_share_entity(&self) -> Result<DkgShareId, DbError> {
-        let result: (DkgShareId,) =
+    async fn generate_dkg_share_entity(&self) -> Result<Uuid, DbError> {
+        let result: (Uuid,) =
             sqlx::query_as("INSERT INTO gateway.dkg_share (dkg_aggregator_state) VALUES ($1) RETURNING dkg_share_id;")
                 .bind(Json(AggregatorDkgState::Initialized))
                 .fetch_one(&self.get_conn().await?)
