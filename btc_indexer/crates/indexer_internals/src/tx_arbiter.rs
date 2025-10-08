@@ -99,15 +99,15 @@ impl TxArbiterTrait for TxArbiter {
             }));
         }
 
-        let fees_payed = tx_to_check.fee_paid_sat();
-        if fees_payed.is_none() {
-            return Ok(TxArbiterResponse::ReviewFormed(
-                BtcTxReview::Failure {
-                    reason: TxRejectReason::NoFeesPayed,
-                },
-                out_point,
-            ));
-        }
+        // let fees_payed = tx_to_check.fee_paid_sat();
+        // if fees_payed.is_none() {
+        //     return Ok(TxArbiterResponse::ReviewFormed(
+        //         BtcTxReview::Failure {
+        //             reason: TxRejectReason::NoFeesPayed,
+        //         },
+        //         out_point,
+        //     ));
+        // }
 
         let v_out = tx_info.v_out as usize;
         if tx_to_check.output.len() <= v_out {

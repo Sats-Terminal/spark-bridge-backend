@@ -16,7 +16,7 @@ pub trait BtcIndexerApi: Send + Sync {
     /// Tracks changes of transaction, whether it's confirmed
     async fn check_tx_changes(&self, uuid: Uuid, payload: &TrackTxRequest) -> crate::error::Result<()>;
     async fn healthcheck(&self) -> crate::error::Result<()>;
-    fn get_tx_info(&self, tx_id: bitcoin::Txid) -> crate::error::Result<bitcoin::transaction::Transaction>;
+    // fn get_tx_info(&self, tx_id: bitcoin::Txid) -> crate::error::Result<bitcoin::transaction::Transaction>;
     fn get_blockchain_info(&self) -> crate::error::Result<json::GetBlockchainInfoResult>;
     fn broadcast_transaction(&self, tx: impl RawTx) -> crate::error::Result<bitcoin::blockdata::transaction::Txid>;
 }

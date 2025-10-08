@@ -84,7 +84,6 @@ mod mock_testing {
             &ResponseMeta {
                 outpoint: out_point,
                 status: BtcTxReview::Success,
-                sats_amount: 0,
             }
         ));
         Ok(())
