@@ -1,5 +1,5 @@
 [package]
-name = "btc_indexer_local_db_store"
+name = "btc_indexer"
 edition = "2024"
 
 [dependencies]

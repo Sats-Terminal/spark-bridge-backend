@@ -1,46 +1,5 @@
 [package]
 name = "btc_indexer_server"
 edition = "2024"
-version.workspace = true
-rust-version.workspace = true
-authors.workspace = true
-readme.workspace = true
-
-[features]
-default = []
-swagger = []
 
 [dependencies]
-axum = { workspace = true }
-bitcoin = { workspace = true }
-btc_indexer_api = { workspace = true }
-btc_indexer_internals = { workspace = true }
-config_parser = { workspace = true }
-global_utils = { workspace = true }
-local_db_store_indexer = { workspace = true }
-persistent_storage = { workspace = true }
-reqwest = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-sqlx = { workspace = true }
-thiserror = { workspace = true }
-titan-client = { workspace = true }
-tokio = { workspace = true }
-tokio-util = { workspace = true }
-tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
-url = { workspace = true }
-utoipa = { workspace = true }
-utoipa-swagger-ui = { workspace = true, features = ["axum"] }
-uuid = { workspace = true }
-
-[dev-dependencies]
-async-trait = { workspace = true }
-axum-test = { workspace = true }
-bitcoincore-rpc = { workspace = true }
-dotenvy = { workspace = true }
-eyre = { workspace = true }
-global_utils = { workspace = true }
-mockall = { workspace = true }
-ordinals = { workspace = true }
-titan-types = { workspace = true }
