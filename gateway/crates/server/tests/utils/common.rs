@@ -27,7 +27,7 @@ pub const CONFIG_PATH: &str = "../../../infrastructure/configurations/gateway/de
 pub const PATH_TO_AMAZON_CA: &str = "../../../infrastructure/configurations/certificates/Amazon-Root-CA.pem";
 pub const PATH_TO_FLASHNET: &str = "../../../infrastructure/configurations/certificates/Flashnet-CA.pem";
 
-pub fn obtain_random_localhost_socket_addr() -> anyhow::Result<SocketAddr> {
+pub fn obtain_random_localhost_socket_addr() -> eyre::Result<SocketAddr> {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");
     let socket_addr = listener.local_addr()?;
     info!(server_addr = ?socket_addr, "Random address:");

@@ -1,26 +1,24 @@
 use crate::client::VerifierClient;
 use async_trait::async_trait;
 use bitcoin::OutPoint;
-use frost::types::MusigId;
 use frost::types::TweakBytes;
 use gateway_deposit_verification::error::DepositVerificationError;
-use gateway_deposit_verification::traits::{
-    DepositVerificationClientTrait, VerificationClient, VerificationClientHealthCheck,
-};
+use gateway_deposit_verification::traits::VerificationClient;
 use gateway_deposit_verification::types::{
     WatchRunesDepositRequest, WatchRunesDepositResponse, WatchSparkDepositRequest, WatchSparkDepositResponse,
 };
 use gateway_local_db_store::schemas::deposit_address::DepositStatus;
+use gateway_local_db_store::schemas::user_identifier::UserIds;
 use serde::{Deserialize, Serialize};
-use tracing::instrument;
 use token_identifier::TokenIdentifier;
+use tracing::instrument;
 
 const WATCH_RUNES_DEPOSIT_PATH: &str = "/api/gateway/watch-runes-deposit";
 const WATCH_SPARK_DEPOSIT_PATH: &str = "/api/gateway/watch-spark-deposit";
 
 #[derive(Serialize, Debug)]
 pub struct VerifierWatchRunesDepositRequest {
-    pub musig_id: MusigId,
+    pub user_ids: UserIds,
     pub nonce: TweakBytes,
     pub amount: u64,
     pub btc_address: String,
@@ -31,7 +29,7 @@ pub struct VerifierWatchRunesDepositRequest {
 impl From<WatchRunesDepositRequest> for VerifierWatchRunesDepositRequest {
     fn from(request: WatchRunesDepositRequest) -> Self {
         Self {
-            musig_id: request.musig_id,
+            user_ids: request.user_ids,
             nonce: request.nonce,
             amount: request.amount,
             btc_address: request.btc_address.to_string(),
@@ -52,7 +50,7 @@ impl From<VerifierWatchRunesDepositResponse> for WatchRunesDepositResponse {
 
 #[derive(Debug, Serialize)]
 pub struct VerifierWatchSparkDepositRequest {
-    pub musig_id: MusigId,
+    pub user_ids: UserIds,
     pub nonce: TweakBytes,
     pub exit_address: String,
     pub amount: u64,
@@ -63,7 +61,7 @@ pub struct VerifierWatchSparkDepositRequest {
 impl From<WatchSparkDepositRequest> for VerifierWatchSparkDepositRequest {
     fn from(request: WatchSparkDepositRequest) -> Self {
         Self {
-            musig_id: request.musig_id,
+            user_ids: request.user_ids,
             nonce: request.nonce,
             exit_address: request.exit_address.to_string(),
             amount: request.amount,
@@ -126,12 +124,3 @@ impl VerificationClient for VerifierClient {
         Ok(response.into())
     }
 }
-
-#[async_trait]
-impl VerificationClientHealthCheck for VerifierClient {
-    async fn healthcheck(&self) -> Result<(), DepositVerificationError> {
-        self.healthcheck().await
-    }
-}
-
-impl DepositVerificationClientTrait for VerifierClient {}

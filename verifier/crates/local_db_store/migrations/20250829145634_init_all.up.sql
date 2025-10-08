@@ -1,49 +1,57 @@
 BEGIN TRANSACTION;
 
-CREATE SCHEMA verifier;
+CREATE SCHEMA IF NOT EXISTS verifier;
 
------------ MUSIG_IDENTIFIER -----------
+----------- USER IDENTIFIERS -----------
 
-CREATE TABLE IF NOT EXISTS verifier.musig_identifier
+-- Dkg pregenerated shares
+CREATE TABLE IF NOT EXISTS verifier.dkg_share
 (
-    public_key TEXT    NOT NULL,
-    rune_id    TEXT    NOT NULL,
-    is_issuer  BOOLEAN NOT NULL,
-    dkg_state  JSON    NOT NULL,
-    PRIMARY KEY (public_key, rune_id)
+    dkg_share_id     UUID PRIMARY KEY NOT NULL,
+    dkg_signer_state JSONB            NOT NULL
 );
+
 
 ----------- SIGN_SESSION -----------
 
 CREATE TABLE IF NOT EXISTS verifier.sign_session
 (
-    public_key   TEXT  NOT NULL,
-    rune_id      TEXT  NOT NULL,
     session_id   TEXT  NOT NULL,
+    dkg_share_id UUID  NOT NULL,
     tweak        BYTEA,
     message_hash BYTEA NOT NULL,
     metadata     JSON  NOT NULL,
     sign_state   JSON  NOT NULL,
     PRIMARY KEY (session_id),
-    FOREIGN KEY (public_key, rune_id) REFERENCES verifier.musig_identifier (public_key, rune_id)
+    FOREIGN KEY (dkg_share_id) REFERENCES verifier.dkg_share (dkg_share_id)
+);
+
+
+CREATE TABLE IF NOT EXISTS verifier.user_identifier
+(
+    dkg_share_id UUID    NOT NULL,
+    user_id    UUID    NOT NULL,
+    rune_id      TEXT    NOT NULL,
+    is_issuer    BOOLEAN NOT NULL,
+    PRIMARY KEY (dkg_share_id),
+    FOREIGN KEY (dkg_share_id) REFERENCES verifier.dkg_share (dkg_share_id)
 );
 
 ------------ DEPOSIT_ADDRESS -----------
 
 CREATE TABLE IF NOT EXISTS verifier.deposit_address
 (
-    nonce_tweak BYTEA NOT NULL,
-    public_key TEXT NOT NULL,
-    rune_id TEXT NOT NULL,
-    deposit_address TEXT NOT NULL,
-    bridge_address TEXT NOT NULL,
-    is_btc BOOLEAN NOT NULL,
-    deposit_amount BIGINT NOT NULL,
-    confirmation_status JSON NOT NULL,
-    sats_fee_amount BIGINT,
-    out_point TEXT,
-    PRIMARY KEY (public_key, rune_id, nonce_tweak),
-    FOREIGN KEY (public_key, rune_id) REFERENCES verifier.musig_identifier(public_key, rune_id)
+    nonce_tweak         BYTEA   NOT NULL,
+    dkg_share_id        UUID    NOT NULL,
+    deposit_address     TEXT    NOT NULL,
+    bridge_address      TEXT    NOT NULL,
+    is_btc              BOOLEAN NOT NULL,
+    deposit_amount      BIGINT  NOT NULL,
+    confirmation_status JSON    NOT NULL,
+    sats_fee_amount     BIGINT,
+    out_point           TEXT,
+    PRIMARY KEY (dkg_share_id),
+    FOREIGN KEY (dkg_share_id) REFERENCES verifier.user_identifier (dkg_share_id)
 );
 
 COMMIT;

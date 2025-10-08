@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use axum::{Router, routing::post};
+use axum::{
+    Router,
+    routing::{get, post},
+};
 use btc_indexer_api::api::BtcIndexerApi;
 use btc_indexer_internals::indexer::BtcIndexer;
 use btc_indexer_internals::tx_arbiter::TxArbiter;
@@ -37,7 +40,7 @@ pub async fn create_app(
         .route(BtcIndexerApi::TRACK_TX_ENDPOINT, post(crate::routes::track_tx::handler))
         .route(
             BtcIndexerApi::HEALTHCHECK_ENDPOINT,
-            post(crate::routes::healthcheck::handler),
+            get(crate::routes::healthcheck::handler),
         )
         .with_state(state);
 

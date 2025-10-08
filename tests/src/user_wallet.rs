@@ -8,11 +8,12 @@ use crate::spark_client::GetSparkAddressDataRequest;
 use crate::spark_client::SparkClient;
 use crate::utils::create_credentials;
 use crate::utils::sign_transaction;
-use bitcoin::{secp256k1, Address, Network, XOnlyPublicKey};
+use bitcoin::Address;
 use bitcoin::Transaction;
 use bitcoin::Txid;
 use bitcoin::hashes::sha256::Hash as Sha256Hash;
 use bitcoin::hashes::{Hash, HashEngine};
+use bitcoin::key::TapTweak;
 use bitcoin::secp256k1::Message;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin::secp256k1::{Keypair, PublicKey};
@@ -20,6 +21,7 @@ use bitcoin::sighash::{Prevouts, SighashCache, TapSighashType};
 use bitcoin::transaction::Version;
 use bitcoin::{Amount, OutPoint, ScriptBuf, Sequence, TxIn, TxOut, Witness};
 use chrono::Utc;
+use global_utils::common_types::get_uuid;
 use lrc20::marshal::marshal_token_transaction;
 use lrc20::token_leaf::TokenLeafOutput;
 use lrc20::token_leaf::TokenLeafToSpend;
@@ -38,11 +40,11 @@ use spark_protos::spark_token::SignatureWithIndex;
 use spark_protos::spark_token::StartTransactionRequest;
 use std::str::FromStr;
 use std::time::Duration;
-use bitcoin::key::{TapTweak, TweakedPublicKey};
 use titan_client::SpentStatus;
 use token_identifier::TokenIdentifier;
 use tokio::time::sleep;
 use tracing;
+use uuid::Uuid;
 
 pub enum TransferType {
     RuneTransfer { rune_amount: u64 },
@@ -56,6 +58,7 @@ pub struct UserWallet {
     spark_client: SparkClient,
     rune_id: RuneId,
     proto_hasher: ProtoHasher,
+    user_id: Uuid,
 }
 
 impl UserWallet {
@@ -79,6 +82,7 @@ impl UserWallet {
             spark_client,
             rune_id,
             proto_hasher,
+            user_id: get_uuid(),
         })
     }
 
@@ -86,8 +90,8 @@ impl UserWallet {
         self.p2tr_address.clone()
     }
 
-    pub fn get_public_key(&self) -> PublicKey {
-        self.keypair.public_key()
+    pub fn get_user_id(&self) -> Uuid {
+        self.user_id
     }
 
     pub fn get_spark_address(&self) -> Result<String, RuneError> {
@@ -194,12 +198,10 @@ impl UserWallet {
             witness: Witness::new(),
         };
 
-        let mut txouts = vec![
-            TxOut {
-                value: Amount::from_sat(0),
-                script_pubkey: op_return_script,
-            },
-        ];
+        let mut txouts = vec![TxOut {
+            value: Amount::from_sat(0),
+            script_pubkey: op_return_script,
+        }];
 
         match transfer_type {
             TransferType::RuneTransfer { rune_amount: _ } => {
@@ -237,7 +239,7 @@ impl UserWallet {
 
         sign_transaction(&mut transaction, vec![value], self.p2tr_address.clone(), self.keypair)?;
 
-        let txid = transaction.compute_txid();
+        let _txid = transaction.compute_txid();
 
         self.bitcoin_client.broadcast_transaction(transaction.clone())?;
         self.bitcoin_client.generate_blocks(BLOCKS_TO_GENERATE, None)?;
@@ -358,7 +360,7 @@ impl UserWallet {
         let mut token_leaves_to_spend = vec![];
         for token_output in spark_address_data.token_outputs.iter() {
             token_leaves_to_spend.push(TokenLeafToSpend {
-                parent_leaf_hash: Sha256Hash::from_bytes_ref(
+                parent_leaf_hash: *Sha256Hash::from_bytes_ref(
                     token_output
                         .prev_token_transaction_hash
                         .clone()
@@ -369,8 +371,7 @@ impl UserWallet {
                                 "Failed to convert prev_token_transaction_hash to Sha256Hash".to_string(),
                             )
                         })?,
-                )
-                .clone(),
+                ),
                 parent_leaf_index: token_output.prev_token_transaction_vout,
             });
         }
@@ -381,7 +382,10 @@ impl UserWallet {
             transfer_amount as u128,
         )];
 
-        tracing::debug!("Token identifier: {:?}", token_identifier.encode_bech32m(bitcoin::Network::Regtest));
+        tracing::debug!(
+            "Token identifier: {:?}",
+            token_identifier.encode_bech32m(bitcoin::Network::Regtest)
+        );
         tracing::debug!("Spark address: {:?}", receiver_spark_address);
 
         if (transfer_amount as u128) < total_amount {
@@ -433,7 +437,7 @@ impl UserWallet {
         };
         let start_transaction_response = self
             .spark_client
-            .start_spark_transaction(start_transaction_request, self.keypair.clone())
+            .start_spark_transaction(start_transaction_request, self.keypair)
             .await?;
 
         let final_token_transaction_proto = start_transaction_response
@@ -480,7 +484,7 @@ impl UserWallet {
 
         let _ = self
             .spark_client
-            .commit_spark_transaction(commit_transaction_request, self.keypair.clone())
+            .commit_spark_transaction(commit_transaction_request, self.keypair)
             .await?;
 
         Ok(())
@@ -497,7 +501,7 @@ impl UserWallet {
             .await?;
         let txid = tx.compute_txid();
 
-        let previous_output = OutPoint { txid: txid, vout: 1 };
+        let previous_output = OutPoint { txid, vout: 1 };
         let txin = TxIn {
             previous_output,
             script_sig: ScriptBuf::new(),

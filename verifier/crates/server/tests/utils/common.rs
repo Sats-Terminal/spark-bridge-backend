@@ -29,7 +29,7 @@ pub static MIGRATOR: Migrator = sqlx::migrate!("../local_db_store/migrations");
 
 pub const CONFIG_PATH: &str = "../../../infrastructure/configurations/verifier_1/dev.toml";
 
-pub fn obtain_random_localhost_socket_addr() -> anyhow::Result<SocketAddr> {
+pub fn obtain_random_localhost_socket_addr() -> eyre::Result<SocketAddr> {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");
     let socket_addr = listener.local_addr()?;
     info!(server_addr = ?socket_addr, "Random address:");

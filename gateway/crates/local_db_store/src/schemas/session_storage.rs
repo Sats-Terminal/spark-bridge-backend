@@ -9,6 +9,8 @@ use sqlx::types::Json;
 use tracing::instrument;
 use uuid::Uuid;
 
+pub type SessionUuid = Uuid;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionInfo {
     pub request_type: RequestType,
@@ -51,15 +53,15 @@ pub enum SessionStatus {
 
 #[async_trait]
 pub trait SessionStorage: Send + Sync + StorageHealthcheck {
-    async fn create_session(&self, session_info: SessionInfo) -> Result<Uuid, DbError>;
-    async fn update_session_status(&self, session_id: Uuid, status: SessionStatus) -> Result<(), DbError>;
-    async fn get_session(&self, session_id: Uuid) -> Result<SessionInfo, DbError>;
+    async fn create_session(&self, session_info: SessionInfo) -> Result<SessionUuid, DbError>;
+    async fn update_session_status(&self, session_id: SessionUuid, status: SessionStatus) -> Result<(), DbError>;
+    async fn get_session(&self, session_id: SessionUuid) -> Result<SessionInfo, DbError>;
 }
 
 #[async_trait]
 impl SessionStorage for LocalDbStorage {
     #[instrument(level = "trace", skip_all)]
-    async fn create_session(&self, session_info: SessionInfo) -> Result<Uuid, DbError> {
+    async fn create_session(&self, session_info: SessionInfo) -> Result<SessionUuid, DbError> {
         let session_id = get_uuid();
         let query = r#"
             INSERT INTO gateway.session_requests (session_id, request_type, request_status)
@@ -76,7 +78,7 @@ impl SessionStorage for LocalDbStorage {
     }
 
     #[instrument(level = "trace", skip_all)]
-    async fn update_session_status(&self, session_id: Uuid, status: SessionStatus) -> Result<(), DbError> {
+    async fn update_session_status(&self, session_id: SessionUuid, status: SessionStatus) -> Result<(), DbError> {
         let query = r#"
             UPDATE gateway.session_requests
             SET request_status = $1
@@ -92,7 +94,7 @@ impl SessionStorage for LocalDbStorage {
     }
 
     #[instrument(level = "trace", skip_all)]
-    async fn get_session(&self, session_id: Uuid) -> Result<SessionInfo, DbError> {
+    async fn get_session(&self, session_id: SessionUuid) -> Result<SessionInfo, DbError> {
         let query = r#"
             SELECT request_type, request_status
             FROM gateway.session_requests

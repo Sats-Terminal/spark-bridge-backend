@@ -3,7 +3,6 @@ use bitcoin::secp256k1::PublicKey;
 use bitcoin::{Network, secp256k1};
 use lrc20::token_metadata::{SPARK_CREATION_ENTITY_PUBLIC_KEY, TokenMetadata};
 use serde::{Deserialize, Serialize};
-use spark_address::Network as SparkNetwork;
 use token_identifier::TokenIdentifier;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

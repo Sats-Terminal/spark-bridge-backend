@@ -1,6 +1,6 @@
 use bitcoin::{Address, Network};
-use std::str::FromStr;
 use spark_address::Network as SparkNetwork;
+use std::str::FromStr;
 
 pub fn decode_address(address: &str, network: Network) -> Result<Address, String> {
     let address = Address::from_str(address).map_err(|e| format!("Failed to decode address: {}", e))?;

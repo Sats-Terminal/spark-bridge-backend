@@ -1,47 +1,53 @@
 BEGIN TRANSACTION;
 
-CREATE SCHEMA gateway;
+CREATE SCHEMA IF NOT EXISTS gateway;
 
------------ MUSIG_IDENTIFIER -----------
+----------- USER IDENTIFIERS -----------
 
-CREATE TABLE IF NOT EXISTS gateway.musig_identifier
+-- Dkg pregenerated shares
+CREATE TABLE IF NOT EXISTS gateway.dkg_share
 (
-    public_key TEXT NOT NULL,
-    rune_id TEXT NOT NULL,
-    is_issuer BOOLEAN NOT NULL,
-    dkg_state JSON NOT NULL,
-    PRIMARY KEY (public_key, rune_id)
+    dkg_share_id         UUID PRIMARY KEY NOT NULL DEFAULT gen_random_uuid(),
+    dkg_aggregator_state JSONB            NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS gateway.user_identifier
+(
+    dkg_share_id UUID    NOT NULL,
+    user_id    UUID    NOT NULL,
+    rune_id      TEXT    NOT NULL,
+    is_issuer    BOOLEAN NOT NULL,
+    PRIMARY KEY (dkg_share_id),
+    FOREIGN KEY (dkg_share_id) REFERENCES gateway.dkg_share (dkg_share_id)
 );
 
 ----------- SIGN_SESSION -----------
 
 CREATE TABLE IF NOT EXISTS gateway.sign_session
 (
-    session_id TEXT NOT NULL,
-    public_key TEXT NOT NULL,
-    rune_id TEXT NOT NULL,
-    tweak BYTEA,
-    message_hash BYTEA NOT NULL,
-    metadata JSON NOT NULL,
-    sign_state JSON NOT NULL,
+    session_id          TEXT  NOT NULL,
+    dkg_share_id        UUID  NOT NULL,
+    tweak               BYTEA,
+    message_hash        BYTEA NOT NULL,
+    aggregator_metadata JSON  NOT NULL,
+    sign_state          JSON  NOT NULL,
     PRIMARY KEY (session_id),
-    FOREIGN KEY (public_key, rune_id) REFERENCES gateway.musig_identifier(public_key, rune_id)
+    FOREIGN KEY (dkg_share_id) REFERENCES gateway.dkg_share (dkg_share_id)
 );
 
 ------------ DEPOSIT_ADDRESS -----------
 
 CREATE TABLE IF NOT EXISTS gateway.deposit_address
 (
-    nonce_tweak BYTEA NOT NULL,
-    public_key TEXT NOT NULL,
-    rune_id TEXT NOT NULL,
-    deposit_address TEXT NOT NULL,
-    bridge_address TEXT,
-    is_btc BOOLEAN NOT NULL,
-    amount BIGINT NOT NULL,
-    confirmation_status JSON NOT NULL,
-    PRIMARY KEY (public_key, rune_id, nonce_tweak),
-    FOREIGN KEY (public_key, rune_id) REFERENCES gateway.musig_identifier(public_key, rune_id)
+    nonce_tweak         BYTEA   NOT NULL,
+    dkg_share_id        UUID    NOT NULL,
+    deposit_address     TEXT    NOT NULL,
+    bridge_address      TEXT,
+    is_btc              BOOLEAN NOT NULL,
+    amount              BIGINT  NOT NULL,
+    confirmation_status JSON    NOT NULL,
+    PRIMARY KEY (nonce_tweak),
+    FOREIGN KEY (dkg_share_id) REFERENCES gateway.user_identifier (dkg_share_id)
 );
 
 ------------ UTXO -----------
@@ -50,16 +56,16 @@ CREATE TYPE UTXO_STATUS AS ENUM (
     'pending',
     'confirmed',
     'spent'
-);
+    );
 
 CREATE TABLE IF NOT EXISTS gateway.utxo
 (
-    out_point    TEXT        PRIMARY KEY,
-    rune_amount       BIGINT      NOT NULL,
-    rune_id      TEXT        NOT NULL,
-    sats_fee_amount BIGINT   ,
-    status       UTXO_STATUS NOT NULL DEFAULT 'pending',
-    btc_address  TEXT        NOT NULL
+    out_point       TEXT PRIMARY KEY,
+    rune_amount     BIGINT      NOT NULL,
+    rune_id         TEXT        NOT NULL,
+    sats_fee_amount BIGINT,
+    status          UTXO_STATUS NOT NULL DEFAULT 'pending',
+    btc_address     TEXT        NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_utxo_status ON gateway.utxo (status);
@@ -71,7 +77,7 @@ CREATE TYPE REQ_TYPE AS ENUM (
     'get_spark_deposit_address',
     'bridge_runes',
     'exit_spark'
-);
+    );
 
 CREATE TYPE REQUEST_STATUS AS ENUM (
     'pending',
@@ -83,8 +89,8 @@ CREATE TYPE REQUEST_STATUS AS ENUM (
 
 CREATE TABLE IF NOT EXISTS gateway.session_requests
 (
-    session_id   UUID PRIMARY KEY,
-    request_type REQ_TYPE       NOT NULL,
+    session_id     UUID PRIMARY KEY,
+    request_type   REQ_TYPE       NOT NULL,
     request_status REQUEST_STATUS NOT NULL
 );
 
@@ -92,13 +98,14 @@ CREATE TABLE IF NOT EXISTS gateway.session_requests
 
 CREATE TABLE IF NOT EXISTS gateway.paying_utxo
 (
-    txid TEXT NOT NULL,
-    vout INT NOT NULL,
-    btc_exit_address TEXT NOT NULL,
-    sats_amount BIGINT NOT NULL,
-    none_anyone_can_pay_signature TEXT NOT NULL,
+    txid                          TEXT   NOT NULL,
+    vout                          INT    NOT NULL,
+    btc_exit_address         TEXT   NOT NULL,
+    sats_amount                   BIGINT NOT NULL,
+    none_anyone_can_pay_signature TEXT   NOT NULL,
     PRIMARY KEY (txid, vout)
 );
 
-COMMIT;
+-- Indexes
 
+COMMIT;

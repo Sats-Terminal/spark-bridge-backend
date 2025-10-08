@@ -1,4 +1,4 @@
-#[cfg(test)]
+mod utils;
 mod tests {
     use bitcoin::{Network, OutPoint, Txid};
     use gateway_local_db_store::schemas::utxo_storage::{Utxo, UtxoStatus, UtxoStorage};

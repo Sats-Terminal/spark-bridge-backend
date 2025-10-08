@@ -31,6 +31,7 @@ mod mock_testing {
     use local_db_store_indexer::schemas::tx_tracking_storage::TxToUpdateStatus;
     use persistent_storage::init::PostgresPool;
     use std::sync::Arc;
+    use tracing::instrument;
     use url::Url;
 
     const CONFIG_FILEPATH: &str = "../../../infrastructure/configurations/btc_indexer/dev.toml";
@@ -41,8 +42,9 @@ mod mock_testing {
     const VOUT_FOR_OUT_POINT: u32 = 1234;
     const RUNE_AMOUNT: Amount = 45678;
 
+    #[instrument]
     #[sqlx::test(migrator = "MIGRATOR")]
-    async fn test_retrieving_of_finalized_tx(pool: PostgresPool) -> anyhow::Result<()> {
+    async fn test_retrieving_of_finalized_tx(pool: PostgresPool) -> eyre::Result<()> {
         dotenvy::dotenv();
         let _logger_guard = &*TEST_LOGGER;
 
@@ -82,7 +84,7 @@ mod mock_testing {
             &ResponseMeta {
                 outpoint: out_point,
                 status: BtcTxReview::Success,
-                sats_fee_amount: 0,
+                sats_amount: 0,
             }
         ));
         Ok(())
@@ -92,7 +94,7 @@ mod mock_testing {
         btc_rpc_creds: BtcRpcCredentials,
         db_pool: LocalDbStorage,
         app_config: ServerConfig,
-    ) -> anyhow::Result<BtcIndexer<MockTitanIndexer, LocalDbStorage, MockTxArbiter>> {
+    ) -> eyre::Result<BtcIndexer<MockTitanIndexer, LocalDbStorage, MockTxArbiter>> {
         const MAX_I_INDEX: u64 = 5;
         let generate_transaction = |tx_id: &Txid, index: u64| Transaction {
             txid: tx_id.clone(),

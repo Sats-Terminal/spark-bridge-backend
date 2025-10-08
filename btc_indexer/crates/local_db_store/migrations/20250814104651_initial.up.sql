@@ -1,7 +1,7 @@
 BEGIN TRANSACTION;
 
 
-CREATE SCHEMA btc_indexer;
+CREATE SCHEMA IF NOT EXISTS btc_indexer;
 
 CREATE TYPE BTC_TRACK_TX_REQUEST_STATUS AS ENUM ('pending', 'finished', 'failed_to_send');
 CREATE TYPE BTC_TRACKED_TX_STATUS AS ENUM ('pending', 'finalized');
@@ -28,5 +28,15 @@ CREATE TABLE btc_indexer.tx_tracking_requests
     created_at    TIMESTAMP                   NOT NULL DEFAULT NOW(),
     status        BTC_TRACK_TX_REQUEST_STATUS NOT NULL DEFAULT 'pending'
 );
+
+CREATE INDEX IF NOT EXISTS tx_tracking_indexed
+    ON btc_indexer.tx_tracking (status);
+CREATE INDEX IF NOT EXISTS tx_tracking_requests_status_indexed
+    ON btc_indexer.tx_tracking_requests (status)
+    INCLUDE (uuid, tracked_tx_id, callback_url, created_at);
+
+
+CREATE INDEX IF NOT EXISTS tx_tracking_requests_uuid_indexed
+    ON btc_indexer.tx_tracking_requests (uuid);
 
 COMMIT;

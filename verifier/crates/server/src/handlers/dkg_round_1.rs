@@ -10,9 +10,9 @@ pub async fn handle(
     State(state): State<AppState>,
     Json(request): Json<DkgRound1Request>,
 ) -> Result<Json<DkgRound1Response>, VerifierError> {
-    let request_musig_id = request.musig_id.clone();
-    tracing::info!("DKG round 1 for musig id: {:?}", request_musig_id);
+    let dkg_share_id = request.dkg_share_id;
+    tracing::info!(dkg_share_id = ?dkg_share_id, "DKG round 1 running..");
     let response = state.frost_signer.dkg_round_1(request).await?;
-    tracing::info!("DKG round 1 success for musig id: {:?}", request_musig_id);
+    tracing::info!(dkg_share_id = ?dkg_share_id, "DKG round 1 success");
     Ok(Json(response))
 }

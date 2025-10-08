@@ -3,7 +3,6 @@ use crate::init::AppState;
 use axum::Json;
 use axum::extract::State;
 use bitcoin::OutPoint;
-use frost::types::MusigId;
 use frost::types::TweakBytes;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -12,10 +11,11 @@ use verifier_config_parser::config::construct_hardcoded_callback_url;
 use verifier_local_db_store::schemas::deposit_address::{
     DepositAddrInfo, DepositAddressStorage, DepositStatus, InnerAddress,
 };
+use verifier_local_db_store::schemas::user_identifier::{UserIdentifierStorage, UserIds};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WatchRunesDepositRequest {
-    pub musig_id: MusigId,
+    pub user_ids: UserIds,
     pub nonce: TweakBytes,
     pub amount: u64,
     pub btc_address: String,
@@ -39,13 +39,19 @@ pub async fn handle(
 
     state
         .storage
+        .insert_user_ids(request.user_ids.clone())
+        .await
+        .map_err(|e| VerifierError::Storage(format!("Failed to set identifier data: {}", e)))?;
+
+    state
+        .storage
         .set_deposit_addr_info(DepositAddrInfo {
-            musig_id: request.musig_id.clone(),
+            dkg_share_id: request.user_ids.dkg_share_id,
             nonce: request.nonce,
             out_point: Some(request.out_point),
             deposit_address,
             bridge_address,
-            is_btc: true, // ??
+            is_btc: false,
             deposit_amount: request.amount,
             sats_fee_amount: None,
             confirmation_status: DepositStatus::WaitingForConfirmation,
@@ -60,7 +66,7 @@ pub async fn handle(
         .watch_runes_deposit(IndexerWatchRunesDepositRequest {
             btc_address: request.btc_address.clone(),
             out_point: request.out_point,
-            rune_id: request.musig_id.get_rune_id(),
+            rune_id: request.user_ids.rune_id,
             rune_amount: request.amount,
             callback_url,
         })

@@ -9,7 +9,7 @@ mod init_tests {
 
     use super::*;
     #[tokio::test]
-    pub async fn pg_conn_health_check_db_url() -> anyhow::Result<()> {
+    pub async fn pg_conn_health_check_db_url() -> eyre::Result<()> {
         let _ = dotenvy::dotenv();
         let _ = *TEST_LOGGER;
         let db_entity = PostgresRepo::from_config(PostgresDbCredentials::from_db_url()?).await?;
@@ -19,7 +19,7 @@ mod init_tests {
     }
 
     #[tokio::test]
-    pub async fn pg_conn_health_check_envs() -> anyhow::Result<()> {
+    pub async fn pg_conn_health_check_envs() -> eyre::Result<()> {
         let _ = dotenvy::dotenv();
         let _ = *TEST_LOGGER;
         let db_entity = PostgresRepo::from_config(PostgresDbCredentials::from_envs()?).await?;

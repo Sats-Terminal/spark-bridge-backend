@@ -10,9 +10,9 @@ pub async fn handle(
     State(state): State<AppState>,
     Json(request): Json<DkgFinalizeRequest>,
 ) -> Result<Json<DkgFinalizeResponse>, VerifierError> {
-    let request_musig_id = request.musig_id.clone();
-    tracing::info!("DKG finalize for musig id: {:?}", request_musig_id);
+    let dkg_share_id = request.dkg_share_id;
+    tracing::info!(dkg_share_id = ?dkg_share_id, "DKG finalize running..");
     let response = state.frost_signer.dkg_finalize(request).await?;
-    tracing::info!("DKG finalize success for musig id: {:?}", request_musig_id);
+    tracing::info!(dkg_share_id = ?dkg_share_id, "DKG finalize finalized");
     Ok(Json(response))
 }

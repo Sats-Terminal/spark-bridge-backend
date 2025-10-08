@@ -1,4 +1,3 @@
-use bitcoin::secp256k1::PublicKey;
 use frost_secp256k1_tr::{
     Identifier, Signature, SigningPackage,
     keys::{
@@ -16,37 +15,9 @@ use uuid::Uuid;
 
 pub type TweakBytes = [u8; 32];
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
-pub enum MusigId {
-    User {
-        user_public_key: PublicKey,
-        rune_id: String,
-    },
-    Issuer {
-        issuer_public_key: PublicKey,
-        rune_id: String,
-    },
-}
-
-impl MusigId {
-    pub fn get_public_key(&self) -> PublicKey {
-        match self {
-            MusigId::User { user_public_key, .. } => *user_public_key,
-            MusigId::Issuer { issuer_public_key, .. } => *issuer_public_key,
-        }
-    }
-
-    pub fn get_rune_id(&self) -> String {
-        match self {
-            MusigId::User { rune_id, .. } => rune_id.clone(),
-            MusigId::Issuer { rune_id, .. } => rune_id.clone(),
-        }
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DkgRound1Request {
-    pub musig_id: MusigId,
+    pub dkg_share_id: Uuid,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -56,7 +27,7 @@ pub struct DkgRound1Response {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DkgRound2Request {
-    pub musig_id: MusigId,
+    pub dkg_share_id: Uuid,
     pub round1_packages: BTreeMap<Identifier, round1::Package>,
 }
 
@@ -67,7 +38,7 @@ pub struct DkgRound2Response {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DkgFinalizeRequest {
-    pub musig_id: MusigId,
+    pub dkg_share_id: Uuid,
     pub round1_packages: BTreeMap<Identifier, round1::Package>,
     pub round2_packages: BTreeMap<Identifier, round2::Package>,
 }
@@ -79,7 +50,7 @@ pub struct DkgFinalizeResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignRound1Request {
-    pub musig_id: MusigId,
+    pub dkg_share_id: Uuid,
     pub session_id: Uuid,
     pub metadata: SigningMetadata,
     pub message_hash: Vec<u8>,
@@ -93,7 +64,7 @@ pub struct SignRound1Response {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignRound2Request {
-    pub musig_id: MusigId,
+    pub dkg_share_id: Uuid,
     pub session_id: Uuid,
     pub signing_package: SigningPackage,
     pub tap_tweek: bool,
@@ -106,6 +77,7 @@ pub struct SignRound2Response {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AggregatorDkgState {
+    Initialized,
     DkgRound1 {
         round1_packages: BTreeMap<Identifier, round1::Package>,
     },
@@ -119,7 +91,7 @@ pub enum AggregatorDkgState {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AggregatorMusigIdData {
+pub struct AggregatorDkgShareData {
     pub dkg_state: AggregatorDkgState,
 }
 
@@ -152,7 +124,7 @@ pub enum SignerDkgState {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SignerMusigIdData {
+pub struct SignerDkgShareIdData {
     pub dkg_state: SignerDkgState,
 }
 
@@ -184,18 +156,18 @@ pub enum SigningMetadata {
 
 impl Debug for SigningMetadata {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        writeln!(
+        write!(
             f,
-            "{}",
+            "{:?}",
             match self {
-                SigningMetadata::PartialCreateToken { .. } => "PartialCreateToken",
-                SigningMetadata::FinalCreateToken { .. } => "FinalCreateToken",
-                SigningMetadata::PartialMintToken { .. } => "PartialMintToken",
-                SigningMetadata::FinalMintToken { .. } => "FinalMintToken",
-                SigningMetadata::PartialTransferToken { .. } => "PartialTransferToken",
-                SigningMetadata::FinalTransferToken { .. } => "FinalTransferToken",
-                SigningMetadata::Authorization => "Authorization",
-                SigningMetadata::BtcTransactionMetadata { .. } => "BtcTransactionMetadata",
+                SigningMetadata::PartialCreateToken { .. } => "SigningMetadata::PartialCreateToken",
+                SigningMetadata::FinalCreateToken { .. } => "SigningMetadata::FinalCreateToken",
+                SigningMetadata::PartialMintToken { .. } => "SigningMetadata::PartialMintToken",
+                SigningMetadata::FinalMintToken { .. } => "SigningMetadata::FinalMintToken",
+                SigningMetadata::Authorization => "SigningMetadata::Authorization",
+                SigningMetadata::BtcTransactionMetadata { .. } => "SigningMetadata::BtcTransactionMetadata",
+                SigningMetadata::PartialTransferToken { .. } => "SigningMetadata::PartialTransferToken",
+                SigningMetadata::FinalTransferToken { .. } => "SigningMetadata::FinalTransferToken",
             }
         )
     }

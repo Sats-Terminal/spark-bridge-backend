@@ -5,6 +5,7 @@ use axum_test::TestServer;
 use btc_indexer_api::api::{BtcIndexerCallbackResponse, ResponseMeta};
 use btc_indexer_internals::api::AccountReplenishmentEvent;
 use btc_indexer_server::{AppState, error::ServerError};
+use eyre::eyre;
 use global_utils::common_resp::Empty;
 use titan_client::Transaction;
 use tokio::sync::Mutex;
@@ -23,7 +24,7 @@ pub const NOTIFY_WALLET_PATH: &'static str = "/notify_wallet";
 pub async fn create_test_notifier_track_tx(
     oneshot_sender: tokio::sync::oneshot::Sender<BtcIndexerCallbackResponse>,
     socket_addr: &SocketAddr,
-) -> anyhow::Result<TestServer> {
+) -> eyre::Result<TestServer> {
     let state = TestAppState {
         notifier: Arc::new(Mutex::new(Some(oneshot_sender))),
     };
@@ -34,6 +35,7 @@ pub async fn create_test_notifier_track_tx(
         .http_transport()
         .http_transport_with_ip_port(Some(socket_addr.ip()), Some(socket_addr.port()))
         .build(app.into_make_service())
+        .map_err(|err| eyre!(Box::new(err)))
 }
 
 #[instrument(skip(state))]
@@ -75,7 +77,7 @@ async fn _notify_handler_inner<T: Clone + Send + Sync + Debug>(
 #[instrument]
 pub async fn spawn_notify_server_track_tx(
     socket_addr: SocketAddr,
-) -> anyhow::Result<(
+) -> eyre::Result<(
     Url,
     tokio::sync::oneshot::Receiver<BtcIndexerCallbackResponse>,
     TestServer,

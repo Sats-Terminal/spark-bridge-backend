@@ -33,13 +33,12 @@ services:
     ports:
       - "8070:8060"
     healthcheck:
-      test: [ "CMD", "curl", "-X", "POST", "-f", "http://localhost:8060/health" ]
+      test: [ "CMD", "curl", "-X", "GET", "-f", "http://localhost:8060/health" ]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 10s
     entrypoint: sh -c "sqlx migrate run && gateway_main"
-    #    entrypoint: tail -f /dev/null
     depends_on:
       - persistent-db-storage_gateway
       - verifier1-service
@@ -82,7 +81,7 @@ services:
     ports:
       - "8071:8070"
     healthcheck:
-      test: [ "CMD", "curl", "-X", "POST", "-f", "http://localhost:8070/health" ]
+      test: [ "CMD", "curl", "-X", "GET", "-f", "http://localhost:8070/health" ]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -125,7 +124,7 @@ services:
     ports:
       - "8072:8070"
     healthcheck:
-      test: [ "CMD", "curl", "-X", "POST", "-f", "http://localhost:8070/health" ]
+      test: [ "CMD", "curl", "-X", "GET", "-f", "http://localhost:8070/health" ]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -168,7 +167,7 @@ services:
     ports:
       - "8073:8070"
     healthcheck:
-      test: [ "CMD", "curl", "-X", "POST", "-f", "http://localhost:8070/health" ]
+      test: [ "CMD", "curl", "-X", "GET", "-f", "http://localhost:8070/health" ]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -202,7 +201,7 @@ services:
     ports:
       - "8060:8070"
     healthcheck:
-      test: [ "CMD", "curl", "-X", "POST", "-f", "http://localhost:8070/health" ]
+      test: [ "CMD", "curl", "-X", "GET", "-f", "http://localhost:8070/health" ]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -302,7 +301,7 @@ services:
     ports:
       - "8090:8070"
     healthcheck:
-      test: [ "CMD", "curl", "-X", "POST", "-f", "http://localhost:8070/health" ]
+      test: [ "CMD", "curl", "-X", "GET", "-f", "http://localhost:8070/health" ]
       interval: 30s
       timeout: 10s
       retries: 5

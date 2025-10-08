@@ -3,15 +3,15 @@ name = "gateway_verifier_client"
 edition = "2024"
 
 [dependencies]
-serde = { workspace = true }
-reqwest = { workspace = true }
-tracing = { workspace = true }
-thiserror = { workspace = true }
-frost = { workspace = true }
 async-trait = { workspace = true }
+bitcoin = { workspace = true }
+frost = { workspace = true }
 gateway_config_parser = { workspace = true }
 gateway_deposit_verification = { workspace = true }
-bitcoin = { workspace = true }
-url = { workspace = true }
 gateway_local_db_store = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
 token-identifier = { workspace = true }
+tracing = { workspace = true }
+url = { workspace = true }

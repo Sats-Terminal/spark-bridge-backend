@@ -50,7 +50,7 @@ pub fn create_rune_partial_transaction(
         }),
     };
     inputs.push(paying_input);
-    
+
     for output in outputs_to_spend {
         inputs.push(TxIn {
             previous_output: OutPoint::new(output.txid, output.vout),
