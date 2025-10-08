@@ -59,7 +59,7 @@ pub type BtcIndexerCallbackResponse = ResponseMeta;
 pub struct ResponseMeta {
     pub outpoint: OutPoint,
     pub status: BtcTxReview,
-    pub sats_fee_amount: Amount,
+    // pub sats_fee_amount: Amount,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -71,7 +71,7 @@ pub enum BtcTxReview {
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum TxRejectReason {
     NoRunesInOuts,
-    NoFeesPayed,
+    // NoFeesPayed,
     TooFewSatoshiPaidAsFee { got: u64, at_least_expected: u64 },
     NoExpectedVOutInOutputs { got: u64, expected: u64 },
     NoExpectedTOutWithRunes,

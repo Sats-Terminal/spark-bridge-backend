@@ -128,10 +128,10 @@ impl<C: TitanApi, Db: IndexerDbBounds, TxValidator: TxArbiterTrait> BtcIndexerAp
         Ok(())
     }
 
-    #[instrument(level = "trace", skip(self))]
-    fn get_tx_info(&self, tx_id: bitcoin::Txid) -> crate::error::Result<bitcoin::transaction::Transaction> {
-        Ok(self.btc_core.get_by_id(&tx_id)?)
-    }
+    // #[instrument(level = "trace", skip(self))]
+    // fn get_tx_info(&self, tx_id: bitcoin::Txid) -> crate::error::Result<bitcoin::transaction::Transaction> {
+    //     Ok(self.btc_core.get_by_id(&tx_id)?)
+    // }
 
     #[instrument(level = "trace", skip(self))]
     fn get_blockchain_info(&self) -> crate::error::Result<json::GetBlockchainInfoResult> {
