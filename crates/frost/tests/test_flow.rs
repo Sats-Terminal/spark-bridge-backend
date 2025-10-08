@@ -2,15 +2,12 @@ mod tests {
     use bitcoin::key::TapTweak;
     use bitcoin::key::UntweakedPublicKey;
     use bitcoin::secp256k1::{PublicKey, Secp256k1};
-    use frost::traits::AggregatorDkgShareStorage;
-    use frost::types::{AggregatorDkgShareData, AggregatorDkgState, SigningMetadata, TweakBytes};
+    use frost::types::{SigningMetadata, TweakBytes};
     use frost::utils::generate_tweak_bytes;
     use frost::{aggregator::FrostAggregator, mocks::*, signer::FrostSigner, traits::SignerClient};
     use frost_secp256k1_tr::{Identifier, keys::Tweak};
-    use global_utils::common_types::get_uuid;
     use std::str::FromStr;
     use std::{collections::BTreeMap, sync::Arc};
-    use uuid::Uuid;
 
     #[tokio::test]
     async fn test_aggregator_signer_integration() -> eyre::Result<()> {
@@ -20,10 +17,25 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_aggregator_signer_integration_batch() -> eyre::Result<()> {
+        let msg_hash = b"test_message";
+        _test_aggregator_signer_integration_batch(msg_hash, None).await?;
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn test_aggregator_signer_integration_tweaked() -> eyre::Result<()> {
         let msg_hash = b"test_message";
         let tweak = generate_tweak_bytes();
         _test_aggregator_signer_integration(msg_hash, Some(tweak)).await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_aggregator_signer_integration_batch_tweaked() -> eyre::Result<()> {
+        let msg_hash = b"test_message";
+        let tweak = generate_tweak_bytes();
+        _test_aggregator_signer_integration_batch(msg_hash, Some(tweak)).await?;
         Ok(())
     }
 
@@ -62,37 +74,27 @@ mod tests {
     ) -> eyre::Result<()> {
         let verifiers_map = create_verifiers_map_easy();
 
-        let dkg_share_id: Uuid = get_uuid();
         let agg_storage = MockAggregatorDkgShareIdStorage::default();
-        agg_storage
-            .set_dkg_share_agg_data(
-                &dkg_share_id,
-                AggregatorDkgShareData {
-                    dkg_state: AggregatorDkgState::Initialized,
-                },
-            )
-            .await?;
-
         let aggregator = FrostAggregator::new(
             verifiers_map,
             Arc::new(agg_storage),
             Arc::new(MockAggregatorSignSessionStorage::default()),
         );
 
-        let public_key_package = aggregator.run_dkg_flow(&dkg_share_id).await?;
+        let dkg_response = aggregator.run_dkg_flow().await?;
         let metadata = SigningMetadata::Authorization;
 
         let (sig_res_a, sig_res_b) = tokio::join!(
-            aggregator.run_signing_flow(dkg_share_id.clone(), msg_hash_a, metadata.clone(), tweak, false),
-            aggregator.run_signing_flow(dkg_share_id.clone(), msg_hash_b, metadata, tweak, false),
+            aggregator.run_signing_flow(dkg_response.dkg_share_id.clone(), msg_hash_a, metadata.clone(), tweak, false),
+            aggregator.run_signing_flow(dkg_response.dkg_share_id.clone(), msg_hash_b, metadata, tweak, false),
         );
 
         let signature_a = sig_res_a?;
         let signature_b = sig_res_b?;
 
         let tweaked_public_key_package = match tweak.clone() {
-            Some(tweak) => public_key_package.clone().tweak(Some(tweak.to_vec())),
-            None => public_key_package.clone(),
+            Some(tweak) => dkg_response.public_key_package.clone().tweak(Some(tweak.to_vec())),
+            None => dkg_response.public_key_package.clone(),
         };
         tweaked_public_key_package
             .verifying_key()
@@ -113,37 +115,61 @@ mod tests {
     async fn _test_aggregator_signer_integration(msg_hash: &[u8], tweak: Option<TweakBytes>) -> eyre::Result<()> {
         let verifiers_map = create_verifiers_map_easy();
 
-        let dkg_share_id: Uuid = get_uuid();
         let agg_storage = MockAggregatorDkgShareIdStorage::default();
-        agg_storage
-            .set_dkg_share_agg_data(
-                &dkg_share_id,
-                AggregatorDkgShareData {
-                    dkg_state: AggregatorDkgState::Initialized,
-                },
-            )
-            .await?;
-
+        
         let aggregator = FrostAggregator::new(
             verifiers_map,
             Arc::new(agg_storage),
             Arc::new(MockAggregatorSignSessionStorage::default()),
         );
 
-        let public_key_package = aggregator.run_dkg_flow(&dkg_share_id).await?;
+        let dkg_response = aggregator.run_dkg_flow().await?;
         let metadata = SigningMetadata::Authorization;
 
         let signature = aggregator
-            .run_signing_flow(dkg_share_id.clone(), msg_hash, metadata, tweak, false)
+            .run_signing_flow(dkg_response.dkg_share_id.clone(), msg_hash, metadata, tweak, false)
             .await?;
 
         let tweaked_public_key_package = match tweak.clone() {
-            Some(tweak) => public_key_package.clone().tweak(Some(tweak.to_vec())),
-            None => public_key_package.clone(),
+            Some(tweak) => dkg_response.public_key_package.clone().tweak(Some(tweak.to_vec())),
+            None => dkg_response.public_key_package.clone(),
         };
         tweaked_public_key_package
             .verifying_key()
             .verify(msg_hash, &signature)?;
+        Ok(())
+    }
+
+    async fn _test_aggregator_signer_integration_batch(msg_hash: &[u8], tweak: Option<TweakBytes>) -> eyre::Result<()> {
+        let verifiers_map = create_verifiers_map_easy();
+
+        let agg_storage = MockAggregatorDkgShareIdStorage::default();
+        let aggregator = FrostAggregator::new(
+            verifiers_map,
+            Arc::new(agg_storage),
+            Arc::new(MockAggregatorSignSessionStorage::default()),
+        );
+
+        let dkg_responses = aggregator.run_dkg_flow_batch(3).await?;
+        let metadata = SigningMetadata::Authorization;
+
+        let mut signatures = vec![];
+        for dkg_response in dkg_responses.clone() {
+            signatures.push(aggregator.run_signing_flow(dkg_response.dkg_share_id.clone(), msg_hash, metadata.clone(), tweak, false).await?);
+        }
+
+        let mut tweaked_public_key_packages = vec![];
+        for dkg_response in dkg_responses {
+            match tweak.clone() {
+                Some(tweak) => tweaked_public_key_packages.push(dkg_response.public_key_package.clone().tweak(Some(tweak.to_vec()))),
+                None => tweaked_public_key_packages.push(dkg_response.public_key_package.clone()),
+            }
+        }
+        
+        for (tweaked_public_key_package, signature) in tweaked_public_key_packages.iter().zip(signatures.iter()) {
+            tweaked_public_key_package.verifying_key().verify(msg_hash, signature).expect("signature must be valid");
+        }
+
         Ok(())
     }
 
@@ -177,4 +203,6 @@ mod tests {
             (identifier_3, Arc::new(mock_signer_client3) as Arc<dyn SignerClient>),
         ])
     }
+
+
 }

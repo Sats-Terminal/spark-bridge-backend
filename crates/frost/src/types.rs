@@ -49,6 +49,36 @@ pub struct DkgFinalizeResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DkgRound1BatchRequest {
+    pub dkg_round_1_requests: Vec<DkgRound1Request>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DkgRound1BatchResponse {
+    pub dkg_round_1_responses: Vec<DkgRound1Response>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DkgRound2BatchRequest {
+    pub dkg_round_2_requests: Vec<DkgRound2Request>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DkgRound2BatchResponse {
+    pub dkg_round_2_responses: Vec<DkgRound2Response>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DkgFinalizeBatchRequest {
+    pub dkg_finalize_requests: Vec<DkgFinalizeRequest>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DkgFinalizeBatchResponse {
+    pub dkg_finalize_responses: Vec<DkgFinalizeResponse>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignRound1Request {
     pub dkg_share_id: Uuid,
     pub session_id: Uuid,
@@ -171,4 +201,10 @@ impl Debug for SigningMetadata {
             }
         )
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DkgResponse {
+    pub dkg_share_id: Uuid,
+    pub public_key_package: PublicKeyPackage,
 }

@@ -36,27 +36,8 @@ impl FrostSigner {
         })
     }
 
-    pub async fn lock_dkg_share_id(&self, dkg_share_id: &Uuid) -> Result<(), SignerError> {
-        let mut locked_dkg_share_ids = self.locked_dkg_share_ids.lock().await;
-        if locked_dkg_share_ids.contains(dkg_share_id) {
-            return Err(SignerError::DkgShareIdAlreadyExists(*dkg_share_id));
-        }
-        locked_dkg_share_ids.insert(*dkg_share_id);
-        Ok(())
-    }
-
-    pub async fn unlock_dkg_share_id(&self, dkg_share_id: &Uuid) -> Result<(), SignerError> {
-        let mut locked_dkg_share_ids = self.locked_dkg_share_ids.lock().await;
-        let removed = locked_dkg_share_ids.remove(dkg_share_id);
-        if !removed {
-            return Err(SignerError::DkgShareIdNotFound(*dkg_share_id));
-        }
-        Ok(())
-    }
-
     pub async fn dkg_round_1(&self, request: DkgRound1Request) -> Result<DkgRound1Response, SignerError> {
         debug!(dkg_share_id = ?request.dkg_share_id, identifier = ?self.identifier, "Started DKG round 1");
-        self.lock_dkg_share_id(&request.dkg_share_id).await?;
 
         let dkg_share_id = request.dkg_share_id;
         let dkg_share_data = self.dkg_share_storage.get_dkg_share_signer_data(&dkg_share_id).await?;
@@ -88,7 +69,6 @@ impl FrostSigner {
                 })
             }
             _ => {
-                self.unlock_dkg_share_id(&dkg_share_id).await?;
                 Err(SignerError::DkgShareIdAlreadyExists(dkg_share_id))
             }
         }
@@ -161,8 +141,6 @@ impl FrostSigner {
                     )
                     .await?;
 
-                self.unlock_dkg_share_id(&dkg_share_id).await?;
-
                 debug!(dkg_share_id = ?dkg_share_id, identifier = ?self.identifier, "DKG finalize completed");
                 Ok(DkgFinalizeResponse { public_key_package })
             }
@@ -170,6 +148,121 @@ impl FrostSigner {
                 "User key state is not DkgRound2".to_string(),
             )),
         }
+    }
+
+    pub async fn dkg_batch_round_1(&self, request: DkgRound1BatchRequest) -> Result<DkgRound1BatchResponse, SignerError> {
+        let mut responses = vec![];
+        let mut dkg_share_ids_and_data = vec![];
+
+        for request in request.dkg_round_1_requests {
+            let dkg_share_id = request.dkg_share_id;
+            let (secret_package, package) = frost_secp256k1_tr::keys::dkg::part1(
+                self.identifier,
+                self.total_participants,
+                self.threshold,
+                OsRng,
+            )
+            .map_err(|e| SignerError::Internal(format!("DKG round1 failed: {e}")))?;
+
+            dkg_share_ids_and_data.push((dkg_share_id, SignerDkgShareIdData {
+                dkg_state: SignerDkgState::DkgRound1 {
+                    round1_secret_package: secret_package,
+                },
+            }));
+
+            responses.push(DkgRound1Response { round1_package: package });
+        }
+
+        self.dkg_share_storage.set_batch_dkg_share_signer_data(dkg_share_ids_and_data).await?;
+
+        Ok(DkgRound1BatchResponse {
+            dkg_round_1_responses: responses,
+        })
+    }
+
+    pub async fn dkg_batch_round_2(&self, request: DkgRound2BatchRequest) -> Result<DkgRound2BatchResponse, SignerError> {
+        let dkg_share_ids = request.dkg_round_2_requests
+            .iter()
+            .map(|request| request.dkg_share_id)
+            .collect::<Vec<Uuid>>();
+        let round1_packages_vec = request.dkg_round_2_requests
+            .iter()
+            .map(|request| request.round1_packages.clone())
+            .collect::<Vec<_>>();
+
+        let singer_dkg_data = self.dkg_share_storage.get_batch_dkg_share_signer_data(dkg_share_ids.clone()).await?;
+        let mut round1_secret_packages_vec = vec![];
+        for dkg_share_data in singer_dkg_data {
+            match dkg_share_data {
+                SignerDkgShareIdData { dkg_state: SignerDkgState::DkgRound1 { round1_secret_package }, } => {
+                    round1_secret_packages_vec.push(round1_secret_package);
+                }
+                _ => return Err(SignerError::InvalidUserState("User state is not DkgRound1".to_string())),
+            }
+        }
+
+        let mut dkg_share_ids_and_data = vec![];
+        let mut responses = vec![];
+
+        for i in 0..dkg_share_ids.len() {
+            let (secret_package, packages) = frost_secp256k1_tr::keys::dkg::part2(round1_secret_packages_vec[i].clone(), &round1_packages_vec[i])
+                .map_err(|e| SignerError::Internal(format!("DKG round2 failed: {e}")))?;
+
+            dkg_share_ids_and_data.push((dkg_share_ids[i], SignerDkgShareIdData {
+                dkg_state: SignerDkgState::DkgRound2 {
+                    round2_secret_package: secret_package,
+                    round1_packages: round1_packages_vec[i].clone(),
+                },
+            }));
+            responses.push(DkgRound2Response { round2_packages: packages });
+        }
+
+        self.dkg_share_storage.set_batch_dkg_share_signer_data(dkg_share_ids_and_data).await?;
+
+        Ok(DkgRound2BatchResponse {
+            dkg_round_2_responses: responses,
+        })
+    }
+
+    pub async fn dkg_batch_finalize(&self, request: DkgFinalizeBatchRequest) -> Result<DkgFinalizeBatchResponse, SignerError> {
+        let dkg_share_ids = request.dkg_finalize_requests.iter().map(|request| request.dkg_share_id).collect::<Vec<Uuid>>();
+        let round2_packages_vec = request.dkg_finalize_requests.iter().map(|request| request.round2_packages.clone()).collect::<Vec<_>>();
+
+        let singer_dkg_data = self.dkg_share_storage.get_batch_dkg_share_signer_data(dkg_share_ids.clone()).await?;
+        let mut round2_secret_packages_vec = vec![];
+        let mut round1_packages_vec = vec![];
+        for dkg_share_data in singer_dkg_data {
+            match dkg_share_data {
+                SignerDkgShareIdData { dkg_state: SignerDkgState::DkgRound2 { round2_secret_package, round1_packages }, } => {
+                    round2_secret_packages_vec.push(round2_secret_package);
+                    round1_packages_vec.push(round1_packages);
+                }
+                _ => return Err(SignerError::InvalidUserState("User state is not DkgRound2".to_string())),
+            }
+        }
+
+        let mut dkg_share_ids_and_data = vec![];
+        let mut responses = vec![];
+
+        for i in 0..dkg_share_ids.len() {
+            let (key_package, public_key_package) = frost_secp256k1_tr::keys::dkg::part3(
+                &round2_secret_packages_vec[i],
+                &round1_packages_vec[i],
+                &round2_packages_vec[i],
+            )
+            .map_err(|e| SignerError::Internal(format!("DKG finalize failed: {e}")))?;
+            
+            dkg_share_ids_and_data.push((dkg_share_ids[i], SignerDkgShareIdData {
+                dkg_state: SignerDkgState::DkgFinalized { key_package: Box::new(key_package) },
+            }));
+            responses.push(DkgFinalizeResponse { public_key_package });
+        }
+
+        self.dkg_share_storage.set_batch_dkg_share_signer_data(dkg_share_ids_and_data).await?;
+
+        Ok(DkgFinalizeBatchResponse {
+            dkg_finalize_responses: responses,
+        })
     }
 
     pub async fn sign_round_1(&self, request: SignRound1Request) -> Result<SignRound1Response, SignerError> {

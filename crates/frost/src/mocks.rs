@@ -81,6 +81,24 @@ impl SignerDkgShareStorage for MockSignerDkgShareIdStorage {
         self.storage.lock().await.insert(*dkg_share_id, dkkg_share_data);
         Ok(())
     }
+
+    async fn get_batch_dkg_share_signer_data(&self, dkg_share_ids: Vec<Uuid>) -> Result<Vec<SignerDkgShareIdData>, DbError> {
+        let map = self.storage.lock().await;
+        let data = dkg_share_ids
+            .into_iter()
+            .map(|id| map.get(&id).cloned())
+            .collect::<Option<Vec<_>>>()
+            .ok_or(DbError::NotFound("Dkg share data not found".to_string()))?;
+        Ok(data)
+    }
+
+    async fn set_batch_dkg_share_signer_data(&self, dkg_share_data: Vec<(Uuid, SignerDkgShareIdData)>) -> Result<(), DbError> {
+        let mut map = self.storage.lock().await;
+        for (id, data) in dkg_share_data {
+            map.insert(id, data);
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -128,6 +146,24 @@ impl AggregatorDkgShareStorage for MockAggregatorDkgShareIdStorage {
         dkg_share_data: AggregatorDkgShareData,
     ) -> Result<(), DbError> {
         self.storage.lock().await.insert(*musig_id, dkg_share_data);
+        Ok(())
+    }
+
+    async fn get_batch_dkg_share_agg_data(&self, dkg_share_ids: Vec<Uuid>) -> Result<Vec<AggregatorDkgShareData>, DbError> {
+        let map = self.storage.lock().await;
+        let data = dkg_share_ids
+            .into_iter()
+            .map(|id| map.get(&id).cloned())
+            .collect::<Option<Vec<_>>>()
+            .ok_or(DbError::NotFound("Dkg share data not found".to_string()))?;
+        Ok(data)
+    }
+
+    async fn set_batch_dkg_share_agg_data(&self, dkg_share_data: Vec<(Uuid, AggregatorDkgShareData)>) -> Result<(), DbError> {
+        let mut map = self.storage.lock().await;
+        for (id, data) in dkg_share_data {
+            map.insert(id, data);
+        }
         Ok(())
     }
 }
@@ -193,6 +229,27 @@ impl SignerClient for MockSignerClient {
     async fn dkg_finalize(&self, request: DkgFinalizeRequest) -> Result<DkgFinalizeResponse, AggregatorError> {
         self.signer
             .dkg_finalize(request)
+            .await
+            .map_err(AggregatorError::SignerError)
+    }
+
+    async fn dkg_batch_round_1(&self, request: DkgRound1BatchRequest) -> Result<DkgRound1BatchResponse, AggregatorError> {
+        self.signer
+            .dkg_batch_round_1(request)
+            .await
+            .map_err(AggregatorError::SignerError)
+    }
+    
+    async fn dkg_batch_round_2(&self, request: DkgRound2BatchRequest) -> Result<DkgRound2BatchResponse, AggregatorError> {
+        self.signer
+            .dkg_batch_round_2(request)
+            .await
+            .map_err(AggregatorError::SignerError)
+    }
+
+    async fn dkg_batch_finalize(&self, request: DkgFinalizeBatchRequest) -> Result<DkgFinalizeBatchResponse, AggregatorError> {
+        self.signer
+            .dkg_batch_finalize(request)
             .await
             .map_err(AggregatorError::SignerError)
     }

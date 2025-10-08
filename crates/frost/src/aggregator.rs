@@ -91,7 +91,6 @@ impl FrostAggregator {
         }
     }
 
-    #[instrument(skip(self), level = "trace")]
     async fn dkg_round_2(&self, dkg_share_id: &Uuid) -> Result<(), AggregatorError> {
         debug!(dkg_share_id = ?dkg_share_id, "Starting DKG Round 2");
         let dkg_share_data = self.dkg_share_storage.get_dkg_share_agg_data(dkg_share_id).await?;
@@ -146,7 +145,6 @@ impl FrostAggregator {
         }
     }
 
-    #[instrument(skip(self), level = "trace")]
     async fn dkg_finalize(&self, dkg_share_id: &Uuid) -> Result<(), AggregatorError> {
         debug!(dkg_share_id = ?dkg_share_id, "Starting DKG flow");
         let dkg_share_data = self.dkg_share_storage.get_dkg_share_agg_data(dkg_share_id).await?;
@@ -213,57 +211,268 @@ impl FrostAggregator {
         }
     }
 
-    #[instrument(skip(self), level = "trace")]
-    pub async fn lock_dkg_share(&self, dkg_share_id: &Uuid) -> Result<(), AggregatorError> {
-        let mut locked_dkg_shares = self.locked_dkg_share_ids.lock().await;
-        if locked_dkg_shares.contains(dkg_share_id) {
-            //todo: fix
-            return Err(AggregatorError::DkgShareIdAlreadyExists(*dkg_share_id));
-        }
-        locked_dkg_shares.insert(*dkg_share_id);
-        Ok(())
-    }
+    pub async fn run_dkg_flow(&self) -> Result<DkgResponse, AggregatorError> {
 
-    #[instrument(skip(self), level = "trace")]
-    pub async fn unlock_dkg_share_id(&self, dkg_share_id: &Uuid) -> Result<(), AggregatorError> {
-        let mut locked_dkg_share_ids = self.locked_dkg_share_ids.lock().await;
-        let removed = locked_dkg_share_ids.remove(dkg_share_id);
-        if !removed {
-            return Err(AggregatorError::DkgShareIdNotFound(*dkg_share_id));
-        }
-        Ok(())
-    }
+        let dkg_share_id = Uuid::new_v4();
 
-    pub async fn run_dkg_flow(&self, dkg_share_id: &Uuid) -> Result<keys::PublicKeyPackage, AggregatorError> {
-        self.lock_dkg_share(dkg_share_id).await?;
+        self.dkg_share_storage.set_dkg_share_agg_data(&dkg_share_id, AggregatorDkgShareData {
+            dkg_state: AggregatorDkgState::Initialized,
+        }).await?;
 
-        let dkg_share_data = self.dkg_share_storage.get_dkg_share_agg_data(dkg_share_id).await?;
-        if let Some(x) = dkg_share_data.as_ref() {
-            match &x.dkg_state {
-                AggregatorDkgState::Initialized => {}
-                _ => {
-                    self.unlock_dkg_share_id(dkg_share_id).await?;
-                    return Err(AggregatorError::DkgShareIdAlreadyExists(*dkg_share_id));
-                }
-            }
-        }
+        self.dkg_round_1(&dkg_share_id).await?;
+        self.dkg_round_2(&dkg_share_id).await?;
+        self.dkg_finalize(&dkg_share_id).await?;
 
-        self.dkg_round_1(dkg_share_id).await?;
-        self.dkg_round_2(dkg_share_id).await?;
-        self.dkg_finalize(dkg_share_id).await?;
-
-        let dkg_share_data = self.dkg_share_storage.get_dkg_share_agg_data(dkg_share_id).await?;
+        let dkg_share_data = self.dkg_share_storage.get_dkg_share_agg_data(&dkg_share_id).await?;
         match dkg_share_data {
             Some(AggregatorDkgShareData {
                 dkg_state: AggregatorDkgState::DkgFinalized { public_key_package },
             }) => {
-                self.unlock_dkg_share_id(dkg_share_id).await?;
-                Ok(public_key_package)
+                Ok(DkgResponse {
+                    dkg_share_id,
+                    public_key_package,
+                })
             }
             _ => Err(AggregatorError::InvalidUserState(
                 "User state is not DkgFinalized".to_string(),
             )),
         }
+    }
+
+    async fn dkg_round_1_batch(&self, dkg_share_ids: Vec<Uuid>) -> Result<(), AggregatorError> {
+        let dkg_shares_data = self.dkg_share_storage.get_batch_dkg_share_agg_data(dkg_share_ids.clone()).await?;
+        for dkg_share_data in dkg_shares_data {
+            match dkg_share_data {
+                AggregatorDkgShareData { dkg_state: AggregatorDkgState::Initialized, } => {}
+                _ => return Err(AggregatorError::InvalidUserState("User state is not Initialized".to_string())),
+            }
+        }
+
+        let signer_clients_request = dkg_share_ids.iter().map(|dkg_share_id| DkgRound1Request {
+            dkg_share_id: *dkg_share_id,
+        }).collect::<Vec<DkgRound1Request>>();
+
+        let mut verifier_responses = Vec::new();
+        for _ in 0..dkg_share_ids.len() {
+            verifier_responses.push(BTreeMap::new());
+        }
+        
+        let mut join_handles = vec![];
+
+        for (verifier_id, signer_client) in self.verifiers.clone() {
+            let verifier_signer_clients_request = DkgRound1BatchRequest {
+                dkg_round_1_requests: signer_clients_request.clone(),
+            };
+            let join_handle = async move { 
+                (verifier_id, signer_client.dkg_batch_round_1(verifier_signer_clients_request).await) 
+            };
+            join_handles.push(join_handle);
+        }
+
+        let join_handles = join_all(join_handles).await;
+
+        for (verifier_id, response) in join_handles {
+            for (i, dkg_round_1_response) in response?.dkg_round_1_responses.into_iter().enumerate() {
+                verifier_responses[i].insert(verifier_id, dkg_round_1_response.round1_package);
+            }
+        }
+
+        let dkg_shares_ids_and_data = verifier_responses
+            .into_iter()
+            .zip(dkg_share_ids.into_iter())
+            .map(|(verifier_response, dkg_share_id)| (dkg_share_id, AggregatorDkgShareData {
+                dkg_state: AggregatorDkgState::DkgRound1 {
+                    round1_packages: verifier_response,
+                },
+            }))
+            .collect::<Vec<(Uuid, AggregatorDkgShareData)>>();
+
+        self.dkg_share_storage.set_batch_dkg_share_agg_data(dkg_shares_ids_and_data).await?;
+
+        Ok(())
+    }
+
+    async fn dkg_round_2_batch(&self, dkg_share_ids: Vec<Uuid>) -> Result<(), AggregatorError> {
+        let dkg_shares_data = self.dkg_share_storage.get_batch_dkg_share_agg_data(dkg_share_ids.clone()).await?;
+        let mut round1_packages_vec = vec![];
+        for dkg_share_data in dkg_shares_data {
+            match dkg_share_data {
+                AggregatorDkgShareData { dkg_state: AggregatorDkgState::DkgRound1 { round1_packages }, } => {
+                    round1_packages_vec.push(round1_packages);
+                }
+                _ => return Err(AggregatorError::InvalidUserState("User state is not DkgRound1".to_string())),
+            }
+        }
+
+        let mut verifier_responses = Vec::new();
+        for _ in 0..dkg_share_ids.len() {
+            verifier_responses.push(BTreeMap::new());
+        }
+        
+        let mut join_handles = vec![];
+        
+        for (verifier_id, signer_client) in self.verifiers.clone() {
+            let mut requests = vec![];
+            for i in 0..dkg_share_ids.len() {
+                let mut round1_packages = round1_packages_vec[i].clone();
+                round1_packages.remove(&verifier_id);
+                requests.push(DkgRound2Request {
+                    dkg_share_id: dkg_share_ids[i],
+                    round1_packages,
+                });
+            }
+            let verifier_request = DkgRound2BatchRequest {
+                dkg_round_2_requests: requests,
+            };
+            let join_handle = async move { (verifier_id, signer_client.dkg_batch_round_2(verifier_request).await) };
+            join_handles.push(join_handle);
+        }
+
+        let join_handles = join_all(join_handles).await;
+
+        for (verifier_id, response) in join_handles {
+            for (i, dkg_round_2_response) in response?.dkg_round_2_responses.into_iter().enumerate() {
+                for (receiver_identifier, round2_package) in dkg_round_2_response.round2_packages {
+                    verifier_responses[i]
+                        .entry(receiver_identifier)
+                        .or_insert(BTreeMap::new())
+                        .insert(verifier_id, round2_package);
+                }
+            }
+        }
+
+        let dkg_shares_ids_and_data = dkg_share_ids
+            .into_iter()
+            .zip(verifier_responses.into_iter())
+            .zip(round1_packages_vec.into_iter())
+            .map(|((dkg_share_id, verifier_response), round1_packages)| (dkg_share_id, AggregatorDkgShareData {
+                dkg_state: AggregatorDkgState::DkgRound2 {
+                    round1_packages,
+                    round2_packages: verifier_response,
+                },
+            }))
+            .collect::<Vec<(Uuid, AggregatorDkgShareData)>>();
+
+        self.dkg_share_storage.set_batch_dkg_share_agg_data(dkg_shares_ids_and_data).await?;
+
+        Ok(())
+    }
+
+    async fn dkg_finalize_batch(&self, dkg_share_ids: Vec<Uuid>) -> Result<(), AggregatorError> {
+        let dkg_shares_data = self.dkg_share_storage.get_batch_dkg_share_agg_data(dkg_share_ids.clone()).await?;
+
+        let mut round1_packages_vec = vec![];
+        let mut round2_packages_vec = vec![];
+        for dkg_share_data in dkg_shares_data {
+            match dkg_share_data {
+                AggregatorDkgShareData { dkg_state: AggregatorDkgState::DkgRound2 { round1_packages, round2_packages }, } => {
+                    round1_packages_vec.push(round1_packages);
+                    round2_packages_vec.push(round2_packages);
+                }
+                _ => return Err(AggregatorError::InvalidUserState("User state is not DkgRound2".to_string())),
+            }
+        }
+
+        let mut public_key_packages_vec = vec![];
+        for _ in 0..self.verifiers.len() {
+            public_key_packages_vec.push(vec![]);
+        }
+
+        let mut join_handles = vec![];
+
+        for (verifier_id, signer_client) in self.verifiers.clone() {
+            let mut requests = vec![];
+
+            for i in 0..dkg_share_ids.len() {
+                let mut verifier_round1_packages = round1_packages_vec[i].clone();
+                verifier_round1_packages.remove(&verifier_id);
+                let verifier_round2_packages = round2_packages_vec[i]
+                    .get(&verifier_id)
+                    .ok_or(AggregatorError::Internal("Round2 packages not found".to_string()))?
+                    .clone();
+                requests.push(DkgFinalizeRequest {
+                    dkg_share_id: dkg_share_ids[i],
+                    round1_packages: verifier_round1_packages,
+                    round2_packages: verifier_round2_packages,
+                });
+            }
+
+            let verifier_request = DkgFinalizeBatchRequest {
+                dkg_finalize_requests: requests,
+            };
+
+            let join_handle = async move { (verifier_id, signer_client.dkg_batch_finalize(verifier_request).await) };
+            join_handles.push(join_handle);
+        }
+
+        let join_handles = join_all(join_handles).await;
+
+        for (i, (_verifier_id, response)) in join_handles.into_iter().enumerate() {
+            for dkg_finalize_response in response?.dkg_finalize_responses.into_iter() {
+                public_key_packages_vec[i].push(dkg_finalize_response.public_key_package);
+            }
+        }
+
+        for i in 0..public_key_packages_vec[0].len() {
+            for j in 1..self.verifiers.len() {
+                if public_key_packages_vec[0][i] != public_key_packages_vec[j][i] {
+                    return Err(AggregatorError::Internal("Public key packages are not equal".to_string()));
+                }
+            }
+        }
+
+        let dkg_shares_ids_and_data = dkg_share_ids
+            .into_iter()
+            .zip(public_key_packages_vec[0].clone().into_iter())
+            .map(|(dkg_share_id, public_key_package)| (dkg_share_id, AggregatorDkgShareData {
+                dkg_state: AggregatorDkgState::DkgFinalized { public_key_package },
+            }))
+            .collect::<Vec<(Uuid, AggregatorDkgShareData)>>();
+
+        self.dkg_share_storage.set_batch_dkg_share_agg_data(dkg_shares_ids_and_data).await?;
+
+        Ok(())
+    }
+
+    pub async fn run_dkg_flow_batch(&self, n_shares: u32) -> Result<Vec<DkgResponse>, AggregatorError> {
+        let dkg_share_ids = (0..n_shares).map(|_| Uuid::new_v4()).collect::<Vec<Uuid>>();
+
+        let dkg_shares_ids_and_data = dkg_share_ids.clone()
+            .into_iter()
+            .map(|dkg_share_id| (dkg_share_id, AggregatorDkgShareData {
+                dkg_state: AggregatorDkgState::Initialized,
+            }))
+            .collect::<Vec<(Uuid, AggregatorDkgShareData)>>();
+        
+        self.dkg_share_storage.set_batch_dkg_share_agg_data(dkg_shares_ids_and_data).await?;
+
+        self.dkg_round_1_batch(dkg_share_ids.clone()).await?;
+        self.dkg_round_2_batch(dkg_share_ids.clone()).await?;
+        self.dkg_finalize_batch(dkg_share_ids.clone()).await?;
+
+        let mut public_key_packages = vec![];
+
+        let dkg_shares_data = self.dkg_share_storage.get_batch_dkg_share_agg_data(dkg_share_ids.clone()).await?;
+
+        for dkg_share_data in dkg_shares_data {
+            match dkg_share_data {
+                AggregatorDkgShareData { dkg_state: AggregatorDkgState::DkgFinalized { public_key_package }, } => {
+                    public_key_packages.push(public_key_package);
+                }
+                _ => return Err(AggregatorError::InvalidUserState("User state is not DkgFinalized".to_string())),
+            }
+        }
+
+        let dkg_responses = dkg_share_ids
+            .into_iter()
+            .zip(public_key_packages.into_iter())
+            .map(|(dkg_share_id, public_key_package)| DkgResponse {
+                dkg_share_id,
+                public_key_package,
+            })
+            .collect::<Vec<DkgResponse>>();
+
+        Ok(dkg_responses)
     }
 
     async fn sign_round_1(
