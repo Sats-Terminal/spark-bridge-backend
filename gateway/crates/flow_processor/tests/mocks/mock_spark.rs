@@ -58,7 +58,7 @@ impl MockSparkService {
         invoice: Option<String>,
         token_identifier: String,
         tx_type: SparkTransactionType,
-        network: Network, // Используем Network из spark_address
+        network: Network,
     ) -> Result<(), SparkServiceError> {
         if *self.should_fail.lock().await {
             return Err(SparkServiceError::SparkClientError(
