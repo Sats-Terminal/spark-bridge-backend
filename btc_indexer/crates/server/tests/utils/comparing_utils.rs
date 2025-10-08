@@ -4,7 +4,6 @@ fn btc_tx_review_eq(a: &btc_indexer_api::api::BtcTxReview, b: &btc_indexer_api::
         (BtcTxReview::Success, BtcTxReview::Success) => true,
         (BtcTxReview::Failure { reason: r1 }, BtcTxReview::Failure { reason: r2 }) => match (r1, r2) {
             (TxRejectReason::NoRunesInOuts, TxRejectReason::NoRunesInOuts) => true,
-            (TxRejectReason::NoFeesPayed, TxRejectReason::NoFeesPayed) => true,
             (
                 TxRejectReason::TooFewSatoshiPaidAsFee {
                     got: g1,
