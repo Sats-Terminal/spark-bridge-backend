@@ -13,3 +13,4 @@ persistent_storage = { workspace = true }
 ordinals = { workspace = true }
 chrono = { workspace = true }
 url = { workspace = true }
+tracing = { workspace = true }

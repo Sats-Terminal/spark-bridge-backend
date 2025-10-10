@@ -39,6 +39,7 @@ impl<Api: BtcIndexerClientApi> Indexer<Api> {
     }
 
     pub async fn run(&self) -> Result<(), IndexerError> {
+        tracing::info!("Indexer running");
         loop {
             select! {
                 _ = self.cancellation_token.cancelled() => {
@@ -53,6 +54,7 @@ impl<Api: BtcIndexerClientApi> Indexer<Api> {
     }
 
     async fn process_watch_requests(&self) -> Result<(), IndexerError> {
+        tracing::info!("Processing watch requests");
         let watch_requests = self.local_db_store.get_all_unprocessed_watch_requests().await?;
         for watch_request in watch_requests {
             let outpoint_data = self.indexer_client.get_transaction_outpoint(watch_request.outpoint.clone()).await?;
@@ -97,8 +99,10 @@ impl<Api: BtcIndexerClientApi> Indexer<Api> {
         let outpoint_data = match outpoint_data {
             Some(outpoint_data) => outpoint_data,
             None => {
+                tracing::warn!("No outpoint data found for outpoint: {}", watch_request.outpoint);
                 let cur_timestamp = get_cur_timestamp();
                 if cur_timestamp.saturating_sub(watch_request.created_at) > self.config.validation_timeout_millis {
+                    tracing::error!("Timeout waiting for transaction output for outpoint: {}", watch_request.outpoint);
                     return Ok(ValidationResult { 
                         watch_request_status: WatchRequestStatus::Failed, 
                         error_details: Some(WatchRequestErrorDetails::Timeout(format!("Timeout waiting for transaction output for outpoint: {}", watch_request.outpoint))) 
@@ -124,6 +128,7 @@ impl<Api: BtcIndexerClientApi> Indexer<Api> {
             let rune_amount = outpoint_data.rune_amounts.get(&rune_id).unwrap_or(&0).clone();
             let expected_rune_amount = watch_request.rune_amount.unwrap_or(0);
             if rune_amount != expected_rune_amount {
+                tracing::error!("Invalid rune amount: expected: {}, got: {}", expected_rune_amount, rune_amount);
                 return Ok(ValidationResult { 
                     watch_request_status: WatchRequestStatus::Failed, 
                     error_details: Some(WatchRequestErrorDetails::InvalidRuneAmount { expected: expected_rune_amount, got: rune_amount }) 
@@ -134,12 +139,15 @@ impl<Api: BtcIndexerClientApi> Indexer<Api> {
         if let Some(expected_sats_amount) = watch_request.sats_amount {
             let sats_amount = outpoint_data.sats_amount;
             if sats_amount != expected_sats_amount {
+                tracing::error!("Invalid sats amount: expected: {}, got: {}", expected_sats_amount, sats_amount);
                 return Ok(ValidationResult { 
                     watch_request_status: WatchRequestStatus::Failed, 
                     error_details: Some(WatchRequestErrorDetails::InvalidSatsAmount { expected: expected_sats_amount, got: sats_amount }) 
                 })
             }
         }
+
+        tracing::info!("Watch request validated for outpoint: {}", watch_request.outpoint);
 
         Ok(ValidationResult { watch_request_status: WatchRequestStatus::Confirmed, error_details: None })
     }

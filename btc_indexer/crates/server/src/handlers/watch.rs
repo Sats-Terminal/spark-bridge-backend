@@ -11,6 +11,7 @@ use std::str::FromStr;
 use chrono::Utc;
 use bitcoin::{Address, Network};
 use url::Url;
+use tracing::instrument;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct WatchRequest {
@@ -22,10 +23,13 @@ pub struct WatchRequest {
     pub callback_url: String,
 }
 
+#[instrument(level = "trace", skip(state))]
 pub async fn handle(
     State(state): State<AppState>,
     Json(request): Json<WatchRequest>,
 ) -> Result<Json<()>, BtcIndexerServerError> {
+    let btc_address = request.btc_address.clone();
+    tracing::info!("Watching request: {:?}", btc_address);
     let rune_id = match request.rune_id {
         Some(rune_id) => Some(validate_rune_id(rune_id)?),
         None => None,
@@ -43,6 +47,7 @@ pub async fn handle(
         callback_url,
     };
     state.storage.insert_watch_request(local_db_watch_request).await?;
+    tracing::info!("Watching request inserted for btc address: {:?}", btc_address);
     Ok(Json(()))
 }
 
