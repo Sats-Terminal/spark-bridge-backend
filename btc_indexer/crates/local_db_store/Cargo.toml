@@ -3,3 +3,10 @@ name = "btc_indexer_local_db_store"
 edition = "2024"
 
 [dependencies]
+sqlx = { workspace = true, features = ["derive"] }
+persistent_storage = { workspace = true }
+btc_indexer_config = { workspace = true }
+bitcoin = { workspace = true }
+ordinals = { workspace = true }
+serde = { workspace = true }
+url = { workspace = true }

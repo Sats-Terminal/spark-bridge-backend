@@ -3,3 +3,14 @@ name = "btc_indexer_client"
 edition = "2024"
 
 [dependencies]
+titan-client = { workspace = true, optional = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+bitcoin = { workspace = true }
+async-trait = { workspace = true }
+ordinals = { workspace = true }
+btc_indexer_config = { workspace = true }
+
+[features]
+default = ["titan-client"]
+titan-client = ["dep:titan-client"]

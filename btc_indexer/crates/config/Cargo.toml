@@ -3,3 +3,8 @@ name = "btc_indexer_config"
 edition = "2024"
 
 [dependencies]
+serde = { workspace = true }
+config = { workspace = true }
+thiserror = { workspace = true }
+bitcoin = { workspace = true }
+

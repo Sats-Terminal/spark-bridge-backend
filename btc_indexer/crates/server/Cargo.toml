@@ -3,3 +3,13 @@ name = "btc_indexer_server"
 edition = "2024"
 
 [dependencies]
+axum = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+bitcoin = { workspace = true }
+btc_indexer_local_db_store = { workspace = true }
+btc_indexer_config = { workspace = true }
+persistent_storage = { workspace = true }
+ordinals = { workspace = true }
+chrono = { workspace = true }
+url = { workspace = true }
