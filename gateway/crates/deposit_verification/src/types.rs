@@ -28,7 +28,7 @@ pub struct WatchRunesDepositRequest {
     pub amount: u64,
     pub btc_address: Address,
     pub bridge_address: String,
-    pub out_point: OutPoint,
+    pub outpoint: OutPoint,
 }
 
 #[derive(Clone, Debug)]
@@ -37,7 +37,7 @@ pub struct WatchRunesDepositResponse {}
 #[derive(Clone, Debug)]
 pub struct NotifyRunesDepositRequest {
     pub verifier_id: u16,
-    pub out_point: OutPoint,
+    pub outpoint: OutPoint,
     pub sats_fee_amount: u64,
     pub status: DepositStatus,
 }
@@ -46,7 +46,7 @@ pub struct NotifyRunesDepositRequest {
 pub struct VerifyRunesDepositRequest {
     pub btc_address: Address,
     pub bridge_address: String,
-    pub out_point: OutPoint,
+    pub outpoint: OutPoint,
 }
 
 #[derive(Clone, Debug)]

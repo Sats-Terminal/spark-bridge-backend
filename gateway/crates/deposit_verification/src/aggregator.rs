@@ -84,7 +84,7 @@ impl DepositVerificationAggregator {
             amount: deposit_addr_info.amount,
             btc_address: request.btc_address.clone(),
             bridge_address: request.bridge_address.clone(),
-            out_point: request.out_point,
+            outpoint: request.outpoint,
         };
 
         let mut futures = Vec::with_capacity(self.verifiers.len());
@@ -113,7 +113,7 @@ impl DepositVerificationAggregator {
             .await?;
 
         let utxo = Utxo {
-            out_point: request.out_point,
+            outpoint: request.outpoint,
             btc_address: request.btc_address.clone(),
             rune_amount: deposit_addr_info.amount,
             rune_id: user_ids.rune_id,
@@ -132,15 +132,15 @@ impl DepositVerificationAggregator {
         &self,
         request: NotifyRunesDepositRequest,
     ) -> Result<(), DepositVerificationError> {
-        tracing::info!("Gathering confirmation status for out point: {}", request.out_point);
+        tracing::info!("Gathering confirmation status for out point: {}", request.outpoint);
 
         self.storage
-            .update_sats_fee_amount(request.out_point, request.sats_fee_amount)
+            .update_sats_fee_amount(request.outpoint, request.sats_fee_amount)
             .await?;
 
         let utxo = self
             .storage
-            .get_utxo(request.out_point)
+            .get_utxo(request.outpoint)
             .await?
             .ok_or(DepositVerificationError::NotFound("Address not found".to_string()))?;
 
@@ -167,7 +167,7 @@ impl DepositVerificationAggregator {
 
         if all_verifiers_confirmed {
             self.storage
-                .update_status(request.out_point, UtxoStatus::Confirmed)
+                .update_status(request.outpoint, UtxoStatus::Confirmed)
                 .await?;
 
             self.flow_sender

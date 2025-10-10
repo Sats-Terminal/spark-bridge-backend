@@ -8,10 +8,11 @@ use btc_indexer_local_db_store::WatchRequest as LocalDbWatchRequest;
 use btc_indexer_local_db_store::WatchRequestStatus;
 use ordinals::RuneId;
 use std::str::FromStr;
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use bitcoin::{Address, Network};
 use url::Url;
 use tracing::instrument;
+use uuid::Uuid;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct WatchRequest {
@@ -36,6 +37,7 @@ pub async fn handle(
     };
     let callback_url = Url::parse(&request.callback_url).map_err(|e| BtcIndexerServerError::ValidationError(format!("Invalid callback url: {}", e)))?;
     let local_db_watch_request = LocalDbWatchRequest {
+        id: Uuid::new_v4(),
         outpoint: request.outpoint,
         btc_address: validate_address(request.btc_address, state.network)?,
         rune_id,
@@ -56,8 +58,8 @@ pub fn validate_rune_id(rune_id: String) -> Result<RuneId, BtcIndexerServerError
     Ok(rune_id)
 }
 
-pub fn get_current_timestamp() -> u64 {
-    Utc::now().timestamp_millis() as u64
+pub fn get_current_timestamp() -> DateTime<Utc> {
+    Utc::now()
 }
 
 pub fn validate_address(address: String, network: Network) -> Result<Address, BtcIndexerServerError> {

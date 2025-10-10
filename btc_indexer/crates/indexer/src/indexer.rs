@@ -13,6 +13,7 @@ use chrono::Utc;
 use btc_indexer_local_db_store::ValidationResult;
 use crate::callback_client::NotifyRequest;
 use btc_indexer_client::client_api::OutPointData;
+use chrono::DateTime;
 
 pub struct Indexer<Api: BtcIndexerClientApi> {
     callback_client: CallbackClient,
@@ -63,7 +64,7 @@ impl<Api: BtcIndexerClientApi> Indexer<Api> {
             
             match validation_result.watch_request_status {
                 WatchRequestStatus::Confirmed | WatchRequestStatus::Failed => {
-                    self.local_db_store.update_watch_request_status(watch_request.outpoint, validation_result.clone()).await?;
+                    self.local_db_store.update_watch_request_status(watch_request.id, validation_result.clone()).await?;
                 }
                 WatchRequestStatus::Pending => continue,
             }
@@ -76,7 +77,7 @@ impl<Api: BtcIndexerClientApi> Indexer<Api> {
                         sats_amount: watch_request.sats_amount,
                         rune_id: watch_request.rune_id,
                         rune_amount: watch_request.rune_amount,
-                        error_details: validation_result.error_details,
+                        error_details: validation_result.error_details.map(|e| e.to_string()),
                     }, watch_request.callback_url).await?;
                 }
                 WatchRequestStatus::Failed => {
@@ -86,7 +87,7 @@ impl<Api: BtcIndexerClientApi> Indexer<Api> {
                         sats_amount: None,
                         rune_id: None,
                         rune_amount: None,
-                        error_details: validation_result.error_details,
+                        error_details: validation_result.error_details.map(|e| e.to_string()),
                     }, watch_request.callback_url).await?;
                 }
                 WatchRequestStatus::Pending => {},
@@ -101,7 +102,7 @@ impl<Api: BtcIndexerClientApi> Indexer<Api> {
             None => {
                 tracing::warn!("No outpoint data found for outpoint: {}", watch_request.outpoint);
                 let cur_timestamp = get_cur_timestamp();
-                if cur_timestamp.saturating_sub(watch_request.created_at) > self.config.validation_timeout_millis {
+                if Duration::from_millis((cur_timestamp.timestamp_millis() as u64).saturating_sub(watch_request.created_at.timestamp_millis() as u64)) > Duration::from_millis(self.config.validation_timeout_millis) {
                     tracing::error!("Timeout waiting for transaction output for outpoint: {}", watch_request.outpoint);
                     return Ok(ValidationResult { 
                         watch_request_status: WatchRequestStatus::Failed, 
@@ -131,7 +132,7 @@ impl<Api: BtcIndexerClientApi> Indexer<Api> {
                 tracing::error!("Invalid rune amount: expected: {}, got: {}", expected_rune_amount, rune_amount);
                 return Ok(ValidationResult { 
                     watch_request_status: WatchRequestStatus::Failed, 
-                    error_details: Some(WatchRequestErrorDetails::InvalidRuneAmount { expected: expected_rune_amount, got: rune_amount }) 
+                    error_details: Some(WatchRequestErrorDetails::InvalidRuneAmount(format!("Invalid rune amount: expected: {}, got: {}", expected_rune_amount, rune_amount))) 
                 })
             }
         }
@@ -142,7 +143,7 @@ impl<Api: BtcIndexerClientApi> Indexer<Api> {
                 tracing::error!("Invalid sats amount: expected: {}, got: {}", expected_sats_amount, sats_amount);
                 return Ok(ValidationResult { 
                     watch_request_status: WatchRequestStatus::Failed, 
-                    error_details: Some(WatchRequestErrorDetails::InvalidSatsAmount { expected: expected_sats_amount, got: sats_amount }) 
+                    error_details: Some(WatchRequestErrorDetails::InvalidSatsAmount(format!("Invalid sats amount: expected: {}, got: {}", expected_sats_amount, sats_amount))) 
                 })
             }
         }
@@ -153,6 +154,6 @@ impl<Api: BtcIndexerClientApi> Indexer<Api> {
     }
 }
 
-fn get_cur_timestamp() -> u64 {
-    Utc::now().timestamp_millis() as u64
+fn get_cur_timestamp() -> DateTime<Utc> {
+    Utc::now()
 }

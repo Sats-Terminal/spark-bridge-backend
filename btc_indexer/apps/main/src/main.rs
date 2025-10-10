@@ -15,7 +15,11 @@ use tokio_util::sync::CancellationToken;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    init_logger();
+    let _logger_guard = init_logger();
+
+    let _ = dotenvy::dotenv();
+
+    tracing::info!("Starting btc indexer");
 
     let config_path = ConfigPath::from_env().map_err(|e| eyre::eyre!("Failed to parse config path: {}", e))?;
     let app_config = AppConfig::init_config(config_path.path);
@@ -39,6 +43,7 @@ async fn main() -> Result<()> {
         indexer.run().await.unwrap();
     });
 
+    tracing::info!("Listening on {:?}", app_config.server.hostname);
     let listener = TcpListener::bind(app_config.server.hostname).await?;
     axum::serve(listener, app).await?;
 

@@ -19,7 +19,7 @@ pub struct NotifyRequest {
     pub sats_amount: Option<u64>,
     pub rune_id: Option<RuneId>,
     pub rune_amount: Option<u128>,
-    pub error_details: Option<WatchRequestErrorDetails>,
+    pub error_details: Option<String>,
 }
 
 impl CallbackClient {

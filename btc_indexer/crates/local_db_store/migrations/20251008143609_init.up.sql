@@ -10,13 +10,14 @@ CREATE TYPE WATCH_REQUEST_STATUS AS ENUM (
 
 CREATE TABLE IF NOT EXISTS btc_indexer.watch_request
 (
-    outpoint TEXT PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    outpoint TEXT NOT NULL,
     btc_address TEXT NOT NULL,
     rune_id TEXT,
     rune_amount BIGINT,
     sats_amount BIGINT,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at BIGINT NOT NULL,
     status WATCH_REQUEST_STATUS NOT NULL DEFAULT 'pending',
-    error_details JSON
-    callback_url TEXT NOT NULL,
+    error_details JSON,
+    callback_url TEXT NOT NULL
 );

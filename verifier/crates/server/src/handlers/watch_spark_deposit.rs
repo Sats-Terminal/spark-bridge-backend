@@ -8,7 +8,7 @@ use token_identifier::TokenIdentifier;
 use tracing;
 use tracing::instrument;
 use verifier_local_db_store::schemas::deposit_address::DepositAddressStorage;
-use verifier_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositStatus, InnerAddress, TxRejectReason};
+use verifier_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositStatus, InnerAddress};
 use verifier_local_db_store::schemas::user_identifier::{UserIdentifierStorage, UserIds};
 use verifier_spark_balance_checker_client::client::GetBalanceRequest;
 
@@ -49,7 +49,7 @@ pub async fn handle(
         .set_deposit_addr_info(DepositAddrInfo {
             dkg_share_id: request.user_ids.dkg_share_id,
             nonce: request.nonce,
-            out_point: None,
+            outpoint: None,
             deposit_address: deposit_address.clone(),
             bridge_address,
             is_btc: false,
@@ -76,10 +76,10 @@ pub async fn handle(
 
     let confirmation_status = match response.balance == request.amount as u128 {
         true => DepositStatus::Confirmed,
-        false => DepositStatus::Failed(TxRejectReason::TooFewSatoshiPaidAsFee {
-            got: response.balance as u64,
-            at_least_expected: request.amount,
-        }),
+        false => {
+            tracing::error!("Balance is not equal to amount for spark address: {}", request.spark_address);
+            DepositStatus::Failed
+        },
     };
 
     state

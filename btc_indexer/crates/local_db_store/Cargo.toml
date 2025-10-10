@@ -10,3 +10,5 @@ bitcoin = { workspace = true }
 ordinals = { workspace = true }
 serde = { workspace = true }
 url = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }

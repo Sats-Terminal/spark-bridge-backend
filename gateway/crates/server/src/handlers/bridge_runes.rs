@@ -37,7 +37,7 @@ pub async fn handle(
     let verify_runes_deposit_request = VerifyRunesDepositRequest {
         btc_address,
         bridge_address: request.bridge_address,
-        out_point: OutPoint::new(txid, request.vout),
+        outpoint: OutPoint::new(txid, request.vout),
     };
 
     state

@@ -3,18 +3,18 @@ use bitcoin::OutPoint;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
-use url::Url;
 use verifier_config_parser::config::BtcIndexerConfig;
 
-const WATCH_RUNES_DEPOSIT_PATH: &str = "/track_tx";
+const WATCH_RUNES_DEPOSIT_PATH: &str = "/watch";
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct WatchRunesDepositRequest {
     pub btc_address: String,
-    pub out_point: OutPoint,
-    pub rune_id: String,
-    pub rune_amount: u64,
-    pub callback_url: Url,
+    pub outpoint: OutPoint,
+    pub rune_id: Option<String>,
+    pub rune_amount: Option<u64>,
+    pub sats_amount: Option<u64>,
+    pub callback_url: String,
 }
 
 #[derive(Clone, Debug)]

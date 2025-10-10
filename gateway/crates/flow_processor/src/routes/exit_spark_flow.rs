@@ -64,7 +64,7 @@ pub async fn handle(
     let total_amount = utxos.iter().map(|utxo| utxo.rune_amount).sum::<u64>();
     let exit_amount = deposit_addr_info.amount;
 
-    let outputs_to_spend = utxos.iter().map(|utxo| utxo.out_point).collect::<Vec<OutPoint>>();
+    let outputs_to_spend = utxos.iter().map(|utxo| utxo.outpoint).collect::<Vec<OutPoint>>();
 
     let mut rune_transfer_outputs = vec![RuneTransferOutput {
         address: exit_address.clone(),
@@ -152,7 +152,7 @@ pub async fn handle(
 
     if total_amount > exit_amount {
         let utxo = Utxo {
-            out_point: OutPoint::new(transaction.compute_txid(), 1), // Change utxo
+            outpoint: OutPoint::new(transaction.compute_txid(), 1), // Change utxo
             btc_address: rune_transfer_outputs[1].address.clone(),   // Change utxo address
             rune_amount: total_amount - exit_amount,
             rune_id: user_info.rune_id,

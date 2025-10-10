@@ -18,7 +18,7 @@ pub struct GatewayClient {
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct GatewayNotifyRunesDepositRequest {
     pub verifier_id: u16,
-    pub out_point: OutPoint,
+    pub outpoint: OutPoint,
     pub sats_fee_amount: u64,
     pub status: DepositStatus,
 }
