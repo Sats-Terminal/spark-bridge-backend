@@ -48,7 +48,7 @@ mod tests {
 
         assert_eq!(
             Some(user_ids.clone()),
-            shared_local_repo.get_row_by_user_id(user_ids.user_id, &rune_id).await?
+            shared_local_repo.get_row_by_user_id(&*user_ids.user_id, &rune_id).await?
         );
 
         let deposit_addr_info = DepositAddrInfo {

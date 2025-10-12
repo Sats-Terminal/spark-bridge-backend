@@ -92,7 +92,7 @@ impl DkgShareGenerate for LocalDbStorage {
 
         transaction.commit().await.map_err(DbError::from)?;
         Ok(UserIds {
-            user_id,
+            user_id: String::from(user_id),
             dkg_share_id,
             rune_id: rune_id.to_string(),
             is_issuer,

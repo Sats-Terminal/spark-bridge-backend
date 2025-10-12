@@ -22,7 +22,7 @@ pub async fn handle(
 
     let dkg_share_id = match flow_router
         .storage
-        .get_row_by_user_id(request.user_id, &request.rune_id)
+        .get_row_by_user_id(request.user_id.to_string().as_str(), &request.rune_id)
         .await?
     {
         Some(user_ids) => user_ids.dkg_share_id,
