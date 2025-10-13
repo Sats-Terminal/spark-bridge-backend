@@ -10,4 +10,6 @@ pub enum IndexerError {
     BtcIndexerClientError(#[from] BtcIndexerClientError),
     #[error("Db error: {0}")]
     DbError(#[from] DbError),
+    #[error("Validation metadata not found")]
+    InvalidData(String),
 }
