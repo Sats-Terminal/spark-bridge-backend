@@ -3,14 +3,13 @@ use async_trait::async_trait;
 use bitcoin::{Address, OutPoint};
 use frost::types::TweakBytes;
 use persistent_storage::error::DbError;
-use persistent_storage::init::{PersistentRepoTrait, StorageHealthcheck};
 use serde::{Deserialize, Serialize};
-use sqlx::Acquire;
 use sqlx::types::Json;
 use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
 use tracing::instrument;
 use uuid::Uuid;
+use sqlx::FromRow;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum InnerAddress {
@@ -47,16 +46,15 @@ impl InnerAddress {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, Eq, PartialEq)]
-#[serde(rename_all = "snake_case")]
+#[derive(Debug, Clone, Deserialize, Serialize, Eq, PartialEq, sqlx::Type, Hash)]
+#[sqlx(rename_all = "snake_case", type_name = "DEPOSIT_STATUS")]
 pub enum DepositStatus {
-    Created,
-    WaitingForConfirmation,
+    Pending,
     Confirmed,
     Failed,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct DepositAddrInfo {
     pub dkg_share_id: Uuid,
     pub nonce: TweakBytes,
@@ -64,22 +62,24 @@ pub struct DepositAddrInfo {
     pub bridge_address: InnerAddress,
     pub is_btc: bool,
     pub deposit_amount: u64,
-    pub sats_fee_amount: Option<u64>,
+    pub sats_amount: Option<u64>,
     pub outpoint: Option<OutPoint>,
     pub confirmation_status: DepositStatus,
+    pub error_details: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 struct DbDepositAddrInfo {
     pub dkg_share_id: Uuid,
     pub nonce: TweakBytes,
     pub deposit_address: String,
     pub bridge_address: String,
     pub is_btc: bool,
-    pub deposit_amount: u64,
-    pub sats_fee_amount: Option<u64>,
-    pub outpoint: Option<OutPoint>,
+    pub deposit_amount: i64,
+    pub sats_amount: Option<i64>,
+    pub outpoint: Option<String>,
     pub confirmation_status: DepositStatus,
+    pub error_details: Option<String>,
 }
 
 impl DepositAddrInfo {
@@ -90,17 +90,25 @@ impl DepositAddrInfo {
             deposit_address: self.deposit_address.to_string(),
             bridge_address: self.bridge_address.to_string(),
             is_btc: self.is_btc,
-            deposit_amount: self.deposit_amount,
-            sats_fee_amount: self.sats_fee_amount,
-            outpoint: self.outpoint,
+            deposit_amount: self.deposit_amount as i64,
+            sats_amount: self.sats_amount.map(|amount| amount as i64),
+            outpoint: self.outpoint.map(|outpoint| outpoint.to_string()),
             confirmation_status: self.confirmation_status.clone(),
+            error_details: self.error_details.clone(),
         }
     }
 
-    fn from_db_format(db_info: DbDepositAddrInfo) -> Result<Self, String> {
-        let deposit_address = InnerAddress::from_string_and_type(db_info.deposit_address, db_info.is_btc)?;
+    fn from_db_format(db_info: DbDepositAddrInfo) -> Result<Self, DbError> {
+        let deposit_address = InnerAddress::from_string_and_type(db_info.deposit_address, db_info.is_btc)
+            .map_err(|e| DbError::DecodeError(format!("Failed to parse deposit address: {}", e)))?;
 
-        let bridge_address = InnerAddress::from_string_and_type(db_info.bridge_address, !db_info.is_btc)?;
+        let bridge_address = InnerAddress::from_string_and_type(db_info.bridge_address, !db_info.is_btc)
+            .map_err(|e| DbError::DecodeError(format!("Failed to parse bridge address: {}", e)))?;
+
+        let outpoint = match db_info.outpoint {
+            Some(outpoint) => Some(OutPoint::from_str(&outpoint).map_err(|e| DbError::DecodeError(format!("Failed to parse outpoint: {}", e)))?),
+            None => None,
+        };
 
         Ok(DepositAddrInfo {
             dkg_share_id: db_info.dkg_share_id,
@@ -108,34 +116,35 @@ impl DepositAddrInfo {
             deposit_address,
             bridge_address,
             is_btc: db_info.is_btc,
-            deposit_amount: db_info.deposit_amount,
-            sats_fee_amount: db_info.sats_fee_amount,
-            outpoint: db_info.outpoint,
+            deposit_amount: db_info.deposit_amount as u64,
+            sats_amount: db_info.sats_amount.map(|amount| amount as u64),
+            outpoint,
             confirmation_status: db_info.confirmation_status,
+            error_details: db_info.error_details,
         })
     }
 }
 
 #[async_trait]
-pub trait DepositAddressStorage: Send + Sync + StorageHealthcheck {
+pub trait DepositAddressStorage: Send + Sync {
     async fn get_deposit_addr_info(&self, tweak: TweakBytes) -> Result<Option<DepositAddrInfo>, DbError>;
-    async fn set_deposit_addr_info(&self, deposit_addr_info: DepositAddrInfo) -> Result<(), DbError>;
+    async fn insert_deposit_addr_info(&self, deposit_addr_info: DepositAddrInfo) -> Result<(), DbError>;
     async fn set_confirmation_status_by_out_point(
         &self,
         outpoint: OutPoint,
         confirmation_status: DepositStatus,
+        error_details: Option<String>,
     ) -> Result<(), DbError>;
-    async fn set_sats_fee_amount_by_out_point(&self, outpoint: OutPoint, sats_fee_amount: u64) -> Result<(), DbError>;
-    async fn set_status_and_fee_amount_by_out_point(
+    async fn set_sats_amount_by_out_point(
         &self,
         outpoint: OutPoint,
-        confirmation_status: DepositStatus,
-        sats_fee_amount: u64,
+        sats_amount: u64,
     ) -> Result<(), DbError>;
     async fn set_confirmation_status_by_deposit_address(
         &self,
         deposit_address: InnerAddress,
         confirmation_status: DepositStatus,
+        error_details: Option<String>,
     ) -> Result<(), DbError>;
 }
 
@@ -143,8 +152,8 @@ pub trait DepositAddressStorage: Send + Sync + StorageHealthcheck {
 impl DepositAddressStorage for LocalDbStorage {
     #[instrument(level = "trace", skip(self), ret)]
     async fn get_deposit_addr_info(&self, tweak: TweakBytes) -> Result<Option<DepositAddrInfo>, DbError> {
-        let result: Option<(Uuid, TweakBytes, String, String, bool, i64, Option<i64>, Option<String>, Json<DepositStatus>)> = sqlx::query_as(
-            "SELECT dkg_share_id, nonce_tweak, deposit_address, bridge_address, is_btc, deposit_amount, sats_fee_amount, outpoint, confirmation_status
+        let result: Option<DbDepositAddrInfo> = sqlx::query_as(
+            "SELECT dkg_share_id, nonce_tweak, deposit_address, bridge_address, is_btc, deposit_amount, sats_amount, outpoint, confirmation_status, error_details
             FROM verifier.deposit_address
             WHERE nonce_tweak = $1",
         )
@@ -153,63 +162,31 @@ impl DepositAddressStorage for LocalDbStorage {
         .await
         .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
-        match result {
-            Some((
-                dkg_share_id,
-                nonce,
-                deposit_address_str,
-                bridge_address_str,
-                is_btc,
-                deposit_amount,
-                sats_fee_amount,
-                out_point_str,
-                confirmation_status,
-            )) => {
-                let outpoint = match out_point_str {
-                    Some(out_point_str) => Some(
-                        OutPoint::from_str(&out_point_str)
-                            .map_err(|e| DbError::DecodeError(format!("Failed to decode out point: {}", e)))?,
-                    ),
-                    None => None,
-                };
+        let db_info = match result {
+            Some(db_info) => Some(DepositAddrInfo::from_db_format(db_info)?),
+            None => None,
+        };
 
-                let db_info = DbDepositAddrInfo {
-                    dkg_share_id,
-                    nonce,
-                    deposit_address: deposit_address_str,
-                    bridge_address: bridge_address_str,
-                    is_btc,
-                    deposit_amount: deposit_amount as u64,
-                    sats_fee_amount: sats_fee_amount.map(|amount| amount as u64),
-                    outpoint,
-                    confirmation_status: confirmation_status.0,
-                };
-
-                match DepositAddrInfo::from_db_format(db_info) {
-                    Ok(info) => Ok(Some(info)),
-                    Err(e) => Err(DbError::BadRequest(format!("Failed to parse address: {}", e))),
-                }
-            }
-            None => Ok(None),
-        }
+        Ok(db_info)
     }
 
     #[instrument(level = "trace", skip(self), ret)]
-    async fn set_deposit_addr_info(&self, deposit_addr_info: DepositAddrInfo) -> Result<(), DbError> {
+    async fn insert_deposit_addr_info(&self, deposit_addr_info: DepositAddrInfo) -> Result<(), DbError> {
         let db_info = deposit_addr_info.to_db_format();
         let _ = sqlx::query(
-            "INSERT INTO verifier.deposit_address (dkg_share_id, nonce_tweak, deposit_address, bridge_address, is_btc, deposit_amount, sats_fee_amount, confirmation_status, outpoint)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+            "INSERT INTO verifier.deposit_address (dkg_share_id, nonce_tweak, deposit_address, bridge_address, is_btc, deposit_amount, sats_amount, confirmation_status, outpoint, error_details)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
         )
             .bind(db_info.dkg_share_id)
             .bind(db_info.nonce)
             .bind(db_info.deposit_address)
             .bind(db_info.bridge_address)
             .bind(db_info.is_btc)
-            .bind(db_info.deposit_amount as i64)
-            .bind(db_info.sats_fee_amount.map(|amount| amount as i64))
-            .bind(Json(db_info.confirmation_status))
+            .bind(db_info.deposit_amount)
+            .bind(db_info.sats_amount.map(|amount| amount))
+            .bind(db_info.confirmation_status)
             .bind(db_info.outpoint.map(|outpoint| outpoint.to_string()))
+            .bind(db_info.error_details)
             .execute(&self.get_conn().await?)
             .await
             .map_err(|e| DbError::BadRequest(e.to_string()))?;
@@ -222,10 +199,16 @@ impl DepositAddressStorage for LocalDbStorage {
         &self,
         outpoint: OutPoint,
         confirmation_status: DepositStatus,
+        error_details: Option<String>,
     ) -> Result<(), DbError> {
-        let _ = sqlx::query("UPDATE verifier.deposit_address SET confirmation_status = $1 WHERE outpoint = $2")
-            .bind(Json(confirmation_status))
+        let _ = sqlx::query(
+            "UPDATE verifier.deposit_address 
+            SET confirmation_status = $1, error_details = $2 
+            WHERE outpoint = $3"
+        )
+            .bind(confirmation_status)
             .bind(outpoint.to_string())
+            .bind(error_details)
             .execute(&self.get_conn().await?)
             .await
             .map_err(|e| DbError::BadRequest(e.to_string()))?;
@@ -234,42 +217,17 @@ impl DepositAddressStorage for LocalDbStorage {
     }
 
     #[instrument(level = "trace", skip(self), ret)]
-    async fn set_sats_fee_amount_by_out_point(&self, outpoint: OutPoint, sats_fee_amount: u64) -> Result<(), DbError> {
-        let _ = sqlx::query("UPDATE verifier.deposit_address SET sats_fee_amount = $1 WHERE outpoint = $2")
-            .bind(sats_fee_amount as i64)
+    async fn set_sats_amount_by_out_point(&self, outpoint: OutPoint, sats_amount: u64) -> Result<(), DbError> {
+        let _ = sqlx::query(
+            "UPDATE verifier.deposit_address 
+            SET sats_amount = $1 
+            WHERE outpoint = $2"
+        )
+            .bind(sats_amount as i64)
             .bind(outpoint.to_string())
             .execute(&self.get_conn().await?)
             .await
             .map_err(|e| DbError::BadRequest(e.to_string()))?;
-
-        Ok(())
-    }
-
-    #[instrument(level = "trace", skip(self), ret)]
-    async fn set_status_and_fee_amount_by_out_point(
-        &self,
-        outpoint: OutPoint,
-        confirmation_status: DepositStatus,
-        sats_fee_amount: u64,
-    ) -> Result<(), DbError> {
-        let mut conn = self.postgres_repo.get_conn().await?;
-        let mut transaction = conn.begin().await?;
-
-        let _ = sqlx::query("UPDATE verifier.deposit_address SET confirmation_status = $1 WHERE outpoint = $2")
-            .bind(Json(confirmation_status))
-            .bind(outpoint.to_string())
-            .execute(&mut *transaction)
-            .await
-            .map_err(|e| DbError::BadRequest(e.to_string()))?;
-
-        let _ = sqlx::query("UPDATE verifier.deposit_address SET sats_fee_amount = $1 WHERE outpoint = $2")
-            .bind(sats_fee_amount as i64)
-            .bind(outpoint.to_string())
-            .execute(&mut *transaction)
-            .await
-            .map_err(|e| DbError::BadRequest(e.to_string()))?;
-
-        transaction.commit().await?;
 
         Ok(())
     }
@@ -279,11 +237,16 @@ impl DepositAddressStorage for LocalDbStorage {
         &self,
         deposit_address: InnerAddress,
         confirmation_status: DepositStatus,
+        error_details: Option<String>,
     ) -> Result<(), DbError> {
-        let address_str = deposit_address.to_string();
-        let _ = sqlx::query("UPDATE verifier.deposit_address SET confirmation_status = $1 WHERE deposit_address = $2")
-            .bind(Json(confirmation_status))
-            .bind(address_str)
+        let _ = sqlx::query(
+            "UPDATE verifier.deposit_address 
+            SET confirmation_status = $1, error_details = $2 
+            WHERE deposit_address = $3"
+        )
+            .bind(confirmation_status)
+            .bind(error_details)
+            .bind(deposit_address.to_string())
             .execute(&self.get_conn().await?)
             .await
             .map_err(|e| DbError::BadRequest(e.to_string()))?;

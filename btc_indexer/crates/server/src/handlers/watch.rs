@@ -16,6 +16,7 @@ use uuid::Uuid;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct WatchRequest {
+    pub request_id: Uuid,
     pub outpoint: OutPoint,
     pub btc_address: String,
     pub rune_id: Option<String>,
@@ -38,6 +39,7 @@ pub async fn handle(
     let callback_url = Url::parse(&request.callback_url).map_err(|e| BtcIndexerServerError::ValidationError(format!("Invalid callback url: {}", e)))?;
     let local_db_watch_request = LocalDbWatchRequest {
         id: Uuid::new_v4(),
+        request_id: request.request_id,
         outpoint: request.outpoint,
         btc_address: validate_address(request.btc_address, state.network)?,
         rune_id,

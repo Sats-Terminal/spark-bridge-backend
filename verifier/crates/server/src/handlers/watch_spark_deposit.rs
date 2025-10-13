@@ -10,10 +10,13 @@ use tracing::instrument;
 use verifier_local_db_store::schemas::deposit_address::DepositAddressStorage;
 use verifier_local_db_store::schemas::deposit_address::{DepositAddrInfo, DepositStatus, InnerAddress};
 use verifier_local_db_store::schemas::user_identifier::{UserIdentifierStorage, UserIds};
-use verifier_spark_balance_checker_client::client::GetBalanceRequest;
+use verifier_spark_balance_checker_client::client::VerifyBalanceRequest;
+use uuid::Uuid;
+use verifier_spark_balance_checker_client::client::VerificationStatus;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WatchSparkDepositRequest {
+    pub request_id: Uuid,
     pub user_ids: UserIds,
     pub nonce: TweakBytes,
     pub spark_address: String,
@@ -46,7 +49,7 @@ pub async fn handle(
 
     state
         .storage
-        .set_deposit_addr_info(DepositAddrInfo {
+        .insert_deposit_addr_info(DepositAddrInfo {
             dkg_share_id: request.user_ids.dkg_share_id,
             nonce: request.nonce,
             outpoint: None,
@@ -54,8 +57,9 @@ pub async fn handle(
             bridge_address,
             is_btc: false,
             deposit_amount: request.amount,
-            sats_fee_amount: None,
-            confirmation_status: DepositStatus::WaitingForConfirmation,
+            sats_amount: None,
+            confirmation_status: DepositStatus::Pending,
+            error_details: None,
         })
         .await
         .map_err(|e| VerifierError::Storage(format!("Failed to set deposit address info: {}", e)))?;
@@ -64,27 +68,25 @@ pub async fn handle(
 
     let response = state
         .spark_balance_checker_client
-        .get_balance(GetBalanceRequest {
+        .verify_balance(VerifyBalanceRequest {
+            request_id: request.request_id,
             spark_address: request.spark_address.clone(),
-            // rune_id: request.user_unique_id.rune_id,
             token_identifier: request.token_identifier,
+            amount: request.amount as u128,
         })
         .await
         .map_err(|e| VerifierError::SparkBalanceCheckerClient(format!("Failed to get balance: {}", e)))?;
 
     tracing::info!("Balance: {:?}", response);
 
-    let confirmation_status = match response.balance == request.amount as u128 {
-        true => DepositStatus::Confirmed,
-        false => {
-            tracing::error!("Balance is not equal to amount for spark address: {}", request.spark_address);
-            DepositStatus::Failed
-        },
+    let confirmation_status = match response.verification_status {
+        VerificationStatus::Confirmed => DepositStatus::Confirmed,
+        VerificationStatus::Failed => DepositStatus::Failed,
     };
 
     state
         .storage
-        .set_confirmation_status_by_deposit_address(deposit_address, confirmation_status.clone())
+        .set_confirmation_status_by_deposit_address(deposit_address, confirmation_status.clone(), response.error_details)
         .await
         .map_err(|e| VerifierError::Storage(format!("Failed to update confirmation status: {}", e)))?;
 

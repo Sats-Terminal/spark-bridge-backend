@@ -29,7 +29,6 @@ impl GatewayApi {
     pub const GET_BTC_DEPOSIT_ADDRESS_ENDPOINT: &'static str = "/api/user/get-btc-deposit-address";
     pub const GET_SPARK_DEPOSIT_ADDRESS_ADDRESS_ENDPOINT: &'static str = "/api/user/get-spark-deposit-address";
     pub const EXIT_SPARK_ADDRESS_ENDPOINT: &'static str = "/api/user/exit-spark";
-    pub const GET_TOKENS_BRIDGE_STATUS_ENDPOINT: &'static str = "/api/user/get_status";
     pub const NOTIFY_RUNES_DEPOSIT_ADDRESS_ENDPOINT: &'static str = "/api/verifier/notify-runes-deposit";
     pub const BRIDGE_RUNES_ADDRESS_ENDPOINT: &'static str = "/api/user/bridge-runes";
     pub const TEST_SPARK_ADDRESS_ENDPOINT: &'static str = "/api/test/test-spark";
@@ -70,10 +69,6 @@ pub async fn create_app(
         .route(
             GatewayApi::GET_SPARK_DEPOSIT_ADDRESS_ADDRESS_ENDPOINT,
             post(handlers::get_spark_deposit_address::handle),
-        )
-        .route(
-            GatewayApi::GET_TOKENS_BRIDGE_STATUS_ENDPOINT,
-            post(handlers::get_token_bridge_status::handle),
         )
         .route(
             GatewayApi::EXIT_SPARK_ADDRESS_ENDPOINT,

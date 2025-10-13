@@ -7,22 +7,41 @@ use gateway_deposit_verification::types::NotifyRunesDepositRequest;
 use gateway_local_db_store::schemas::deposit_address::DepositStatus;
 use serde::Deserialize;
 use tracing::instrument;
+use uuid::Uuid;
+
+#[derive(Deserialize, Debug)]
+pub enum NotifyRequestStatus {
+    Confirmed,
+    Failed,
+}
+
+impl Into<DepositStatus> for NotifyRequestStatus {
+    fn into(self) -> DepositStatus {
+        match self {
+            NotifyRequestStatus::Confirmed => DepositStatus::Confirmed,
+            NotifyRequestStatus::Failed => DepositStatus::Failed,
+        }
+    }
+}
 
 #[derive(Deserialize, Debug)]
 pub struct VerifierNotifyRunesDepositRequest {
     pub verifier_id: u16,
+    pub request_id: Uuid,
     pub outpoint: OutPoint,
-    pub sats_fee_amount: u64,
-    pub status: DepositStatus,
+    pub sats_amount: u64,
+    pub status: NotifyRequestStatus,
 }
 
 impl From<VerifierNotifyRunesDepositRequest> for NotifyRunesDepositRequest {
     fn from(value: VerifierNotifyRunesDepositRequest) -> Self {
         NotifyRunesDepositRequest {
             verifier_id: value.verifier_id,
+            request_id: value.request_id,
             outpoint: value.outpoint,
-            sats_fee_amount: value.sats_fee_amount,
-            status: value.status,
+            sats_amount: value.sats_amount,
+            status: value.status.into(),
+            error_details: None,
         }
     }
 }

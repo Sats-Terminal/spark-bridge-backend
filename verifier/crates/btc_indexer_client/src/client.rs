@@ -4,11 +4,13 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use verifier_config_parser::config::BtcIndexerConfig;
+use uuid::Uuid;
 
 const WATCH_RUNES_DEPOSIT_PATH: &str = "/watch";
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct WatchRunesDepositRequest {
+    pub request_id: Uuid,
     pub btc_address: String,
     pub outpoint: OutPoint,
     pub rune_id: Option<String>,

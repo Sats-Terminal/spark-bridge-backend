@@ -6,6 +6,7 @@ use tracing;
 use tracing::instrument;
 use verifier_config_parser::config::GatewayConfig;
 use verifier_local_db_store::schemas::deposit_address::DepositStatus;
+use uuid::Uuid;
 
 const NOTIFY_RUNES_DEPOSIT_PATH: &str = "/api/verifier/notify-runes-deposit";
 
@@ -15,12 +16,21 @@ pub struct GatewayClient {
     client: Client,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+
+#[derive(Serialize, Debug, Clone)]
+pub enum GatewayNotifyRunesDepositStatus {
+    Confirmed,
+    Failed,
+}
+
+#[derive(Serialize, Debug, Clone)]
 pub struct GatewayNotifyRunesDepositRequest {
     pub verifier_id: u16,
+    pub request_id: Uuid,
     pub outpoint: OutPoint,
-    pub sats_fee_amount: u64,
-    pub status: DepositStatus,
+    pub sats_amount: u64,
+    pub status: GatewayNotifyRunesDepositStatus,
+    pub error_details: Option<String>,
 }
 
 impl GatewayClient {

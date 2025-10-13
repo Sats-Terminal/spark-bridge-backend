@@ -10,3 +10,5 @@ token-identifier = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 verifier_config_parser = { workspace = true }
+uuid = { workspace = true }
+url = { workspace = true }

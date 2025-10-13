@@ -2,10 +2,9 @@ use reqwest::Client;
 use crate::error::IndexerError;
 use serde::Serialize;
 use url::Url;
-use btc_indexer_local_db_store::WatchRequestStatus;
 use bitcoin::OutPoint;
 use ordinals::RuneId;
-use btc_indexer_local_db_store::WatchRequestErrorDetails;
+use uuid::Uuid;
 
 #[derive(Debug, Clone)]
 pub struct CallbackClient {
@@ -13,9 +12,16 @@ pub struct CallbackClient {
 }
 
 #[derive(Serialize, Debug, Clone)]
+pub enum NotifyRequestStatus {
+    Confirmed,
+    Failed,
+}
+
+#[derive(Serialize, Debug, Clone)]
 pub struct NotifyRequest {
     pub outpoint: OutPoint,
-    pub status: WatchRequestStatus,
+    pub request_id: Uuid,
+    pub status: NotifyRequestStatus,
     pub sats_amount: Option<u64>,
     pub rune_id: Option<RuneId>,
     pub rune_amount: Option<u128>,

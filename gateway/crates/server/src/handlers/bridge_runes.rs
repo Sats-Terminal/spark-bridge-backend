@@ -5,9 +5,10 @@ use axum::extract::State;
 use bitcoin::{OutPoint, Txid};
 use gateway_deposit_verification::types::VerifyRunesDepositRequest;
 use global_utils::conversion::decode_address;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use tracing::instrument;
+use uuid::Uuid;
 
 #[derive(Deserialize, Debug)]
 pub struct BridgeRunesSparkRequest {
@@ -17,12 +18,18 @@ pub struct BridgeRunesSparkRequest {
     pub vout: u32,
 }
 
+#[derive(Serialize, Debug)]
+pub struct BridgeRunesSparkResponse {
+    pub request_id: Uuid,
+}
+
 #[instrument(level = "trace", skip(state), ret)]
 pub async fn handle(
     State(state): State<AppState>,
     Json(request): Json<BridgeRunesSparkRequest>,
-) -> Result<Json<()>, GatewayError> {
+) -> Result<Json<BridgeRunesSparkResponse>, GatewayError> {
     let request_btc_address = request.btc_address.clone();
+    let request_id = Uuid::new_v4();
     tracing::info!(
         "Handling bridge runes request with btc address: {:?}",
         request_btc_address
@@ -35,6 +42,7 @@ pub async fn handle(
         Txid::from_str(&request.txid).map_err(|e| GatewayError::InvalidData(format!("Failed to parse txid: {e}")))?;
 
     let verify_runes_deposit_request = VerifyRunesDepositRequest {
+        request_id,
         btc_address,
         bridge_address: request.bridge_address,
         outpoint: OutPoint::new(txid, request.vout),
@@ -51,5 +59,5 @@ pub async fn handle(
         request_btc_address
     );
 
-    Ok(Json(()))
+    Ok(Json(BridgeRunesSparkResponse { request_id }))
 }

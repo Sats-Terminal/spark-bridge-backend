@@ -12,12 +12,14 @@ use gateway_local_db_store::schemas::user_identifier::UserIds;
 use serde::{Deserialize, Serialize};
 use token_identifier::TokenIdentifier;
 use tracing::instrument;
+use uuid::Uuid;
 
 const WATCH_RUNES_DEPOSIT_PATH: &str = "/api/gateway/watch-runes-deposit";
 const WATCH_SPARK_DEPOSIT_PATH: &str = "/api/gateway/watch-spark-deposit";
 
 #[derive(Serialize, Debug)]
 pub struct VerifierWatchRunesDepositRequest {
+    pub request_id: Uuid,
     pub user_ids: UserIds,
     pub nonce: TweakBytes,
     pub amount: u64,
@@ -29,6 +31,7 @@ pub struct VerifierWatchRunesDepositRequest {
 impl From<WatchRunesDepositRequest> for VerifierWatchRunesDepositRequest {
     fn from(request: WatchRunesDepositRequest) -> Self {
         Self {
+            request_id: request.request_id,
             user_ids: request.user_ids,
             nonce: request.nonce,
             amount: request.amount,
@@ -50,6 +53,7 @@ impl From<VerifierWatchRunesDepositResponse> for WatchRunesDepositResponse {
 
 #[derive(Debug, Serialize)]
 pub struct VerifierWatchSparkDepositRequest {
+    pub request_id: Uuid,
     pub user_ids: UserIds,
     pub nonce: TweakBytes,
     pub exit_address: String,
@@ -61,6 +65,7 @@ pub struct VerifierWatchSparkDepositRequest {
 impl From<WatchSparkDepositRequest> for VerifierWatchSparkDepositRequest {
     fn from(request: WatchSparkDepositRequest) -> Self {
         Self {
+            request_id: request.request_id,
             user_ids: request.user_ids,
             nonce: request.nonce,
             exit_address: request.exit_address.to_string(),
@@ -72,14 +77,29 @@ impl From<WatchSparkDepositRequest> for VerifierWatchSparkDepositRequest {
 }
 
 #[derive(Deserialize, Debug)]
+pub enum VerifierDepositStatus {
+    Confirmed,
+    Failed,
+}
+
+impl Into<DepositStatus> for VerifierDepositStatus {
+    fn into(self) -> DepositStatus {
+        match self {
+            VerifierDepositStatus::Confirmed => DepositStatus::Confirmed,
+            VerifierDepositStatus::Failed => DepositStatus::Failed,
+        }
+    }
+}
+
+#[derive(Deserialize, Debug)]
 pub struct VerifierWatchSparkDepositResponse {
-    pub verifier_response: DepositStatus,
+    pub verifier_response: VerifierDepositStatus,
 }
 
 impl From<VerifierWatchSparkDepositResponse> for WatchSparkDepositResponse {
     fn from(value: VerifierWatchSparkDepositResponse) -> Self {
         WatchSparkDepositResponse {
-            verifier_response: value.verifier_response,
+            verifier_response: value.verifier_response.into(),
         }
     }
 }

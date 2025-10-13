@@ -15,6 +15,7 @@ use crate::callback_client::NotifyRequest;
 use btc_indexer_client::client_api::OutPointData;
 use tracing::instrument;
 use ordinals::RuneId;
+use crate::callback_client::NotifyRequestStatus;
 
 pub struct Indexer<Api: BtcIndexerClientApi> {
     callback_client: CallbackClient,
@@ -77,8 +78,9 @@ impl<Api: BtcIndexerClientApi> Indexer<Api> {
                     let validation_metadata = validation_metadata.ok_or(IndexerError::InvalidData("Validation metadata not found".to_string()))?;
                     tracing::info!("Sending notify request for confirmed watch request for outpoint: {}", watch_request.outpoint);
                     self.callback_client.send_notify_request(NotifyRequest {
+                        request_id: watch_request.request_id,
                         outpoint: watch_request.outpoint,
-                        status: WatchRequestStatus::Confirmed,
+                        status: NotifyRequestStatus::Confirmed,
                         sats_amount: validation_metadata.sats_amount,
                         rune_id: validation_metadata.rune_id,
                         rune_amount: validation_metadata.rune_amount,
@@ -88,8 +90,9 @@ impl<Api: BtcIndexerClientApi> Indexer<Api> {
                 WatchRequestStatus::Failed => {
                     tracing::error!("Sending notify request for failed watch request for outpoint: {}", watch_request.outpoint);
                     self.callback_client.send_notify_request(NotifyRequest {
+                        request_id: watch_request.request_id,
                         outpoint: watch_request.outpoint,
-                        status: WatchRequestStatus::Failed,
+                        status: NotifyRequestStatus::Failed,
                         sats_amount: None,
                         rune_id: None,
                         rune_amount: None,
