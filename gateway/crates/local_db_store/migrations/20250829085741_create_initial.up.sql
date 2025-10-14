@@ -92,7 +92,9 @@ CREATE TABLE IF NOT EXISTS gateway.sessions
     request_id     UUID PRIMARY KEY,
     request_type   REQUEST_TYPE       NOT NULL,
     request_status REQUEST_STATUS NOT NULL,
-    error_details JSON
+    deposit_address TEXT NOT NULL,
+    error_details JSON,
+    FOREIGN KEY (deposit_address) REFERENCES gateway.deposit_address (deposit_address)
 );
 
 ------------ PAYING_UTXO -----------

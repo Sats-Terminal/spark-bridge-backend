@@ -79,6 +79,7 @@ CREATE TABLE IF NOT EXISTS verifier.sessions
     request_id     UUID PRIMARY KEY,
     request_type   REQUEST_TYPE   NOT NULL,
     request_status REQUEST_STATUS NOT NULL,
+    deposit_address TEXT NOT NULL,
     error_details TEXT
 );
 
