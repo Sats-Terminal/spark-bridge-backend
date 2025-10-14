@@ -7,6 +7,7 @@ bitcoin = { workspace = true }
 bitcoincore-rpc = { workspace = true }
 chrono = { workspace = true }
 global_utils = { workspace = true }
+dotenvy = {workspace = true}
 hex = { workspace = true }
 lazy_static = { workspace = true }
 lrc20 = { workspace = true }
