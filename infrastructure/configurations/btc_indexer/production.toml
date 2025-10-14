@@ -2,9 +2,11 @@
 hostname = "0.0.0.0:8070"
 
 [btc_indexer]
-update_interval_millis = 1000
+indexer_update_interval_millis = 1000
 validation_timeout_millis = 1000
 confirmation_block_height_delta = 6
+tx_indexer_update_interval_millis = 1000
+start_block_height = 0
 
 [database]
 url = "postgres://postgres:postgres@btc-indexer-service:5432/btc_indexer"

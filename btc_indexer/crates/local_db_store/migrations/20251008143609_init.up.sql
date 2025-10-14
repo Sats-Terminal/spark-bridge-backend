@@ -8,7 +8,7 @@ CREATE TYPE WATCH_REQUEST_STATUS AS ENUM (
     'failed'
 );
 
-CREATE TABLE IF NOT EXISTS btc_indexer.watch_request
+CREATE TABLE IF NOT EXISTS btc_indexer.requests
 (
     id UUID PRIMARY KEY,
     request_id UUID NOT NULL,
@@ -21,4 +21,10 @@ CREATE TABLE IF NOT EXISTS btc_indexer.watch_request
     status WATCH_REQUEST_STATUS NOT NULL,
     error_details JSON,
     callback_url TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS btc_indexer.txs
+(
+    txid BYTEA PRIMARY KEY,
+    block_height BIGINT NOT NULL
 );

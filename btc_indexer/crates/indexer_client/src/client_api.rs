@@ -1,5 +1,5 @@
 use crate::error::BtcIndexerClientError;
-use bitcoin::OutPoint;
+use bitcoin::{OutPoint, Txid};
 use async_trait::async_trait;
 use ordinals::RuneId;
 use std::collections::HashMap;
@@ -19,8 +19,9 @@ pub struct BlockchainInfo {
 }
 
 #[async_trait]
-pub trait BtcIndexerClientApi {
+pub trait BtcIndexerClientApi: Clone {
     fn new(config: IndexerClientConfig) -> Self;
     async fn get_transaction_outpoint(&self, outpoint: OutPoint) -> Result<Option<OutPointData>, BtcIndexerClientError>;
     async fn get_blockchain_info(&self) -> Result<BlockchainInfo, BtcIndexerClientError>;
+    async fn get_block_transactions(&self, block_height: u64) -> Result<Vec<Txid>, BtcIndexerClientError>;
 }
