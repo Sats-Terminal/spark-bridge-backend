@@ -13,6 +13,7 @@ use persistent_storage::init::PersistentRepoTrait;
 use sqlx::Acquire;
 use thiserror::Error;
 use tracing::instrument;
+use crate::schemas::user_identifier::UserId;
 
 #[derive(Debug, Error)]
 pub enum DkgShareGenerateError {
@@ -92,7 +93,7 @@ impl DkgShareGenerate for LocalDbStorage {
 
         transaction.commit().await.map_err(DbError::from)?;
         Ok(UserIds {
-            user_id,
+            user_id: UserId::Uuid(user_id),
             dkg_share_id,
             rune_id: rune_id.to_string(),
             is_issuer,

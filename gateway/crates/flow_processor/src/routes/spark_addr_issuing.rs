@@ -17,7 +17,8 @@ pub async fn handle(
     flow_router: &mut FlowProcessorRouter,
     request: IssueSparkDepositAddressRequest,
 ) -> Result<String, FlowProcessorError> {
-    tracing::info!("Handling spark addr issuing for musig id: {:?}", request.user_id);
+    let user_id = request.user_id.to_string();
+    tracing::info!("Handling spark addr issuing for user id: {:?}", user_id.clone());
     let local_db_storage = flow_router.storage.clone();
 
     let dkg_share_id = match flow_router
@@ -68,7 +69,7 @@ pub async fn handle(
         })
         .await?;
 
-    tracing::info!("Spark addr issuing completed for musig id: {:?}", request.user_id);
+    tracing::info!("Spark addr issuing completed for user id: {:?}", user_id);
 
     Ok(address)
 }
