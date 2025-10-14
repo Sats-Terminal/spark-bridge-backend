@@ -10,6 +10,11 @@ DROP TABLE IF EXISTS verifier.deposit_address;
 DROP TABLE IF EXISTS verifier.user_identifier;
 DROP TABLE IF EXISTS verifier.sign_session;
 DROP TABLE IF EXISTS verifier.dkg_share;
+DROP TABLE IF EXISTS verifier.sessions;
+
+DROP TYPE IF EXISTS DEPOSIT_STATUS;
+DROP TYPE IF EXISTS REQUEST_TYPE;
+DROP TYPE IF EXISTS REQUEST_STATUS;
 
 DROP SCHEMA IF EXISTS verifier;
 

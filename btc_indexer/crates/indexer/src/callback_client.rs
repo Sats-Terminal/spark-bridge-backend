@@ -12,16 +12,16 @@ pub struct CallbackClient {
 }
 
 #[derive(Serialize, Debug, Clone)]
-pub enum NotifyRequestStatus {
+pub enum DepositStatus {
     Confirmed,
     Failed,
 }
 
 #[derive(Serialize, Debug, Clone)]
-pub struct NotifyRequest {
+pub struct NotifyRunesDepositRequest {
     pub outpoint: OutPoint,
     pub request_id: Uuid,
-    pub status: NotifyRequestStatus,
+    pub deposit_status: DepositStatus,
     pub sats_amount: Option<u64>,
     pub rune_id: Option<RuneId>,
     pub rune_amount: Option<u128>,
@@ -50,7 +50,7 @@ impl CallbackClient {
         }
     }
 
-    pub async fn send_notify_request(&self, request: NotifyRequest, callback_url: Url) -> Result<(), IndexerError> {
+    pub async fn send_notify_request(&self, request: NotifyRunesDepositRequest, callback_url: Url) -> Result<(), IndexerError> {
         self.send_callback_request(request, callback_url).await
     }
 }

@@ -19,7 +19,7 @@ pub struct VerifyBalanceRequest {
 }
 
 #[derive(Debug, Serialize)]
-pub enum VerificationStatus {
+pub enum DepositStatus {
     Confirmed,
     Failed,
 }
@@ -41,7 +41,7 @@ impl ToString for VerificationErrorDetails {
 
 #[derive(Serialize, Debug)]
 pub struct VerifyBalanceResponse {
-    verification_status: VerificationStatus,
+    deposit_status: DepositStatus,
     error_details: Option<String>,
 }
 
@@ -75,7 +75,7 @@ pub async fn handle(
                     outputs.len()
                 );
                 Ok(Json(VerifyBalanceResponse {
-                    verification_status: VerificationStatus::Failed,
+                    deposit_status: DepositStatus::Failed,
                     error_details: Some(VerificationErrorDetails::TokenIdentifierNotFound("Expected 1 output, got {}".to_string()).to_string()),
                 }))
             } else {
@@ -95,12 +95,12 @@ pub async fn handle(
                                 balance
                             );
                             Ok(Json(VerifyBalanceResponse {
-                                verification_status: VerificationStatus::Failed,
+                                deposit_status: DepositStatus::Failed,
                                 error_details: Some(VerificationErrorDetails::BalanceMismatch("Balance mismatch".to_string()).to_string()),
                             }))
                         } else {
                             Ok(Json(VerifyBalanceResponse {
-                                verification_status: VerificationStatus::Confirmed,
+                                deposit_status: DepositStatus::Confirmed,
                                 error_details: None,
                             }))
                         }
@@ -108,7 +108,7 @@ pub async fn handle(
                     None => {
                         tracing::error!("For request: {:?}, output is None", payload);
                         Ok(Json(VerifyBalanceResponse {
-                            verification_status: VerificationStatus::Failed,
+                            deposit_status: DepositStatus::Failed,
                             error_details: Some(VerificationErrorDetails::TokenIdentifierNotFound("Output is None".to_string()).to_string()),
                         }))
                     }

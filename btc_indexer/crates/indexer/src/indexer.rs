@@ -11,11 +11,11 @@ use btc_indexer_local_db_store::{WatchRequestErrorDetails, WatchRequestStatus};
 use btc_indexer_local_db_store::WatchRequest;
 use chrono::Utc;
 use btc_indexer_local_db_store::ValidationResult;
-use crate::callback_client::NotifyRequest;
+use crate::callback_client::NotifyRunesDepositRequest;
 use btc_indexer_client::client_api::OutPointData;
 use tracing::instrument;
 use ordinals::RuneId;
-use crate::callback_client::NotifyRequestStatus;
+use crate::callback_client::DepositStatus;
 
 pub struct Indexer<Api: BtcIndexerClientApi> {
     callback_client: CallbackClient,
@@ -77,10 +77,10 @@ impl<Api: BtcIndexerClientApi> Indexer<Api> {
                 WatchRequestStatus::Confirmed => {
                     let validation_metadata = validation_metadata.ok_or(IndexerError::InvalidData("Validation metadata not found".to_string()))?;
                     tracing::info!("Sending notify request for confirmed watch request for outpoint: {}", watch_request.outpoint);
-                    self.callback_client.send_notify_request(NotifyRequest {
+                    self.callback_client.send_notify_request(NotifyRunesDepositRequest {
                         request_id: watch_request.request_id,
                         outpoint: watch_request.outpoint,
-                        status: NotifyRequestStatus::Confirmed,
+                        deposit_status: DepositStatus::Confirmed,
                         sats_amount: validation_metadata.sats_amount,
                         rune_id: validation_metadata.rune_id,
                         rune_amount: validation_metadata.rune_amount,
@@ -89,10 +89,10 @@ impl<Api: BtcIndexerClientApi> Indexer<Api> {
                 }
                 WatchRequestStatus::Failed => {
                     tracing::error!("Sending notify request for failed watch request for outpoint: {}", watch_request.outpoint);
-                    self.callback_client.send_notify_request(NotifyRequest {
+                    self.callback_client.send_notify_request(NotifyRunesDepositRequest {
                         request_id: watch_request.request_id,
                         outpoint: watch_request.outpoint,
-                        status: NotifyRequestStatus::Failed,
+                        deposit_status: DepositStatus::Failed,
                         sats_amount: None,
                         rune_id: None,
                         rune_amount: None,

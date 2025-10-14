@@ -5,21 +5,30 @@ use axum::extract::State;
 use bitcoin::OutPoint;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
-use verifier_gateway_client::client::{GatewayNotifyRunesDepositRequest, GatewayNotifyRunesDepositStatus};
+use verifier_gateway_client::client::{GatewayNotifyRunesDepositRequest, GatewayDepositStatus};
 use verifier_local_db_store::schemas::deposit_address::{DepositAddressStorage, DepositStatus};
 use uuid::Uuid;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
-pub enum NotifyRequestStatus {
+pub enum BtcIndexerDepositStatus {
     Confirmed,
     Failed,
 }
 
-impl Into<DepositStatus> for NotifyRequestStatus {
+impl Into<DepositStatus> for BtcIndexerDepositStatus {
     fn into(self) -> DepositStatus {
         match self {
-            NotifyRequestStatus::Confirmed => DepositStatus::Confirmed,
-            NotifyRequestStatus::Failed => DepositStatus::Failed,
+            BtcIndexerDepositStatus::Confirmed => DepositStatus::Confirmed,
+            BtcIndexerDepositStatus::Failed => DepositStatus::Failed,
+        }
+    }
+}
+
+impl Into<GatewayDepositStatus> for BtcIndexerDepositStatus {
+    fn into(self) -> GatewayDepositStatus {
+        match self {
+            BtcIndexerDepositStatus::Confirmed => GatewayDepositStatus::Confirmed,
+            BtcIndexerDepositStatus::Failed => GatewayDepositStatus::Failed,
         }
     }
 }
@@ -28,7 +37,7 @@ impl Into<DepositStatus> for NotifyRequestStatus {
 pub struct IndexerNotifyRequest {
     pub outpoint: OutPoint,
     pub request_id: Uuid,
-    pub status: NotifyRequestStatus,
+    pub deposit_status: BtcIndexerDepositStatus,
     pub sats_amount: Option<u64>,
     pub rune_id: Option<String>,
     pub rune_amount: Option<u128>,
@@ -44,10 +53,8 @@ pub async fn handle(
 
     let sats_amount = request.sats_amount.ok_or(VerifierError::Validation("Sats amount is required".to_string()))?;
 
-    let deposit_status: DepositStatus = request.status.clone().into();
-
     state.storage
-        .set_confirmation_status_by_out_point(request.outpoint, deposit_status.clone(), None)
+        .set_confirmation_status_by_out_point(request.outpoint, request.deposit_status.clone().into(), None)
         .await
         .map_err(|e| VerifierError::Storage(format!("Failed to set confirmation status: {}", e)))?;
 
@@ -56,17 +63,12 @@ pub async fn handle(
         .await
         .map_err(|e| VerifierError::Storage(format!("Failed to set sats amount: {}", e)))?;
 
-    let notify_status: GatewayNotifyRunesDepositStatus = match request.status {
-        NotifyRequestStatus::Confirmed => GatewayNotifyRunesDepositStatus::Confirmed,
-        NotifyRequestStatus::Failed => GatewayNotifyRunesDepositStatus::Failed,
-    };
-
     let gateway_request = GatewayNotifyRunesDepositRequest {
         verifier_id: state.server_config.frost_signer.identifier,
         request_id: request.request_id,
         outpoint: request.outpoint,
         sats_amount: sats_amount,
-        status: notify_status,
+        status: request.deposit_status.clone().into(),
         error_details: request.error_details,
     };
 

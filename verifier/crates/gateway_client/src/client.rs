@@ -18,7 +18,7 @@ pub struct GatewayClient {
 
 
 #[derive(Serialize, Debug, Clone)]
-pub enum GatewayNotifyRunesDepositStatus {
+pub enum GatewayDepositStatus {
     Confirmed,
     Failed,
 }
@@ -29,7 +29,7 @@ pub struct GatewayNotifyRunesDepositRequest {
     pub request_id: Uuid,
     pub outpoint: OutPoint,
     pub sats_amount: u64,
-    pub status: GatewayNotifyRunesDepositStatus,
+    pub status: GatewayDepositStatus,
     pub error_details: Option<String>,
 }
 

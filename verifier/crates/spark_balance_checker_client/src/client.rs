@@ -7,6 +7,7 @@ use tracing::instrument;
 pub use verifier_config_parser::config::SparkBalanceCheckerConfig;
 use url::Url;
 use uuid::Uuid;
+use verifier_local_db_store::schemas::deposit_address::DepositStatus;
 
 const GET_BALANCE_PATH: &str = "/verify-balance";
 const HEALTHCHECK_PATH: &str = "/health";
@@ -26,14 +27,38 @@ pub struct VerifyBalanceRequest {
 }
 
 #[derive(Deserialize, Debug)]
-pub enum VerificationStatus {
+pub enum SparkBalanceCheckerDepositStatus {
     Confirmed,
     Failed,
 }
 
+impl Into<DepositStatus> for SparkBalanceCheckerDepositStatus {
+    fn into(self) -> DepositStatus {
+        match self {
+            SparkBalanceCheckerDepositStatus::Confirmed => DepositStatus::Confirmed,
+            SparkBalanceCheckerDepositStatus::Failed => DepositStatus::Failed,
+        }
+    }
+}
+
 #[derive(Deserialize, Debug)]
+pub struct SparkBalanceCheckerVerifyBalanceResponse {
+    pub deposit_status: SparkBalanceCheckerDepositStatus,
+    pub error_details: Option<String>,
+}
+
+impl Into<VerifyBalanceResponse> for SparkBalanceCheckerVerifyBalanceResponse {
+    fn into(self) -> VerifyBalanceResponse {
+        VerifyBalanceResponse {
+            deposit_status: self.deposit_status.into(),
+            error_details: self.error_details,
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct VerifyBalanceResponse {
-    pub verification_status: VerificationStatus,
+    pub deposit_status: DepositStatus,
     pub error_details: Option<String>,
 }
 
@@ -77,7 +102,8 @@ impl SparkBalanceCheckerClient {
     ) -> Result<VerifyBalanceResponse, SparkBalanceCheckerClientError> {
         let url = self.get_url(GET_BALANCE_PATH).await?;
         
-        self.send_request(url, request).await
+        let response: SparkBalanceCheckerVerifyBalanceResponse = self.send_request(url, request).await?;
+        Ok(response.into())
     }
 
     #[tracing::instrument(skip_all, err)]

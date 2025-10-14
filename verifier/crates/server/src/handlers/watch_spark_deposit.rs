@@ -12,7 +12,6 @@ use verifier_local_db_store::schemas::deposit_address::{DepositAddrInfo, Deposit
 use verifier_local_db_store::schemas::user_identifier::{UserIdentifierStorage, UserIds};
 use verifier_spark_balance_checker_client::client::VerifyBalanceRequest;
 use uuid::Uuid;
-use verifier_spark_balance_checker_client::client::VerificationStatus;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WatchSparkDepositRequest {
@@ -64,7 +63,7 @@ pub async fn handle(
         .await
         .map_err(|e| VerifierError::Storage(format!("Failed to set deposit address info: {}", e)))?;
 
-    tracing::info!("Getting balance for spark address: {}", request.spark_address);
+    tracing::info!("Verifying balance for spark address: {}", request.spark_address);
 
     let response = state
         .spark_balance_checker_client
@@ -75,24 +74,19 @@ pub async fn handle(
             amount: request.amount as u128,
         })
         .await
-        .map_err(|e| VerifierError::SparkBalanceCheckerClient(format!("Failed to get balance: {}", e)))?;
+        .map_err(|e| VerifierError::SparkBalanceCheckerClient(format!("Failed to verify balance: {}", e)))?;
 
-    tracing::info!("Balance: {:?}", response);
-
-    let confirmation_status = match response.verification_status {
-        VerificationStatus::Confirmed => DepositStatus::Confirmed,
-        VerificationStatus::Failed => DepositStatus::Failed,
-    };
+    tracing::info!("response: {:?}", response);
 
     state
         .storage
-        .set_confirmation_status_by_deposit_address(deposit_address, confirmation_status.clone(), response.error_details)
+        .set_confirmation_status_by_deposit_address(deposit_address, response.deposit_status.clone(), response.error_details)
         .await
         .map_err(|e| VerifierError::Storage(format!("Failed to update confirmation status: {}", e)))?;
 
     tracing::info!("Spark deposit watched for address: {}", request.spark_address);
 
     Ok(Json(WatchSparkDepositResponse {
-        verifier_response: confirmation_status,
+        verifier_response: response.deposit_status,
     }))
 }
