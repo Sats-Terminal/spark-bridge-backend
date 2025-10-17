@@ -2,7 +2,8 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum BtcIndexerClientError {
-    #[cfg(feature = "titan-client")]
+    #[error("Client config type is invalid")]
+    InvalidConfigTypeError,
     #[error("Titan client error: {0}")]
     TitanClientError(#[from] titan_client::Error),
     #[error("vout is out of range. vout: {0}, max_vout: {1}")]

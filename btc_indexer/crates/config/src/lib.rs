@@ -1,6 +1,6 @@
+use bitcoin::Network;
 use config::Config;
 use serde::{Deserialize, Serialize};
-use bitcoin::Network;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AppConfig {
@@ -36,8 +36,21 @@ pub struct BtcIndexerConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct IndexerClientConfig {
+#[serde(tag = "type", rename_all = "lowercase")]
+pub enum IndexerClientConfig {
+    Titan(TitanClientConfig),
+    Maestro(MaestroClientConfig),
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct TitanClientConfig {
     pub url: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct MaestroClientConfig {
+    pub url: String,
+    pub key: String,
 }
 
 impl AppConfig {
