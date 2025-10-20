@@ -31,7 +31,7 @@ impl MaestroClient {
         }
     }
 
-    async fn do_request<T: DeserializeOwned>(&self, url: &str) -> Result<T, BtcIndexerClientError> {
+    async fn do_get_request<T: DeserializeOwned>(&self, url: &str) -> Result<T, BtcIndexerClientError> {
         let url = format!("{}/{}", self.base_url, url);
         let request = self.api_client.get(&url).header("api-key", &self.api_key).build()?;
         let response = self.api_client.execute(request).await?;
@@ -56,7 +56,7 @@ impl BtcIndexer for MaestroClient {
         outpoint: OutPoint,
     ) -> Result<Option<OutPointData>, BtcIndexerClientError> {
         let tx_info_url = format!("/transactions/{}/metaprotocols", outpoint.txid.to_string());
-        let tx_info = self.do_request::<TxInfoMetaprotocolsResponse>(&tx_info_url).await?;
+        let tx_info = self.do_get_request::<TxInfoMetaprotocolsResponse>(&tx_info_url).await?;
         let output = tx_info
             .data
             .outputs
@@ -82,16 +82,16 @@ impl BtcIndexer for MaestroClient {
 
     async fn get_blockchain_info(&self) -> Result<BlockchainInfo, BtcIndexerClientError> {
         Ok(BlockchainInfo {
-            block_height: self.do_request::<u64>("/esplora/blocks/tip/height").await?,
+            block_height: self.do_get_request::<u64>("/esplora/blocks/tip/height").await?,
         })
     }
 
     async fn get_block_transactions(&self, block_height: u64) -> Result<Vec<Txid>, BtcIndexerClientError> {
         let block_info_url = format!("blocks/{}", block_height);
-        let block_info = self.do_request::<BlockInfoResponse>(&block_info_url).await?;
+        let block_info = self.do_get_request::<BlockInfoResponse>(&block_info_url).await?;
 
         let block_txids_url = format!("/esplora/block/{}/txids", block_info.data.hash);
-        let txids = self.do_request::<Vec<String>>(&block_txids_url).await?;
+        let txids = self.do_get_request::<Vec<String>>(&block_txids_url).await?;
         Ok(txids
             .iter()
             .map(|txid| Txid::from_str(&txid))
