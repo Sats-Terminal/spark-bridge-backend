@@ -4,6 +4,10 @@ use thiserror::Error;
 pub enum BtcIndexerClientError {
     #[error("Client config type is invalid")]
     InvalidConfigTypeError,
+    #[error("Failed to decode hex tx id: {0}")]
+    TxIdHexDecodeErr(#[from] bitcoin::hex::HexToArrayError),
+    #[error("Reqwest error: {0}")]
+    ReqwestError(#[from] reqwest::Error),
     #[error("Titan client error: {0}")]
     TitanClientError(#[from] titan_client::Error),
     #[error("vout is out of range. vout: {0}, max_vout: {1}")]

@@ -102,7 +102,7 @@ mod tests {
         let user_ids = local_repo.get_random_unused_dkg_share(&rune_id, is_issuer).await?;
         assert_eq!(
             Some(UserIds {
-                user_id: user_ids.user_id,
+                user_id: user_ids.user_id.clone(),
                 dkg_share_id,
                 rune_id: rune_id.clone(),
                 is_issuer,

@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use bitcoin::{OutPoint, Txid};
 use btc_indexer_config::IndexerClientConfig;
+use enum_dispatch::enum_dispatch;
 use ordinals::RuneId;
 use std::collections::HashMap;
 
@@ -23,16 +24,24 @@ pub struct BlockchainInfo {
 }
 
 #[async_trait]
-pub trait BtcIndexerClientApi: Send + Sync {
+#[enum_dispatch]
+pub trait BtcIndexer {
     async fn get_transaction_outpoint(&self, outpoint: OutPoint)
     -> Result<Option<OutPointData>, BtcIndexerClientError>;
     async fn get_blockchain_info(&self) -> Result<BlockchainInfo, BtcIndexerClientError>;
     async fn get_block_transactions(&self, block_height: u64) -> Result<Vec<Txid>, BtcIndexerClientError>;
 }
 
-pub fn new_btc_indexer_client(client_config: IndexerClientConfig) -> Box<dyn BtcIndexerClientApi> {
+#[enum_dispatch(BtcIndexer)]
+#[derive(Clone)]
+pub enum IndexerClient {
+    Titan(TitanClient),
+    Maestro(MaestroClient),
+}
+
+pub fn new_btc_indexer_client(client_config: IndexerClientConfig) -> IndexerClient {
     match client_config {
-        IndexerClientConfig::Titan(cfg) => Box::new(TitanClient::new(&cfg)),
-        IndexerClientConfig::Maestro(cfg) => Box::new(MaestroClient::new(&cfg)),
+        IndexerClientConfig::Titan(cfg) => IndexerClient::Titan(TitanClient::new(&cfg)),
+        IndexerClientConfig::Maestro(cfg) => IndexerClient::Maestro(MaestroClient::new(&cfg)),
     }
 }

@@ -10,6 +10,10 @@ bitcoin = { workspace = true }
 async-trait = { workspace = true }
 ordinals = { workspace = true }
 btc_indexer_config = { workspace = true }
+enum_dispatch = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_str = { workspace = true }
 
 [features]
 default = ["titan-client"]

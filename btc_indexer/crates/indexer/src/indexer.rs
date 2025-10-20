@@ -1,6 +1,6 @@
 use crate::callback_client::CallbackClient;
 use btc_indexer_config::BtcIndexerConfig;
-use btc_indexer_client::client_api::BtcIndexerClientApi;
+use btc_indexer_client::client_api::BtcIndexer;
 use tokio::time::Duration;
 use btc_indexer_local_db_store::storage::LocalDbStorage;
 use btc_indexer_local_db_store::schemas::requests::{WatchRequestErrorDetails, WatchRequestStatus, WatchRequest, ValidationResult, RequestsStorage};
@@ -17,7 +17,7 @@ use ordinals::RuneId;
 use crate::callback_client::DepositStatus;
 use chrono::Utc;
 
-pub struct Indexer<Api: BtcIndexerClientApi> {
+pub struct Indexer<Api: BtcIndexer> {
     callback_client: CallbackClient,
     config: BtcIndexerConfig,
     indexer_client: Api,
@@ -25,7 +25,7 @@ pub struct Indexer<Api: BtcIndexerClientApi> {
     cancellation_token: CancellationToken,
 }
 
-impl<Api: BtcIndexerClientApi> Indexer<Api> {
+impl<Api: BtcIndexer> Indexer<Api> {
     pub fn new(
         config: BtcIndexerConfig,
         indexer_client: Api,

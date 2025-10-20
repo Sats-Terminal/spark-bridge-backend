@@ -15,4 +15,5 @@ url = "postgres://postgres:postgres@127.0.0.1:5474/btc_indexer"
 network = "regtest"
 
 [indexer_client]
+type = "titan"
 url = "http://127.0.0.1:3030"

@@ -1,7 +1,6 @@
 use axum;
 use btc_indexer::{indexer::Indexer, tx_indexer::TxIndexer};
 use btc_indexer_client::client_api::new_btc_indexer_client;
-use btc_indexer_client::{client_api::BtcIndexerClientApi, clients::titan::TitanClient};
 use btc_indexer_config::AppConfig;
 use btc_indexer_local_db_store::storage::LocalDbStorage;
 use btc_indexer_server::init::create_app;
@@ -33,7 +32,7 @@ async fn main() -> Result<()> {
 
     let indexer = Indexer::new(
         app_config.btc_indexer.clone(),
-        btc_indexer_client,
+        btc_indexer_client.clone(),
         storage.clone(),
         cancellation_token.clone(),
     );
@@ -43,7 +42,7 @@ async fn main() -> Result<()> {
     });
 
     let mut tx_indexer = TxIndexer::new(
-        titan_client,
+        btc_indexer_client,
         storage.clone(),
         cancellation_token.clone(),
         app_config.btc_indexer.clone(),

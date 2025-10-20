@@ -7,7 +7,7 @@ use titan_client::{TitanApi, TitanClient as TitanInnerClient, query::Block};
 use tracing::warn;
 
 use crate::{
-    client_api::{BlockchainInfo, BtcIndexerClientApi, OutPointData},
+    client_api::{BlockchainInfo, BtcIndexer, OutPointData},
     error::BtcIndexerClientError,
 };
 
@@ -25,7 +25,7 @@ impl TitanClient {
 }
 
 #[async_trait]
-impl BtcIndexerClientApi for TitanClient {
+impl BtcIndexer for TitanClient {
     async fn get_transaction_outpoint(
         &self,
         outpoint: OutPoint,
