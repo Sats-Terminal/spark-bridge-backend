@@ -6,7 +6,7 @@ RUN cargo install sqlx-cli@0.8.6 --no-default-features --features native-tls,pos
 
 FROM debian:bullseye
 
-RUN apt-get update && apt-get install -y libssl-dev
+RUN apt-get update && apt-get -y install ca-certificates libssl-dev
 
 # Copying configs
 COPY ./btc_indexer/crates/local_db_store/migrations/ /migrations

@@ -1,5 +1,5 @@
 use bitcoin::Network;
-use config::Config;
+use config::{Config, Environment};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -57,6 +57,11 @@ impl AppConfig {
     pub fn init_config(path: String) -> Self {
         let config = Config::builder()
             .add_source(config::File::with_name(&path))
+            .add_source(
+                Environment::with_prefix("BTC_INDEXER")
+                    .prefix_separator("_")
+                    .separator("__"),
+            )
             .build()
             .unwrap();
         config.try_deserialize().unwrap()

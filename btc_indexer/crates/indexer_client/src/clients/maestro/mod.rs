@@ -7,7 +7,7 @@ use ordinals::RuneId;
 use reqwest::Client;
 use serde::de::DeserializeOwned;
 use std::{collections::HashMap, str::FromStr};
-use tracing::error;
+use tracing::{debug, error};
 
 use crate::{
     client_api::{BlockchainInfo, BtcIndexer, OutPointData},
@@ -37,7 +37,24 @@ impl MaestroClient {
         let response = self.api_client.execute(request).await?;
 
         if response.status().is_success() {
-            return Ok(response.json::<T>().await?);
+            let txt = response.text().await?;
+            debug!(?txt, "Resp body");
+            let body = match serde_json::from_str::<T>(&txt) {
+                Ok(parsed) => parsed,
+                Err(err) => {
+                    error!(?err, "Err happened during parsing");
+                    return Err(BtcIndexerClientError::InvalidData(format!(
+                        "Failed to do request: {}",
+                        url
+                    )));
+                }
+            };
+            return Ok(body);
+            // return Ok(response.json::<T>().await?);
+            // return Err(BtcIndexerClientError::InvalidData(format!(
+            // "Failed to do request: {}",
+            // url
+            // )));
         }
 
         let status = response.status();
@@ -45,7 +62,10 @@ impl MaestroClient {
 
         error!(url, status = status.as_str(), body, "Failed to do request");
 
-        Err(BtcIndexerClientError::InvalidConfigTypeError)
+        Err(BtcIndexerClientError::InvalidData(format!(
+            "Failed to do request: {}",
+            url
+        )))
     }
 }
 

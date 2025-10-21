@@ -38,7 +38,6 @@ pub struct TransactionData {
 
 #[derive(Debug, Deserialize)]
 pub struct Input {
-    pub address: String,
     pub inscriptions: Vec<Inscription>,
     pub runes: Vec<RuneData>,
     #[serde(with = "serde_str")]
@@ -46,6 +45,7 @@ pub struct Input {
     pub script_pubkey: String,
     pub txid: String,
     pub vout: u64,
+    pub address: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -84,7 +84,7 @@ pub struct BlockData {
     pub hash: String,
     pub height: u64,
     pub metaprotocols: Vec<Metaprotocol>,
-    pub miner_name: String,
+    pub miner_name: Option<String>,
     pub size: u64,
     pub timestamp: String,
     #[serde(with = "serde_str")]
