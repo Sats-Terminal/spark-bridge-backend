@@ -28,3 +28,5 @@ tonic = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }
 uuid = { workspace = true }
+btc_indexer_client = { workspace = true }
+btc_indexer_config = { workspace = true }

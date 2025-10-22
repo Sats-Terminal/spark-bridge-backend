@@ -15,6 +15,5 @@ url = "postgres://admin_manager:password@persistent-db-storage_btc_indexer:5432/
 network = "regtest"
 
 [indexer_client]
-type = "maestro"
-url = "https://xbt-testnet.gomaestro-api.org/v0"
-key = "api_key"
+type = "titan"
+url = "http://localhost:3030"

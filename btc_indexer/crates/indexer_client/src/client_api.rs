@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use bitcoin::{OutPoint, Txid};
+use bitcoin::{Address, OutPoint, Txid};
 use btc_indexer_config::IndexerClientConfig;
 use enum_dispatch::enum_dispatch;
 use ordinals::RuneId;
@@ -19,6 +19,23 @@ pub struct OutPointData {
 }
 
 #[derive(Debug, Clone)]
+pub struct RuneUtxo {
+    pub confirmed: bool,
+    pub runes: Vec<RuneData>,
+    pub value: u64,
+    pub txid: String,
+    pub vout: u32,
+    // helper field to match both Titan and Maestro
+    pub spent: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct RuneData {
+    pub rune_id: RuneId,
+    pub amount: u64,
+}
+
+#[derive(Debug, Clone)]
 pub struct BlockchainInfo {
     pub block_height: u64,
 }
@@ -30,6 +47,9 @@ pub trait BtcIndexer {
     -> Result<Option<OutPointData>, BtcIndexerClientError>;
     async fn get_blockchain_info(&self) -> Result<BlockchainInfo, BtcIndexerClientError>;
     async fn get_block_transactions(&self, block_height: u64) -> Result<Vec<Txid>, BtcIndexerClientError>;
+    async fn get_rune(&self, rune_id: String) -> Result<RuneId, BtcIndexerClientError>;
+    async fn get_rune_id(&self, txid: &Txid) -> Result<RuneId, BtcIndexerClientError>;
+    async fn get_address_rune_utxos(&self, address: Address) -> Result<Vec<RuneUtxo>, BtcIndexerClientError>;
 }
 
 #[enum_dispatch(BtcIndexer)]

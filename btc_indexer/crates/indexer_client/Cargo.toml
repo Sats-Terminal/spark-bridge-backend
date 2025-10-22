@@ -12,8 +12,10 @@ ordinals = { workspace = true }
 btc_indexer_config = { workspace = true }
 enum_dispatch = { workspace = true }
 reqwest = { workspace = true }
+url = { workspace = true }
 serde = { workspace = true }
 serde_str = { workspace = true }
+serde_json = { workspace = true }
 
 [features]
 default = ["titan-client"]

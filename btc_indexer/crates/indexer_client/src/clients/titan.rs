@@ -1,13 +1,16 @@
 use async_trait::async_trait;
-use bitcoin::{OutPoint, Txid, hashes::Hash};
+use bitcoin::{Address, OutPoint, Txid, hashes::Hash};
 use btc_indexer_config::TitanClientConfig;
 use ordinals::RuneId;
 use std::{collections::HashMap, str::FromStr};
-use titan_client::{TitanApi, TitanClient as TitanInnerClient, query::Block};
+use titan_client::{
+    SpentStatus, TitanApi, TitanClient as TitanInnerClient,
+    query::{Block, Rune},
+};
 use tracing::warn;
 
 use crate::{
-    client_api::{BlockchainInfo, BtcIndexer, OutPointData},
+    client_api::{BlockchainInfo, BtcIndexer, OutPointData, RuneData, RuneUtxo},
     error::BtcIndexerClientError,
 };
 
@@ -79,5 +82,65 @@ impl BtcIndexer for TitanClient {
             .map(|txid| Txid::from_byte_array(txid.0))
             .collect();
         Ok(txids)
+    }
+
+    async fn get_rune_id(&self, txid: &Txid) -> Result<RuneId, BtcIndexerClientError> {
+        let response = self.client.get_transaction(txid).await?;
+        let block_height = response
+            .status
+            .block_height
+            .ok_or(BtcIndexerClientError::DecodeError("Block height not found".to_string()))?;
+        let block = self.client.get_block(&Block::Height(block_height)).await?;
+        let tx_index = block
+            .tx_ids
+            .iter()
+            .position(|id| id.to_string() == txid.to_string())
+            .ok_or(BtcIndexerClientError::DecodeError(
+                "Transaction not found in block".to_string(),
+            ))?;
+        let rune_id = RuneId::new(block_height, tx_index as u32).ok_or(BtcIndexerClientError::DecodeError(format!(
+            "Failed to build rune id, {}, {}",
+            block_height, tx_index
+        )))?;
+        Ok(rune_id)
+    }
+
+    async fn get_rune(&self, rune_id: String) -> Result<RuneId, BtcIndexerClientError> {
+        let query_rune = Rune::from_str(&rune_id).map_err(|e| BtcIndexerClientError::DecodeError(e.to_string()))?;
+        let rune_response = self.client.get_rune(&query_rune).await?;
+        // Build rune id from response to prevent type mismatch err
+        let rune_id = RuneId::new(rune_response.id.block, rune_response.id.tx).ok_or(
+            BtcIndexerClientError::DecodeError(format!(
+                "Failed to build rune id, {}, {}",
+                rune_response.id.block, rune_response.id.tx
+            )),
+        )?;
+        Ok(rune_id)
+    }
+
+    async fn get_address_rune_utxos(&self, address: Address) -> Result<Vec<RuneUtxo>, BtcIndexerClientError> {
+        let address_data = self.client.get_address(&address.to_string()).await?;
+        let mut rune_utxos = Vec::new();
+
+        for output in address_data.outputs.iter() {
+            rune_utxos.push(RuneUtxo {
+                spent: !matches!(output.spent, SpentStatus::Unspent),
+                confirmed: output.status.confirmed,
+                txid: output.txid.to_string(),
+                vout: output.vout,
+                value: output.value,
+                runes: output
+                    .runes
+                    .iter()
+                    .map(|rune| RuneData {
+                        // TODO: unwrap ?
+                        rune_id: RuneId::new(rune.rune_id.block, rune.rune_id.tx).unwrap(),
+                        amount: rune.amount as u64,
+                    })
+                    .collect(),
+            });
+        }
+
+        Ok(rune_utxos)
     }
 }

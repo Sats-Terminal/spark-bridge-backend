@@ -8,6 +8,8 @@ pub enum BtcIndexerClientError {
     TxIdHexDecodeErr(#[from] bitcoin::hex::HexToArrayError),
     #[error("Reqwest error: {0}")]
     ReqwestError(#[from] reqwest::Error),
+    #[error("URL parse error: {0}")]
+    URLParseError(#[from] url::ParseError),
     #[error("Titan client error: {0}")]
     TitanClientError(#[from] titan_client::Error),
     #[error("vout is out of range. vout: {0}, max_vout: {1}")]

@@ -36,8 +36,8 @@ pub enum BitcoinClientError {
     BitcoinRpcError(#[from] bitcoincore_rpc::Error),
     #[error("Decode error: {0}")]
     DecodeError(String),
-    #[error("Failed to make titan client call: {0}")]
-    TitanRpcError(#[from] titan_client::Error),
+    #[error("BTC indexer client error: {0}")]
+    BTCIndexerError(#[from] btc_indexer_client::error::BtcIndexerClientError),
 }
 
 #[derive(Error, Debug)]

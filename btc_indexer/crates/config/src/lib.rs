@@ -1,5 +1,6 @@
 use bitcoin::Network;
 use config::{Config, Environment};
+use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -49,7 +50,7 @@ pub struct TitanClientConfig {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MaestroClientConfig {
-    pub url: String,
+    pub url: Url,
     pub key: String,
 }
 

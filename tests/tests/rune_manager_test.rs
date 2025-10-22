@@ -1,20 +1,29 @@
+use btc_indexer_config::{IndexerClientConfig, TitanClientConfig};
 use global_utils::logger::init_logger;
-use tests::bitcoin_client::{BitcoinClient, BitcoinClientConfig};
-use tests::rune_manager::RuneManager;
-use tests::spark_client::{SparkClient, SparkClientConfig};
-use tests::user_wallet::{TransferType, UserWallet};
-use tests::utils::create_credentials;
+use tests::{
+    bitcoin_client::{BitcoinClient, BitcoinClientConfig},
+    constants::BLOCKS_TO_GENERATE,
+    rune_manager::setup_rune_manager,
+    spark_client::{SparkClient, SparkClientConfig},
+    user_wallet::{TransferType, UserWallet},
+    utils::create_credentials,
+};
 
 #[tokio::test]
 async fn test_rune_manager() {
     let _guard = init_logger();
 
-    let bitcoin_client = BitcoinClient::new(BitcoinClientConfig {
-        bitcoin_url: "http://127.0.0.1:18443".to_string(),
-        titan_url: "http://127.0.0.1:3030".to_string(),
-        bitcoin_username: "bitcoin".to_string(),
-        bitcoin_password: "bitcoinpass".to_string(),
-    })
+    let mut bitcoin_client = BitcoinClient::new(
+        BitcoinClientConfig {
+            url: "http://127.0.0.1:18443".to_string(),
+            username: "bitcoin".to_string(),
+            password: "bitcoinpass".to_string(),
+        },
+        IndexerClientConfig::Titan(TitanClientConfig {
+            url: "http://127.0.0.1:3030".to_string(),
+        }),
+    )
+    .await
     .unwrap();
 
     let spark_client = SparkClient::new(SparkClientConfig {
@@ -29,13 +38,25 @@ async fn test_rune_manager() {
     .await
     .unwrap();
 
-    let mut rune_manager = RuneManager::new(bitcoin_client.clone()).await.unwrap();
-    let rune_id = rune_manager.get_rune_id().await;
+    let (rune_manager, transaction) = setup_rune_manager(&mut bitcoin_client).await;
+    bitcoin_client.broadcast_transaction(transaction).unwrap();
+    bitcoin_client.generate_blocks(BLOCKS_TO_GENERATE, None).await.unwrap();
+
+    let rune_id = rune_manager.get_rune_id();
 
     let mut user_wallet = UserWallet::new(bitcoin_client.clone(), spark_client, rune_id)
         .await
         .unwrap();
-    rune_manager.mint_rune(user_wallet.get_address()).await.unwrap();
+    let rune_utxos = bitcoin_client
+        .get_address_data(rune_manager.get_p2tr_address())
+        .await
+        .unwrap();
+    let transaction = rune_manager
+        .build_mint_tx(user_wallet.get_address(), rune_utxos)
+        .await
+        .unwrap();
+    bitcoin_client.broadcast_transaction(transaction).unwrap();
+    bitcoin_client.generate_blocks(BLOCKS_TO_GENERATE, None).await.unwrap();
 
     user_wallet.unite_unspent_utxos().await.unwrap();
     let rune_balance = user_wallet.get_rune_balance().await.unwrap();
@@ -52,10 +73,10 @@ async fn test_rune_manager() {
         )
         .await
         .unwrap();
-    let address_data = bitcoin_client.get_address_data(dummy_address).await.unwrap();
+    let rune_utxos = bitcoin_client.get_address_data(dummy_address).await.unwrap();
 
-    tracing::info!("Address data: {:?}", address_data);
-    let output = address_data.outputs[0].clone();
-    assert_eq!(output.runes[0].rune_id.to_string(), rune_id.to_string());
-    assert_eq!(output.runes[0].amount as u64, transfer_amount);
+    tracing::info!("Address rune utxos: {:?}", rune_utxos);
+    let rune_utxo = rune_utxos[0].clone();
+    assert_eq!(rune_utxo.runes[0].rune_id.to_string(), rune_id.to_string());
+    assert_eq!(rune_utxo.runes[0].amount as u64, transfer_amount);
 }
