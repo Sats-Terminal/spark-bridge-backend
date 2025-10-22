@@ -4,7 +4,7 @@ use global_utils::logger::init_logger;
 use std::{str::FromStr, time::Duration};
 use tests::{
     bitcoin_client::{BitcoinClient, BitcoinClientConfig},
-    constants::{BLOCKS_TO_GENERATE, DEFAULT_FAUCET_AMOUNT},
+    constants::{BLOCKS_TO_GENERATE, DEFAULT_FAUCET_AMOUNT, PAYING_INPUT_SATS_AMOUNT},
     gateway_client::*,
     rune_manager::setup_rune_manager,
     spark_client::{SparkClient, SparkClientConfig},
@@ -54,7 +54,9 @@ async fn test_spark() {
     bitcoin_client.generate_blocks(BLOCKS_TO_GENERATE, None).await.unwrap();
 
     let rune_id = rune_manager.get_rune_id();
-    let mut user_wallet = UserWallet::new(bitcoin_client.clone(), spark_client.clone(), rune_id)
+    let mut user_wallet = UserWallet::new(spark_client.clone(), rune_id).await.unwrap();
+    bitcoin_client
+        .faucet(user_wallet.get_address(), DEFAULT_FAUCET_AMOUNT)
         .await
         .unwrap();
 
@@ -73,9 +75,19 @@ async fn test_spark() {
     bitcoin_client.broadcast_transaction(transaction).unwrap();
     bitcoin_client.generate_blocks(BLOCKS_TO_GENERATE, None).await.unwrap();
 
-    user_wallet.unite_unspent_utxos().await.unwrap();
+    let rune_utxos = bitcoin_client
+        .get_address_data(user_wallet.get_address())
+        .await
+        .unwrap();
+    let transaction = user_wallet.build_unite_unspent_utxos_tx(&rune_utxos).await.unwrap();
+    bitcoin_client.broadcast_transaction(transaction).unwrap();
+    bitcoin_client.generate_blocks(BLOCKS_TO_GENERATE, None).await.unwrap();
 
-    let rune_balance = user_wallet.get_rune_balance().await.unwrap();
+    let rune_utxos = bitcoin_client
+        .get_address_data(user_wallet.get_address())
+        .await
+        .unwrap();
+    let rune_balance = user_wallet.get_rune_balance(&rune_utxos).await.unwrap();
     assert!(rune_balance > 0, "Rune balance should be greater than 0");
 
     let deposit_amount = 100_000;
@@ -98,16 +110,23 @@ async fn test_spark() {
     let deposit_address = Address::from_str(&get_runes_deposit_address_response.address)
         .unwrap()
         .assume_checked();
-    let tx = user_wallet
-        .transfer(
+    let rune_utxos = bitcoin_client
+        .get_address_data(user_wallet.get_address())
+        .await
+        .unwrap();
+    let transaction = user_wallet
+        .build_transfer_tx(
             TransferType::RuneTransfer {
                 rune_amount: deposit_amount,
             },
             deposit_address,
+            &rune_utxos,
         )
         .await
         .unwrap();
-    let txid = tx.compute_txid();
+    bitcoin_client.broadcast_transaction(transaction.clone()).unwrap();
+    bitcoin_client.generate_blocks(BLOCKS_TO_GENERATE, None).await.unwrap();
+    let txid = transaction.compute_txid();
 
     tracing::info!("txid: {:?}", txid);
 
@@ -160,7 +179,27 @@ async fn test_spark() {
 
     tracing::info!("Starting exit spark flow");
 
-    let paying_input = user_wallet.create_user_paying_transfer_input().await.unwrap();
+    let rune_utxos = bitcoin_client
+        .get_address_data(user_wallet.get_address())
+        .await
+        .unwrap();
+    let transaction = user_wallet
+        .build_transfer_tx(
+            TransferType::BtcTransfer {
+                sats_amount: PAYING_INPUT_SATS_AMOUNT,
+            },
+            user_wallet.get_address(),
+            &rune_utxos,
+        )
+        .await
+        .unwrap();
+    bitcoin_client.broadcast_transaction(transaction.clone()).unwrap();
+    bitcoin_client.generate_blocks(BLOCKS_TO_GENERATE, None).await.unwrap();
+
+    let paying_input = user_wallet
+        .create_user_paying_transfer_input(transaction)
+        .await
+        .unwrap();
 
     tracing::info!("Paying input: {:?}", paying_input);
 
@@ -177,7 +216,11 @@ async fn test_spark() {
 
     // check balance
 
-    let balance = user_wallet.get_rune_balance().await.unwrap();
+    let rune_utxos = bitcoin_client
+        .get_address_data(user_wallet.get_address())
+        .await
+        .unwrap();
+    let balance = user_wallet.get_rune_balance(&rune_utxos).await.unwrap();
     tracing::info!("Balance: {:?}", balance);
 
     assert_eq!(

@@ -2,7 +2,7 @@ use btc_indexer_config::{IndexerClientConfig, TitanClientConfig};
 use global_utils::logger::init_logger;
 use tests::{
     bitcoin_client::{BitcoinClient, BitcoinClientConfig},
-    constants::BLOCKS_TO_GENERATE,
+    constants::{BLOCKS_TO_GENERATE, DEFAULT_FAUCET_AMOUNT},
     rune_manager::setup_rune_manager,
     spark_client::{SparkClient, SparkClientConfig},
     user_wallet::{TransferType, UserWallet},
@@ -44,7 +44,9 @@ async fn test_rune_manager() {
 
     let rune_id = rune_manager.get_rune_id();
 
-    let mut user_wallet = UserWallet::new(bitcoin_client.clone(), spark_client, rune_id)
+    let mut user_wallet = UserWallet::new(spark_client, rune_id).await.unwrap();
+    bitcoin_client
+        .faucet(user_wallet.get_address(), DEFAULT_FAUCET_AMOUNT)
         .await
         .unwrap();
     let rune_utxos = bitcoin_client
@@ -58,21 +60,40 @@ async fn test_rune_manager() {
     bitcoin_client.broadcast_transaction(transaction).unwrap();
     bitcoin_client.generate_blocks(BLOCKS_TO_GENERATE, None).await.unwrap();
 
-    user_wallet.unite_unspent_utxos().await.unwrap();
-    let rune_balance = user_wallet.get_rune_balance().await.unwrap();
+    let rune_utxos = bitcoin_client
+        .get_address_data(user_wallet.get_address())
+        .await
+        .unwrap();
+    let transaction = user_wallet.build_unite_unspent_utxos_tx(&rune_utxos).await.unwrap();
+    bitcoin_client.broadcast_transaction(transaction).unwrap();
+    bitcoin_client.generate_blocks(BLOCKS_TO_GENERATE, None).await.unwrap();
+
+    let rune_utxos = bitcoin_client
+        .get_address_data(user_wallet.get_address())
+        .await
+        .unwrap();
+    let rune_balance = user_wallet.get_rune_balance(&rune_utxos).await.unwrap();
     assert!(rune_balance > 0, "Rune balance should be greater than 0");
 
     let dummy_address = create_credentials().0;
     let transfer_amount = 1000;
-    user_wallet
-        .transfer(
+    let rune_utxos = bitcoin_client
+        .get_address_data(user_wallet.get_address())
+        .await
+        .unwrap();
+    let transaction = user_wallet
+        .build_transfer_tx(
             TransferType::RuneTransfer {
                 rune_amount: transfer_amount,
             },
             dummy_address.clone(),
+            &rune_utxos,
         )
         .await
         .unwrap();
+    bitcoin_client.broadcast_transaction(transaction).unwrap();
+    bitcoin_client.generate_blocks(BLOCKS_TO_GENERATE, None).await.unwrap();
+
     let rune_utxos = bitcoin_client.get_address_data(dummy_address).await.unwrap();
 
     tracing::info!("Address rune utxos: {:?}", rune_utxos);

@@ -1,7 +1,4 @@
-use crate::bitcoin_client::BitcoinClient;
-use crate::constants::{
-    BLOCKS_TO_GENERATE, DEFAULT_DUST_AMOUNT, DEFAULT_FAUCET_AMOUNT, DEFAULT_FEE_AMOUNT, PAYING_INPUT_SATS_AMOUNT,
-};
+use crate::constants::{DEFAULT_DUST_AMOUNT, DEFAULT_FEE_AMOUNT, PAYING_INPUT_SATS_AMOUNT};
 use crate::error::RuneError;
 use crate::gateway_client::UserPayingTransferInput;
 use crate::spark_client::GetSparkAddressDataRequest;
@@ -20,6 +17,7 @@ use bitcoin::secp256k1::{Keypair, PublicKey};
 use bitcoin::sighash::{Prevouts, SighashCache, TapSighashType};
 use bitcoin::transaction::Version;
 use bitcoin::{Amount, OutPoint, ScriptBuf, Sequence, TxIn, TxOut, Witness};
+use btc_indexer_client::client_api::RuneUtxo;
 use chrono::Utc;
 use global_utils::common_types::get_uuid;
 use lrc20::marshal::marshal_token_transaction;
@@ -51,7 +49,6 @@ pub enum TransferType {
 pub struct UserWallet {
     p2tr_address: Address,
     keypair: Keypair,
-    bitcoin_client: BitcoinClient,
     spark_client: SparkClient,
     rune_id: RuneId,
     proto_hasher: ProtoHasher,
@@ -59,27 +56,16 @@ pub struct UserWallet {
 }
 
 impl UserWallet {
-    pub async fn new(
-        mut bitcoin_client: BitcoinClient,
-        spark_client: SparkClient,
-        rune_id: RuneId,
-    ) -> Result<Self, RuneError> {
+    pub async fn new(spark_client: SparkClient, rune_id: RuneId) -> Result<Self, RuneError> {
         tracing::info!("Creating user wallet");
         let (p2tr_address, keypair) = create_credentials();
-
-        bitcoin_client
-            .faucet(p2tr_address.clone(), DEFAULT_FAUCET_AMOUNT)
-            .await?;
-
-        let proto_hasher = ProtoHasher::new();
 
         Ok(Self {
             p2tr_address,
             keypair,
-            bitcoin_client,
             spark_client,
             rune_id,
-            proto_hasher,
+            proto_hasher: ProtoHasher::new(),
             user_id: get_uuid(),
         })
     }
@@ -103,10 +89,9 @@ impl UserWallet {
         Ok(spark_address)
     }
 
-    pub async fn get_rune_balance(&self) -> Result<u64, RuneError> {
-        let address_data = self.bitcoin_client.get_address_data(self.p2tr_address.clone()).await?;
+    pub async fn get_rune_balance(&self, address_rune_utxos: &[RuneUtxo]) -> Result<u64, RuneError> {
         let mut total_balance = 0;
-        for rune_utxos in address_data.iter() {
+        for rune_utxos in address_rune_utxos.iter() {
             if !rune_utxos.spent {
                 for runes in rune_utxos.runes.iter() {
                     if runes.rune_id.to_string() == self.rune_id.to_string() {
@@ -118,9 +103,11 @@ impl UserWallet {
         Ok(total_balance as u64)
     }
 
-    pub async fn get_funded_outpoint_data(&self) -> Result<(OutPoint, u64), RuneError> {
-        let address_data = self.bitcoin_client.get_address_data(self.p2tr_address.clone()).await?;
-        for rune_utxos in address_data.iter() {
+    pub async fn get_funded_outpoint_data(
+        &self,
+        address_rune_utxos: &[RuneUtxo],
+    ) -> Result<(OutPoint, u64), RuneError> {
+        for rune_utxos in address_rune_utxos.iter() {
             if !rune_utxos.spent {
                 for rune in rune_utxos.runes.iter() {
                     if rune.rune_id.to_string() == self.rune_id.to_string() {
@@ -143,13 +130,14 @@ impl UserWallet {
         ))
     }
 
-    pub async fn transfer(
+    pub async fn build_transfer_tx(
         &mut self,
         transfer_type: TransferType,
         transfer_address: Address,
+        address_rune_utxos: &[RuneUtxo],
     ) -> Result<Transaction, RuneError> {
         tracing::info!("Transferring runes");
-        let rune_balance = self.get_rune_balance().await?;
+        let rune_balance = self.get_rune_balance(address_rune_utxos).await?;
 
         let edicts = match transfer_type {
             TransferType::RuneTransfer { rune_amount } => {
@@ -179,7 +167,7 @@ impl UserWallet {
             }
         };
 
-        let (outpoint, value) = self.get_funded_outpoint_data().await?;
+        let (outpoint, value) = self.get_funded_outpoint_data(address_rune_utxos).await?;
 
         let runestone = Runestone {
             edicts,
@@ -237,25 +225,21 @@ impl UserWallet {
 
         sign_transaction(&mut transaction, vec![value], self.p2tr_address.clone(), self.keypair)?;
 
-        let _txid = transaction.compute_txid();
-
-        self.bitcoin_client.broadcast_transaction(transaction.clone())?;
-        self.bitcoin_client.generate_blocks(BLOCKS_TO_GENERATE, None).await?;
-
-        tracing::info!("Runes transferred");
+        tracing::info!("Built transaction for rune transfer");
 
         Ok(transaction)
     }
 
-    pub async fn unite_unspent_utxos(&mut self) -> Result<Txid, RuneError> {
-        let address_data = self.bitcoin_client.get_address_data(self.p2tr_address.clone()).await?;
-
+    pub async fn build_unite_unspent_utxos_tx(
+        &mut self,
+        address_rune_utxos: &[RuneUtxo],
+    ) -> Result<Transaction, RuneError> {
         let mut total_btc = 0;
         let mut total_runes = 0;
         let mut txins = vec![];
         let mut prev_input_amounts = vec![];
 
-        for rune_utxos in address_data.iter() {
+        for rune_utxos in address_rune_utxos.iter() {
             if !rune_utxos.spent && rune_utxos.value > 0 {
                 total_btc += rune_utxos.value;
                 for runes in rune_utxos.runes.iter() {
@@ -313,12 +297,7 @@ impl UserWallet {
             self.keypair,
         )?;
 
-        let txid = transaction.compute_txid();
-
-        self.bitcoin_client.broadcast_transaction(transaction)?;
-        self.bitcoin_client.generate_blocks(BLOCKS_TO_GENERATE, None).await?;
-
-        Ok(txid)
+        Ok(transaction)
     }
 
     pub async fn transfer_spark(
@@ -485,17 +464,11 @@ impl UserWallet {
         Ok(())
     }
 
-    pub async fn create_user_paying_transfer_input(&mut self) -> Result<UserPayingTransferInput, RuneError> {
-        let tx = self
-            .transfer(
-                TransferType::BtcTransfer {
-                    sats_amount: PAYING_INPUT_SATS_AMOUNT,
-                },
-                self.p2tr_address.clone(),
-            )
-            .await?;
-        let txid = tx.compute_txid();
-
+    pub async fn create_user_paying_transfer_input(
+        &mut self,
+        transfer_tx: Transaction,
+    ) -> Result<UserPayingTransferInput, RuneError> {
+        let txid = transfer_tx.compute_txid();
         let previous_output = OutPoint { txid, vout: 1 };
         let txin = TxIn {
             previous_output,
@@ -514,7 +487,7 @@ impl UserWallet {
         let mut sighash_cache = SighashCache::new(&transaction);
         let txout = TxOut {
             value: Amount::from_sat(PAYING_INPUT_SATS_AMOUNT),
-            script_pubkey: tx.output[1].script_pubkey.clone(),
+            script_pubkey: transfer_tx.output[1].script_pubkey.clone(),
         };
         let message_hash = sighash_cache
             .taproot_key_spend_signature_hash(0, &Prevouts::One(0, txout), TapSighashType::NonePlusAnyoneCanPay)
