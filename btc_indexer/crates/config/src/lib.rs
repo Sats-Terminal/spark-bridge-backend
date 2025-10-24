@@ -52,6 +52,7 @@ pub struct TitanClientConfig {
 pub struct MaestroClientConfig {
     pub url: Url,
     pub key: String,
+    pub confirmation_threshold: u64,
 }
 
 impl AppConfig {

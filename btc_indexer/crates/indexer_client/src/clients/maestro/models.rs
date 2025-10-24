@@ -1,6 +1,7 @@
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
 pub enum Metaprotocol {
     Inscriptions,
     Runes,
@@ -158,19 +159,66 @@ pub struct RuneInfoTerms {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct RuneUtxoResponse {
-    pub data: Vec<RuneUtxoData>,
-    pub last_updated: LastUpdatedInfo,
+pub struct AddrUtxoResponse {
+    pub data: Vec<AddrUtxoData>,
+    pub indexer_info: IndexerInfo,
     pub next_cursor: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct RuneUtxoData {
-    pub confirmations: u64,
+pub struct AddrUtxoData {
     pub height: u64,
+    pub mempool: bool,
+    pub inscriptions: Vec<Inscription>,
     pub runes: Vec<RuneData>,
     #[serde(with = "serde_str")]
     pub satoshis: u64,
+    pub script_pubkey: String,
     pub txid: String,
     pub vout: u32,
+    pub address: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct IndexerInfo {
+    pub chain_tip: ChainTip,
+    pub estimated_blocks: Vec<EstimatedBlock>,
+    pub mempool_timestamp: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ChainTip {
+    pub block_hash: String,
+    pub block_height: u64,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct EstimatedBlock {
+    pub block_height: u64,
+    pub sats_per_vb: SatsPerVb,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SatsPerVb {
+    pub max: u64,
+    pub min: u64,
+    pub median: u64,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct MempoolTxInfoResponse {
+    pub data: MempoolTxInfoData,
+    pub indexer_info: IndexerInfo,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct MempoolTxInfoData {
+    #[serde(with = "serde_str")]
+    pub fees: u64,
+    pub height: u64,
+    pub inputs: Vec<InputVariant>,
+    pub metaprotocols: Vec<Metaprotocol>,
+    pub outputs: Vec<OutputVariant>,
+    pub sats_per_vb: u64,
+    pub volume: String,
 }

@@ -19,7 +19,7 @@ pub struct OutPointData {
 }
 
 #[derive(Debug, Clone)]
-pub struct RuneUtxo {
+pub struct AddrUtxoData {
     pub confirmed: bool,
     pub runes: Vec<RuneData>,
     pub value: u64,
@@ -49,7 +49,7 @@ pub trait BtcIndexer {
     async fn get_block_transactions(&self, block_height: u64) -> Result<Vec<Txid>, BtcIndexerClientError>;
     async fn get_rune(&self, rune_id: String) -> Result<RuneId, BtcIndexerClientError>;
     async fn get_rune_id(&self, txid: &Txid) -> Result<RuneId, BtcIndexerClientError>;
-    async fn get_address_rune_utxos(&self, address: Address) -> Result<Vec<RuneUtxo>, BtcIndexerClientError>;
+    async fn get_address_utxos(&self, address: Address) -> Result<Vec<AddrUtxoData>, BtcIndexerClientError>;
 }
 
 #[enum_dispatch(BtcIndexer)]

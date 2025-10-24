@@ -10,7 +10,7 @@ use titan_client::{
 use tracing::warn;
 
 use crate::{
-    client_api::{BlockchainInfo, BtcIndexer, OutPointData, RuneData, RuneUtxo},
+    client_api::{AddrUtxoData, BlockchainInfo, BtcIndexer, OutPointData, RuneData},
     error::BtcIndexerClientError,
 };
 
@@ -118,12 +118,12 @@ impl BtcIndexer for TitanClient {
         Ok(rune_id)
     }
 
-    async fn get_address_rune_utxos(&self, address: Address) -> Result<Vec<RuneUtxo>, BtcIndexerClientError> {
+    async fn get_address_utxos(&self, address: Address) -> Result<Vec<AddrUtxoData>, BtcIndexerClientError> {
         let address_data = self.client.get_address(&address.to_string()).await?;
         let mut rune_utxos = Vec::new();
 
         for output in address_data.outputs.iter() {
-            rune_utxos.push(RuneUtxo {
+            rune_utxos.push(AddrUtxoData {
                 spent: !matches!(output.spent, SpentStatus::Unspent),
                 confirmed: output.status.confirmed,
                 txid: output.txid.to_string(),
