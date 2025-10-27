@@ -20,7 +20,7 @@ const GET_RUNES_DEPOSIT_ADDRESS_PATH: &str = "/api/user/get-btc-deposit-address"
 
 #[derive(Serialize, Debug)]
 pub struct GetRunesDepositAddressRequest {
-    pub user_id: Uuid,
+    pub user_id: String,
     pub rune_id: String,
     pub amount: u64,
 }
@@ -34,7 +34,7 @@ const GET_SPARK_DEPOSIT_ADDRESS_PATH: &str = "/api/user/get-spark-deposit-addres
 
 #[derive(Serialize, Debug)]
 pub struct GetSparkDepositAddressRequest {
-    pub user_id: Uuid,
+    pub user_id: String,
     pub rune_id: String,
     pub amount: u64,
 }

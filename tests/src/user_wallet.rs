@@ -90,8 +90,8 @@ impl UserWallet {
         self.p2tr_address.clone()
     }
 
-    pub fn get_user_id(&self) -> Uuid {
-        self.user_id
+    pub fn get_user_id(&self) -> String {
+        self.user_id.to_string()
     }
 
     pub fn get_spark_address(&self) -> Result<String, RuneError> {

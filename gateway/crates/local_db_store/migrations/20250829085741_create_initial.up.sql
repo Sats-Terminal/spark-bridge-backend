@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS gateway.dkg_share
 CREATE TABLE IF NOT EXISTS gateway.user_identifier
 (
     dkg_share_id UUID    NOT NULL,
-    user_id    UUID    NOT NULL,
+    user_id    TEXT    NOT NULL,
     rune_id      TEXT    NOT NULL,
     is_issuer    BOOLEAN NOT NULL,
     PRIMARY KEY (dkg_share_id),

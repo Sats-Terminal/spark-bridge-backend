@@ -1,7 +1,7 @@
 use crate::error::FlowProcessorError;
 use bitcoin::Address;
 use tokio::sync::oneshot;
-use uuid::Uuid;
+use gateway_local_db_store::schemas::user_identifier::UserId;
 
 pub type OneshotFlowProcessorSender = oneshot::Sender<Result<FlowProcessorResponse, FlowProcessorError>>;
 pub type OneshotFlowProcessorReceiver = oneshot::Receiver<Result<FlowProcessorResponse, FlowProcessorError>>;
@@ -23,7 +23,7 @@ pub enum FlowProcessorResponse {
 
 #[derive(Debug)]
 pub struct IssueBtcDepositAddressRequest {
-    pub user_id: Uuid,
+    pub user_id: UserId,
     pub rune_id: String,
     pub amount: u64,
 }
@@ -35,7 +35,7 @@ pub struct IssueBtcDepositAddressResponse {
 
 #[derive(Debug)]
 pub struct IssueSparkDepositAddressRequest {
-    pub user_id: Uuid,
+    pub user_id: UserId,
     pub rune_id: String,
     pub amount: u64,
 }
