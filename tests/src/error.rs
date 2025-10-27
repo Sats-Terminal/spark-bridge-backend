@@ -34,6 +34,8 @@ pub enum RuneError {
 pub enum BitcoinClientError {
     #[error("Failed to make bitcoin client call: {0}")]
     BitcoinRpcError(#[from] bitcoincore_rpc::Error),
+    #[error("Failed to send request: {0}")]
+    SendRequestError(#[from] reqwest::Error),
     #[error("Decode error: {0}")]
     DecodeError(String),
     #[error("BTC indexer client error: {0}")]

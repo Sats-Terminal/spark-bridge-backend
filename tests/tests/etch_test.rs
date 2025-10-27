@@ -15,7 +15,7 @@ use ord::Inscription;
 use ordinals::{Etching, Rune, Runestone, Terms};
 use rand_core::{OsRng, RngCore};
 use std::{str::FromStr, time::Duration};
-use tests::bitcoin_client::{BitcoinClient, BitcoinClientConfig};
+use tests::bitcoin_client::{BitcoinClient, BitcoinClientConfig, BitcoinRegtestClient};
 use tokio::time::sleep;
 use tracing;
 
@@ -48,7 +48,7 @@ async fn test_etch() {
     let untweaked_public_key = UntweakedPublicKey::from_keypair(&keypair).0;
     let default_address = Address::p2tr(&secp, untweaked_public_key, None, network);
 
-    let mut bitcoin_client = BitcoinClient::new(
+    let mut bitcoin_client = BitcoinRegtestClient::new(
         BitcoinClientConfig {
             url: "http://127.0.0.1:18443".to_string(),
             username: "bitcoin".to_string(),
@@ -75,22 +75,22 @@ async fn test_etch() {
 
     sleep(Duration::from_secs(1)).await;
 
-    let rune_utxos = bitcoin_client
+    let utxos_data = bitcoin_client
         .get_address_data(default_address.clone())
         .await
         .expect("address data should work");
 
-    tracing::info!("adress rune utxos: {:?}", rune_utxos);
+    tracing::info!("adress rune utxos: {:?}", utxos_data);
 
-    assert!(rune_utxos.len() > 0, "should have more than output");
+    assert!(utxos_data.len() > 0, "should have more than output");
 
     let mut funded_outpoint = None;
-    for rune_utxo in rune_utxos.iter() {
-        assert!(rune_utxo.confirmed, "All outputs should be confirmed");
-        if rune_utxo.value == faucet_sats {
+    for utxo_data in utxos_data.iter() {
+        assert!(utxo_data.confirmed, "All outputs should be confirmed");
+        if utxo_data.value == faucet_sats {
             funded_outpoint = Some(OutPoint {
-                txid: Txid::from_str(&rune_utxo.txid.to_string()).unwrap(),
-                vout: rune_utxo.vout,
+                txid: Txid::from_str(&utxo_data.txid.to_string()).unwrap(),
+                vout: utxo_data.vout,
             });
             break;
         }
@@ -211,6 +211,7 @@ async fn test_etch() {
 
     bitcoin_client
         .broadcast_transaction(inscription_tx.clone())
+        .await
         .expect("broadcast transaction should work");
     bitcoin_client
         .generate_blocks(6, None)
@@ -305,6 +306,7 @@ async fn test_etch() {
 
     bitcoin_client
         .broadcast_transaction(etching_tx.clone())
+        .await
         .expect("broadcast transaction should work");
     bitcoin_client
         .generate_blocks(6, None)

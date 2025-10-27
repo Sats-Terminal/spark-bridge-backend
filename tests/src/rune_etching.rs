@@ -26,13 +26,13 @@ pub struct EtchRuneParams {
     pub amount: u64,
     pub key_pair: Keypair,
     pub faucet_address: Address,
+    pub network: Network,
 }
 
-pub async fn etch_rune(params: EtchRuneParams, mut bitcoin_client: BitcoinClient) -> Result<RuneId, RuneError> {
+pub async fn etch_rune(params: EtchRuneParams, bitcoin_client: &mut impl BitcoinClient) -> Result<RuneId, RuneError> {
     tracing::info!("Starting etch test");
 
     let secp = Secp256k1::new();
-    let network = Network::Regtest;
 
     // Funding
 
@@ -42,14 +42,14 @@ pub async fn etch_rune(params: EtchRuneParams, mut bitcoin_client: BitcoinClient
     let dust_amount = DEFAULT_DUST_AMOUNT;
     let fee_amount = DEFAULT_FEE_AMOUNT;
 
-    let rune_utxos = bitcoin_client
+    let utxos_data = bitcoin_client
         .get_address_data(params.faucet_address.clone())
         .await
         .map_err(|e| RuneError::EtchRuneError(format!("Failed to get address data: {}", e)))?;
 
-    tracing::debug!("address rune utxos {:?}", rune_utxos);
+    tracing::debug!("address rune utxos {:?}", utxos_data);
 
-    if rune_utxos.is_empty() {
+    if utxos_data.is_empty() {
         return Err(RuneError::EtchRuneError(
             "Address should have more than output".to_string(),
         ));
@@ -57,15 +57,15 @@ pub async fn etch_rune(params: EtchRuneParams, mut bitcoin_client: BitcoinClient
 
     let mut funded_outpoint = None;
     let mut faucet_sats = None;
-    for rune_utxo in rune_utxos.iter() {
-        if !rune_utxo.confirmed {
+    for utxo in utxos_data.iter() {
+        if !utxo.confirmed {
             return Err(RuneError::EtchRuneError("Address is not confirmed".to_string()));
         }
-        if rune_utxo.value >= 100_000 {
-            faucet_sats = Some(rune_utxo.value);
+        if utxo.value >= 100_000 {
+            faucet_sats = Some(utxo.value);
             funded_outpoint = Some(OutPoint {
-                txid: Txid::from_str(&rune_utxo.txid.to_string()).unwrap(),
-                vout: rune_utxo.vout,
+                txid: Txid::from_str(&utxo.txid.to_string()).unwrap(),
+                vout: utxo.vout,
             });
             break;
         }
@@ -102,7 +102,7 @@ pub async fn etch_rune(params: EtchRuneParams, mut bitcoin_client: BitcoinClient
         content_type: Some("text/plain;charset=utf-8".as_bytes().to_vec()),
         body: Some(etching.rune.unwrap().to_string().as_bytes().to_vec()),
         rune: Some(etching.rune.unwrap().commitment()),
-        pointer: Some(vec![]),
+        pointer: None,
         ..Default::default()
     };
 
@@ -128,7 +128,7 @@ pub async fn etch_rune(params: EtchRuneParams, mut bitcoin_client: BitcoinClient
         .finalize(&secp, p2tr_pubkey)
         .map_err(|_| RuneError::EtchRuneError("Failed to finalize taproot".to_string()))?;
 
-    let script_output_address = Address::p2tr_tweaked(taproot_spend_info.output_key(), network);
+    let script_output_address = Address::p2tr_tweaked(taproot_spend_info.output_key(), params.network);
 
     let inscription_return_amount = faucet_sats - reveal_amount - fee_amount;
 
@@ -195,6 +195,7 @@ pub async fn etch_rune(params: EtchRuneParams, mut bitcoin_client: BitcoinClient
 
     bitcoin_client
         .broadcast_transaction(inscription_tx.clone())
+        .await
         .map_err(|e| RuneError::EtchRuneError(format!("Failed to broadcast inscription transaction: {}", e)))?;
     bitcoin_client
         .generate_blocks(BLOCKS_TO_GENERATE, None)
@@ -211,7 +212,7 @@ pub async fn etch_rune(params: EtchRuneParams, mut bitcoin_client: BitcoinClient
         etching: Some(etching),
         edicts: vec![],
         mint: None,
-        pointer: Some(1),
+        pointer: None,
     };
 
     let btc_030_script = runestone.encipher();
@@ -295,19 +296,20 @@ pub async fn etch_rune(params: EtchRuneParams, mut bitcoin_client: BitcoinClient
 
     bitcoin_client
         .broadcast_transaction(etching_tx.clone())
+        .await
         .map_err(|e| RuneError::EtchRuneError(format!("Failed to broadcast etching transaction: {}", e)))?;
     bitcoin_client
         .generate_blocks(BLOCKS_TO_GENERATE, None)
         .await
         .map_err(|e| RuneError::EtchRuneError(format!("Failed to generate blocks: {}", e)))?;
+    bitcoin_client.wait_mined(&etching_tx.compute_txid()).await.unwrap();
 
     tracing::info!("Rune etching transaction broadcasted");
 
     // Check etching transaction
 
     tracing::info!("Checking rune etching transaction");
-
-    sleep(Duration::from_secs(1)).await;
+    sleep(Duration::from_secs(30)).await;
 
     let rune_id = bitcoin_client
         .get_rune_id(&etching_tx.compute_txid())

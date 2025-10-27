@@ -2,6 +2,7 @@ use crate::error::SparkClientError;
 use bitcoin::hashes::{Hash, sha256};
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::{Keypair, Message as BitcoinMessage, Secp256k1};
+use global_utils::conversion::{convert_network_to_spark_network, spark_network_to_proto_network};
 use hex;
 use rand_core::OsRng;
 use rustls;
@@ -42,6 +43,7 @@ fn install_rustls_provider() {
 
 #[derive(Clone)]
 pub struct SparkClient {
+    network: spark_address::Network,
     client: SparkServiceClient<Channel>,
     keypair: Keypair,
     authn_client: SparkAuthnServiceClient<Channel>,
@@ -82,7 +84,7 @@ pub struct SparkAuthSession {
 }
 
 impl SparkClient {
-    pub async fn new(config: SparkClientConfig) -> Result<Self, SparkClientError> {
+    pub async fn new(config: SparkClientConfig, network: bitcoin::Network) -> Result<Self, SparkClientError> {
         install_rustls_provider();
         let channel = create_tls_channel(config.clone()).await?;
         let operator_public_keys = config
@@ -93,6 +95,7 @@ impl SparkClient {
             .map_err(|e| SparkClientError::DecodeError(format!("Failed to decode operator public key: {}", e)))?;
         let token_client = SparkTokenServiceClient::new(channel.clone());
         Ok(Self {
+            network: convert_network_to_spark_network(network),
             client: SparkServiceClient::new(channel.clone()),
             authn_client: SparkAuthnServiceClient::new(channel.clone()),
             token_client,
@@ -179,7 +182,7 @@ impl SparkClient {
             owner_public_keys: vec![public_key],
             token_identifiers: vec![],
             token_public_keys: vec![],
-            network: 2, // Regtest, search spark_network_to_proto_network function
+            network: spark_network_to_proto_network(self.network) as i32,
         };
 
         let mut request = Request::new(request);

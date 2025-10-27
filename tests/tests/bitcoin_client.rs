@@ -1,14 +1,14 @@
 use bitcoin::{Address, Network};
 use btc_indexer_config::{IndexerClientConfig, TitanClientConfig};
 use std::str::FromStr;
-use tests::bitcoin_client::{BitcoinClient, BitcoinClientConfig};
+use tests::bitcoin_client::{BitcoinClient, BitcoinClientConfig, BitcoinRegtestClient};
 use tokio;
 
 #[tokio::test]
 async fn test_get_address_data() {
     let network = Network::Regtest;
 
-    let mut bitcoin_client = BitcoinClient::new(
+    let mut bitcoin_client = BitcoinRegtestClient::new(
         BitcoinClientConfig {
             url: "http://127.0.0.1:18443".to_string(),
             username: "bitcoin".to_string(),
