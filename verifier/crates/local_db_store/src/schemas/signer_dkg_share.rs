@@ -11,7 +11,6 @@ use uuid::Uuid;
 #[async_trait]
 impl SignerDkgShareStorage for LocalDbStorage {
     async fn get_dkg_share_signer_data(&self, dkg_share_id: &Uuid) -> Result<Option<SignerDkgShareIdData>, DbError> {
-        info!("here signer");
         let result: Option<(Json<SignerDkgState>,)> = sqlx::query_as(
             "SELECT dkg_signer_state
             FROM  verifier.dkg_share

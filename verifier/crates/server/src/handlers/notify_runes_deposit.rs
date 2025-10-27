@@ -5,22 +5,30 @@ use axum::extract::State;
 use bitcoin::OutPoint;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
-use verifier_gateway_client::client::GatewayNotifyRunesDepositRequest;
+use verifier_gateway_client::client::{GatewayNotifyRunesDepositRequest, GatewayDepositStatus};
 use verifier_local_db_store::schemas::deposit_address::{DepositAddressStorage, DepositStatus};
+use uuid::Uuid;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
-pub enum WatchRequestStatus {
-    Pending,
+pub enum BtcIndexerDepositStatus {
     Confirmed,
     Failed,
 }
 
-impl Into<DepositStatus> for WatchRequestStatus {
+impl Into<DepositStatus> for BtcIndexerDepositStatus {
     fn into(self) -> DepositStatus {
         match self {
-            WatchRequestStatus::Pending => DepositStatus::Created,
-            WatchRequestStatus::Confirmed => DepositStatus::Confirmed,
-            WatchRequestStatus::Failed => DepositStatus::Failed,
+            BtcIndexerDepositStatus::Confirmed => DepositStatus::Confirmed,
+            BtcIndexerDepositStatus::Failed => DepositStatus::Failed,
+        }
+    }
+}
+
+impl Into<GatewayDepositStatus> for BtcIndexerDepositStatus {
+    fn into(self) -> GatewayDepositStatus {
+        match self {
+            BtcIndexerDepositStatus::Confirmed => GatewayDepositStatus::Confirmed,
+            BtcIndexerDepositStatus::Failed => GatewayDepositStatus::Failed,
         }
     }
 }
@@ -28,7 +36,8 @@ impl Into<DepositStatus> for WatchRequestStatus {
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct IndexerNotifyRequest {
     pub outpoint: OutPoint,
-    pub status: WatchRequestStatus,
+    pub request_id: Uuid,
+    pub deposit_status: BtcIndexerDepositStatus,
     pub sats_amount: Option<u64>,
     pub rune_id: Option<String>,
     pub rune_amount: Option<u128>,
@@ -42,40 +51,26 @@ pub async fn handle(
 ) -> Result<Json<()>, VerifierError> {
     tracing::info!("Runes deposit notified for out point: {}", request.outpoint);
 
-    tokio::spawn(async move {
-        _inner_notify(state, request.clone()).await.inspect_err(|err| {
-            tracing::error!("Failed to notify runes deposit for req: '{request:?}', err: '{err}'");
-        })
-    });
-
-    Ok(Json(()))
-}
-
-#[instrument(level = "trace", skip(state), ret)]
-async fn _inner_notify(state: AppState, request: IndexerNotifyRequest) -> Result<(), VerifierError> {
-    tracing::info!("Notifying runes deposit for out point: {}", request.outpoint);
-
     let sats_amount = request.sats_amount.ok_or(VerifierError::Validation("Sats amount is required".to_string()))?;
 
-    let deposit_status: DepositStatus = request.status.clone().into();
+    state.storage
+        .set_confirmation_status_by_out_point(request.outpoint, request.deposit_status.clone().into(), None)
+        .await
+        .map_err(|e| VerifierError::Storage(format!("Failed to set confirmation status: {}", e)))?;
+
+    state.storage
+        .set_sats_amount_by_out_point(request.outpoint, sats_amount)
+        .await
+        .map_err(|e| VerifierError::Storage(format!("Failed to set sats amount: {}", e)))?;
 
     let gateway_request = GatewayNotifyRunesDepositRequest {
         verifier_id: state.server_config.frost_signer.identifier,
+        request_id: request.request_id,
         outpoint: request.outpoint,
-        sats_fee_amount: sats_amount,
-        status: deposit_status.clone(),
+        sats_amount: sats_amount,
+        status: request.deposit_status.clone().into(),
+        error_details: request.error_details,
     };
-
-    state
-        .storage
-        .set_status_and_fee_amount_by_out_point(request.outpoint, deposit_status, sats_amount)
-        .await
-        .map_err(|e| {
-            VerifierError::Storage(format!(
-                "Failed to update confirmation status and set sats fee amount: {}",
-                e
-            ))
-        })?;
 
     state
         .gateway_client
@@ -84,5 +79,6 @@ async fn _inner_notify(state: AppState, request: IndexerNotifyRequest) -> Result
         .map_err(|e| VerifierError::GatewayClient(format!("Failed to notify runes deposit: {}", e)))?;
 
     tracing::info!("Runes deposit notified for out point: {}", request.outpoint);
-    Ok(())
+
+    Ok(Json(()))
 }

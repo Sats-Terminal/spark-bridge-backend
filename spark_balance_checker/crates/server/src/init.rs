@@ -17,7 +17,7 @@ pub struct SparkBalanceCheckerApi;
 
 impl SparkBalanceCheckerApi {
     /// Represents hardcoded `/track_tx` endpoint
-    pub const GET_BALANCE_ENDPOINT: &'static str = "/balance";
+    pub const VERIFY_BALANCE_ENDPOINT: &'static str = "/verify-balance";
     pub const HEALTHCHECK_ENDPOINT: &'static str = "/health";
 }
 
@@ -29,8 +29,8 @@ pub async fn create_app(config: SparkConfig) -> Result<Router, ServerError> {
     };
     let app = Router::new()
         .route(
-            SparkBalanceCheckerApi::GET_BALANCE_ENDPOINT,
-            post(handlers::get_balance::handle),
+            SparkBalanceCheckerApi::VERIFY_BALANCE_ENDPOINT,
+            post(handlers::verify_balance::handle),
         )
         .route(
             SparkBalanceCheckerApi::HEALTHCHECK_ENDPOINT,

@@ -54,7 +54,10 @@ pub struct BridgeRunesSparkRequest {
     pub vout: u32,
 }
 
-pub type BridgeRunesSparkResponse = ();
+#[derive(Deserialize, Debug)]
+pub struct BridgeRunesSparkResponse {
+    pub request_id: Uuid,
+}
 
 const EXIT_SPARK_PATH: &str = "/api/user/exit-spark";
 
@@ -73,7 +76,10 @@ pub struct UserPayingTransferInput {
     pub none_anyone_can_pay_signature: Signature,
 }
 
-pub type ExitSparkResponse = ();
+#[derive(Deserialize, Debug)]
+pub struct ExitSparkResponse {
+    pub request_id: Uuid,
+}
 
 impl GatewayClient {
     pub fn new(config: GatewayConfig) -> Self {

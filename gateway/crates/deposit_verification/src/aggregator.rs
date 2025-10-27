@@ -74,6 +74,7 @@ impl DepositVerificationAggregator {
             ))?;
 
         let watch_runes_deposit_request = WatchRunesDepositRequest {
+            request_id: request.request_id,
             user_ids: UserIds {
                 user_id: user_ids.user_id,
                 dkg_share_id: user_ids.dkg_share_id,
@@ -118,7 +119,7 @@ impl DepositVerificationAggregator {
             rune_amount: deposit_addr_info.amount,
             rune_id: user_ids.rune_id,
             status: UtxoStatus::Pending,
-            sats_fee_amount: 0,
+            sats_amount: 0,
         };
         self.storage.insert_utxo(utxo).await?;
 
@@ -135,7 +136,7 @@ impl DepositVerificationAggregator {
         tracing::info!("Gathering confirmation status for out point: {}", request.outpoint);
 
         self.storage
-            .update_sats_fee_amount(request.outpoint, request.sats_fee_amount)
+            .update_sats_fee_amount(request.outpoint, request.sats_amount)
             .await?;
 
         let utxo = self
@@ -261,6 +262,7 @@ impl DepositVerificationAggregator {
         tracing::debug!("Token identifier: {:?}", token_identifier.encode_bech32m(self.network));
 
         let watch_spark_deposit_request = WatchSparkDepositRequest {
+            request_id: request.request_id,
             user_ids: user_ids.clone(),
             nonce: deposit_addr_info.nonce,
             spark_address: request.spark_address.clone(),

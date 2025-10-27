@@ -6,9 +6,10 @@ use bitcoin::{Network, Txid, secp256k1::schnorr::Signature};
 use gateway_deposit_verification::types::VerifySparkDepositRequest;
 use gateway_rune_transfer::transfer::PayingTransferInput;
 use global_utils::conversion::decode_address;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use tracing::instrument;
+use uuid::Uuid;
 
 #[derive(Deserialize, Debug)]
 pub struct UserPayingTransferInput {
@@ -39,18 +40,25 @@ pub struct ExitSparkRequest {
     pub paying_input: UserPayingTransferInput,
 }
 
+#[derive(Serialize, Debug)]
+pub struct ExitSparkResponse {
+    pub request_id: Uuid,
+}
+
 #[instrument(level = "trace", skip(state), ret)]
 pub async fn handle(
     State(state): State<AppState>,
     Json(request): Json<ExitSparkRequest>,
-) -> Result<Json<()>, GatewayError> {
+) -> Result<Json<ExitSparkResponse>, GatewayError> {
     let request_spark_address = request.spark_address.clone();
+    let request_id = Uuid::new_v4();
     tracing::info!(
         "Handling exit spark request with spark address: {:?}",
         request_spark_address
     );
 
     let verify_spark_deposit_request = VerifySparkDepositRequest {
+        request_id,
         spark_address: request.spark_address,
         paying_input: request.paying_input.try_into(state.network)?,
     };
@@ -66,5 +74,5 @@ pub async fn handle(
         request_spark_address
     );
 
-    Ok(Json(()))
+    Ok(Json(ExitSparkResponse { request_id }))
 }

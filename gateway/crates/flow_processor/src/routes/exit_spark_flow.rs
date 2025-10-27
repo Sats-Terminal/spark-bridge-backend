@@ -113,7 +113,7 @@ pub async fn handle(
     for i in 1..transaction.input.len() {
         let input_btc_address = utxos[i - 1].btc_address.clone();
         let message_hash =
-            create_message_hash(&transaction, input_btc_address.clone(), utxos[i - 1].sats_fee_amount, i)
+            create_message_hash(&transaction, input_btc_address.clone(), utxos[i - 1].sats_amount, i)
                 .map_err(|e| FlowProcessorError::RuneTransferError(format!("Failed to create message hash: {e}")))?;
 
         let input_deposit_addr_info = flow_router
@@ -157,7 +157,7 @@ pub async fn handle(
             rune_amount: total_amount - exit_amount,
             rune_id: user_info.rune_id,
             status: UtxoStatus::Confirmed,
-            sats_fee_amount: transaction.output[1].value.to_sat(),
+            sats_amount: transaction.output[1].value.to_sat(),
         };
 
         flow_router.storage.insert_utxo(utxo).await?;

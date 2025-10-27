@@ -1,2 +1,2 @@
-pub mod get_balance;
+pub mod verify_balance;
 pub mod healthcheck;

@@ -2,7 +2,7 @@ BEGIN TRANSACTION;
 
 CREATE SCHEMA IF NOT EXISTS gateway;
 
------------ USER IDENTIFIERS -----------
+----------- DKG SHARE -----------
 
 -- Dkg pregenerated shares
 CREATE TABLE IF NOT EXISTS gateway.dkg_share
@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS gateway.dkg_share
     dkg_share_id         UUID PRIMARY KEY NOT NULL DEFAULT gen_random_uuid(),
     dkg_aggregator_state JSONB            NOT NULL
 );
+
+----------- USER IDENTIFIERS -----------
 
 CREATE TABLE IF NOT EXISTS gateway.user_identifier
 (
@@ -47,7 +49,8 @@ CREATE TABLE IF NOT EXISTS gateway.deposit_address
     amount              BIGINT  NOT NULL,
     confirmation_status JSON    NOT NULL,
     PRIMARY KEY (nonce_tweak),
-    FOREIGN KEY (dkg_share_id) REFERENCES gateway.user_identifier (dkg_share_id)
+    FOREIGN KEY (dkg_share_id) REFERENCES gateway.user_identifier (dkg_share_id),
+    UNIQUE (deposit_address)
 );
 
 ------------ UTXO -----------
@@ -56,42 +59,42 @@ CREATE TYPE UTXO_STATUS AS ENUM (
     'pending',
     'confirmed',
     'spent'
-    );
+);
 
 CREATE TABLE IF NOT EXISTS gateway.utxo
 (
     outpoint       TEXT PRIMARY KEY,
     rune_amount     BIGINT      NOT NULL,
     rune_id         TEXT        NOT NULL,
-    sats_fee_amount BIGINT,
-    status          UTXO_STATUS NOT NULL DEFAULT 'pending',
-    btc_address     TEXT        NOT NULL
+    sats_amount BIGINT,
+    status          UTXO_STATUS NOT NULL,
+    btc_address     TEXT        NOT NULL,
+    FOREIGN KEY (btc_address) REFERENCES gateway.deposit_address (deposit_address)
 );
 
 CREATE INDEX IF NOT EXISTS idx_utxo_status ON gateway.utxo (status);
 
 ------------ SESSION_REQUESTS -----------
 
-CREATE TYPE REQ_TYPE AS ENUM (
-    'get_runes_deposit_address',
-    'get_spark_deposit_address',
+CREATE TYPE REQUEST_TYPE AS ENUM (
     'bridge_runes',
     'exit_spark'
-    );
+);
 
 CREATE TYPE REQUEST_STATUS AS ENUM (
     'pending',
-    'processing',
     'completed',
-    'failed',
-    'cancelled'
-    );
+    'failed'
+);
 
-CREATE TABLE IF NOT EXISTS gateway.session_requests
+CREATE TABLE IF NOT EXISTS gateway.sessions
 (
-    session_id     UUID PRIMARY KEY,
-    request_type   REQ_TYPE       NOT NULL,
-    request_status REQUEST_STATUS NOT NULL
+    request_id     UUID PRIMARY KEY,
+    request_type   REQUEST_TYPE       NOT NULL,
+    request_status REQUEST_STATUS NOT NULL,
+    deposit_address TEXT NOT NULL,
+    error_details JSON,
+    FOREIGN KEY (deposit_address) REFERENCES gateway.deposit_address (deposit_address)
 );
 
 ------------ PAYING_UTXO -----------

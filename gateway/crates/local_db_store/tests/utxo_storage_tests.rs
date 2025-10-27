@@ -40,7 +40,7 @@ mod tests {
             rune_amount,
             rune_id: rune_id.to_string(),
             status,
-            sats_fee_amount: SATS_AMOUNT,
+            sats_amount: SATS_AMOUNT,
         }
     }
 
@@ -352,7 +352,7 @@ mod tests {
         repo.update_sats_fee_amount(utxo.outpoint, RUNE_AMOUNT).await?;
 
         let updated = repo.get_utxo(utxo.outpoint).await?.unwrap();
-        assert_eq!(updated.sats_fee_amount, RUNE_AMOUNT);
+        assert_eq!(updated.sats_amount, RUNE_AMOUNT);
 
         Ok(())
     }

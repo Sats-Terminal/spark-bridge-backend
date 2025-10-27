@@ -56,6 +56,7 @@ pub struct ValidationResult {
 #[derive(Clone, Debug)]
 pub struct WatchRequest {
     pub id: Uuid,
+    pub request_id: Uuid,
     pub outpoint: OutPoint,
     pub btc_address: Address,
     pub rune_id: Option<RuneId>,
@@ -70,6 +71,7 @@ pub struct WatchRequest {
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct WatchRequestRow {
     pub id: Uuid,
+    pub request_id: Uuid,
     pub outpoint: String,
     pub btc_address: String,
     pub rune_id: Option<String>,
@@ -85,6 +87,7 @@ impl WatchRequest {
     fn into_row(self) -> WatchRequestRow {
         WatchRequestRow {
             id: self.id,
+            request_id: self.request_id,
             outpoint: self.outpoint.to_string(),
             btc_address: self.btc_address.to_string(),
             rune_id: self.rune_id.map(|rune_id| rune_id.to_string()),
@@ -111,6 +114,7 @@ impl WatchRequest {
         };
         Ok(Self {
             id: row.id,
+            request_id: row.request_id,
             outpoint,
             btc_address,
             rune_id,
@@ -132,7 +136,7 @@ impl LocalDbStorage {
 
     pub async fn get_watch_request(&self, id: Uuid) -> Result<Option<WatchRequest>, DbError> {
         let response: Option<WatchRequestRow> = sqlx::query_as::<_, WatchRequestRow>(
-            "SELECT id, outpoint, btc_address, rune_id, rune_amount, sats_amount, created_at, status, error_details, callback_url
+            "SELECT id, request_id, outpoint, btc_address, rune_id, rune_amount, sats_amount, created_at, status, error_details, callback_url
             FROM btc_indexer.watch_request 
             WHERE id = $1",
         )
@@ -147,7 +151,7 @@ impl LocalDbStorage {
 
     pub async fn get_all_unprocessed_watch_requests(&self) -> Result<Vec<WatchRequest>, DbError> {
         let rows = sqlx::query_as::<_, WatchRequestRow>(
-            "SELECT id, outpoint, btc_address, rune_id, rune_amount, sats_amount, created_at, status, error_details, callback_url
+            "SELECT id, request_id, outpoint, btc_address, rune_id, rune_amount, sats_amount, created_at, status, error_details, callback_url
             FROM btc_indexer.watch_request 
             WHERE status = 'pending'",
         )
@@ -163,10 +167,11 @@ impl LocalDbStorage {
     pub async fn insert_watch_request(&self, watch_request: WatchRequest) -> Result<(), DbError> {
         let row = watch_request.into_row();
         sqlx::query(
-            "INSERT INTO btc_indexer.watch_request (id, outpoint, btc_address, rune_id, rune_amount, sats_amount, created_at, status, error_details, callback_url)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+            "INSERT INTO btc_indexer.watch_request (id, request_id, outpoint, btc_address, rune_id, rune_amount, sats_amount, created_at, status, error_details, callback_url)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
         )
             .bind(row.id)
+            .bind(row.request_id)
             .bind(row.outpoint)
             .bind(row.btc_address)
             .bind(row.rune_id)

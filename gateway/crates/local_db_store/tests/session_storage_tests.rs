@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use bitcoin::Network;
-    use gateway_local_db_store::schemas::session_storage::{RequestType, SessionInfo, SessionStatus, SessionStorage};
+    use gateway_local_db_store::schemas::session::{RequestType, SessionInfo, SessionStatus, SessionStorage};
     use gateway_local_db_store::storage::LocalDbStorage;
     use global_utils::common_types::get_uuid;
     use persistent_storage::error::DbError;

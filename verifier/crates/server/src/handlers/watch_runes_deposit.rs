@@ -12,9 +12,11 @@ use verifier_local_db_store::schemas::deposit_address::{
     DepositAddrInfo, DepositAddressStorage, DepositStatus, InnerAddress,
 };
 use verifier_local_db_store::schemas::user_identifier::{UserIdentifierStorage, UserIds};
+use uuid::Uuid;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WatchRunesDepositRequest {
+    pub request_id: Uuid,
     pub user_ids: UserIds,
     pub nonce: TweakBytes,
     pub amount: u64,
@@ -45,7 +47,7 @@ pub async fn handle(
 
     state
         .storage
-        .set_deposit_addr_info(DepositAddrInfo {
+        .insert_deposit_addr_info(DepositAddrInfo {
             dkg_share_id: request.user_ids.dkg_share_id,
             nonce: request.nonce,
             outpoint: Some(request.outpoint),
@@ -53,8 +55,9 @@ pub async fn handle(
             bridge_address,
             is_btc: false,
             deposit_amount: request.amount,
-            sats_fee_amount: None,
-            confirmation_status: DepositStatus::WaitingForConfirmation,
+            sats_amount: None,
+            confirmation_status: DepositStatus::Pending,
+            error_details: None,
         })
         .await
         .map_err(|e| VerifierError::Storage(format!("Failed to set deposit address info: {}", e)))?;
@@ -64,6 +67,7 @@ pub async fn handle(
     state
         .btc_indexer_client
         .watch_runes_deposit(IndexerWatchRunesDepositRequest {
+            request_id: request.request_id,
             btc_address: request.btc_address.clone(),
             outpoint: request.outpoint,
             rune_id: Some(request.user_ids.rune_id.to_string()),
