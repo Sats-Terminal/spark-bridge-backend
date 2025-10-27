@@ -75,7 +75,7 @@ impl Broadcaster for BitcoinApiClient {
     async fn broadcast_transaction(&self, transaction: &Transaction) -> Result<(), RuneTransferError> {
         let url = self
             .base_url
-            .join("/tx")
+            .join("tx")
             .map_err(|err| RuneTransferError::InvalidData(err.to_string()))?
             .to_string();
 
