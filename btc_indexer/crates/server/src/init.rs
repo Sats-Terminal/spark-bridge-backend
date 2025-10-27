@@ -2,7 +2,7 @@ use axum::Router;
 use axum::routing::{get, post};
 use crate::handlers;
 use std::sync::Arc;
-use btc_indexer_local_db_store::LocalDbStorage;
+use btc_indexer_local_db_store::storage::LocalDbStorage;
 use bitcoin::Network;
 
 #[derive(Clone)]

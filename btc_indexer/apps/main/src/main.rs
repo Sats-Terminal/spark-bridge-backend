@@ -4,11 +4,12 @@ use btc_indexer_server::init::create_app;
 use btc_indexer_config::AppConfig;
 use global_utils::config_path::ConfigPath;
 use global_utils::logger::init_logger;
-use btc_indexer_local_db_store::LocalDbStorage;
+use btc_indexer_local_db_store::storage::LocalDbStorage;
 use tokio::net::TcpListener;
 use axum;
 use std::sync::Arc;
 use btc_indexer::indexer::Indexer;
+use btc_indexer::tx_indexer::TxIndexer;
 use btc_indexer_client::clients::titan::TitanClient;
 use btc_indexer_client::client_api::BtcIndexerClientApi;
 use tokio_util::sync::CancellationToken;
@@ -34,13 +35,24 @@ async fn main() -> Result<()> {
 
     let indexer = Indexer::new(
         app_config.btc_indexer.clone(),
-        titan_client,
+        titan_client.clone(),
         storage.clone(),
         cancellation_token.clone(),
     );
 
     tokio::spawn(async move {
         indexer.run().await.unwrap();
+    });
+
+    let mut tx_indexer = TxIndexer::new(
+        titan_client,
+        storage.clone(),
+        cancellation_token.clone(),
+        app_config.btc_indexer.clone(),
+    );
+    
+    tokio::spawn(async move {
+        tx_indexer.run().await.unwrap();
     });
 
     tracing::info!("Listening on {:?}", app_config.server.hostname);

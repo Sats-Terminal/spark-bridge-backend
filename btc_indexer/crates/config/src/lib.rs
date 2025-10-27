@@ -28,9 +28,11 @@ pub struct NetworkConfig {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BtcIndexerConfig {
-    pub update_interval_millis: u64,
+    pub indexer_update_interval_millis: u64,
     pub validation_timeout_millis: u64,
     pub confirmation_block_height_delta: u64,
+    pub tx_indexer_update_interval_millis: u64,
+    pub start_block_height: u64,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

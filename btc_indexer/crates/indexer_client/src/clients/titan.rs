@@ -1,3 +1,4 @@
+use bitcoin::Txid;
 use titan_client::TitanClient as TitanInnerClient;
 use titan_client::TitanApi;
 use crate::client_api::{BtcIndexerClientApi, OutPointData, BlockchainInfo};
@@ -8,7 +9,10 @@ use std::collections::HashMap;
 use ordinals::RuneId;
 use std::str::FromStr;
 use btc_indexer_config::IndexerClientConfig;
+use titan_client::query::Block;
+use bitcoin::hashes::Hash;
 
+#[derive(Clone)]
 pub struct TitanClient {
     client: TitanInnerClient,
 }
@@ -47,5 +51,16 @@ impl BtcIndexerClientApi for TitanClient {
     async fn get_blockchain_info(&self) -> Result<BlockchainInfo, BtcIndexerClientError> {
         let response = self.client.get_status().await?;
         Ok(BlockchainInfo { block_height: response.block_tip.height })
+    }
+
+    async fn get_block_transactions(&self, block_height: u64) -> Result<Vec<Txid>, BtcIndexerClientError> {
+        let response = self.client.get_block(&Block::Height(block_height)).await?;
+        let txids = response.tx_ids
+            .iter()
+            .map(|txid| {
+                Txid::from_byte_array(txid.0)
+            })
+            .collect();
+        Ok(txids)
     }
 }
