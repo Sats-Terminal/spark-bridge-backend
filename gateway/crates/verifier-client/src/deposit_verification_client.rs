@@ -23,7 +23,7 @@ pub struct VerifierWatchRunesDepositRequest {
     pub amount: u64,
     pub btc_address: String,
     pub bridge_address: String,
-    pub out_point: OutPoint,
+    pub outpoint: OutPoint,
 }
 
 impl From<WatchRunesDepositRequest> for VerifierWatchRunesDepositRequest {
@@ -34,7 +34,7 @@ impl From<WatchRunesDepositRequest> for VerifierWatchRunesDepositRequest {
             amount: request.amount,
             btc_address: request.btc_address.to_string(),
             bridge_address: request.bridge_address,
-            out_point: request.out_point,
+            outpoint: request.outpoint,
         }
     }
 }

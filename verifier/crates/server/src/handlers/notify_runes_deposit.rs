@@ -6,34 +6,39 @@ use bitcoin::OutPoint;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use verifier_gateway_client::client::GatewayNotifyRunesDepositRequest;
-use verifier_local_db_store::schemas::deposit_address::{DepositAddressStorage, DepositStatus, TxRejectReason};
+use verifier_local_db_store::schemas::deposit_address::{DepositAddressStorage, DepositStatus};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
-pub enum BtcTxReview {
-    Success,
-    Failure { reason: TxRejectReason },
+pub enum WatchRequestStatus {
+    Pending,
+    Confirmed,
+    Failed,
 }
 
-impl From<BtcTxReview> for DepositStatus {
-    fn from(value: BtcTxReview) -> Self {
-        match value {
-            BtcTxReview::Success => DepositStatus::Confirmed,
-            BtcTxReview::Failure { reason } => DepositStatus::Failed(reason),
+impl Into<DepositStatus> for WatchRequestStatus {
+    fn into(self) -> DepositStatus {
+        match self {
+            WatchRequestStatus::Pending => DepositStatus::Created,
+            WatchRequestStatus::Confirmed => DepositStatus::Confirmed,
+            WatchRequestStatus::Failed => DepositStatus::Failed,
         }
     }
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
-pub struct BtcIndexerNotifyRunesDepositRequest {
+pub struct IndexerNotifyRequest {
     pub outpoint: OutPoint,
-    pub status: BtcTxReview,
-    pub sats_amount: u64,
+    pub status: WatchRequestStatus,
+    pub sats_amount: Option<u64>,
+    pub rune_id: Option<String>,
+    pub rune_amount: Option<u128>,
+    pub error_details: Option<String>,
 }
 
 #[instrument(level = "trace", skip(state), ret)]
 pub async fn handle(
     State(state): State<AppState>,
-    Json(request): Json<BtcIndexerNotifyRunesDepositRequest>,
+    Json(request): Json<IndexerNotifyRequest>,
 ) -> Result<Json<()>, VerifierError> {
     tracing::info!("Runes deposit notified for out point: {}", request.outpoint);
 
@@ -47,20 +52,23 @@ pub async fn handle(
 }
 
 #[instrument(level = "trace", skip(state), ret)]
-async fn _inner_notify(state: AppState, request: BtcIndexerNotifyRunesDepositRequest) -> Result<(), VerifierError> {
+async fn _inner_notify(state: AppState, request: IndexerNotifyRequest) -> Result<(), VerifierError> {
     tracing::info!("Notifying runes deposit for out point: {}", request.outpoint);
 
+    let sats_amount = request.sats_amount.ok_or(VerifierError::Validation("Sats amount is required".to_string()))?;
+
     let deposit_status: DepositStatus = request.status.clone().into();
+
     let gateway_request = GatewayNotifyRunesDepositRequest {
         verifier_id: state.server_config.frost_signer.identifier,
-        out_point: request.outpoint,
-        sats_fee_amount: request.sats_amount,
+        outpoint: request.outpoint,
+        sats_fee_amount: sats_amount,
         status: deposit_status.clone(),
     };
 
     state
         .storage
-        .set_status_and_fee_amount_by_out_point(request.outpoint, deposit_status, request.sats_amount)
+        .set_status_and_fee_amount_by_out_point(request.outpoint, deposit_status, sats_amount)
         .await
         .map_err(|e| {
             VerifierError::Storage(format!(

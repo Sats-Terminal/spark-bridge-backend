@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS verifier.deposit_address
     deposit_amount      BIGINT  NOT NULL,
     confirmation_status JSON    NOT NULL,
     sats_fee_amount     BIGINT,
-    out_point           TEXT,
+    outpoint           TEXT,
     PRIMARY KEY (dkg_share_id),
     FOREIGN KEY (dkg_share_id) REFERENCES verifier.user_identifier (dkg_share_id)
 );

@@ -11,7 +11,7 @@ use tracing::instrument;
 #[derive(Deserialize, Debug)]
 pub struct VerifierNotifyRunesDepositRequest {
     pub verifier_id: u16,
-    pub out_point: OutPoint,
+    pub outpoint: OutPoint,
     pub sats_fee_amount: u64,
     pub status: DepositStatus,
 }
@@ -20,7 +20,7 @@ impl From<VerifierNotifyRunesDepositRequest> for NotifyRunesDepositRequest {
     fn from(value: VerifierNotifyRunesDepositRequest) -> Self {
         NotifyRunesDepositRequest {
             verifier_id: value.verifier_id,
-            out_point: value.out_point,
+            outpoint: value.outpoint,
             sats_fee_amount: value.sats_fee_amount,
             status: value.status,
         }
@@ -32,8 +32,8 @@ pub async fn handle(
     State(state): State<AppState>,
     Json(request): Json<VerifierNotifyRunesDepositRequest>,
 ) -> Result<Json<()>, GatewayError> {
-    let out_point = request.out_point;
-    tracing::info!("Handling notify runes deposit request with out point: {:?}", out_point);
+    let outpoint = request.outpoint;
+    tracing::info!("Handling notify runes deposit request with out point: {:?}", outpoint);
 
     tokio::spawn(async move {
         let _ = state
@@ -44,7 +44,7 @@ pub async fn handle(
 
     tracing::info!(
         "Notify runes deposit request handled request with out point: {:?}",
-        out_point
+        outpoint
     );
 
     Ok(Json(()))

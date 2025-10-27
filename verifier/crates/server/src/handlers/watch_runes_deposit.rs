@@ -20,7 +20,7 @@ pub struct WatchRunesDepositRequest {
     pub amount: u64,
     pub btc_address: String,
     pub bridge_address: String,
-    pub out_point: OutPoint,
+    pub outpoint: OutPoint,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -48,7 +48,7 @@ pub async fn handle(
         .set_deposit_addr_info(DepositAddrInfo {
             dkg_share_id: request.user_ids.dkg_share_id,
             nonce: request.nonce,
-            out_point: Some(request.out_point),
+            outpoint: Some(request.outpoint),
             deposit_address,
             bridge_address,
             is_btc: false,
@@ -65,10 +65,11 @@ pub async fn handle(
         .btc_indexer_client
         .watch_runes_deposit(IndexerWatchRunesDepositRequest {
             btc_address: request.btc_address.clone(),
-            out_point: request.out_point,
-            rune_id: request.user_ids.rune_id,
-            rune_amount: request.amount,
-            callback_url,
+            outpoint: request.outpoint,
+            rune_id: Some(request.user_ids.rune_id.to_string()),
+            rune_amount: Some(request.amount),
+            sats_amount: None,
+            callback_url: callback_url.to_string(),
         })
         .await
         .map_err(|e| VerifierError::BtcIndexerClient(format!("Failed to watch runes deposit: {}", e)))?;

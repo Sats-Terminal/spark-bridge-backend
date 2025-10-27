@@ -81,17 +81,7 @@ pub enum DepositStatus {
     Created,
     WaitingForConfirmation,
     Confirmed,
-    Failed(TxRejectReason),
-}
-
-#[derive(Deserialize, Serialize, Debug, Clone, Eq, PartialEq)]
-pub enum TxRejectReason {
-    NoRunesInOuts,
-    NoFeesPayed,
-    TooFewSatoshiPaidAsFee { got: u64, at_least_expected: u64 },
-    NoExpectedVOutInOutputs { got: u64, expected: u64 },
-    NoExpectedTOutWithRunes,
-    NoExpectedTOutWithRunesAmount { amount: u64 },
+    Failed,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Eq, PartialEq)]
@@ -112,7 +102,7 @@ impl VerifiersResponses {
         for response in self.responses.values() {
             match response {
                 DepositStatus::Confirmed => continue,
-                DepositStatus::Failed(_) => return false,
+                DepositStatus::Failed => return false,
                 DepositStatus::WaitingForConfirmation => return false,
                 DepositStatus::Created => return false,
             }

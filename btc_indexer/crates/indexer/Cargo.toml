@@ -1,0 +1,19 @@
+[package]
+name = "btc_indexer"
+edition = "2024"
+
+[dependencies]
+btc_indexer_config = { workspace = true }
+btc_indexer_client = { workspace = true }
+btc_indexer_local_db_store = { workspace = true }
+tokio = { workspace = true }
+chrono = { workspace = true }
+reqwest = { workspace = true }
+thiserror = { workspace = true }
+url = { workspace = true }
+serde = { workspace = true }
+tracing = { workspace = true }
+tokio-util = { workspace = true }
+persistent_storage = { workspace = true }
+bitcoin = { workspace = true }
+ordinals = { workspace = true }

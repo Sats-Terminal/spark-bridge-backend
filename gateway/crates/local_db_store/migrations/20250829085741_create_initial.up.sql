@@ -60,7 +60,7 @@ CREATE TYPE UTXO_STATUS AS ENUM (
 
 CREATE TABLE IF NOT EXISTS gateway.utxo
 (
-    out_point       TEXT PRIMARY KEY,
+    outpoint       TEXT PRIMARY KEY,
     rune_amount     BIGINT      NOT NULL,
     rune_id         TEXT        NOT NULL,
     sats_fee_amount BIGINT,
