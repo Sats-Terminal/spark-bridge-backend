@@ -159,16 +159,37 @@ pub struct RuneInfoTerms {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct AddrUtxoResponse {
-    pub data: Vec<AddrUtxoData>,
+pub struct AddrUtxoMempoolResponse {
+    pub data: Vec<AddrUtxoMempoolData>,
     pub indexer_info: IndexerInfo,
     pub next_cursor: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct AddrUtxoData {
+pub struct AddrUtxoMempoolData {
     pub height: u64,
     pub mempool: bool,
+    pub inscriptions: Vec<Inscription>,
+    pub runes: Vec<RuneData>,
+    #[serde(with = "serde_str")]
+    pub satoshis: u64,
+    pub script_pubkey: String,
+    pub txid: String,
+    pub vout: u32,
+    pub address: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AddrUtxoResponse {
+    pub data: Vec<AddrUtxoData>,
+    pub last_updated: LastUpdatedInfo,
+    pub next_cursor: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AddrUtxoData {
+    pub confirmations: u64,
+    pub height: u64,
     pub inscriptions: Vec<Inscription>,
     pub runes: Vec<RuneData>,
     #[serde(with = "serde_str")]

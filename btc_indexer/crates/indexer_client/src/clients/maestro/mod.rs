@@ -12,7 +12,8 @@ use tracing::{debug, error};
 use crate::{
     client_api::{AddrUtxoData, BlockchainInfo, BtcIndexer, OutPointData, RuneData},
     clients::maestro::models::{
-        AddrUtxoResponse, BlockInfoResponse, MempoolTxInfoResponse, OutputVariant, RuneInfoResponse, TxInfoResponse,
+        AddrUtxoMempoolResponse, BlockInfoResponse, MempoolTxInfoResponse, OutputVariant, RuneInfoResponse,
+        TxInfoResponse,
     },
     error::BtcIndexerClientError,
 };
@@ -163,7 +164,7 @@ impl BtcIndexer for MaestroClient {
         let mut query: Option<Vec<(String, String)>> = None;
         loop {
             let response = self
-                .do_get_request::<AddrUtxoResponse>(&address_runes_utxos_url, query)
+                .do_get_request::<AddrUtxoMempoolResponse>(&address_runes_utxos_url, query)
                 .await?;
 
             for addr_utxo in response.data.iter() {
@@ -183,12 +184,15 @@ impl BtcIndexer for MaestroClient {
                     runes: addr_utxo
                         .runes
                         .iter()
-                        .map(|rune| RuneData {
-                            // TODO: unwrap ?
-                            rune_id: RuneId::from_str(&rune.rune_id).unwrap(),
-                            amount: rune.amount,
+                        .map(|rune| {
+                            let rune_data = RuneData {
+                                rune_id: RuneId::from_str(&rune.rune_id)
+                                    .map_err(|err| BtcIndexerClientError::DecodeError(err.to_string()))?,
+                                amount: rune.amount,
+                            };
+                            Ok::<_, BtcIndexerClientError>(rune_data)
                         })
-                        .collect(),
+                        .collect::<Result<Vec<RuneData>, BtcIndexerClientError>>()?,
                 });
             }
 

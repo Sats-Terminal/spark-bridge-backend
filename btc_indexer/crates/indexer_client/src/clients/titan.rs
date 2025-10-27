@@ -133,8 +133,10 @@ impl BtcIndexer for TitanClient {
                     .runes
                     .iter()
                     .map(|rune| RuneData {
-                        // TODO: unwrap ?
-                        rune_id: RuneId::new(rune.rune_id.block, rune.rune_id.tx).unwrap(),
+                        rune_id: RuneId {
+                            block: rune.rune_id.block,
+                            tx: rune.rune_id.tx,
+                        },
                         amount: rune.amount as u64,
                     })
                     .collect(),
