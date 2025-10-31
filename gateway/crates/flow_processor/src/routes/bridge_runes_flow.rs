@@ -64,8 +64,13 @@ pub async fn handle(
             })?;
             let issuer_musig_public_key = PublicKey::from_slice(&issuer_musig_public_key_bytes)?;
 
-            let wrunes_metadata =
-                create_wrunes_metadata(rune_id.clone(), issuer_musig_public_key, flow_router.network)?;
+            let wrunes_metadata = create_wrunes_metadata(
+                &rune_id,
+                issuer_musig_public_key,
+                flow_router.network,
+                &flow_router.bitcoin_indexer,
+            )
+            .await?;
 
             flow_router
                 .spark_service
@@ -73,10 +78,7 @@ pub async fn handle(
                     issuer_ids.dkg_share_id,
                     None,
                     wrunes_metadata.token_identifier,
-                    SparkTransactionType::Create {
-                        token_name: wrunes_metadata.token_name,
-                        token_ticker: wrunes_metadata.token_ticker,
-                    },
+                    SparkTransactionType::Create { wrunes_metadata },
                     convert_network_to_spark_network(flow_router.network),
                 )
                 .await
@@ -106,7 +108,13 @@ pub async fn handle(
     })?;
     let issuer_musig_public_key = PublicKey::from_slice(&issuer_musig_public_key_bytes)?;
 
-    let wrunes_metadata = create_wrunes_metadata(rune_id.clone(), issuer_musig_public_key, flow_router.network)?;
+    let wrunes_metadata = create_wrunes_metadata(
+        &rune_id,
+        issuer_musig_public_key,
+        flow_router.network,
+        &flow_router.bitcoin_indexer,
+    )
+    .await?;
 
     let deposit_addr_info = flow_router
         .storage

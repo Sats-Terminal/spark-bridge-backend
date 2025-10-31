@@ -3,6 +3,7 @@ use crate::flow_processor::{FlowProcessor, FlowProcessorInitArgs};
 use crate::flow_sender::FlowSender;
 use bitcoin::Network;
 use bitcoin::secp256k1::PublicKey;
+use btc_indexer_client::client_api::new_btc_indexer_client;
 use frost::aggregator::FrostAggregator;
 use gateway_config_parser::config::ServerConfig;
 use gateway_local_db_store::storage::LocalDbStorage;
@@ -45,6 +46,7 @@ pub async fn create_flow_processor(
         spark_operator_identity_public_keys,
     );
 
+    let bitcoin_indexer = new_btc_indexer_client(server_config.bitcoin_indexer_client);
     let bitcoin_client = new_bitcoin_client(server_config.bitcoin_client.clone())
         .map_err(|e| FlowProcessorError::InitializationError(format!("Failed to create bitcoin client: {}", e)))?;
 
@@ -59,8 +61,9 @@ pub async fn create_flow_processor(
         spark_service: Arc::new(spark_service),
         spark_client: Arc::new(spark_client),
         bitcoin_client: Arc::new(bitcoin_client),
+        bitcoin_indexer: bitcoin_indexer.clone(),
     });
 
-    let flow_sender = FlowSender::new(tx_sender, cancellation_token);
+    let flow_sender = FlowSender::new(bitcoin_indexer, tx_sender, cancellation_token);
     Ok((flow_processor, flow_sender))
 }

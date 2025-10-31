@@ -19,3 +19,5 @@ thiserror = { workspace = true }
 token-identifier = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true }
+async-trait = { workspace = true }
+btc_indexer_client = { workspace = true }

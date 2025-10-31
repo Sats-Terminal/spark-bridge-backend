@@ -11,6 +11,7 @@ use bitcoin::{
     p2p::Magic,
     secp256k1::PublicKey,
 };
+use serde::{Deserialize, Serialize};
 use token_identifier::TokenIdentifier;
 use tracing::debug;
 
@@ -63,9 +64,20 @@ pub const MAX_TOKEN_METADATA_SIZE: usize = PUBLIC_KEY_SIZE
     + PUBLIC_KEY_SIZE
     + size_of::<Network>();
 
+/// The default maximum supply of the token.
+pub const DEFAULT_MAX_SUPPLY: u128 = 21_000_000_000;
+
+/// The default number of decimal places for the token.
+pub const DEFAULT_DECIMALS: u8 = 8;
+
+/// The default value to determine if the token is freezable.
+pub const DEFAULT_IS_FREEZABLE: bool = false;
+
+/// The default token ticker.
+pub const DEFAULT_TOKEN_TICKER: &str = "$$$";
+
 /// LRC20 token metadata.
-#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct TokenMetadata {
     /// The public key of the issuer.
     pub issuer_public_key: PublicKey,
