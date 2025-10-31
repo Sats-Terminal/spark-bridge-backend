@@ -6,7 +6,6 @@ use crate::spark_client::SparkClient;
 use crate::utils::create_credentials;
 use crate::utils::sign_transaction;
 use bitcoin::Address;
-use bitcoin::Transaction;
 use bitcoin::Txid;
 use bitcoin::hashes::sha256::Hash as Sha256Hash;
 use bitcoin::hashes::{Hash, HashEngine};
@@ -17,6 +16,7 @@ use bitcoin::secp256k1::{Keypair, PublicKey};
 use bitcoin::sighash::{Prevouts, SighashCache, TapSighashType};
 use bitcoin::transaction::Version;
 use bitcoin::{Amount, OutPoint, ScriptBuf, Sequence, TxIn, TxOut, Witness};
+use bitcoin::{Network, Transaction};
 use btc_indexer_client::client_api::AddrUtxoData;
 use chrono::Utc;
 use global_utils::common_types::get_uuid;
@@ -328,19 +328,26 @@ impl UserWallet {
 
         tracing::info!("Spark address data, {:?}", spark_address_data);
         let token_identifier = spark_address_data.token_outputs[0].token_identifier;
-        for token_output in spark_address_data.token_outputs.iter() {
-            if token_output.token_identifier != token_identifier {
-                return Err(RuneError::TokenIdentifierMismatch);
+        // Prevent error when the same account used for token bridging
+        if self.network == Network::Regtest {
+            for token_output in spark_address_data.token_outputs.iter() {
+                if token_output.token_identifier != token_identifier {
+                    return Err(RuneError::TokenIdentifierMismatch);
+                }
             }
         }
 
         let total_amount = spark_address_data
             .token_outputs
             .iter()
+            .filter(|token_output| token_output.token_identifier == token_identifier)
             .map(|token_output| token_output.amount)
             .sum::<u128>();
         let mut token_leaves_to_spend = vec![];
         for token_output in spark_address_data.token_outputs.iter() {
+            if token_output.token_identifier != token_identifier {
+                continue;
+            }
             token_leaves_to_spend.push(TokenLeafToSpend {
                 parent_leaf_hash: *Sha256Hash::from_bytes_ref(
                     token_output

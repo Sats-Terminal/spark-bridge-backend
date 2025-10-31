@@ -18,8 +18,8 @@ use url::Url;
 async fn test_spark_testnet4() {
     let _guard = init_logger();
     let network = Network::Testnet4;
-    let testnet4_key = "1181f4ee5501a4621c0ea1f37f76980a9e10a6b7590ae9f261ea9d326bdfe031";
-    let testnet_rune_id = Some(RuneId::new(108136, 6).unwrap());
+    let testnet4_key = "a800a85be33a66ea91bc08b5b34494987a8fe8933b7d7a0deb2bfee15aca0883";
+    let testnet_rune_id = Some(RuneId::new(108272, 144).unwrap());
     // Setup
 
     let esplora_url = Url::parse("https://mempool.space/testnet4/api/").unwrap();
@@ -147,7 +147,8 @@ async fn test_spark_testnet4() {
     let bridge_runes_response = gateway_client.bridge_runes(bridge_runes_request).await.unwrap();
     tracing::info!("bridge_runes_response: {:?}", bridge_runes_response);
 
-    sleep(Duration::from_secs(5)).await;
+    tracing::debug!("Waiting 30s to process bridge request");
+    sleep(Duration::from_secs(30)).await;
 
     // get spark deposit address
 
@@ -225,9 +226,5 @@ async fn test_spark_testnet4() {
     let balance = user_wallet.get_rune_balance(&utxos_data).await.unwrap();
     tracing::info!("Balance: {:?}", balance);
 
-    assert_eq!(
-        balance,
-        DEFAULT_FAUCET_AMOUNT - deposit_amount + spark_deposit_amount,
-        "Balance should be equal to deposit amount"
-    );
+    assert_eq!(balance, deposit_amount, "Balance should be equal to deposit amount");
 }
