@@ -1,0 +1,19 @@
+[package]
+name = "bitcoin_rpc_client"
+edition = "2024"
+version.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+readme.workspace = true
+
+[dependencies]
+bitcoin = { workspace = true }
+bitcoincore-rpc = { workspace = true }
+bitcoincore-rpc-json = { workspace = true }
+hex = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+url = { workspace = true }
+futures = { workspace = true }

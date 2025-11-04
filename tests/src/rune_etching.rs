@@ -315,11 +315,24 @@ pub async fn etch_rune(params: EtchRuneParams, mut bitcoin_client: BitcoinClient
         .map_err(|e| RuneError::EtchRuneError(format!("Failed to get rune id: {}", e)))?;
     tracing::info!("rune_id: {:?}", rune_id);
 
-    let rune = bitcoin_client
-        .get_rune(rune_id.to_string())
-        .await
-        .map_err(|e| RuneError::EtchRuneError(format!("Failed to get rune: {}", e)))?;
-    tracing::info!("rune: {:?}", rune);
+    let mut maybe_rune = None;
+    for attempt in 0..30 {
+        match bitcoin_client.get_rune(rune_id.to_string()).await {
+            Ok(rune) => {
+                maybe_rune = Some(rune);
+                break;
+            }
+            Err(e) => {
+                tracing::warn!("Retrying to fetch rune metadata (attempt {}): {}", attempt + 1, e);
+                sleep(Duration::from_secs(1)).await;
+            }
+        }
+    }
+    if let Some(rune) = maybe_rune {
+        tracing::info!("rune: {:?}", rune);
+    } else {
+        tracing::warn!("Rune metadata was not available after retries; continuing anyway");
+    }
 
     Ok(rune_id)
 }

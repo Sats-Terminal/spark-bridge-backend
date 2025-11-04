@@ -28,6 +28,8 @@ pub enum SparkTransactionType {
     Create {
         token_name: String,
         token_ticker: String,
+        decimals: u8,
+        max_supply: u128,
     },
     Transfer {
         sender_spark_address: String,
@@ -77,6 +79,8 @@ pub fn create_partial_token_transaction(
         SparkTransactionType::Create {
             token_name,
             token_ticker,
+            decimals,
+            max_supply,
         } => {
             let token_transaction = TokenTransaction {
                 version: TokenTransactionVersion::V4,
@@ -84,8 +88,8 @@ pub fn create_partial_token_transaction(
                     issuer_public_key,
                     token_name,
                     token_ticker,
-                    decimals: DEFAULT_DECIMALS as u32,
-                    max_supply: DEFAULT_MAX_SUPPLY,
+                    decimals: *decimals as u32,
+                    max_supply: *max_supply,
                     is_freezable: DEFAULT_IS_FREEZABLE,
                     creation_entity_public_key: None,
                 }),

@@ -1,8 +1,8 @@
 use crate::error::SparkBalanceCheckerClientError;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use tracing::instrument;
 use token_identifier::TokenIdentifier;
+use tracing::instrument;
 pub use verifier_config_parser::config::SparkBalanceCheckerConfig;
 
 const GET_BALANCE_PATH: &str = "/balance";

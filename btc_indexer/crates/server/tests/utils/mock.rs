@@ -4,7 +4,9 @@ use crate::utils::init::{DRAFT_TITAN_URL, TEST_LOGGER};
 use async_trait::async_trait;
 use axum::{Router, routing::post};
 use axum_test::TestServer;
-use bitcoin::{BlockHash, OutPoint, hashes::Hash};
+use bitcoin::Transaction as CoreTransaction;
+use bitcoin::hashes::Hash;
+use bitcoin::{BlockHash, OutPoint, absolute::LockTime, transaction::Version};
 use bitcoincore_rpc::bitcoin::Txid;
 use btc_indexer_api::api::{BtcIndexerApi, BtcTxReview};
 use btc_indexer_internals::indexer::{BtcIndexer, IndexerParams, IndexerParamsWithApi};
@@ -25,6 +27,46 @@ use titan_types::{
 };
 use tracing::{debug, info, instrument};
 use url::Url;
+
+struct StubBitcoinRpcClient;
+
+impl BitcoinRpcClient for StubBitcoinRpcClient {
+    fn get_transaction(&self, _txid: &Txid) -> bitcoin_rpc_client::Result<CoreTransaction> {
+        Ok(CoreTransaction {
+            version: Version::TWO,
+            lock_time: LockTime::ZERO,
+            input: Vec::new(),
+            output: Vec::new(),
+        })
+    }
+
+    fn get_blockchain_info(&self) -> bitcoin_rpc_client::Result<GetBlockchainInfoResult> {
+        Ok(GetBlockchainInfoResult {
+            chain: bitcoin::Network::Regtest,
+            blocks: 0,
+            headers: 0,
+            best_block_hash: BlockHash::all_zeros(),
+            difficulty: 0.0,
+            median_time: 0,
+            verification_progress: 0.0,
+            initial_block_download: false,
+            chain_work: Vec::new(),
+            size_on_disk: 0,
+            pruned: false,
+            prune_height: None,
+            automatic_pruning: None,
+            prune_target_size: None,
+            softforks: HashMap::new(),
+            warnings: StringOrStringArray::String(String::new()),
+        })
+    }
+
+    fn send_raw_transaction(&self, _tx_hex: &str) -> bitcoin_rpc_client::Result<Txid> {
+        Ok(Txid::all_zeros())
+    }
+}
+use bitcoin_rpc_client::BitcoinRpcClient;
+use bitcoincore_rpc_json::{GetBlockchainInfoResult, StringOrStringArray};
 
 mock! {
     pub TitanIndexer {}
@@ -120,15 +162,17 @@ pub async fn init_mocked_test_server(
     let mocked_tx_arbiter = generate_mocked_tx_arbiter();
     let btc_indexer = BtcIndexer::new(IndexerParamsWithApi {
         indexer_params: IndexerParams {
-            titan_config: TitanConfig {
+            titan_config: Some(TitanConfig {
                 url: Url::from_str(DRAFT_TITAN_URL)?,
-            },
+            }),
+            maestro_config: None,
             btc_rpc_creds: btc_creds,
             db_pool: db_pool.clone(),
             btc_indexer_params: app_config.btc_indexer_config,
         },
-        titan_api_client: Arc::new(mocked_titan_indexer),
+        indexer_client: Arc::new(mocked_titan_indexer),
         tx_validator: Arc::new(mocked_tx_arbiter),
+        bitcoin_rpc_client: Arc::new(StubBitcoinRpcClient),
     })?;
 
     let app = create_app_mocked(db_pool, btc_indexer).await;

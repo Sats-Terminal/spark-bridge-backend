@@ -3,13 +3,13 @@ use global_utils::logger::init_logger;
 use std::str::FromStr;
 use std::time::Duration;
 use tests::bitcoin_client::{BitcoinClient, BitcoinClientConfig};
+use tests::constants::DEFAULT_FAUCET_AMOUNT;
 use tests::gateway_client::*;
 use tests::rune_manager::RuneManager;
 use tests::spark_client::{SparkClient, SparkClientConfig};
 use tests::user_wallet::TransferType;
 use tests::user_wallet::UserWallet;
 use tokio::time::sleep;
-use tests::constants::DEFAULT_FAUCET_AMOUNT;
 
 #[tokio::test]
 async fn test_spark() {
@@ -161,5 +161,9 @@ async fn test_spark() {
     let balance = user_wallet.get_rune_balance().await.unwrap();
     tracing::info!("Balance: {:?}", balance);
 
-    assert_eq!(balance, DEFAULT_FAUCET_AMOUNT - deposit_amount + spark_deposit_amount, "Balance should be equal to deposit amount");
+    assert_eq!(
+        balance,
+        DEFAULT_FAUCET_AMOUNT - deposit_amount + spark_deposit_amount,
+        "Balance should be equal to deposit amount"
+    );
 }

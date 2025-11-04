@@ -4,11 +4,11 @@
 
 set -e
 
-GATEWAY_DATABASE_URL="postgres://postgres:postgres@localhost:5470/gateway"
-VERIFIER_1_DATABASE_URL="postgres://postgres:postgres@localhost:5471/verifier"
-VERIFIER_2_DATABASE_URL="postgres://postgres:postgres@localhost:5472/verifier"
-VERIFIER_3_DATABASE_URL="postgres://postgres:postgres@localhost:5473/verifier"
-BTC_INDEXER_DATABASE_URL="postgres://postgres:postgres@localhost:5474/btc_indexer"
+GATEWAY_DATABASE_URL="postgres://davicoscarelli:davi2304@localhost:5432/runes_gateway"
+VERIFIER_1_DATABASE_URL="postgres://davicoscarelli:davi2304@localhost:5432/runes_verifier_1"
+VERIFIER_2_DATABASE_URL="postgres://davicoscarelli:davi2304@localhost:5432/runes_verifier_2"
+VERIFIER_3_DATABASE_URL="postgres://davicoscarelli:davi2304@localhost:5432/runes_verifier_3"
+BTC_INDEXER_DATABASE_URL="postgres://davicoscarelli:davi2304@localhost:5432/runes_btc_indexer"
 
 GATEWAY_MIGRATION_PATH="./gateway/crates/local_db_store/migrations"
 VERIFIER_MIGRATION_PATH="./verifier/crates/local_db_store/migrations"
@@ -30,8 +30,13 @@ BTC_INDEXER_LOG_PATH="./logs/btc_indexer.log"
 
 # Function to run docker compose and wait for initialization
 run_docker_compose_with_wait() {
-    echo "Starting docker compose with file: $compose_file"
-    docker compose -f "./infrastructure/databases.docker-compose.yml" up -d
+    if [ "${USE_EXTERNAL_POSTGRES:-0}" != "1" ]; then
+        echo "Starting dockerised Postgres instances"
+        docker compose -f "./infrastructure/databases.docker-compose.yml" up -d
+    else
+        echo "USE_EXTERNAL_POSTGRES=1 -> skipping Postgres containers"
+    fi
+
     docker compose -f "./infrastructure/bitcoind.docker-compose.yml" up -d
     echo "Initialization wait complete."
 }
@@ -56,7 +61,10 @@ build_services() {
 run_services() {
     echo "Running services..."
 
-    CONFIG_PATH=$GATEWAY_CONFIG_PATH pm2 start ./target/debug/gateway_main \
+    CONFIG_PATH=$GATEWAY_CONFIG_PATH \
+      MAESTRO_API_URL=${MAESTRO_API_URL:-https://xbt-mainnet.gomaestro-api.org} \
+      MAESTRO_API_KEY=${MAESTRO_API_KEY:-replace-me} \
+      pm2 start ./target/debug/gateway_main \
         --name gateway \
         --log $GATEWAY_LOG_PATH 
     
@@ -77,13 +85,14 @@ run_services() {
         --log $SPARK_BALANCE_CHECKER_LOG_PATH 
 
     CONFIG_PATH=$BTC_INDEXER_CONFIG_PATH \
-      DATABASE_URL=postgres://postgres:postgres@localhost:5474/btc_indexer \
-      BITCOIN_NETWORK=regtest \
-      BITCOIN_RPC_HOST=http://localhost \
-      BITCOIN_RPC_PORT=18443 \
-      BITCOIN_RPC_USERNAME=bitcoin \
-      BITCOIN_RPC_PASSWORD=bitcoinpass \
-      TITAN_URL=http://127.0.0.1:3030 \
+      DATABASE_URL=$BTC_INDEXER_DATABASE_URL \
+      BITCOIN_NETWORK=bitcoin \
+      BITCOIN_RPC_HOST=${BITCOIN_RPC_HOST:-http://localhost} \
+      BITCOIN_RPC_PORT=${BITCOIN_RPC_PORT:-8332} \
+      BITCOIN_RPC_USERNAME=${BITCOIN_RPC_USERNAME:-bitcoin} \
+      BITCOIN_RPC_PASSWORD=${BITCOIN_RPC_PASSWORD:-bitcoinpass} \
+      MAESTRO_API_URL=${MAESTRO_API_URL:-https://xbt-mainnet.gomaestro-api.org} \
+      MAESTRO_API_KEY=${MAESTRO_API_KEY:-replace-me} \
       pm2 start ./target/debug/btc_indexer_main \
         --name btc_indexer \
         --log $BTC_INDEXER_LOG_PATH 

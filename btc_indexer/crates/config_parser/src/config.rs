@@ -9,6 +9,7 @@ use global_utils::config_variant::ConfigVariant;
 use global_utils::env_parser;
 use global_utils::network::NetworkConfig;
 use serde::{Deserialize, Serialize};
+use std::env::{self, VarError};
 use tracing::{debug, instrument, trace};
 
 const CONFIG_FOLDER_NAME: &str = "../../infrastructure/configuration";
@@ -20,6 +21,8 @@ pub const BITCOIN_RPC_PORT: &str = "BITCOIN_RPC_PORT";
 pub const BITCOIN_RPC_USERNAME: &str = "BITCOIN_RPC_USERNAME";
 pub const BITCOIN_RPC_PASSWORD: &str = "BITCOIN_RPC_PASSWORD";
 pub const TITAN_URL: &str = "TITAN_URL";
+pub const MAESTRO_API_URL: &str = "MAESTRO_API_URL";
+pub const MAESTRO_API_KEY: &str = "MAESTRO_API_KEY";
 
 /// Struct used for initialization of different kinds of configurations
 ///
@@ -86,6 +89,53 @@ impl TitanConfig {
                 err: e,
             })?,
         })
+    }
+
+    pub fn maybe_new() -> crate::error::Result<Option<Self>> {
+        match env::var(TITAN_URL) {
+            Ok(url_to_parse) => {
+                let url = Url::from_str(&url_to_parse).map_err(|err| ConfigParserError::ParseUrlError {
+                    url: url_to_parse.clone(),
+                    err,
+                })?;
+                Ok(Some(Self { url }))
+            }
+            Err(VarError::NotPresent) => Ok(None),
+            Err(err) => Err(ConfigParserError::ConfigEnvParseError(
+                env_parser::EnvParserError::ConfigEnvParseError {
+                    missing_var_name: TITAN_URL.to_string(),
+                    err,
+                },
+            )),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct MaestroConfig {
+    pub base_url: Url,
+    pub api_key: String,
+}
+
+impl MaestroConfig {
+    pub fn maybe_from_env() -> crate::error::Result<Option<Self>> {
+        match env::var(MAESTRO_API_URL) {
+            Ok(url_to_parse) => {
+                let base_url = Url::from_str(&url_to_parse).map_err(|err| ConfigParserError::ParseUrlError {
+                    url: url_to_parse.clone(),
+                    err,
+                })?;
+                let api_key = env_parser::obtain_env_value(MAESTRO_API_KEY)?;
+                Ok(Some(Self { base_url, api_key }))
+            }
+            Err(VarError::NotPresent) => Ok(None),
+            Err(err) => Err(ConfigParserError::ConfigEnvParseError(
+                env_parser::EnvParserError::ConfigEnvParseError {
+                    missing_var_name: MAESTRO_API_URL.to_string(),
+                    err,
+                },
+            )),
+        }
     }
 }
 

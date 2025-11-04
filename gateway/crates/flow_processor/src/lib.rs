@@ -4,4 +4,5 @@ pub mod flow_router;
 pub mod flow_sender;
 pub mod init;
 pub mod routes;
+pub mod rune_metadata_client;
 pub mod types;

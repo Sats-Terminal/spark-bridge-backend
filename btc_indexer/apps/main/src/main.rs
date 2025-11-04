@@ -1,5 +1,7 @@
+use anyhow::anyhow;
+use bitcoin::Network;
 use btc_indexer_internals::indexer::{BtcIndexer, IndexerParams};
-use config_parser::config::{BtcRpcCredentials, ServerConfig, TitanConfig};
+use config_parser::config::{BtcRpcCredentials, MaestroConfig, ServerConfig, TitanConfig};
 use global_utils::config_path::ConfigPath;
 use global_utils::config_variant::ConfigVariant;
 use global_utils::{env_parser::lookup_ip_addr, logger::init_logger};
@@ -18,16 +20,31 @@ async fn main() -> anyhow::Result<()> {
     let config_path = ConfigPath::from_env()?;
     let app_config = ServerConfig::init_config(ConfigVariant::OnlyOneFilepath(config_path.path))?;
 
-    let (btc_creds, postgres_creds, titan_config) = (
-        BtcRpcCredentials::new()?,
-        PostgresDbCredentials::from_db_url()?,
-        TitanConfig::new()?,
-    );
+    let btc_creds = BtcRpcCredentials::new()?;
+    let postgres_creds = PostgresDbCredentials::from_db_url()?;
+    let titan_config = TitanConfig::maybe_new()?;
+    let maestro_config = MaestroConfig::maybe_from_env()?;
+
+    match btc_creds.network {
+        Network::Regtest => {
+            if titan_config.is_none() {
+                return Err(anyhow!("TITAN_URL must be provided when running on regtest"));
+            }
+        }
+        _ => {
+            if maestro_config.is_none() {
+                return Err(anyhow!(
+                    "MAESTRO_API_URL and MAESTRO_API_KEY must be provided when BITCOIN_NETWORK is not regtest"
+                ));
+            }
+        }
+    };
 
     // Init App
     let db_pool = LocalDbStorage::from_config(postgres_creds).await?;
     let btc_indexer = BtcIndexer::with_api(IndexerParams {
         titan_config,
+        maestro_config,
         btc_rpc_creds: btc_creds,
         db_pool: db_pool.clone(),
         btc_indexer_params: app_config.btc_indexer_config,

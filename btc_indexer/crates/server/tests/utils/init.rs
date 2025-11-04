@@ -29,9 +29,10 @@ pub async fn init_test_server() -> anyhow::Result<TestServer> {
     let app_config = ServerConfig::init_config(config_variant)?;
     let db_pool = LocalDbStorage::from_config(postgres_creds).await?;
     let btc_indexer = BtcIndexer::with_api(IndexerParams {
-        titan_config: TitanConfig {
+        titan_config: Some(TitanConfig {
             url: Url::from_str(DRAFT_TITAN_URL)?,
-        },
+        }),
+        maestro_config: None,
         btc_rpc_creds: btc_creds,
         db_pool: db_pool.clone(),
         btc_indexer_params: app_config.btc_indexer_config,

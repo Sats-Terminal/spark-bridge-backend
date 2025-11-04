@@ -8,16 +8,17 @@ use crate::spark_client::GetSparkAddressDataRequest;
 use crate::spark_client::SparkClient;
 use crate::utils::create_credentials;
 use crate::utils::sign_transaction;
-use bitcoin::{secp256k1, Address, Network, XOnlyPublicKey};
 use bitcoin::Transaction;
 use bitcoin::Txid;
 use bitcoin::hashes::sha256::Hash as Sha256Hash;
 use bitcoin::hashes::{Hash, HashEngine};
+use bitcoin::key::{TapTweak, TweakedPublicKey};
 use bitcoin::secp256k1::Message;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin::secp256k1::{Keypair, PublicKey};
 use bitcoin::sighash::{Prevouts, SighashCache, TapSighashType};
 use bitcoin::transaction::Version;
+use bitcoin::{Address, Network, XOnlyPublicKey, secp256k1};
 use bitcoin::{Amount, OutPoint, ScriptBuf, Sequence, TxIn, TxOut, Witness};
 use chrono::Utc;
 use lrc20::marshal::marshal_token_transaction;
@@ -38,7 +39,6 @@ use spark_protos::spark_token::SignatureWithIndex;
 use spark_protos::spark_token::StartTransactionRequest;
 use std::str::FromStr;
 use std::time::Duration;
-use bitcoin::key::{TapTweak, TweakedPublicKey};
 use titan_client::SpentStatus;
 use token_identifier::TokenIdentifier;
 use tokio::time::sleep;
@@ -194,12 +194,10 @@ impl UserWallet {
             witness: Witness::new(),
         };
 
-        let mut txouts = vec![
-            TxOut {
-                value: Amount::from_sat(0),
-                script_pubkey: op_return_script,
-            },
-        ];
+        let mut txouts = vec![TxOut {
+            value: Amount::from_sat(0),
+            script_pubkey: op_return_script,
+        }];
 
         match transfer_type {
             TransferType::RuneTransfer { rune_amount: _ } => {
@@ -381,7 +379,10 @@ impl UserWallet {
             transfer_amount as u128,
         )];
 
-        tracing::debug!("Token identifier: {:?}", token_identifier.encode_bech32m(bitcoin::Network::Regtest));
+        tracing::debug!(
+            "Token identifier: {:?}",
+            token_identifier.encode_bech32m(bitcoin::Network::Regtest)
+        );
         tracing::debug!("Spark address: {:?}", receiver_spark_address);
 
         if (transfer_amount as u128) < total_amount {

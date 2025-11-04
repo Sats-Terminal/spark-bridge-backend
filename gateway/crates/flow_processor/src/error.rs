@@ -25,6 +25,8 @@ pub enum FlowProcessorError {
     SparkServiceError(String),
     #[error("Rune transfer error: {0}")]
     RuneTransferError(String),
+    #[error("Rune metadata error: {0}")]
+    RuneMetadataError(String),
     #[error("Spark address error: {0}")]
     SparkAddressError(#[from] SparkAddressError),
     #[error("SO Coordinator is missing")]

@@ -10,7 +10,6 @@ pub struct AppState {
     pub client: SparkRpcClient,
 }
 
-
 pub struct SparkBalanceCheckerApi;
 
 impl SparkBalanceCheckerApi {

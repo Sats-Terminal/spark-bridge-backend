@@ -62,7 +62,7 @@ impl RuneManager {
         self.rune_id.clone()
     }
 
-    async fn unite_unspent_utxos(&mut self) -> Result<Txid, RuneError> {
+    pub(crate) async fn unite_unspent_utxos(&mut self) -> Result<Txid, RuneError> {
         tracing::info!("Uniting unspent utxos");
 
         let address_data = self.bitcoin_client.get_address_data(self.p2tr_address.clone()).await?;
@@ -195,17 +195,59 @@ impl RuneManager {
     }
 }
 
+pub async fn mint_specific_rune(
+    mut bitcoin_client: BitcoinClient,
+    rune_name: &str,
+    destination: Address,
+) -> Result<(RuneId, Txid), RuneError> {
+    let secp = bitcoin::secp256k1::Secp256k1::new();
+    let (p2tr_address, keypair) = create_credentials();
+    let secret_key = keypair.secret_key();
+    let keypair_for_etch = Keypair::from_secret_key(&secp, &secret_key);
+    let keypair_for_manager = Keypair::from_secret_key(&secp, &secret_key);
+
+    bitcoin_client.faucet(p2tr_address.clone(), DEFAULT_FAUCET_AMOUNT)?;
+    sleep(Duration::from_secs(1)).await;
+
+    let rune_id = etch_rune(
+        EtchRuneParams {
+            rune_name: rune_name.to_string(),
+            cap: DEFAULT_RUNE_CAP,
+            amount: DEFAULT_RUNE_AMOUNT,
+            key_pair: keypair_for_etch,
+            faucet_address: p2tr_address.clone(),
+        },
+        bitcoin_client.clone(),
+    )
+    .await?;
+
+    let mut rune_manager = RuneManager {
+        bitcoin_client,
+        p2tr_address,
+        keypair: keypair_for_manager,
+        rune_id: rune_id.clone(),
+    };
+
+    let _ = rune_manager.unite_unspent_utxos().await?;
+    rune_manager.bitcoin_client.generate_blocks(BLOCKS_TO_GENERATE, None)?;
+    sleep(Duration::from_secs(1)).await;
+
+    let mint_txid = rune_manager.mint_rune(destination).await?;
+
+    Ok((rune_id, mint_txid))
+}
+
 pub fn random_rune_name() -> String {
     let letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    let mut result = String::new();
     let mut rng = OsRng;
-    for _ in 0..15 {
+    let mut suffix = String::new();
+    for _ in 0..5 {
         let random_num = rng.next_u32() as usize % letters.len();
         let new_char = letters
             .chars()
             .nth(random_num)
             .expect("should be able to generate a random rune name");
-        result.push(new_char);
+        suffix.push(new_char);
     }
-    result
+    format!("RICKYRUNE{}", suffix)
 }

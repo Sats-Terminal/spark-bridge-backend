@@ -1,6 +1,7 @@
 use crate::error::FlowProcessorError;
 use crate::flow_processor::FlowProcessor;
 use crate::flow_sender::FlowSender;
+use crate::rune_metadata_client::RuneMetadataClient;
 use bitcoin::Network;
 use bitcoin::secp256k1::PublicKey;
 use frost::aggregator::FrostAggregator;
@@ -45,8 +46,15 @@ pub async fn create_flow_processor(
         spark_operator_identity_public_keys,
     );
 
-    let bitcoin_client = BitcoinClient::new(server_config.bitcoin_client.clone())
+    let bitcoin_client = BitcoinClient::new(server_config.bitcoin_client.clone(), network)
         .map_err(|e| FlowProcessorError::InitializationError(format!("Failed to create bitcoin client: {}", e)))?;
+
+    let rune_metadata_client = RuneMetadataClient::from_env().map_err(|e| {
+        FlowProcessorError::InitializationError(format!("Failed to initialize rune metadata client: {}", e))
+    })?;
+    if rune_metadata_client.is_none() {
+        tracing::warn!("MAESTRO API credentials not provided; rune metadata enhancements disabled");
+    }
 
     let flow_processor = FlowProcessor::new(
         Arc::new(server_config.verifiers.0),
@@ -59,6 +67,7 @@ pub async fn create_flow_processor(
         Arc::new(spark_service),
         Arc::new(spark_client),
         Arc::new(bitcoin_client),
+        rune_metadata_client.map(Arc::new),
     );
 
     let flow_sender = FlowSender::new(tx_sender, cancellation_token);

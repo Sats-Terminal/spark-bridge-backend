@@ -12,8 +12,8 @@ use gateway_deposit_verification::types::{
 };
 use gateway_local_db_store::schemas::deposit_address::DepositStatus;
 use serde::{Deserialize, Serialize};
-use tracing::instrument;
 use token_identifier::TokenIdentifier;
+use tracing::instrument;
 
 const WATCH_RUNES_DEPOSIT_PATH: &str = "/api/gateway/watch-runes-deposit";
 const WATCH_SPARK_DEPOSIT_PATH: &str = "/api/gateway/watch-spark-deposit";

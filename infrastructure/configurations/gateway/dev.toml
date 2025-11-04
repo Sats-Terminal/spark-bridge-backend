@@ -1,5 +1,5 @@
 [network_config]
-network = "regtest"
+network = "bitcoin"
 
 [application]
 http_server_ip = "127.0.0.1"
@@ -26,7 +26,7 @@ update_interval_milliseconds = 10000
 cancellation_retries = 10
 
 [database_config]
-url = "postgres://postgres:postgres@localhost:5470/gateway"
+url = "postgres://davicoscarelli:davi2304@localhost:5432/runes_gateway"
 
 [spark_config]
 certificates = [

@@ -1,4 +1,5 @@
 use crate::error::FlowProcessorError;
+use crate::rune_metadata_client::RuneMetadataClient;
 use crate::types::*;
 use bitcoin::Network;
 use frost::aggregator::FrostAggregator;
@@ -25,6 +26,7 @@ pub struct FlowProcessorRouter {
     pub spark_client: Arc<SparkRpcClient>,
     pub network: Network,
     pub bitcoin_client: Arc<BitcoinClient>,
+    pub rune_metadata_client: Option<Arc<RuneMetadataClient>>,
 }
 
 impl FlowProcessorRouter {

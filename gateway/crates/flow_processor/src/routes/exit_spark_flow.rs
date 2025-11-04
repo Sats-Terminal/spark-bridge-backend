@@ -109,8 +109,9 @@ pub async fn handle(
 
     for i in 1..transaction.input.len() {
         let input_btc_address = utxos[i - 1].btc_address.clone();
-        let message_hash = create_message_hash(&transaction, input_btc_address.clone(), utxos[i - 1].sats_fee_amount, i)
-            .map_err(|e| FlowProcessorError::RuneTransferError(format!("Failed to create message hash: {e}")))?;
+        let message_hash =
+            create_message_hash(&transaction, input_btc_address.clone(), utxos[i - 1].sats_fee_amount, i)
+                .map_err(|e| FlowProcessorError::RuneTransferError(format!("Failed to create message hash: {e}")))?;
 
         let input_deposit_addr_info = flow_router
             .storage

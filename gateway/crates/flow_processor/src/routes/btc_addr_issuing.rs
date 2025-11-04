@@ -48,7 +48,10 @@ pub async fn handle(
     };
 
     let nonce = generate_tweak_bytes();
-    let public_key_package = flow_router.frost_aggregator.get_public_key_package(request.musig_id.clone(), Some(nonce)).await
+    let public_key_package = flow_router
+        .frost_aggregator
+        .get_public_key_package(request.musig_id.clone(), Some(nonce))
+        .await
         .map_err(|e| FlowProcessorError::FrostAggregatorError(format!("Failed to get public key package: {}", e)))?;
     let public_key = convert_public_key_package(&public_key_package)
         .map_err(|e| FlowProcessorError::InvalidDataError(format!("Failed to convert public key package: {}", e)))?;

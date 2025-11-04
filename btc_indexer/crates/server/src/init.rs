@@ -5,7 +5,7 @@ use btc_indexer_api::api::BtcIndexerApi;
 use btc_indexer_internals::indexer::BtcIndexer;
 use btc_indexer_internals::tx_arbiter::TxArbiter;
 use local_db_store_indexer::init::LocalDbStorage;
-use titan_client::TitanClient;
+use titan_client::TitanApi;
 use tracing::instrument;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
@@ -22,10 +22,10 @@ pub struct AppState<C, Db, TxValidator> {
 struct ApiDoc;
 
 #[instrument(skip_all, level = "trace")]
-pub async fn create_app(
-    db_pool: LocalDbStorage,
-    btc_indexer: BtcIndexer<TitanClient, LocalDbStorage, TxArbiter>,
-) -> Router {
+pub async fn create_app<C>(db_pool: LocalDbStorage, btc_indexer: BtcIndexer<C, LocalDbStorage, TxArbiter>) -> Router
+where
+    C: TitanApi + Clone + Send + Sync + 'static,
+{
     let (btc_indexer, db_pool) = (Arc::new(btc_indexer), Arc::new(db_pool));
 
     let state = AppState {

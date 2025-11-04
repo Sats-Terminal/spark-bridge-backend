@@ -2,12 +2,12 @@ use crate::error::ServerError;
 use crate::init::AppState;
 use axum::Json;
 use axum::extract::State;
+use global_utils::conversion::spark_network_to_proto_network;
 use serde::{Deserialize, Serialize};
 use spark_address::decode_spark_address;
 use spark_protos::spark::QueryTokenOutputsRequest;
-use tracing::instrument;
 use token_identifier::TokenIdentifier;
-use global_utils::conversion::spark_network_to_proto_network;
+use tracing::instrument;
 
 #[derive(Deserialize, Debug)]
 pub struct GetBalanceRequest {

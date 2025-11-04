@@ -1,5 +1,5 @@
 [network_config]
-network = "regtest"
+network = "bitcoin"
 
 [application]
 http_server_ip = "0.0.0.0"

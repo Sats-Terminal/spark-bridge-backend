@@ -21,3 +21,4 @@ global_utils = { workspace = true }
 local_db_store_indexer = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
+bitcoin = { workspace = true }

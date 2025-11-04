@@ -8,6 +8,7 @@ use frost::types::AggregatorDkgState;
 use frost::types::AggregatorMusigIdData;
 use futures::future::join_all;
 use gateway_flow_processor::flow_sender::{FlowSender, TypedMessageSender};
+use gateway_flow_processor::rune_metadata_client::{RuneMetadata, RuneMetadataClient};
 use gateway_flow_processor::types::{BridgeRunesRequest, ExitSparkRequest};
 use gateway_local_db_store::schemas::deposit_address::{
     DepositAddressStorage, DepositStatus, InnerAddress, VerifiersResponses,
@@ -15,12 +16,12 @@ use gateway_local_db_store::schemas::deposit_address::{
 use gateway_local_db_store::schemas::paying_utxo::PayingUtxoStorage;
 use gateway_local_db_store::schemas::utxo_storage::{Utxo, UtxoStatus, UtxoStorage};
 use gateway_local_db_store::storage::LocalDbStorage;
-use gateway_spark_service::utils::create_wrunes_metadata;
+use gateway_spark_service::utils::{RuneTokenConfig, create_wrunes_metadata};
 use persistent_storage::init::StorageHealthcheck;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::task::JoinSet;
-use tracing::instrument;
+use tracing::{instrument, warn};
 
 #[derive(Clone, Debug)]
 pub struct DepositVerificationAggregator {
@@ -28,6 +29,7 @@ pub struct DepositVerificationAggregator {
     verifiers: HashMap<u16, Arc<dyn DepositVerificationClientTrait>>,
     storage: Arc<LocalDbStorage>,
     network: Network,
+    rune_metadata_client: Option<RuneMetadataClient>,
 }
 
 impl DepositVerificationAggregator {
@@ -37,11 +39,19 @@ impl DepositVerificationAggregator {
         storage: Arc<LocalDbStorage>,
         network: Network,
     ) -> Self {
+        let rune_metadata_client = match RuneMetadataClient::from_env() {
+            Ok(client) => client,
+            Err(err) => {
+                warn!("Failed to initialize rune metadata client: {}", err);
+                None
+            }
+        };
         Self {
             flow_sender,
             verifiers,
             storage,
             network,
+            rune_metadata_client,
         }
     }
 
@@ -113,7 +123,10 @@ impl DepositVerificationAggregator {
         };
         self.storage.insert_utxo(utxo).await?;
 
-        tracing::info!("Runes deposit verification sent for address: {}", request.btc_address.to_string());
+        tracing::info!(
+            "Runes deposit verification sent for address: {}",
+            request.btc_address.to_string()
+        );
 
         Ok(())
     }
@@ -199,12 +212,15 @@ impl DepositVerificationAggregator {
                 "Deposit address info not found".to_string(),
             ))?;
 
-        let issuer_musig_id = self.storage.get_issuer_musig_id(deposit_addr_info.musig_id.get_rune_id()).await?
+        let issuer_musig_id = self
+            .storage
+            .get_issuer_musig_id(deposit_addr_info.musig_id.get_rune_id())
+            .await?
             .ok_or(DepositVerificationError::NotFound(
                 "Issuer musig id not found".to_string(),
             ))?;
         let dkg_state = self.storage.get_musig_id_data(&issuer_musig_id).await?;
-        
+
         let token_identifier = match dkg_state {
             Some(AggregatorMusigIdData {
                 dkg_state: AggregatorDkgState::DkgFinalized { public_key_package },
@@ -222,14 +238,13 @@ impl DepositVerificationAggregator {
                     ))
                 })?;
 
-                let wrunes_metadata =
-                    create_wrunes_metadata(deposit_addr_info.musig_id.get_rune_id(), musig_public_key, self.network)
-                        .map_err(|e| {
-                            DepositVerificationError::InvalidDataError(format!(
-                                "Failed to create wrunes metadata: {}",
-                                e
-                            ))
-                        })?;
+                let rune_id = deposit_addr_info.musig_id.get_rune_id();
+                let rune_metadata = fetch_rune_metadata(&self.rune_metadata_client, &rune_id).await;
+                let rune_token_config = build_rune_token_config(&rune_id, rune_metadata.as_ref());
+                let wrunes_metadata = create_wrunes_metadata(&rune_token_config, musig_public_key, self.network)
+                    .map_err(|e| {
+                        DepositVerificationError::InvalidDataError(format!("Failed to create wrunes metadata: {}", e))
+                    })?;
                 wrunes_metadata.token_identifier
             }
             _ => {
@@ -330,5 +345,28 @@ impl DepositVerificationAggregator {
         }
         let _r = join_set.join_all().await.into_iter().collect::<Result<Vec<_>, _>>()?;
         Ok(())
+    }
+}
+
+async fn fetch_rune_metadata(client: &Option<RuneMetadataClient>, rune_id: &str) -> Option<RuneMetadata> {
+    match client {
+        Some(client) => match client.get_metadata(rune_id).await {
+            Ok(metadata) => Some(metadata),
+            Err(err) => {
+                warn!("Failed to fetch rune metadata for {}: {}", rune_id, err);
+                None
+            }
+        },
+        None => None,
+    }
+}
+
+fn build_rune_token_config(rune_id: &str, metadata: Option<&RuneMetadata>) -> RuneTokenConfig {
+    RuneTokenConfig {
+        rune_id: rune_id.to_string(),
+        rune_name: metadata.map(|m| m.name.clone()),
+        divisibility: metadata.map(|m| m.divisibility),
+        max_supply: metadata.and_then(|m| m.max_supply),
+        icon_url: metadata.and_then(|m| m.icon_url.clone()),
     }
 }

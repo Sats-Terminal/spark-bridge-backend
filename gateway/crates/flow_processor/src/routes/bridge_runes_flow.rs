@@ -1,5 +1,6 @@
 use crate::error::FlowProcessorError;
 use crate::flow_router::FlowProcessorRouter;
+use crate::rune_metadata_client::{RuneMetadata, RuneMetadataClient};
 use crate::types::BridgeRunesRequest;
 use bitcoin::secp256k1::PublicKey;
 use frost::traits::AggregatorMusigIdStorage;
@@ -7,8 +8,9 @@ use frost::types::MusigId;
 use frost::utils::generate_issuer_public_key;
 use gateway_local_db_store::schemas::deposit_address::{DepositAddressStorage, InnerAddress};
 use gateway_spark_service::types::SparkTransactionType;
-use gateway_spark_service::utils::create_wrunes_metadata;
+use gateway_spark_service::utils::{RuneTokenConfig, create_wrunes_metadata};
 use global_utils::conversion::convert_network_to_spark_network;
+use std::sync::Arc;
 use tracing::instrument;
 
 #[instrument(skip(flow_router), level = "trace", ret)]
@@ -31,6 +33,7 @@ pub async fn handle(
         ))?;
 
     let rune_id = deposit_addr_info.musig_id.get_rune_id();
+    let rune_metadata = fetch_rune_metadata(&flow_router.rune_metadata_client, &rune_id).await;
 
     let issuer_musig_id = flow_router
         .storage
@@ -63,8 +66,9 @@ pub async fn handle(
             })?;
             let issuer_musig_public_key = PublicKey::from_slice(&issuer_musig_public_key_bytes)?;
 
+            let rune_token_config = build_rune_token_config(&rune_id, rune_metadata.as_ref());
             let wrunes_metadata =
-                create_wrunes_metadata(rune_id.clone(), issuer_musig_public_key, flow_router.network)?;
+                create_wrunes_metadata(&rune_token_config, issuer_musig_public_key, flow_router.network)?;
 
             flow_router
                 .spark_service
@@ -75,6 +79,8 @@ pub async fn handle(
                     SparkTransactionType::Create {
                         token_name: wrunes_metadata.token_name,
                         token_ticker: wrunes_metadata.token_ticker,
+                        decimals: wrunes_metadata.decimals,
+                        max_supply: wrunes_metadata.max_supply,
                     },
                     convert_network_to_spark_network(flow_router.network),
                 )
@@ -98,7 +104,20 @@ pub async fn handle(
     })?;
     let issuer_musig_public_key = PublicKey::from_slice(&issuer_musig_public_key_bytes)?;
 
-    let wrunes_metadata = create_wrunes_metadata(rune_id.clone(), issuer_musig_public_key, flow_router.network)?;
+    let rune_token_config = build_rune_token_config(&rune_id, rune_metadata.as_ref());
+    let wrunes_metadata = create_wrunes_metadata(&rune_token_config, issuer_musig_public_key, flow_router.network)?;
+    tracing::debug!(
+        rune_id = %rune_id,
+        token_name = %wrunes_metadata.token_name,
+        token_ticker = %wrunes_metadata.token_ticker,
+        decimals = wrunes_metadata.decimals,
+        max_supply = wrunes_metadata.max_supply,
+        icon_url = wrunes_metadata
+            .icon_url
+            .as_deref()
+            .unwrap_or("(unspecified)"),
+        "Prepared Spark token metadata"
+    );
 
     let deposit_addr_info = flow_router
         .storage
@@ -133,4 +152,27 @@ pub async fn handle(
     tracing::info!("Bridge runes flow completed for address: {}", request.btc_address);
 
     Ok(())
+}
+
+async fn fetch_rune_metadata(client: &Option<Arc<RuneMetadataClient>>, rune_id: &str) -> Option<RuneMetadata> {
+    match client {
+        Some(client) => match client.get_metadata(rune_id).await {
+            Ok(metadata) => Some(metadata),
+            Err(err) => {
+                tracing::warn!("Failed to fetch rune metadata for {}: {}", rune_id, err);
+                None
+            }
+        },
+        None => None,
+    }
+}
+
+fn build_rune_token_config(rune_id: &str, metadata: Option<&RuneMetadata>) -> RuneTokenConfig {
+    RuneTokenConfig {
+        rune_id: rune_id.to_string(),
+        rune_name: metadata.map(|m| m.name.clone()),
+        divisibility: metadata.map(|m| m.divisibility),
+        max_supply: metadata.and_then(|m| m.max_supply),
+        icon_url: metadata.and_then(|m| m.icon_url.clone()),
+    }
 }

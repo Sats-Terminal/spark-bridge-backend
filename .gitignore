@@ -39,3 +39,4 @@ dist/
 
 # Logs
 logs/*
+*.env

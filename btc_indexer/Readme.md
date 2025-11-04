@@ -1,6 +1,6 @@
 ## Btc verifier
 
-Uses Titan verifier for verifying transactions in Bitcoin network.
+Uses Maestro (mainnet/testnet) or Titan (local regtest) indexers for verifying transactions in the Bitcoin network. Set `BITCOIN_NETWORK` to `regtest` to keep using the bundled Titan service, otherwise provide `MAESTRO_API_URL` and `MAESTRO_API_KEY` and the indexer will switch to Maestro automatically.
 
 ### Docker draft deployment
 

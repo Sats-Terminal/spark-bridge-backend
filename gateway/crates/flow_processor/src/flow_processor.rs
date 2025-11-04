@@ -1,4 +1,5 @@
 use crate::flow_router::FlowProcessorRouter;
+use crate::rune_metadata_client::RuneMetadataClient;
 use crate::types::*;
 use bitcoin::Network;
 use frost::aggregator::FrostAggregator;
@@ -33,6 +34,7 @@ pub struct FlowProcessor {
     pub spark_service: Arc<SparkService>,
     pub spark_client: Arc<SparkRpcClient>,
     pub bitcoin_client: Arc<BitcoinClient>,
+    pub rune_metadata_client: Option<Arc<RuneMetadataClient>>,
     pub network: Network,
 }
 
@@ -48,6 +50,7 @@ impl FlowProcessor {
         spark_service: Arc<SparkService>,
         spark_client: Arc<SparkRpcClient>,
         bitcoin_client: Arc<BitcoinClient>,
+        rune_metadata_client: Option<Arc<RuneMetadataClient>>,
     ) -> Self {
         let (flow_sender, flow_receiver) = mpsc::channel::<Uuid>(1000);
         Self {
@@ -63,6 +66,7 @@ impl FlowProcessor {
             spark_service,
             spark_client,
             bitcoin_client,
+            rune_metadata_client,
             network,
         }
     }
@@ -106,6 +110,7 @@ impl FlowProcessor {
                                 spark_client: self.spark_client.clone(),
                                 network: self.network,
                                 bitcoin_client: self.bitcoin_client.clone(),
+                                rune_metadata_client: self.rune_metadata_client.clone(),
                             };
 
                             let handle = tokio::task::spawn(async move {
