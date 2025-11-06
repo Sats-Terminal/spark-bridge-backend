@@ -156,7 +156,7 @@ async fn test_spark() {
         bridge_address: spark_address.clone(),
         txid: txid.to_string(),
         vout: 1,
-        fee_payment: FeePayment::Spark(fee_txid),
+        fee_payment: Some(FeePayment::Spark(fee_txid)),
         // fee_payment: FeePayment::Btc(OutPoint {
         //     txid: fee_txid,
         //     vout: 1,
@@ -231,10 +231,10 @@ async fn test_spark() {
         spark_address: spark_deposit_address.clone(),
         paying_input: paying_input,
         // fee_payment: FeePayment::Spark(fee_txid),
-        fee_payment: FeePayment::Btc(OutPoint {
+        fee_payment: Some(FeePayment::Btc(OutPoint {
             txid: fee_txid,
             vout: 1,
-        }),
+        })),
     };
 
     gateway_client.exit_spark(exit_spark_request).await.unwrap();

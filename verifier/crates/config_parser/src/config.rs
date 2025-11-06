@@ -78,7 +78,7 @@ pub struct ServerConfig {
     #[serde(rename = "database_config")]
     pub database: DatabaseConfig,
     #[serde(rename = "fee_config")]
-    pub fee: FeeConfig,
+    pub fee: Option<FeeConfig>,
 }
 
 impl ServerConfig {

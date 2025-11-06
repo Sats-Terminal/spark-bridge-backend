@@ -142,6 +142,7 @@ async fn test_spark_testnet4() {
         bridge_address: spark_address.clone(),
         txid: txid.to_string(),
         vout: 1,
+        fee_payment: None,
     };
 
     let bridge_runes_response = gateway_client.bridge_runes(bridge_runes_request).await.unwrap();
@@ -209,6 +210,7 @@ async fn test_spark_testnet4() {
     let exit_spark_request = ExitSparkRequest {
         spark_address: spark_deposit_address.clone(),
         paying_input: paying_input,
+        fee_payment: None,
     };
 
     gateway_client.exit_spark(exit_spark_request).await.unwrap();

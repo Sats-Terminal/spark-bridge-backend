@@ -2,7 +2,7 @@ use crate::handlers;
 use axum::Router;
 use axum::routing::{get, post};
 use bitcoin::Network;
-use gateway_config_parser::config::VerifiersConfig;
+use gateway_config_parser::config::{FeeConfig, VerifiersConfig};
 use gateway_deposit_verification::aggregator::DepositVerificationAggregator;
 use gateway_dkg_pregen::dkg_pregen_thread::DkgPregenThread;
 use gateway_flow_processor::flow_sender::FlowSender;
@@ -21,6 +21,7 @@ pub struct AppState {
     pub _dkg_pregen_thread: Arc<DkgPregenThread>,
     pub cancellation_token: CancellationToken,
     pub verifier_clients: Arc<Vec<VerifierClient>>,
+    pub fee_cfg: Option<FeeConfig>,
 }
 
 pub struct GatewayApi;
@@ -44,6 +45,7 @@ pub async fn create_app(
     task_tracker: TaskTracker,
     dkg_pregen_thread: DkgPregenThread,
     verifiers_config: VerifiersConfig,
+    fee_cfg: Option<FeeConfig>,
 ) -> Router {
     let cancellation_token = CancellationToken::new();
     let deposit_verification_aggregator = Arc::new(deposit_verification_aggregator);
@@ -61,6 +63,7 @@ pub async fn create_app(
         _dkg_pregen_thread: Arc::new(dkg_pregen_thread),
         cancellation_token,
         verifier_clients: Arc::new(verifier_clients),
+        fee_cfg,
     };
     Router::new()
         .route(

@@ -16,7 +16,7 @@ pub struct BridgeRunesSparkRequest {
     pub bridge_address: String,
     pub txid: String,
     pub vout: u32,
-    pub fee_payment: FeePayment,
+    pub fee_payment: Option<FeePayment>,
 }
 
 #[derive(Serialize, Debug)]

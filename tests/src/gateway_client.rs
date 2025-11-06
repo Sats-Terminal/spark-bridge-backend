@@ -60,7 +60,7 @@ pub struct BridgeRunesSparkRequest {
     pub bridge_address: String,
     pub txid: String,
     pub vout: u32,
-    pub fee_payment: FeePayment,
+    pub fee_payment: Option<FeePayment>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -74,7 +74,7 @@ const EXIT_SPARK_PATH: &str = "/api/user/exit-spark";
 pub struct ExitSparkRequest {
     pub spark_address: String,
     pub paying_input: UserPayingTransferInput,
-    pub fee_payment: FeePayment,
+    pub fee_payment: Option<FeePayment>,
 }
 
 #[derive(Serialize, Debug)]

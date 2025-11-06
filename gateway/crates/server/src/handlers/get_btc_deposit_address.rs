@@ -19,6 +19,14 @@ pub struct GetBtcDepositAddressRequest {
 #[derive(Serialize, Debug)]
 pub struct GetBtcDepositAddressResponse {
     pub address: String,
+    pub fee: Option<FeeData>,
+}
+
+#[derive(Serialize, Debug)]
+pub struct FeeData {
+    pub amount: u64,
+    pub btc_address: String,
+    pub spark_address: String,
 }
 
 /// Handles Btc address issuing for replenishment
@@ -54,5 +62,13 @@ pub async fn handle(
 
     Ok(Json(GetBtcDepositAddressResponse {
         address: possible_response.addr_to_replenish.to_string(),
+        fee: match state.fee_cfg {
+            None => None,
+            Some(fee_cfg) => Some(FeeData {
+                amount: fee_cfg.amount,
+                btc_address: fee_cfg.btc_address.clone(),
+                spark_address: fee_cfg.spark_address.clone(),
+            }),
+        }
     }))
 }

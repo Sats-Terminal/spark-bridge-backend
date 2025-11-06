@@ -25,7 +25,7 @@ pub struct WatchRunesDepositRequest {
     pub btc_address: String,
     pub bridge_address: String,
     pub outpoint: OutPoint,
-    pub fee_payment: FeePayment,
+    pub fee_payment: Option<FeePayment>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -37,6 +37,10 @@ pub async fn handle(
     Json(request): Json<WatchRunesDepositRequest>,
 ) -> Result<Json<WatchRunesDepositResponse>, VerifierError> {
     tracing::info!("Watching runes deposit for address: {}", request.btc_address);
+
+    if state.server_config.fee.is_some() && request.fee_payment.is_none() {
+        return Err(VerifierError::Validation("Fee payment is required".to_string()));
+    }
 
     let deposit_address = InnerAddress::from_string_and_type(request.btc_address.clone(), true)
         .map_err(|e| VerifierError::Validation(format!("Invalid BTC address: {}", e)))?;
@@ -55,8 +59,11 @@ pub async fn handle(
             nonce: request.nonce,
             outpoint: Some(request.outpoint),
             token: request.user_ids.rune_id.clone(),
-            fee_payment: Some(request.fee_payment.clone()),
-            fee_payment_status: DepositStatus::Pending,
+            fee_payment: request.fee_payment.clone(),
+            fee_payment_status: match state.server_config.fee {
+                Some(_) => DepositStatus::Pending,
+                None => DepositStatus::Confirmed,
+            },
             deposit_address,
             bridge_address,
             is_btc: true,
@@ -68,69 +75,97 @@ pub async fn handle(
         .await
         .map_err(|e| VerifierError::Storage(format!("Failed to set deposit address info: {}", e)))?;
 
-    match request.fee_payment {
-        // In case of BTC fee payment, go on with async flow to handle the fee payment first
-        // and then watch the rune deposit in the same way via btc_indexer callback notification
-        FeePayment::Btc(outpoint) => {
-            state
-                .btc_indexer_client
-                .watch_runes_deposit(IndexerWatchRunesDepositRequest {
-                    request_id: request.request_id,
-                    btc_address: state.server_config.fee.btc_address.clone(),
-                    outpoint: outpoint,
-                    rune_id: None,
-                    rune_amount: None,
-                    sats_amount: Some(state.server_config.fee.amount),
-                    callback_url: construct_hardcoded_callback_url(&state.server_config.server).to_string(),
-                })
-                .await
-                .map_err(|e| VerifierError::BtcIndexerClient(format!("Failed to watch btc fee payment: {}", e)))?;
-        }
-        // When the fee is paid with Spark satoshis, verify transaction synchronously and
-        // only then send a call to the btc_indexer to verify runes deposit
-        FeePayment::Spark(txid) => {
-            let response = state
-                .spark_balance_checker_client
-                .verify_transfer(VerifyTransferRequest {
-                    request_id: request.request_id,
-                    receiver_address: state.server_config.fee.spark_address.clone(),
-                    txid: txid.clone(),
-                    amount: state.server_config.fee.amount,
-                })
-                .await
-                .map_err(|e| VerifierError::SparkBalanceCheckerClient(format!("Failed to verify balance: {}", e)))?;
-
-            state
-                .storage
-                .set_fee_status_by_payment(
-                    FeePayment::Spark(txid.clone()),
-                    cast_deposit_status(&response.deposit_status),
-                    response.error_details.clone(),
-                )
-                .await
-                .map_err(|e| VerifierError::Storage(format!("Failed to set fee status: {}", e)))?;
-
+    match state.server_config.fee {
+        None => {
             let callback_url = construct_hardcoded_callback_url(&state.server_config.server);
-
-            let deposit_addr_info = state
-                .storage
-                .get_deposit_addr_info_by_confirmed_fee_payment(FeePayment::Spark(txid.clone()))
-                .await
-                .map_err(|err| VerifierError::Storage(err.to_string()))?;
-
             state
                 .btc_indexer_client
                 .watch_runes_deposit(IndexerWatchRunesDepositRequest {
                     request_id: request.request_id,
-                    btc_address: deposit_addr_info.deposit_address.to_string(),
-                    outpoint: deposit_addr_info.outpoint.unwrap_or_default(),
+                    btc_address: request.btc_address.clone(),
+                    outpoint: request.outpoint,
                     rune_id: Some(request.user_ids.rune_id),
-                    rune_amount: Some(deposit_addr_info.deposit_amount),
+                    rune_amount: Some(request.amount),
                     sats_amount: None,
                     callback_url: callback_url.to_string(),
                 })
                 .await
                 .map_err(|e| VerifierError::BtcIndexerClient(format!("Failed to watch runes deposit: {}", e)))?;
+            return Ok(Json(WatchRunesDepositResponse {}));
+        }
+        Some(fee_cfg) => {
+            // Safe to unwrap since none case was handled before
+            match request.fee_payment.unwrap() {
+                // In case of BTC fee payment, go on with async flow to handle the fee payment first
+                // and then watch the rune deposit in the same way via btc_indexer callback notification
+                FeePayment::Btc(outpoint) => {
+                    state
+                        .btc_indexer_client
+                        .watch_runes_deposit(IndexerWatchRunesDepositRequest {
+                            request_id: request.request_id,
+                            btc_address: fee_cfg.btc_address.clone(),
+                            outpoint: outpoint,
+                            rune_id: None,
+                            rune_amount: None,
+                            sats_amount: Some(fee_cfg.amount),
+                            callback_url: construct_hardcoded_callback_url(&state.server_config.server).to_string(),
+                        })
+                        .await
+                        .map_err(|e| {
+                            VerifierError::BtcIndexerClient(format!("Failed to watch btc fee payment: {}", e))
+                        })?;
+                }
+                // When the fee is paid with Spark satoshis, verify transaction synchronously and
+                // only then send a call to the btc_indexer to verify runes deposit
+                FeePayment::Spark(txid) => {
+                    let response = state
+                        .spark_balance_checker_client
+                        .verify_transfer(VerifyTransferRequest {
+                            request_id: request.request_id,
+                            receiver_address: fee_cfg.spark_address.clone(),
+                            txid: txid.clone(),
+                            amount: fee_cfg.amount,
+                        })
+                        .await
+                        .map_err(|e| {
+                            VerifierError::SparkBalanceCheckerClient(format!("Failed to verify balance: {}", e))
+                        })?;
+
+                    state
+                        .storage
+                        .set_fee_status_by_payment(
+                            FeePayment::Spark(txid.clone()),
+                            cast_deposit_status(&response.deposit_status),
+                            response.error_details.clone(),
+                        )
+                        .await
+                        .map_err(|e| VerifierError::Storage(format!("Failed to set fee status: {}", e)))?;
+
+                    let callback_url = construct_hardcoded_callback_url(&state.server_config.server);
+
+                    let deposit_addr_info = state
+                        .storage
+                        .get_deposit_addr_info_by_confirmed_fee_payment(FeePayment::Spark(txid.clone()))
+                        .await
+                        .map_err(|err| VerifierError::Storage(err.to_string()))?;
+
+                    state
+                        .btc_indexer_client
+                        .watch_runes_deposit(IndexerWatchRunesDepositRequest {
+                            request_id: request.request_id,
+                            btc_address: deposit_addr_info.deposit_address.to_string(),
+                            outpoint: deposit_addr_info.outpoint.unwrap_or_default(),
+                            rune_id: Some(request.user_ids.rune_id),
+                            rune_amount: Some(deposit_addr_info.deposit_amount),
+                            sats_amount: None,
+                            callback_url: callback_url.to_string(),
+                        })
+                        .await
+                        .map_err(|e| {
+                            VerifierError::BtcIndexerClient(format!("Failed to watch runes deposit: {}", e))
+                        })?;
+                }
+            };
         }
     };
 

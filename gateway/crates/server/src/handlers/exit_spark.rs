@@ -38,7 +38,7 @@ impl UserPayingTransferInput {
 pub struct ExitSparkRequest {
     pub spark_address: String,
     pub paying_input: UserPayingTransferInput,
-    pub fee_payment: FeePayment,
+    pub fee_payment: Option<FeePayment>,
 }
 
 #[derive(Serialize, Debug)]

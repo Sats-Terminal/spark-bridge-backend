@@ -27,7 +27,7 @@ pub struct VerifierWatchRunesDepositRequest {
     pub btc_address: String,
     pub bridge_address: String,
     pub outpoint: OutPoint,
-    pub fee_payment: FeePayment,
+    pub fee_payment: Option<FeePayment>,
 }
 
 impl From<WatchRunesDepositRequest> for VerifierWatchRunesDepositRequest {
@@ -63,7 +63,7 @@ pub struct VerifierWatchSparkDepositRequest {
     pub amount: u64,
     pub spark_address: String,
     pub token_identifier: TokenIdentifier,
-    pub fee_payment: FeePayment,
+    pub fee_payment: Option<FeePayment>,
 }
 
 impl From<WatchSparkDepositRequest> for VerifierWatchSparkDepositRequest {

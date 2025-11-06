@@ -18,7 +18,7 @@ pub struct WatchSparkDepositRequest {
     pub amount: u64,
     pub spark_address: String,
     pub token_identifier: TokenIdentifier,
-    pub fee_payment: FeePayment,
+    pub fee_payment: Option<FeePayment>,
 }
 
 #[derive(Clone, Debug)]
@@ -44,7 +44,7 @@ pub struct WatchRunesDepositRequest {
     pub btc_address: Address,
     pub bridge_address: String,
     pub outpoint: OutPoint,
-    pub fee_payment: FeePayment,
+    pub fee_payment: Option<FeePayment>,
 }
 
 #[derive(Clone, Debug)]
@@ -75,7 +75,7 @@ pub struct VerifyRunesDepositRequest {
     pub btc_address: Address,
     pub bridge_address: String,
     pub outpoint: OutPoint,
-    pub fee_payment: FeePayment,
+    pub fee_payment: Option<FeePayment>,
 }
 
 #[derive(Clone, Debug)]
@@ -83,5 +83,5 @@ pub struct VerifySparkDepositRequest {
     pub request_id: Uuid,
     pub spark_address: String,
     pub paying_input: PayingTransferInput,
-    pub fee_payment: FeePayment,
+    pub fee_payment: Option<FeePayment>,
 }
