@@ -3,7 +3,7 @@ use crate::init::AppState;
 use axum::Json;
 use axum::extract::State;
 use global_utils::common_resp::Empty;
-use spark_protos::spark::QueryTokenTransactionsRequest;
+use spark_protos::spark_token::QueryTokenTransactionsRequest;
 use tonic_health::pb::health_check_response::ServingStatus;
 
 const EXPECTED_SPARK_OPERATOR_STATUS: ServingStatus = ServingStatus::Serving;
@@ -24,11 +24,12 @@ pub async fn handle(State(state): State<AppState>) -> Result<Json<Empty>, Server
         .query_token_transactions(QueryTokenTransactionsRequest {
             output_ids: vec![],
             owner_public_keys: vec![],
-            token_public_keys: vec![],
+            issuer_public_keys: vec![],
             token_identifiers: vec![],
             token_transaction_hashes: vec![],
             limit: 1,
             offset: 0,
+            order: 0,
         })
         .await
         .map_err(|e| ServerError::HealthCheckError {

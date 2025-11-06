@@ -22,6 +22,7 @@ verifier_gateway_client = { workspace = true }
 verifier_local_db_store = { workspace = true }
 verifier_spark_balance_checker_client = { workspace = true }
 uuid = { workspace = true }
+spark_balance_checker_server = { workspace = true }
 
 [dev-dependencies]
 axum-test = { workspace = true }

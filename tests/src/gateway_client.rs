@@ -1,5 +1,5 @@
 use crate::error::GatewayClientError;
-use bitcoin::secp256k1::schnorr::Signature;
+use bitcoin::{OutPoint, secp256k1::schnorr::Signature};
 use reqwest::Client;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use url::Url;
@@ -46,12 +46,21 @@ pub struct GetSparkDepositAddressResponse {
 
 const BRIDGE_RUNES_PATH: &str = "/api/user/bridge-runes";
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(untagged)]
+#[serde(rename_all = "lowercase")]
+pub enum FeePayment {
+    Btc(OutPoint),
+    Spark(String),
+}
+
 #[derive(Serialize, Debug)]
 pub struct BridgeRunesSparkRequest {
     pub btc_address: String,
     pub bridge_address: String,
     pub txid: String,
     pub vout: u32,
+    pub fee_payment: Option<FeePayment>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -65,6 +74,7 @@ const EXIT_SPARK_PATH: &str = "/api/user/exit-spark";
 pub struct ExitSparkRequest {
     pub spark_address: String,
     pub paying_input: UserPayingTransferInput,
+    pub fee_payment: Option<FeePayment>,
 }
 
 #[derive(Serialize, Debug)]

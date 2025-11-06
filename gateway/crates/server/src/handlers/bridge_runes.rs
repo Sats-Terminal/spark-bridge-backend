@@ -3,7 +3,7 @@ use crate::init::AppState;
 use axum::Json;
 use axum::extract::State;
 use bitcoin::{OutPoint, Txid};
-use gateway_deposit_verification::types::VerifyRunesDepositRequest;
+use gateway_deposit_verification::types::{FeePayment, VerifyRunesDepositRequest};
 use global_utils::conversion::decode_address;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
@@ -16,6 +16,7 @@ pub struct BridgeRunesSparkRequest {
     pub bridge_address: String,
     pub txid: String,
     pub vout: u32,
+    pub fee_payment: Option<FeePayment>,
 }
 
 #[derive(Serialize, Debug)]
@@ -46,6 +47,7 @@ pub async fn handle(
         btc_address,
         bridge_address: request.bridge_address,
         outpoint: OutPoint::new(txid, request.vout),
+        fee_payment: request.fee_payment,
     };
 
     state

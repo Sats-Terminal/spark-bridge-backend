@@ -3,7 +3,7 @@ use crate::init::AppState;
 use axum::Json;
 use axum::extract::State;
 use bitcoin::{Network, Txid, secp256k1::schnorr::Signature};
-use gateway_deposit_verification::types::VerifySparkDepositRequest;
+use gateway_deposit_verification::types::{FeePayment, VerifySparkDepositRequest};
 use gateway_rune_transfer::transfer::PayingTransferInput;
 use global_utils::conversion::decode_address;
 use serde::{Deserialize, Serialize};
@@ -38,6 +38,7 @@ impl UserPayingTransferInput {
 pub struct ExitSparkRequest {
     pub spark_address: String,
     pub paying_input: UserPayingTransferInput,
+    pub fee_payment: Option<FeePayment>,
 }
 
 #[derive(Serialize, Debug)]
@@ -61,6 +62,7 @@ pub async fn handle(
         request_id,
         spark_address: request.spark_address,
         paying_input: request.paying_input.try_into(state.network)?,
+        fee_payment: request.fee_payment,
     };
 
     state

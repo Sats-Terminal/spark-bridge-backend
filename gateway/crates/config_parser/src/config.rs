@@ -70,6 +70,14 @@ pub struct DkgPregenConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub struct FeeConfig {
+    pub amount: u64,
+    pub btc_address: String,
+    pub spark_address: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ServerConfig {
     #[serde(rename(deserialize = "application"))]
     pub server_public: AppConfig,
@@ -91,6 +99,8 @@ pub struct ServerConfig {
     pub bitcoin_client: BitcoinClientConfig,
     #[serde(rename = "bitcoin_indexer_client_config")]
     pub bitcoin_indexer_client: IndexerClientConfig,
+    #[serde(rename = "fee_config")]
+    pub fee: Option<FeeConfig>,
 }
 
 impl ServerConfig {

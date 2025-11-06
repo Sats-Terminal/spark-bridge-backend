@@ -111,6 +111,7 @@ async fn main() -> Result<()> {
         task_tracker,
         dkg_pregen,
         server_config.verifiers,
+        server_config.fee,
     )
     .await;
 

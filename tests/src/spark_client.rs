@@ -6,12 +6,13 @@ use global_utils::conversion::{convert_network_to_spark_network, spark_network_t
 use hex;
 use rand_core::OsRng;
 use rustls;
+use rustls::crypto::CryptoProvider;
 use spark_address::decode_spark_address;
 use spark_protos::prost::Message;
-use spark_protos::spark::QueryTokenOutputsRequest;
 use spark_protos::spark::spark_service_client::SparkServiceClient;
 use spark_protos::spark_authn::spark_authn_service_client::SparkAuthnServiceClient;
 use spark_protos::spark_authn::{GetChallengeRequest, VerifyChallengeRequest};
+use spark_protos::spark_token::QueryTokenOutputsRequest;
 use spark_protos::spark_token::spark_token_service_client::SparkTokenServiceClient;
 use spark_protos::spark_token::{
     CommitTransactionRequest, CommitTransactionResponse, StartTransactionRequest, StartTransactionResponse,
@@ -181,15 +182,16 @@ impl SparkClient {
         let request = QueryTokenOutputsRequest {
             owner_public_keys: vec![public_key],
             token_identifiers: vec![],
-            token_public_keys: vec![],
+            issuer_public_keys: vec![],
             network: spark_network_to_proto_network(self.network) as i32,
+            page_request: None,
         };
 
         let mut request = Request::new(request);
         create_request(&mut request, self.keypair.public_key(), session_token)?;
 
         let response = self
-            .client
+            .token_client
             .query_token_outputs(request)
             .await
             .map_err(Box::new)?

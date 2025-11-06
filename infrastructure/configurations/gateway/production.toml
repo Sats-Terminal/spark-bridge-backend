@@ -62,3 +62,8 @@ password = "bitcoinpass"
 [bitcoin_indexer_client_config]
 type = "titan"
 url = "http://localhost:3030"
+
+[fee_config]
+amount=1000
+btc_address="bcrt1pwzj4xdxrdsjl900sq62982tmcehjv2hc22glzumzxyxx2ctetrjq7u3vfz"
+spark_address="sprt1pgss8ac0a8nlywyvgyna0uws4jkcm9uaycu7mxdp0atxf7cf30rnw4kv5x85wf"
