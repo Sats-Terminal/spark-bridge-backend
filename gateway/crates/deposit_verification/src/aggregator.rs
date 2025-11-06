@@ -1,7 +1,9 @@
 use crate::error::DepositVerificationError;
 use crate::traits::VerificationClient;
 use crate::types::*;
-use crate::types::{NotifyRunesDepositRequest, VerifyRunesDepositRequest, VerifySparkDepositRequest};
+use crate::types::{
+    NotifyRunesDepositRequest, NotifySparkDepositRequest, VerifyRunesDepositRequest, VerifySparkDepositRequest,
+};
 use bitcoin::Network;
 use bitcoin::secp256k1::PublicKey;
 use frost::traits::AggregatorDkgShareStorage;
@@ -86,6 +88,7 @@ impl DepositVerificationAggregator {
             btc_address: request.btc_address.clone(),
             bridge_address: request.bridge_address.clone(),
             outpoint: request.outpoint,
+            fee_payment: request.fee_payment,
         };
 
         let mut futures = Vec::with_capacity(self.verifiers.len());
@@ -271,6 +274,7 @@ impl DepositVerificationAggregator {
             amount: deposit_addr_info.amount,
             exit_address: request.paying_input.btc_exit_address.clone(),
             token_identifier,
+            fee_payment: request.fee_payment,
         };
 
         let mut futures = vec![];
@@ -305,6 +309,54 @@ impl DepositVerificationAggregator {
             )
             .await?;
 
+        if all_verifiers_confirmed {
+            tracing::info!("All verifiers confirmed for spark address: {}", request.spark_address);
+            self.flow_sender
+                .send(ExitSparkRequest {
+                    spark_address: request.spark_address.clone(),
+                })
+                .await
+                .map_err(|e| {
+                    DepositVerificationError::FlowProcessorError(format!("Error sending bridge spark request: {:?}", e))
+                })?;
+        }
+
+        tracing::info!(
+            "Spark deposit verification completed for address: {}",
+            request.spark_address
+        );
+
+        Ok(())
+    }
+
+    #[instrument(level = "debug", skip(self), ret)]
+    pub async fn notify_spark_deposit(
+        &self,
+        request: NotifySparkDepositRequest,
+    ) -> Result<(), DepositVerificationError> {
+        tracing::info!(
+            "Gathering spark deposit confirmation status for address: {}",
+            request.spark_address.clone(),
+        );
+
+        self.storage
+            .update_confirmation_status_by_deposit_address(
+                &InnerAddress::SparkAddress(request.spark_address.clone()),
+                request.verifier_id,
+                request.status,
+            )
+            .await?;
+
+        let confirmation_status_info = self
+            .storage
+            .get_row_by_deposit_address(&InnerAddress::SparkAddress(request.spark_address.clone()))
+            .await?
+            .ok_or(DepositVerificationError::NotFound(
+                "Confirmation status not found".to_string(),
+            ))?
+            .confirmation_status;
+
+        let all_verifiers_confirmed = confirmation_status_info.check_all_verifiers_confirmed();
         if all_verifiers_confirmed {
             tracing::info!("All verifiers confirmed for spark address: {}", request.spark_address);
             self.flow_sender

@@ -13,13 +13,9 @@ pub struct AppState {
     pub client: SparkRpcClient,
 }
 
-pub struct SparkBalanceCheckerApi;
-
-impl SparkBalanceCheckerApi {
-    /// Represents hardcoded `/track_tx` endpoint
-    pub const VERIFY_BALANCE_ENDPOINT: &'static str = "/verify-balance";
-    pub const HEALTHCHECK_ENDPOINT: &'static str = "/health";
-}
+pub const VERIFY_TRANSACTION_ENDPOINT: &'static str = "/verify-transaction";
+pub const VERIFY_BALANCE_ENDPOINT: &'static str = "/verify-balance";
+pub const HEALTHCHECK_ENDPOINT: &'static str = "/health";
 
 #[instrument(level = "debug", ret, skip(config), fields(operators=?config.operators))]
 pub async fn create_app(config: SparkConfig) -> Result<Router, ServerError> {
@@ -28,14 +24,9 @@ pub async fn create_app(config: SparkConfig) -> Result<Router, ServerError> {
         client: SparkRpcClient::new(config).await?,
     };
     let app = Router::new()
-        .route(
-            SparkBalanceCheckerApi::VERIFY_BALANCE_ENDPOINT,
-            post(handlers::verify_balance::handle),
-        )
-        .route(
-            SparkBalanceCheckerApi::HEALTHCHECK_ENDPOINT,
-            get(handlers::healthcheck::handle),
-        )
+        .route(VERIFY_BALANCE_ENDPOINT, post(handlers::verify_balance::handle))
+        .route(VERIFY_TRANSACTION_ENDPOINT, post(handlers::verify_transfer::handle))
+        .route(HEALTHCHECK_ENDPOINT, get(handlers::healthcheck::handle))
         .with_state(state);
 
     Ok(app)

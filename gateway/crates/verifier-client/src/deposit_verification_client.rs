@@ -5,7 +5,8 @@ use frost::types::TweakBytes;
 use gateway_deposit_verification::error::DepositVerificationError;
 use gateway_deposit_verification::traits::VerificationClient;
 use gateway_deposit_verification::types::{
-    WatchRunesDepositRequest, WatchRunesDepositResponse, WatchSparkDepositRequest, WatchSparkDepositResponse,
+    FeePayment, WatchRunesDepositRequest, WatchRunesDepositResponse, WatchSparkDepositRequest,
+    WatchSparkDepositResponse,
 };
 use gateway_local_db_store::schemas::deposit_address::DepositStatus;
 use gateway_local_db_store::schemas::user_identifier::UserIds;
@@ -26,6 +27,7 @@ pub struct VerifierWatchRunesDepositRequest {
     pub btc_address: String,
     pub bridge_address: String,
     pub outpoint: OutPoint,
+    pub fee_payment: FeePayment,
 }
 
 impl From<WatchRunesDepositRequest> for VerifierWatchRunesDepositRequest {
@@ -38,6 +40,7 @@ impl From<WatchRunesDepositRequest> for VerifierWatchRunesDepositRequest {
             btc_address: request.btc_address.to_string(),
             bridge_address: request.bridge_address,
             outpoint: request.outpoint,
+            fee_payment: request.fee_payment,
         }
     }
 }
@@ -60,6 +63,7 @@ pub struct VerifierWatchSparkDepositRequest {
     pub amount: u64,
     pub spark_address: String,
     pub token_identifier: TokenIdentifier,
+    pub fee_payment: FeePayment,
 }
 
 impl From<WatchSparkDepositRequest> for VerifierWatchSparkDepositRequest {
@@ -72,6 +76,7 @@ impl From<WatchSparkDepositRequest> for VerifierWatchSparkDepositRequest {
             amount: request.amount,
             spark_address: request.spark_address,
             token_identifier: request.token_identifier,
+            fee_payment: request.fee_payment,
         }
     }
 }
@@ -79,6 +84,7 @@ impl From<WatchSparkDepositRequest> for VerifierWatchSparkDepositRequest {
 #[derive(Deserialize, Debug)]
 pub enum VerifierDepositStatus {
     Confirmed,
+    Pending,
     Failed,
 }
 
@@ -86,6 +92,7 @@ impl Into<DepositStatus> for VerifierDepositStatus {
     fn into(self) -> DepositStatus {
         match self {
             VerifierDepositStatus::Confirmed => DepositStatus::Confirmed,
+            VerifierDepositStatus::Pending => DepositStatus::WaitingForConfirmation,
             VerifierDepositStatus::Failed => DepositStatus::Failed,
         }
     }

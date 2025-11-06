@@ -19,3 +19,8 @@ address = "http://gateway-service:8060"
 
 [database_config]
 url = "postgres://admin_manager:password@persistent-db-storage_verifier_3:5432/production_db_name"
+
+[fee_config]
+amount=1000
+btc_address="bcrt1pwzj4xdxrdsjl900sq62982tmcehjv2hc22glzumzxyxx2ctetrjq7u3vfz"
+spark_address="sprt1pgss8ac0a8nlywyvgyna0uws4jkcm9uaycu7mxdp0atxf7cf30rnw4kv5x85wf"

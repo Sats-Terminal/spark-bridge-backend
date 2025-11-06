@@ -5,14 +5,14 @@ use crate::{
 };
 use bitcoin::secp256k1::PublicKey;
 use spark_protos::spark::{QueryTransfersResponse, TransferFilter};
-use spark_protos::spark_token::{
-    QueryTokenOutputsRequest, QueryTokenOutputsResponse, QueryTokenTransactionsRequest, QueryTokenTransactionsResponse,
-};
 use spark_protos::spark_authn::{
     GetChallengeRequest, GetChallengeResponse, VerifyChallengeRequest, VerifyChallengeResponse,
 };
 use spark_protos::spark_token::{
     CommitTransactionRequest, CommitTransactionResponse, StartTransactionRequest, StartTransactionResponse,
+};
+use spark_protos::spark_token::{
+    QueryTokenOutputsRequest, QueryTokenOutputsResponse, QueryTokenTransactionsRequest, QueryTokenTransactionsResponse,
 };
 use std::collections::HashMap;
 use std::{future::Future, sync::Arc};
@@ -92,11 +92,8 @@ impl SparkRpcClient {
 
         self.retry_query(query_fn, request).await.map(|r| r.into_inner())
     }
-    
-    pub async fn get_transfers(
-        &self,
-        request: TransferFilter,
-    ) -> Result<QueryTransfersResponse, SparkClientError> {
+
+    pub async fn get_transfers(&self, request: TransferFilter) -> Result<QueryTransfersResponse, SparkClientError> {
         let query_fn = |mut clients: SparkServicesClients, request: TransferFilter| async move {
             clients
                 .spark

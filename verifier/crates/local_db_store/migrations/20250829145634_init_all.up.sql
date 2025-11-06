@@ -53,10 +53,13 @@ CREATE TABLE IF NOT EXISTS verifier.deposit_address
     bridge_address      TEXT    NOT NULL,
     is_btc              BOOLEAN NOT NULL,
     deposit_amount      BIGINT  NOT NULL,
+    token               TEXT    NOT NULL,
     confirmation_status DEPOSIT_STATUS    NOT NULL,
     error_details       TEXT,
-    sats_amount     BIGINT,
-    outpoint           TEXT,
+    sats_amount         BIGINT,
+    outpoint            TEXT    UNIQUE,
+    fee_payment_status  DEPOSIT_STATUS NOT NULL DEFAULT 'pending',
+    fee_payment         TEXT    UNIQUE, -- either outpoint (txid:vout) or spark tx id
     PRIMARY KEY (dkg_share_id),
     FOREIGN KEY (dkg_share_id) REFERENCES verifier.user_identifier (dkg_share_id)
 );
