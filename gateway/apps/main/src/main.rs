@@ -4,7 +4,7 @@ use frost::traits::SignerClient;
 use frost_secp256k1_tr::Identifier;
 use gateway_config_parser::config::ServerConfig;
 use gateway_deposit_verification::aggregator::DepositVerificationAggregator;
-use gateway_deposit_verification::traits::DepositVerificationClientTrait;
+use gateway_deposit_verification::traits::VerificationClient;
 use gateway_flow_processor::init::create_flow_processor;
 use gateway_local_db_store::storage::LocalDbStorage;
 use gateway_server::init::create_app;
@@ -12,12 +12,14 @@ use gateway_verifier_client::client::VerifierClient;
 use global_utils::config_path::ConfigPath;
 use global_utils::logger::init_logger;
 
+use gateway_dkg_pregen::dkg_pregen_thread::DkgPregenThread;
 use persistent_storage::config::PostgresDbCredentials;
 use persistent_storage::init::PostgresRepo;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 use std::sync::Once;
 use tokio::net::TcpListener;
+use tokio_util::task::TaskTracker;
 use tracing::instrument;
 
 fn install_rustls_provider() {
@@ -64,23 +66,36 @@ async fn main() -> Result<()> {
         let verifier_client = VerifierClient::new(verifier);
         verifiers_map.insert(identifier, Arc::new(verifier_client));
     }
-    let frost_aggregator = FrostAggregator::new(verifiers_map, shared_db_pool.clone(), shared_db_pool.clone());
+    let frost_aggregator = Arc::new(FrostAggregator::new(
+        verifiers_map,
+        shared_db_pool.clone(),
+        shared_db_pool.clone(),
+    ));
 
     // Create Flow Processor
     let (mut flow_processor, flow_sender) = create_flow_processor(
         server_config.clone(),
         shared_db_pool.clone(),
         server_config.flow_processor.cancellation_retries,
-        frost_aggregator,
+        frost_aggregator.clone(),
         server_config.network.network,
     )
     .await?;
-    tokio::spawn(async move {
+
+    let task_tracker = TaskTracker::default();
+    task_tracker.spawn(async move {
         flow_processor.run().await;
     });
 
+    let dkg_pregen = DkgPregenThread::start(
+        shared_db_pool.clone(),
+        server_config.dkg_pregen_config,
+        frost_aggregator.clone(),
+    )
+    .await;
+
     // Create Deposit Verification Aggregator
-    let verifier_clients_hash_map = extract_verifiers(&server_config);
+    let verifier_clients_hash_map = extract_verification_clients(&server_config);
     let deposit_verification_aggregator = DepositVerificationAggregator::new(
         flow_sender.clone(),
         verifier_clients_hash_map,
@@ -93,6 +108,10 @@ async fn main() -> Result<()> {
         flow_sender.clone(),
         deposit_verification_aggregator.clone(),
         server_config.network.network,
+        task_tracker,
+        dkg_pregen,
+        server_config.verifiers,
+        server_config.fee,
     )
     .await;
 
@@ -112,9 +131,9 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-fn extract_verifiers(server_config: &ServerConfig) -> HashMap<u16, Arc<dyn DepositVerificationClientTrait>> {
-    let mut verifier_clients_hash_map = HashMap::<u16, Arc<dyn DepositVerificationClientTrait>>::new();
-    for verifier in server_config.clone().verifiers.0 {
+fn extract_verification_clients(server_config: &ServerConfig) -> HashMap<u16, Arc<dyn VerificationClient>> {
+    let mut verifier_clients_hash_map = HashMap::<u16, Arc<dyn VerificationClient>>::new();
+    for verifier in &server_config.verifiers.0 {
         let verifier_client = VerifierClient::new(verifier.clone());
         verifier_clients_hash_map.insert(verifier.id, Arc::new(verifier_client.clone()));
     }

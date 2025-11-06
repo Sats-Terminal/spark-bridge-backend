@@ -4,7 +4,6 @@ use axum::{
 };
 use frost::errors::SignerError;
 use thiserror::Error;
-use tracing;
 
 #[derive(Error, Debug)]
 pub enum VerifierError {

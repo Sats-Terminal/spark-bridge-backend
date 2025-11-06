@@ -1,5 +1,6 @@
 use crate::error::FlowProcessorError;
 use crate::types::*;
+use btc_indexer_client::client_api::IndexerClient;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use tokio_util::sync::CancellationToken;
@@ -12,18 +13,21 @@ pub trait TypedMessageSender<S, R> {
 
 // This is helper struct that sends messages to the flow processor and waits for the response
 // This struct implements the TypedMessageSender trait for each type of message
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct FlowSender {
+    pub btc_indexer: IndexerClient,
     tx_sender: mpsc::Sender<(FlowProcessorMessage, OneshotFlowProcessorSender)>,
     cancellation_token: CancellationToken,
 }
 
 impl FlowSender {
     pub fn new(
+        btc_indexer: IndexerClient,
         tx_sender: mpsc::Sender<(FlowProcessorMessage, OneshotFlowProcessorSender)>,
         cancellation_token: CancellationToken,
     ) -> Self {
         Self {
+            btc_indexer,
             tx_sender,
             cancellation_token,
         }

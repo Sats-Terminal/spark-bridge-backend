@@ -6,8 +6,11 @@ edition = "2024"
 axum = { workspace = true }
 axum-test = { workspace = true }
 bitcoin = { workspace = true }
+eyre = { workspace = true }
 frost = { workspace = true }
+gateway_config_parser = { workspace = true }
 gateway_deposit_verification = { workspace = true }
+gateway_dkg_pregen = { workspace = true }
 gateway_flow_processor = { workspace = true }
 gateway_local_db_store = { workspace = true }
 gateway_rune_transfer = { workspace = true }
@@ -24,10 +27,11 @@ url = { workspace = true }
 uuid = { workspace = true }
 
 [dev-dependencies]
-anyhow = { workspace = true }
-serde_json = { workspace = true }
-sqlx = { workspace = true }
-spark_client = { workspace = true }
+frost-secp256k1-tr = { workspace = true }
 gateway_config_parser = { workspace = true }
+gateway_verifier_client = { workspace = true }
+serde_json = { workspace = true }
+spark_client = { workspace = true }
+sqlx = { workspace = true }
+uuid = { workspace = true }
 verifier_server = { workspace = true }
-frost-secp256k1-tr = { workspace = true}

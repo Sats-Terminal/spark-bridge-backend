@@ -1,6 +1,7 @@
 use crate::error::FlowProcessorError;
 use crate::types::*;
 use bitcoin::Network;
+use btc_indexer_client::client_api::IndexerClient;
 use frost::aggregator::FrostAggregator;
 use gateway_config_parser::config::VerifierConfig;
 use gateway_local_db_store::storage::LocalDbStorage;
@@ -20,11 +21,12 @@ pub struct FlowProcessorRouter {
     pub flow_id: Uuid,
     pub response_sender: OneshotFlowProcessorSender,
     pub task_sender: mpsc::Sender<Uuid>,
-    pub frost_aggregator: FrostAggregator,
+    pub frost_aggregator: Arc<FrostAggregator>,
     pub spark_service: Arc<SparkService>,
     pub spark_client: Arc<SparkRpcClient>,
     pub network: Network,
     pub bitcoin_client: Arc<BitcoinClient>,
+    pub bitcoin_indexer: IndexerClient,
 }
 
 impl FlowProcessorRouter {

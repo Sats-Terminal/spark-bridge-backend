@@ -1,4 +1,4 @@
-#[cfg(test)]
+mod utils;
 mod tests {
     use bitcoin::{Network, OutPoint, Txid};
     use gateway_local_db_store::schemas::utxo_storage::{Utxo, UtxoStatus, UtxoStorage};
@@ -29,7 +29,7 @@ mod tests {
 
     fn create_test_utxo(txid: &str, vout: u32, rune_amount: u64, rune_id: &str, status: UtxoStatus) -> Utxo {
         Utxo {
-            out_point: OutPoint {
+            outpoint: OutPoint {
                 txid: Txid::from_str(txid).unwrap(),
                 vout,
             },
@@ -40,7 +40,7 @@ mod tests {
             rune_amount,
             rune_id: rune_id.to_string(),
             status,
-            sats_fee_amount: SATS_AMOUNT,
+            sats_amount: SATS_AMOUNT,
         }
     }
 
@@ -59,7 +59,7 @@ mod tests {
 
         let inserted = repo.insert_utxo(utxo.clone()).await?;
 
-        assert_eq!(inserted.out_point, utxo.out_point);
+        assert_eq!(inserted.outpoint, utxo.outpoint);
         assert_eq!(inserted.rune_amount, utxo.rune_amount);
         assert_eq!(inserted.rune_id, utxo.rune_id);
         assert_eq!(inserted.status, UtxoStatus::Confirmed);
@@ -111,9 +111,9 @@ mod tests {
         );
         repo.insert_utxo(utxo.clone()).await?;
 
-        repo.update_status(utxo.out_point, UtxoStatus::Spent).await?;
+        repo.update_status(utxo.outpoint, UtxoStatus::Spent).await?;
 
-        let updated = repo.get_utxo(utxo.out_point).await?.unwrap();
+        let updated = repo.get_utxo(utxo.outpoint).await?.unwrap();
         assert_eq!(updated.status, UtxoStatus::Spent);
 
         Ok(())
@@ -124,12 +124,12 @@ mod tests {
         let repo = make_test_repo(db);
         cleanup_test_db(&repo).await;
 
-        let out_point = OutPoint {
+        let outpoint = OutPoint {
             txid: Txid::from_str("0000000000000000000000000000000000000000000000000000000000000999").unwrap(),
             vout: 0,
         };
 
-        let result = repo.update_status(out_point, UtxoStatus::Spent).await;
+        let result = repo.update_status(outpoint, UtxoStatus::Spent).await;
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), DbError::NotFound(_)));
 
@@ -272,8 +272,8 @@ mod tests {
         );
         repo.insert_utxo(utxo.clone()).await?;
 
-        let retrieved = repo.get_utxo(utxo.out_point).await?.unwrap();
-        assert_eq!(retrieved.out_point, utxo.out_point);
+        let retrieved = repo.get_utxo(utxo.outpoint).await?.unwrap();
+        assert_eq!(retrieved.outpoint, utxo.outpoint);
         assert_eq!(retrieved.rune_amount, RUNE_AMOUNT);
         assert_eq!(retrieved.rune_id, "rune_get");
 
@@ -285,12 +285,12 @@ mod tests {
         let repo = make_test_repo(db);
         cleanup_test_db(&repo).await;
 
-        let out_point = OutPoint {
+        let outpoint = OutPoint {
             txid: Txid::from_str("0000000000000000000000000000000000000000000000000000000000000888").unwrap(),
             vout: 0,
         };
 
-        let result = repo.get_utxo(out_point).await?;
+        let result = repo.get_utxo(outpoint).await?;
         assert!(result.is_none());
 
         Ok(())
@@ -310,9 +310,9 @@ mod tests {
         );
         repo.insert_utxo(utxo.clone()).await?;
 
-        repo.delete_utxo(utxo.out_point).await?;
+        repo.delete_utxo(utxo.outpoint).await?;
 
-        let result = repo.get_utxo(utxo.out_point).await?;
+        let result = repo.get_utxo(utxo.outpoint).await?;
         assert!(result.is_none());
 
         Ok(())
@@ -323,12 +323,12 @@ mod tests {
         let repo = make_test_repo(db);
         cleanup_test_db(&repo).await;
 
-        let out_point = OutPoint {
+        let outpoint = OutPoint {
             txid: Txid::from_str("0000000000000000000000000000000000000000000000000000000000000777").unwrap(),
             vout: 0,
         };
 
-        let result = repo.delete_utxo(out_point).await;
+        let result = repo.delete_utxo(outpoint).await;
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), DbError::NotFound(_)));
 
@@ -349,10 +349,10 @@ mod tests {
         );
         repo.insert_utxo(utxo.clone()).await?;
 
-        repo.update_sats_fee_amount(utxo.out_point, RUNE_AMOUNT).await?;
+        repo.update_sats_fee_amount(utxo.outpoint, RUNE_AMOUNT).await?;
 
-        let updated = repo.get_utxo(utxo.out_point).await?.unwrap();
-        assert_eq!(updated.sats_fee_amount, RUNE_AMOUNT);
+        let updated = repo.get_utxo(utxo.outpoint).await?.unwrap();
+        assert_eq!(updated.sats_amount, RUNE_AMOUNT);
 
         Ok(())
     }
@@ -373,7 +373,7 @@ mod tests {
         repo.insert_utxo(utxo.clone()).await?;
 
         let found = repo.get_utxo_by_btc_address(address.to_string()).await?.unwrap();
-        assert_eq!(found.out_point, utxo.out_point);
+        assert_eq!(found.outpoint, utxo.outpoint);
         assert_eq!(found.btc_address.to_string(), address);
 
         Ok(())

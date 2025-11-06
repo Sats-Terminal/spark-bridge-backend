@@ -6,10 +6,12 @@ use bitcoin::secp256k1::schnorr::Signature;
 use frost::types::SigningMetadata;
 use frost::utils::{convert_public_key_package, generate_tweak_bytes, get_tweaked_p2tr_address};
 use gateway_local_db_store::schemas::deposit_address::{
-    DepositAddrInfo, DepositAddressStorage, InnerAddress, VerifiersResponses,
+    DepositAddrInfo, DepositAddressStorage, DepositStatus, InnerAddress, VerifiersResponses,
 };
 use gateway_local_db_store::schemas::paying_utxo::PayingUtxoStorage;
+use gateway_local_db_store::schemas::user_identifier::UserIdentifierStorage;
 use gateway_local_db_store::schemas::utxo_storage::{Utxo, UtxoStatus, UtxoStorage};
+use gateway_rune_transfer::bitcoin_client::Broadcaster;
 use gateway_rune_transfer::transfer::RuneTransferOutput;
 use gateway_rune_transfer::transfer::{
     add_signature_to_transaction, create_message_hash, create_rune_partial_transaction,
@@ -28,10 +30,17 @@ pub async fn handle(
 
     let deposit_addr_info = flow_router
         .storage
-        .get_row_by_deposit_address(InnerAddress::SparkAddress(request.spark_address.clone()))
+        .get_row_by_deposit_address(&InnerAddress::SparkAddress(request.spark_address.clone()))
         .await?
         .ok_or(FlowProcessorError::DbError(DbError::NotFound(
             "Deposit address info not found".to_string(),
+        )))?;
+    let user_info = flow_router
+        .storage
+        .get_row_by_dkg_id(deposit_addr_info.dkg_share_id)
+        .await?
+        .ok_or(FlowProcessorError::DbError(DbError::NotFound(
+            "User identifier info not found".to_string(),
         )))?;
 
     let exit_address = match deposit_addr_info.bridge_address {
@@ -53,12 +62,12 @@ pub async fn handle(
 
     let utxos = flow_router
         .storage
-        .select_utxos_for_amount(deposit_addr_info.musig_id.get_rune_id(), deposit_addr_info.amount)
+        .select_utxos_for_amount(user_info.rune_id.clone(), deposit_addr_info.amount)
         .await?;
     let total_amount = utxos.iter().map(|utxo| utxo.rune_amount).sum::<u64>();
     let exit_amount = deposit_addr_info.amount;
 
-    let outputs_to_spend = utxos.iter().map(|utxo| utxo.out_point).collect::<Vec<OutPoint>>();
+    let outputs_to_spend = utxos.iter().map(|utxo| utxo.outpoint).collect::<Vec<OutPoint>>();
 
     let mut rune_transfer_outputs = vec![RuneTransferOutput {
         address: exit_address.clone(),
@@ -70,7 +79,7 @@ pub async fn handle(
         let new_nonce = generate_tweak_bytes();
         let public_key_package = flow_router
             .frost_aggregator
-            .get_public_key_package(deposit_addr_info.musig_id.clone(), Some(new_nonce))
+            .get_public_key_package(user_info.dkg_share_id, Some(new_nonce))
             .await
             .map_err(|e| FlowProcessorError::FrostAggregatorError(format!("Failed to get public key package: {e}")))?;
         let public_key = convert_public_key_package(&public_key_package)
@@ -78,18 +87,15 @@ pub async fn handle(
         let deposit_address = get_tweaked_p2tr_address(public_key, new_nonce, flow_router.network)
             .map_err(|e| FlowProcessorError::InvalidDataError(format!("Failed to create address: {e}")))?;
 
-        flow_router
-            .storage
-            .set_deposit_addr_info(DepositAddrInfo {
-                musig_id: deposit_addr_info.musig_id.clone(),
-                nonce: new_nonce,
-                deposit_address: InnerAddress::BitcoinAddress(deposit_address.clone()),
-                bridge_address: None,
-                is_btc: true,
-                amount: total_amount - exit_amount,
-                confirmation_status: VerifiersResponses::empty(),
-            })
-            .await?;
+        flow_router.storage.insert_deposit_addr_info(DepositAddrInfo {
+            dkg_share_id: user_info.dkg_share_id,
+            nonce: new_nonce,
+            deposit_address: InnerAddress::BitcoinAddress(deposit_address.clone()),
+            bridge_address: None,
+            is_btc: true,
+            amount: total_amount - exit_amount,
+            confirmation_status: VerifiersResponses::new(DepositStatus::Confirmed, flow_router.verifier_configs.iter().map(|v| v.id).collect()),
+        }).await?;
 
         rune_transfer_outputs.push(RuneTransferOutput {
             address: deposit_address,
@@ -103,18 +109,19 @@ pub async fn handle(
         outputs_to_spend,
         paying_utxo,
         rune_transfer_outputs.clone(),
-        deposit_addr_info.musig_id.get_rune_id(),
+        user_info.rune_id.clone(),
     )
     .map_err(|e| FlowProcessorError::RuneTransferError(format!("Failed to create rune partial transaction: {e}")))?;
 
     for i in 1..transaction.input.len() {
         let input_btc_address = utxos[i - 1].btc_address.clone();
-        let message_hash = create_message_hash(&transaction, input_btc_address.clone(), utxos[i - 1].sats_fee_amount, i)
-            .map_err(|e| FlowProcessorError::RuneTransferError(format!("Failed to create message hash: {e}")))?;
+        let message_hash =
+            create_message_hash(&transaction, input_btc_address.clone(), utxos[i - 1].sats_amount, i)
+                .map_err(|e| FlowProcessorError::RuneTransferError(format!("Failed to create message hash: {e}")))?;
 
         let input_deposit_addr_info = flow_router
             .storage
-            .get_row_by_deposit_address(InnerAddress::BitcoinAddress(input_btc_address.clone()))
+            .get_row_by_deposit_address(&InnerAddress::BitcoinAddress(input_btc_address.clone()))
             .await?
             .ok_or(FlowProcessorError::DbError(DbError::NotFound(
                 "Input deposit address info not found".to_string(),
@@ -123,7 +130,7 @@ pub async fn handle(
         let signature_bytes = flow_router
             .frost_aggregator
             .run_signing_flow(
-                input_deposit_addr_info.musig_id,
+                input_deposit_addr_info.dkg_share_id,
                 message_hash.as_ref(),
                 SigningMetadata::BtcTransactionMetadata {},
                 Some(input_deposit_addr_info.nonce),
@@ -142,18 +149,18 @@ pub async fn handle(
 
     flow_router
         .bitcoin_client
-        .broadcast_transaction(transaction.clone())
+        .broadcast_transaction(&transaction)
         .await
         .map_err(|e| FlowProcessorError::RuneTransferError(format!("Failed to broadcast transaction: {e}")))?;
 
     if total_amount > exit_amount {
         let utxo = Utxo {
-            out_point: OutPoint::new(transaction.compute_txid(), 1), // Change utxo
+            outpoint: OutPoint::new(transaction.compute_txid(), 1), // Change utxo
             btc_address: rune_transfer_outputs[1].address.clone(),   // Change utxo address
             rune_amount: total_amount - exit_amount,
-            rune_id: deposit_addr_info.musig_id.get_rune_id(),
+            rune_id: user_info.rune_id,
             status: UtxoStatus::Confirmed,
-            sats_fee_amount: transaction.output[1].value.to_sat(),
+            sats_amount: transaction.output[1].value.to_sat(),
         };
 
         flow_router.storage.insert_utxo(utxo).await?;

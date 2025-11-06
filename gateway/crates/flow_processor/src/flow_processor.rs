@@ -1,6 +1,7 @@
 use crate::flow_router::FlowProcessorRouter;
 use crate::types::*;
 use bitcoin::Network;
+use btc_indexer_client::client_api::IndexerClient;
 use frost::aggregator::FrostAggregator;
 use gateway_config_parser::config::VerifierConfig;
 use gateway_local_db_store::storage::LocalDbStorage;
@@ -16,6 +17,7 @@ use tokio::task::JoinHandle;
 use tokio::time::Duration;
 use tokio_util::sync::CancellationToken;
 use tracing;
+use tracing::instrument;
 use uuid::Uuid;
 
 // This is core struct that handles flows execution
@@ -29,44 +31,50 @@ pub struct FlowProcessor {
     pub flows: HashMap<Uuid, JoinHandle<()>>,
     pub cancellation_token: CancellationToken,
     pub cancellation_retries: u64,
-    pub frost_aggregator: FrostAggregator,
+    pub frost_aggregator: Arc<FrostAggregator>,
     pub spark_service: Arc<SparkService>,
     pub spark_client: Arc<SparkRpcClient>,
     pub bitcoin_client: Arc<BitcoinClient>,
     pub network: Network,
+    pub bitcoin_indexer: IndexerClient,
+}
+
+pub struct FlowProcessorInitArgs {
+    pub verifier_configs: Arc<Vec<VerifierConfig>>,
+    pub tx_receiver: mpsc::Receiver<(FlowProcessorMessage, OneshotFlowProcessorSender)>,
+    pub storage: Arc<LocalDbStorage>,
+    pub cancellation_retries: u64,
+    pub frost_aggregator: Arc<FrostAggregator>,
+    pub network: Network,
+    pub cancellation_token: CancellationToken,
+    pub spark_service: Arc<SparkService>,
+    pub spark_client: Arc<SparkRpcClient>,
+    pub bitcoin_client: Arc<BitcoinClient>,
+    pub bitcoin_indexer: IndexerClient,
 }
 
 impl FlowProcessor {
-    pub fn new(
-        verifier_configs: Arc<Vec<VerifierConfig>>,
-        tx_receiver: mpsc::Receiver<(FlowProcessorMessage, OneshotFlowProcessorSender)>,
-        storage: Arc<LocalDbStorage>,
-        cancellation_retries: u64,
-        frost_aggregator: FrostAggregator,
-        network: Network,
-        cancellation_token: CancellationToken,
-        spark_service: Arc<SparkService>,
-        spark_client: Arc<SparkRpcClient>,
-        bitcoin_client: Arc<BitcoinClient>,
-    ) -> Self {
+    pub fn new(flow_processor_config: FlowProcessorInitArgs) -> Self {
         let (flow_sender, flow_receiver) = mpsc::channel::<Uuid>(1000);
         Self {
-            verifier_configs,
-            tx_receiver,
+            verifier_configs: flow_processor_config.verifier_configs,
+            tx_receiver: flow_processor_config.tx_receiver,
             flow_receiver,
             flow_sender,
-            storage,
+            storage: flow_processor_config.storage,
             flows: HashMap::default(),
-            cancellation_token,
-            cancellation_retries,
-            frost_aggregator,
-            spark_service,
-            spark_client,
-            bitcoin_client,
-            network,
+            cancellation_token: flow_processor_config.cancellation_token,
+            cancellation_retries: flow_processor_config.cancellation_retries,
+            frost_aggregator: flow_processor_config.frost_aggregator,
+            spark_service: flow_processor_config.spark_service,
+            spark_client: flow_processor_config.spark_client,
+            bitcoin_client: flow_processor_config.bitcoin_client,
+            network: flow_processor_config.network,
+            bitcoin_indexer: flow_processor_config.bitcoin_indexer,
         }
     }
 
+    #[instrument(level = "debug", skip(self))]
     pub async fn run(&mut self) {
         loop {
             tokio::select! {
@@ -106,6 +114,7 @@ impl FlowProcessor {
                                 spark_client: self.spark_client.clone(),
                                 network: self.network,
                                 bitcoin_client: self.bitcoin_client.clone(),
+                                bitcoin_indexer: self.bitcoin_indexer.clone(),
                             };
 
                             let handle = tokio::task::spawn(async move {

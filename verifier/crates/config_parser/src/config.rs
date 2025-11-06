@@ -56,6 +56,14 @@ pub struct DatabaseConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub struct FeeConfig {
+    pub amount: u64,
+    pub btc_address: String,
+    pub spark_address: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ServerConfig {
     #[serde(rename(deserialize = "application"))]
     pub server: AppConfig,
@@ -69,6 +77,8 @@ pub struct ServerConfig {
     pub gateway: GatewayConfig,
     #[serde(rename = "database_config")]
     pub database: DatabaseConfig,
+    #[serde(rename = "fee_config")]
+    pub fee: Option<FeeConfig>,
 }
 
 impl ServerConfig {

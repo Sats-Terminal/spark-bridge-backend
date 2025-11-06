@@ -1,3 +1,4 @@
+use btc_indexer_config::IndexerClientConfig;
 use config::Config;
 use global_utils::network::NetworkConfig;
 use serde::{Deserialize, Serialize};
@@ -19,7 +20,7 @@ pub struct VerifierConfig {
     pub address: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 pub struct AggregatorConfig {
     pub threshold: u16,
@@ -28,7 +29,7 @@ pub struct AggregatorConfig {
     pub update_interval_milliseconds: u64,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 pub struct FlowProcessorConfig {
     pub cancellation_retries: u64,
@@ -46,6 +47,37 @@ pub struct DatabaseConfig {
 pub struct VerifiersConfig(pub Vec<VerifierConfig>);
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub struct BitcoinClientConfig {
+    pub url: String,
+    #[serde(flatten)]
+    pub auth: Option<BitcoinNodeAuth>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub struct BitcoinNodeAuth {
+    pub username: String,
+    pub password: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+#[serde(rename_all = "snake_case")]
+pub struct DkgPregenConfig {
+    pub update_interval_millis: u64,
+    pub min_threshold: u64,
+    pub max_cached: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub struct FeeConfig {
+    pub amount: u64,
+    pub btc_address: String,
+    pub spark_address: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ServerConfig {
     #[serde(rename(deserialize = "application"))]
     pub server_public: AppConfig,
@@ -53,6 +85,8 @@ pub struct ServerConfig {
     pub verifiers: VerifiersConfig,
     #[serde(rename = "aggregator_config")]
     pub aggregator: AggregatorConfig,
+    #[serde(rename = "dkg_pregen_config")]
+    pub dkg_pregen_config: DkgPregenConfig,
     #[serde(rename = "flow_processor_config")]
     pub flow_processor: FlowProcessorConfig,
     #[serde(rename = "network_config")]
@@ -63,14 +97,10 @@ pub struct ServerConfig {
     pub spark: SparkConfig,
     #[serde(rename = "bitcoin_client_config")]
     pub bitcoin_client: BitcoinClientConfig,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "snake_case")]
-pub struct BitcoinClientConfig {
-    pub url: String,
-    pub username: String,
-    pub password: String,
+    #[serde(rename = "bitcoin_indexer_client_config")]
+    pub bitcoin_indexer_client: IndexerClientConfig,
+    #[serde(rename = "fee_config")]
+    pub fee: Option<FeeConfig>,
 }
 
 impl ServerConfig {

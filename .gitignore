@@ -15,6 +15,7 @@ Cargo.lock
 
 # Ignoring .js files, as typescript firstly compiles into it
 /tests/*.js
+/tests/spark.db
 
 # Disable logs that have obtained during run
 /logs

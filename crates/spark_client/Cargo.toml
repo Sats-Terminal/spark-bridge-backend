@@ -17,4 +17,4 @@ tonic-health = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]
-anyhow = { workspace = true }
+eyre = { workspace = true }

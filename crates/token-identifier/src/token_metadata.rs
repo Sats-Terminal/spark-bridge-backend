@@ -215,7 +215,7 @@ impl TokenMetadata {
         engine.input(network_hash.as_byte_array());
 
         // Token create layer logic - matches Go implementation exactly:
-        let creation_entity_hash = if let Some(creation_entity_public_key) = &self.creation_entity_public_key {
+        let _creation_entity_hash = if let Some(creation_entity_public_key) = &self.creation_entity_public_key {
             // Spark token: layer byte (1) + creation entity public key (33 bytes, compressed)
             let mut bytes = vec![2u8]; // TokenCreateLayerSpark (layer byte 2)
             bytes.extend_from_slice(&creation_entity_public_key.serialize());
@@ -285,7 +285,6 @@ impl TokenMetadata {
         }
 
         if self.symbol.len() < MIN_SYMBOL_SIZE || self.symbol.len() > MAX_SYMBOL_SIZE {
-            return Err(TokenMetadataParseError::InvalidSymbolLength(self.symbol.len()));
             return Err(TokenMetadataParseError::InvalidSymbolLength(self.symbol.len()));
         }
 
@@ -360,7 +359,7 @@ impl TokenMetadata {
             .map_err(|err| wrap_io_error(err, "failed to read is freezable"))?;
 
         // Read the creation entity public key
-        let creation_entity_public_key_flag = cursor
+        let _creation_entity_public_key_flag = cursor
             .read_u8()
             .map_err(|err| wrap_io_error(err, "failed to read the creation entity public key flag"))?;
         let creation_entity_public_key_flag = cursor
@@ -441,7 +440,7 @@ impl From<&TokenMetadata> for TokenIdentifier {
 }
 
 fn wrap_io_error(err: impl fmt::Display, message: &str) -> TokenMetadataParseError {
-    TokenMetadataParseError::IoError(io::Error::new(io::ErrorKind::Other, format!("{}: {}", message, err)))
+    TokenMetadataParseError::IoError(io::Error::other(format!("{}: {}", message, err)))
 }
 
 /// Error type for parsing LRC20 token metadata.
@@ -577,7 +576,7 @@ mod tests {
         let creation_entity_compressed_bytes =
             hex::decode("0345b806679a5e63159584db91fec038cffd2ef59cee031abe92e2f30bf0642175").unwrap();
         let creation_entity_compressed_key = PublicKey::from_slice(&creation_entity_compressed_bytes).unwrap();
-            hex::decode("0345b806679a5e63159584db91fec038cffd2ef59cee031abe92e2f30bf0642175").unwrap();
+        hex::decode("0345b806679a5e63159584db91fec038cffd2ef59cee031abe92e2f30bf0642175").unwrap();
         let creation_entity_compressed_key = PublicKey::from_slice(&creation_entity_compressed_bytes).unwrap();
         let creation_entity_public_key = creation_entity_compressed_key;
 
@@ -761,19 +760,18 @@ mod tests {
                 3, 5, 189, 86, 28, 85, 173, 244, 162, 54, 159, 147, 106, 184, 47, 118, 136, 67, 143, 27, 25, 154, 242,
                 69, 92, 94, 243, 57, 53, 230, 78, 231, 231, 17, 84, 111, 107, 101, 110, 78, 97, 109, 101, 49, 55, 67,
                 104, 97, 114, 115, 115, 6, 84, 69, 83, 84, 83, 89, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0,
-                0, 0, 0, 0, 0, 0, 1, 0, 250, 191, 181, 218,
-                3, 5, 189, 86, 28, 85, 173, 244, 162, 54, 159, 147, 106, 184, 47, 118, 136, 67, 143, 27, 25, 154, 242,
-                69, 92, 94, 243, 57, 53, 230, 78, 231, 231, 17, 84, 111, 107, 101, 110, 78, 97, 109, 101, 49, 55, 67,
-                104, 97, 114, 115, 115, 6, 84, 69, 83, 84, 83, 89, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0,
-                0, 0, 0, 0, 0, 0, 1, 0, 250, 191, 181, 218,
+                0, 0, 0, 0, 0, 0, 1, 0, 250, 191, 181, 218, 3, 5, 189, 86, 28, 85, 173, 244, 162, 54, 159, 147, 106,
+                184, 47, 118, 136, 67, 143, 27, 25, 154, 242, 69, 92, 94, 243, 57, 53, 230, 78, 231, 231, 17, 84, 111,
+                107, 101, 110, 78, 97, 109, 101, 49, 55, 67, 104, 97, 114, 115, 115, 6, 84, 69, 83, 84, 83, 89, 255,
+                255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 250, 191, 181, 218,
             ],
             vec![
                 3, 5, 189, 86, 28, 85, 173, 244, 162, 54, 159, 147, 106, 184, 47, 118, 136, 67, 143, 27, 25, 154, 242,
                 69, 92, 94, 243, 57, 53, 230, 78, 231, 231, 9, 84, 111, 107, 101, 110, 78, 97, 109, 101, 3, 84, 78, 75,
-                2, 64, 66, 15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 250, 191, 181, 218,
-                3, 5, 189, 86, 28, 85, 173, 244, 162, 54, 159, 147, 106, 184, 47, 118, 136, 67, 143, 27, 25, 154, 242,
-                69, 92, 94, 243, 57, 53, 230, 78, 231, 231, 9, 84, 111, 107, 101, 110, 78, 97, 109, 101, 3, 84, 78, 75,
-                2, 64, 66, 15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 250, 191, 181, 218,
+                2, 64, 66, 15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 250, 191, 181, 218, 3, 5, 189, 86, 28, 85,
+                173, 244, 162, 54, 159, 147, 106, 184, 47, 118, 136, 67, 143, 27, 25, 154, 242, 69, 92, 94, 243, 57,
+                53, 230, 78, 231, 231, 9, 84, 111, 107, 101, 110, 78, 97, 109, 101, 3, 84, 78, 75, 2, 64, 66, 15, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 250, 191, 181, 218,
             ],
         ];
 

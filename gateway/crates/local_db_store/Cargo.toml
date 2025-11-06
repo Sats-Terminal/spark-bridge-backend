@@ -6,18 +6,23 @@ edition = "2024"
 [dependencies]
 async-trait = { workspace = true }
 bitcoin = { workspace = true }
+chrono = { workspace = true }
+eyre = { workspace = true }
 frost = { workspace = true }
+gateway_config_parser = { workspace = true }
+gateway_rune_transfer = { workspace = true }
 global_utils = { workspace = true }
 persistent_storage = { workspace = true }
+serde = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true }
+thiserror = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true }
-serde = { workspace = true }
-anyhow = { workspace = true }
-gateway_rune_transfer = { workspace = true }
-gateway_config_parser = { path = "../config_parser" }
 
 [dev-dependencies]
+dotenvy = { workspace = true }
+frost = { workspace = true }
 frost-secp256k1-tr = { workspace = true }
+futures = { workspace = true }

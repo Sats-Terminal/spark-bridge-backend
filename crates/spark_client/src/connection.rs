@@ -86,7 +86,7 @@ mod tests {
     pub static TEST_LOGGER: LazyLock<LoggerGuard> = LazyLock::new(|| init_logger());
 
     #[tokio::test]
-    async fn test_get_client() -> anyhow::Result<()> {
+    async fn test_get_client() -> eyre::Result<()> {
         let _logger_guard = &*TEST_LOGGER;
 
         let spark_config = SparkConfig {

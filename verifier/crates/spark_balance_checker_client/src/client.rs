@@ -1,12 +1,14 @@
 use crate::error::SparkBalanceCheckerClientError;
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
+use spark_balance_checker_server::{
+    init::{HEALTHCHECK_ENDPOINT, VERIFY_BALANCE_ENDPOINT, VERIFY_TRANSACTION_ENDPOINT},
+    models::{DepositStatus, VerifyBalanceRequest, VerifyBalanceResponse, VerifyTransferRequest},
+};
 use tracing::instrument;
-use token_identifier::TokenIdentifier;
+use url::Url;
 pub use verifier_config_parser::config::SparkBalanceCheckerConfig;
-
-const GET_BALANCE_PATH: &str = "/balance";
-const HEALTHCHECK_PATH: &str = "/health";
+use verifier_local_db_store::schemas::deposit_address::DepositStatus as DepositStatusDB;
 
 #[derive(Clone, Debug)]
 pub struct SparkBalanceCheckerClient {
@@ -14,15 +16,13 @@ pub struct SparkBalanceCheckerClient {
     client: Client,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct GetBalanceRequest {
-    pub spark_address: String,
-    pub token_identifier: TokenIdentifier,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct GetBalanceResponse {
-    pub balance: u128,
+// TODO: refactor code to have some common types shared between the system,
+// avoid redefining the same types
+pub fn cast_deposit_status(status: &DepositStatus) -> DepositStatusDB {
+    match status {
+        DepositStatus::Confirmed => DepositStatusDB::Confirmed,
+        DepositStatus::Failed => DepositStatusDB::Failed,
+    }
 }
 
 impl SparkBalanceCheckerClient {
@@ -33,63 +33,67 @@ impl SparkBalanceCheckerClient {
         }
     }
 
-    #[instrument(level = "trace", skip(self), ret)]
-    pub async fn get_balance(
+    async fn send_request<T: Serialize, U: DeserializeOwned>(
         &self,
-        request: GetBalanceRequest,
-    ) -> Result<GetBalanceResponse, SparkBalanceCheckerClientError> {
-        let url =
-            self.config.address.join(GET_BALANCE_PATH).map_err(|e| {
-                SparkBalanceCheckerClientError::DeserializeError(format!("Failed to join URL: {:?}", e))
+        url: Url,
+        request: T,
+    ) -> Result<U, SparkBalanceCheckerClientError> {
+        let response =
+            self.client.post(url).json(&request).send().await.map_err(|e| {
+                SparkBalanceCheckerClientError::HttpError(format!("Failed to send HTTP request: {:?}", e))
             })?;
-        let response = self
-            .client
-            .post(url)
-            .json(&request)
-            .send()
-            .await
-            .map_err(|e| SparkBalanceCheckerClientError::HttpError(format!("Failed to send request: {:?}", e)))?;
 
         if response.status().is_success() {
-            let response: GetBalanceResponse = response.json().await.map_err(|e| {
+            let response: U = response.json().await.map_err(|e| {
                 SparkBalanceCheckerClientError::DeserializeError(format!("Failed to deserialize response: {:?}", e))
             })?;
             Ok(response)
         } else {
+            let status = response.status();
+            let error_message = response.text().await.unwrap_or_default();
             tracing::error!(
-                "Failed to send HTTP request for {:?}, with status {}",
-                request,
-                response.status()
+                "Failed to send HTTP request with status {}, error: {}",
+                status,
+                error_message
             );
             Err(SparkBalanceCheckerClientError::HttpError(format!(
                 "Failed to send HTTP request with status {}, error: {}",
-                response.status(),
-                response.text().await.unwrap_or_default()
+                status, error_message
             )))
         }
     }
 
+    async fn get_url(&self, path: &str) -> Result<Url, SparkBalanceCheckerClientError> {
+        self.config
+            .address
+            .join(path)
+            .map_err(|e| SparkBalanceCheckerClientError::DeserializeError(format!("Failed to join URL: {:?}", e)))
+    }
+
+    #[instrument(level = "trace", skip(self), ret)]
+    pub async fn verify_balance(
+        &self,
+        request: VerifyBalanceRequest,
+    ) -> Result<VerifyBalanceResponse, SparkBalanceCheckerClientError> {
+        let url = self.get_url(VERIFY_BALANCE_ENDPOINT).await?;
+
+        Ok(self.send_request(url, request).await?)
+    }
+
+    #[instrument(level = "trace", skip(self), ret)]
+    pub async fn verify_transfer(
+        &self,
+        request: VerifyTransferRequest,
+    ) -> Result<VerifyBalanceResponse, SparkBalanceCheckerClientError> {
+        let url = self.get_url(VERIFY_TRANSACTION_ENDPOINT).await?;
+
+        Ok(self.send_request(url, request).await?)
+    }
+
     #[tracing::instrument(skip_all, err)]
     pub async fn healthcheck(&self) -> Result<(), SparkBalanceCheckerClientError> {
-        let url =
-            self.config.address.join(HEALTHCHECK_PATH).map_err(|e| {
-                SparkBalanceCheckerClientError::DeserializeError(format!("Failed to join URL: {:?}", e))
-            })?;
-        let response = self
-            .client
-            .post(url)
-            .send()
-            .await
-            .map_err(|e| SparkBalanceCheckerClientError::HttpError(format!("Failed to send request: {:?}", e)))?;
+        let url = self.get_url(HEALTHCHECK_ENDPOINT).await?;
 
-        if response.status().is_success() {
-            Ok(())
-        } else {
-            Err(SparkBalanceCheckerClientError::HttpError(format!(
-                "Failed to send {HEALTHCHECK_PATH} HTTP request with status {}, error: {}",
-                response.status(),
-                response.text().await.unwrap_or_default()
-            )))
-        }
+        self.send_request(url, ()).await
     }
 }

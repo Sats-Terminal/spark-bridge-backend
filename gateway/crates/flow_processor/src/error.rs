@@ -1,4 +1,6 @@
 use bitcoin::secp256k1;
+use btc_indexer_client::error::BtcIndexerClientError;
+use gateway_local_db_store::schemas::dkg_share::DkgShareGenerateError;
 use persistent_storage::error::DbError;
 use spark_address::SparkAddressError;
 use thiserror::Error;
@@ -27,8 +29,12 @@ pub enum FlowProcessorError {
     RuneTransferError(String),
     #[error("Spark address error: {0}")]
     SparkAddressError(#[from] SparkAddressError),
+    #[error("Spark address error: {0}")]
+    DkgShareGenerateError(#[from] DkgShareGenerateError),
     #[error("SO Coordinator is missing")]
     CoordinatorNotFound,
     #[error("Initialization error: {0}")]
     InitializationError(String),
+    #[error("Bitcoin client indexer error: {0}")]
+    BtcIndexerClientError(#[from] BtcIndexerClientError),
 }

@@ -2,15 +2,17 @@ use crate::error::SparkClientError;
 use bitcoin::hashes::{Hash, sha256};
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::{Keypair, Message as BitcoinMessage, Secp256k1};
+use global_utils::conversion::{convert_network_to_spark_network, spark_network_to_proto_network};
 use hex;
 use rand_core::OsRng;
 use rustls;
+use rustls::crypto::CryptoProvider;
 use spark_address::decode_spark_address;
 use spark_protos::prost::Message;
-use spark_protos::spark::QueryTokenOutputsRequest;
 use spark_protos::spark::spark_service_client::SparkServiceClient;
 use spark_protos::spark_authn::spark_authn_service_client::SparkAuthnServiceClient;
 use spark_protos::spark_authn::{GetChallengeRequest, VerifyChallengeRequest};
+use spark_protos::spark_token::QueryTokenOutputsRequest;
 use spark_protos::spark_token::spark_token_service_client::SparkTokenServiceClient;
 use spark_protos::spark_token::{
     CommitTransactionRequest, CommitTransactionResponse, StartTransactionRequest, StartTransactionResponse,
@@ -42,6 +44,7 @@ fn install_rustls_provider() {
 
 #[derive(Clone)]
 pub struct SparkClient {
+    network: spark_address::Network,
     client: SparkServiceClient<Channel>,
     keypair: Keypair,
     authn_client: SparkAuthnServiceClient<Channel>,
@@ -82,7 +85,7 @@ pub struct SparkAuthSession {
 }
 
 impl SparkClient {
-    pub async fn new(config: SparkClientConfig) -> Result<Self, SparkClientError> {
+    pub async fn new(config: SparkClientConfig, network: bitcoin::Network) -> Result<Self, SparkClientError> {
         install_rustls_provider();
         let channel = create_tls_channel(config.clone()).await?;
         let operator_public_keys = config
@@ -93,6 +96,7 @@ impl SparkClient {
             .map_err(|e| SparkClientError::DecodeError(format!("Failed to decode operator public key: {}", e)))?;
         let token_client = SparkTokenServiceClient::new(channel.clone());
         Ok(Self {
+            network: convert_network_to_spark_network(network),
             client: SparkServiceClient::new(channel.clone()),
             authn_client: SparkAuthnServiceClient::new(channel.clone()),
             token_client,
@@ -178,15 +182,16 @@ impl SparkClient {
         let request = QueryTokenOutputsRequest {
             owner_public_keys: vec![public_key],
             token_identifiers: vec![],
-            token_public_keys: vec![],
-            network: 2, // Regtest, search spark_network_to_proto_network function
+            issuer_public_keys: vec![],
+            network: spark_network_to_proto_network(self.network) as i32,
+            page_request: None,
         };
 
         let mut request = Request::new(request);
         create_request(&mut request, self.keypair.public_key(), session_token)?;
 
         let response = self
-            .client
+            .token_client
             .query_token_outputs(request)
             .await
             .map_err(Box::new)?

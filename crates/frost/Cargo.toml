@@ -3,7 +3,6 @@ name = "frost"
 edition = "2024"
 
 [dependencies]
-anyhow = { workspace = true }
 async-trait = { workspace = true }
 bitcoin = { workspace = true }
 eyre = { workspace = true }

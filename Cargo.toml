@@ -29,7 +29,6 @@ readme = "Readme.md"
 
 [workspace.dependencies]
 ####### Global Dependencies #######
-anyhow = { version = "1.0.98" }
 async-trait = { version = "0.1.88" }
 axum = { version = "0.8.4", features = ["macros"] }
 axum-test = { version = "18.0.0" }
@@ -46,12 +45,11 @@ futures = { version = "0.3.31" }
 hex = "0.4.3"
 http = "1.3.1"
 lazy_static = "1.5.0"
-log = { version = "0.4.27" }
 mockall = { version = "0.13.1" }
 once_cell = { version = "1.21.3" }
-ordinals = { version = "0.0.15" }
 ord = { version = "0.23.3" }
 ord-rs = { version = "0.3.0", features = ["rune"] }
+ordinals = { version = "0.0.15" }
 prost = "0.13.5"
 prost-reflect = { version = "0.16.1", features = ["serde"] }
 prost-wkt = "0.6.1"
@@ -61,14 +59,15 @@ rand_core = { version = "0.6.4", features = ["getrandom"] }
 reqwest = { version = "0.12.23", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0.143", features = ["raw_value"] }
-sqlx = { version = "0.8.6", features = ["json", "runtime-tokio", "postgres", "chrono", "json", "derive", "uuid", "macros"] }
+serde_str = { version = "0.1" }
+sqlx = { version = "0.8", features = ["json", "runtime-tokio", "postgres", "chrono", "json", "derive", "uuid", "macros"] }
 strum = { version = "0.27", features = ["derive"] }
 thiserror = { version = "2.0.16" }
 titan-client = { version = "0.1.43" }
 titan-types = { version = "0.1.28" }
 tokio = { version = "1.45.0", features = ["full"] }
-tokio-util = { version = "0.7.16" , features = ["rt"]}
 tokio-test = "0.4"
+tokio-util = { version = "0.7.16" , features = ["rt"]}
 toml = { version = "0.9.5" }
 tonic = { version = "0.12.3", features = ["tls-native-roots"] }
 tonic-build = { version = "0.12.3", features = ["prost"] }
@@ -80,9 +79,9 @@ url = { version = "2.5.6", features = ["serde"] }
 utoipa = { version = "5.4.0" }
 utoipa-swagger-ui = { version = "9.0.2" }
 uuid = { version = "1.18.0", features = ["serde", "v4", "v7"] }
-
+enum_dispatch = { version="0.3" }
 rustls = { version = "0.23.32", default-features = false, features = ["ring"] }
-
+breez-sdk-spark = { git = "https://github.com/breez/spark-sdk.git", tag = "0.3.4"}
 
 ####### Global Crates #######
 global_utils = { path = "./crates/global_utils" }
@@ -113,13 +112,14 @@ verifier_main = { path = "verifier/apps/main" }
 ####### Gateway #######
 # Gateway crates
 gateway_config_parser = { path = "gateway/crates/config_parser" }
+gateway_deposit_verification = { path = "gateway/crates/deposit_verification" }
+gateway_dkg_pregen = { path = "gateway/crates/dkg_pregen" }
 gateway_flow_processor = { path = "gateway/crates/flow_processor" }
 gateway_local_db_store = { path = "gateway/crates/local_db_store" }
+gateway_rune_transfer = { path = "gateway/crates/rune_transfer" }
 gateway_server = { path = "gateway/crates/server" }
 gateway_spark_service = { path = "gateway/crates/spark_service" }
-gateway_deposit_verification = { path = "gateway/crates/deposit_verification" }
 gateway_verifier_client = { path = "gateway/crates/verifier-client" }
-gateway_rune_transfer = { path = "gateway/crates/rune_transfer" }
 
 # Gateway apps
 gateway_main = { path = "gateway/apps/main" }
@@ -136,12 +136,11 @@ spark_balance_checker_main = { path = "./spark_balance_checker/apps/main" }
 
 ####### Btc Indexer #######
 # Btc indexer crates
-btc_indexer = { path = "./btc_indexer/crates/btc_indexer" }
-btc_indexer_api = { path = "./btc_indexer/crates/api" }
-btc_indexer_internals = { path = "./btc_indexer/crates/indexer_internals" }
-btc_indexer_server = { path = "./btc_indexer/crates/server", features = ["swagger"] }
-config_parser = { path = "./btc_indexer/crates/config_parser" }
-local_db_store_indexer = { path = "./btc_indexer/crates/local_db_store" }
+btc_indexer_server = { path = "./btc_indexer/crates/server" }
+btc_indexer_client = { path = "./btc_indexer/crates/indexer_client" }
+btc_indexer = { path = "./btc_indexer/crates/indexer" }
+btc_indexer_local_db_store = { path = "./btc_indexer/crates/local_db_store" }
+btc_indexer_config = { path = "./btc_indexer/crates/config" }
 
 # Btc indexer apps
 btc_indexer_main = { path = "./btc_indexer/apps/main" }
