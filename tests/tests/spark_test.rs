@@ -1,12 +1,13 @@
-use bitcoin::{Address, Network};
+use bitcoin::{Address, Network, OutPoint, Txid};
 use btc_indexer_config::{IndexerClientConfig, TitanClientConfig};
 use global_utils::logger::init_logger;
 use std::{str::FromStr, time::Duration};
 use tests::{
     bitcoin_client::{BitcoinClient, BitcoinClientConfig, BitcoinRegtestClient},
-    constants::{BLOCKS_TO_GENERATE, DEFAULT_FAUCET_AMOUNT, PAYING_INPUT_SATS_AMOUNT},
+    constants::{BLOCKS_TO_GENERATE, DEFAULT_FAUCET_AMOUNT, FEE_BTC_ADDR, FEE_SPARK_ADDR, PAYING_INPUT_SATS_AMOUNT},
     gateway_client::*,
     rune_manager::setup_rune_manager,
+    spark_breez::{SparkBreezClient, SparkConfig},
     spark_client::{SparkClient, SparkClientConfig},
     user_wallet::{TransferType, UserWallet},
 };
@@ -39,6 +40,14 @@ async fn test_spark() {
     .await
     .unwrap();
 
+    let spark_breez_client = SparkBreezClient::new(SparkConfig {
+        mnemonic: String::from("situate member water knock indicate tent rural gauge trash mystery bulb purpose"),
+        sync_interval: 10,
+        sqlite_storage_path: String::from("spark.db"),
+    })
+    .await
+    .unwrap();
+
     let mut bitcoin_client = BitcoinRegtestClient::new(
         BitcoinClientConfig {
             url: "http://127.0.0.1:18443".to_string(),
@@ -57,7 +66,9 @@ async fn test_spark() {
     bitcoin_client.generate_blocks(BLOCKS_TO_GENERATE, None).await.unwrap();
 
     let rune_id = rune_manager.get_rune_id();
-    let mut user_wallet = UserWallet::new(spark_client.clone(), rune_id, network, None).await.unwrap();
+    let mut user_wallet = UserWallet::new(spark_client.clone(), rune_id, network, None)
+        .await
+        .unwrap();
     bitcoin_client
         .faucet(user_wallet.get_address(), DEFAULT_FAUCET_AMOUNT)
         .await
@@ -130,8 +141,11 @@ async fn test_spark() {
     bitcoin_client.broadcast_transaction(transaction.clone()).await.unwrap();
     bitcoin_client.generate_blocks(BLOCKS_TO_GENERATE, None).await.unwrap();
     let txid = transaction.compute_txid();
+    tracing::info!("rune transfer txid: {:?}", txid);
 
-    tracing::info!("txid: {:?}", txid);
+    // let fee_txid = pay_fee_via_btc(&mut user_wallet, &mut bitcoin_client).await;
+    let fee_txid = pay_fee_via_spark(&spark_breez_client).await;
+    tracing::info!("fee transfer txid: {:?}", fee_txid);
 
     let spark_address = user_wallet.get_spark_address().unwrap();
 
@@ -142,6 +156,11 @@ async fn test_spark() {
         bridge_address: spark_address.clone(),
         txid: txid.to_string(),
         vout: 1,
+        fee_payment: FeePayment::Spark(fee_txid),
+        // fee_payment: FeePayment::Btc(OutPoint {
+        //     txid: fee_txid,
+        //     vout: 1,
+        // }),
     };
 
     let bridge_runes_response = gateway_client.bridge_runes(bridge_runes_request).await.unwrap();
@@ -206,9 +225,16 @@ async fn test_spark() {
 
     tracing::info!("Paying input: {:?}", paying_input);
 
+    let fee_txid = pay_fee_via_btc(&mut user_wallet, &mut bitcoin_client).await;
+    // let fee_txid = pay_fee_via_spark(&spark_breez_client).await;
     let exit_spark_request = ExitSparkRequest {
         spark_address: spark_deposit_address.clone(),
         paying_input: paying_input,
+        // fee_payment: FeePayment::Spark(fee_txid),
+        fee_payment: FeePayment::Btc(OutPoint {
+            txid: fee_txid,
+            vout: 1,
+        }),
     };
 
     gateway_client.exit_spark(exit_spark_request).await.unwrap();
@@ -231,4 +257,33 @@ async fn test_spark() {
         DEFAULT_FAUCET_AMOUNT - deposit_amount + spark_deposit_amount,
         "Balance should be equal to deposit amount"
     );
+}
+
+async fn pay_fee_via_btc(user_wallet: &mut UserWallet, bitcoin_client: &mut BitcoinRegtestClient) -> Txid {
+    let utxos_data = bitcoin_client
+        .get_address_data(user_wallet.get_address())
+        .await
+        .unwrap();
+    let fee_address = Address::from_str(&FEE_BTC_ADDR).unwrap().assume_checked();
+    let transaction = user_wallet
+        .build_transfer_tx(
+            TransferType::BtcTransfer {
+                sats_amount: PAYING_INPUT_SATS_AMOUNT,
+            },
+            fee_address,
+            &utxos_data,
+        )
+        .await
+        .unwrap();
+    bitcoin_client.broadcast_transaction(transaction.clone()).await.unwrap();
+    bitcoin_client.generate_blocks(BLOCKS_TO_GENERATE, None).await.unwrap();
+
+    transaction.compute_txid()
+}
+
+async fn pay_fee_via_spark(spark_breez_client: &SparkBreezClient) -> String {
+    spark_breez_client
+        .transfer_spark_native(FEE_SPARK_ADDR, PAYING_INPUT_SATS_AMOUNT as u128)
+        .await
+        .unwrap()
 }

@@ -7,3 +7,4 @@ pub mod rune_manager;
 pub mod spark_client;
 pub mod user_wallet;
 pub mod utils;
+pub mod spark_breez;
