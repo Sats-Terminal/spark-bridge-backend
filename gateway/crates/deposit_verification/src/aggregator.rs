@@ -21,7 +21,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::instrument;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct DepositVerificationAggregator {
     flow_sender: FlowSender,
     verifiers: HashMap<u16, Arc<dyn VerificationClient>>,
@@ -243,10 +243,12 @@ impl DepositVerificationAggregator {
                 })?;
 
                 let wrunes_metadata = create_wrunes_metadata(
-                    issuer_ids.rune_id.clone(),
+                    &issuer_ids.rune_id,
                     musig_public_key,
                     self.network,
+                    &self.flow_sender.btc_indexer,
                 )
+                .await
                 .map_err(|e| {
                     DepositVerificationError::InvalidDataError(format!("Failed to create wrunes metadata: {}", e))
                 })?;

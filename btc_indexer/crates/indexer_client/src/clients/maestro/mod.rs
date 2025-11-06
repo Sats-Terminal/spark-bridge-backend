@@ -1,16 +1,20 @@
 pub mod models;
 
 use async_trait::async_trait;
-use bitcoin::{Address, OutPoint, Txid};
+use bitcoin::{Address, Network, OutPoint, Txid, secp256k1::PublicKey};
 use btc_indexer_config::MaestroClientConfig;
+use lrc20::token_metadata::{
+    DEFAULT_IS_FREEZABLE, DEFAULT_TOKEN_TICKER, MAX_SYMBOL_SIZE, MIN_SYMBOL_SIZE, SPARK_CREATION_ENTITY_PUBLIC_KEY,
+    TokenMetadata,
+};
 use ordinals::RuneId;
 use reqwest::{Client, Url};
 use serde::de::DeserializeOwned;
-use std::{collections::HashMap, str::FromStr};
+use std::{collections::HashMap, iter::repeat, str::FromStr};
 use tracing::{debug, error};
 
 use crate::{
-    client_api::{AddrUtxoData, BlockchainInfo, BtcIndexer, OutPointData, RuneData},
+    client_api::{AddrUtxoData, BlockchainInfo, BtcIndexer, OutPointData, RuneData, Runer},
     clients::maestro::models::{
         AddrUtxoMempoolResponse, BlockInfoResponse, MempoolTxInfoResponse, OutputVariant, RuneInfoResponse,
         TxInfoResponse,
@@ -79,6 +83,11 @@ impl MaestroClient {
             "Failed to do request: {}",
             url
         )))
+    }
+
+    async fn get_rune_info(&self, rune_id: &str) -> Result<RuneInfoResponse, BtcIndexerClientError> {
+        let rune_info_url = format!("assets/runes/{}", rune_id);
+        Ok(self.do_get_request::<RuneInfoResponse>(&rune_info_url, None).await?)
     }
 }
 
@@ -149,8 +158,7 @@ impl BtcIndexer for MaestroClient {
     }
 
     async fn get_rune(&self, rune_id: String) -> Result<RuneId, BtcIndexerClientError> {
-        let rune_info_url = format!("assets/runes/{}", rune_id);
-        let rune_info_response = self.do_get_request::<RuneInfoResponse>(&rune_info_url, None).await?;
+        let rune_info_response = self.get_rune_info(&rune_id).await?;
 
         let rune_id = RuneId::from_str(&rune_info_response.data.id)
             .map_err(|e| BtcIndexerClientError::DecodeError(e.to_string()))?;
@@ -203,5 +211,41 @@ impl BtcIndexer for MaestroClient {
                 }
             };
         }
+    }
+}
+
+#[async_trait]
+impl Runer for MaestroClient {
+    async fn get_rune_metadata(
+        &self,
+        rune_id: &str,
+        issuer_public_key: PublicKey,
+        network: Network,
+    ) -> Result<TokenMetadata, BtcIndexerClientError> {
+        let rune_info_response = self.get_rune_info(&rune_id).await?;
+        let symbol = match rune_info_response.data.symbol {
+            Some(symbol) => {
+                let width = symbol.len().clamp(MIN_SYMBOL_SIZE, MAX_SYMBOL_SIZE);
+                format!("{:<width$}", symbol, width = width)
+            }
+            None => DEFAULT_TOKEN_TICKER.to_string(),
+        };
+        Ok(TokenMetadata {
+            issuer_public_key,
+            network,
+            name: rune_id.to_string(),
+            symbol,
+            decimal: rune_info_response.data.divisibility as u8,
+            max_supply: rune_info_response
+                .data
+                .max_supply
+                .parse::<u128>()
+                .map_err(|err| BtcIndexerClientError::DecodeError(err.to_string()))?,
+            is_freezable: DEFAULT_IS_FREEZABLE,
+            creation_entity_public_key: Some(
+                PublicKey::from_slice(&SPARK_CREATION_ENTITY_PUBLIC_KEY)
+                    .map_err(|err| BtcIndexerClientError::DecodeError(err.to_string()))?,
+            ),
+        })
     }
 }

@@ -1,6 +1,9 @@
 use async_trait::async_trait;
-use bitcoin::{Address, OutPoint, Txid, hashes::Hash};
+use bitcoin::{Address, Network, OutPoint, Txid, hashes::Hash, secp256k1::PublicKey};
 use btc_indexer_config::TitanClientConfig;
+use lrc20::token_metadata::{
+    DEFAULT_IS_FREEZABLE, DEFAULT_TOKEN_TICKER, MIN_SYMBOL_SIZE, SPARK_CREATION_ENTITY_PUBLIC_KEY, TokenMetadata,
+};
 use ordinals::RuneId;
 use std::{collections::HashMap, str::FromStr};
 use titan_client::{
@@ -10,7 +13,7 @@ use titan_client::{
 use tracing::warn;
 
 use crate::{
-    client_api::{AddrUtxoData, BlockchainInfo, BtcIndexer, OutPointData, RuneData},
+    client_api::{AddrUtxoData, BlockchainInfo, BtcIndexer, OutPointData, RuneData, Runer},
     error::BtcIndexerClientError,
 };
 
@@ -144,5 +147,36 @@ impl BtcIndexer for TitanClient {
         }
 
         Ok(rune_utxos)
+    }
+}
+
+#[async_trait]
+impl Runer for TitanClient {
+    async fn get_rune_metadata(
+        &self,
+        rune_id: &str,
+        issuer_public_key: PublicKey,
+        network: Network,
+    ) -> Result<TokenMetadata, BtcIndexerClientError> {
+        let query_rune = Rune::from_str(rune_id).map_err(|e| BtcIndexerClientError::DecodeError(e.to_string()))?;
+        let rune_response = self.client.get_rune(&query_rune).await?;
+        let symbol = match rune_response.symbol {
+            Some(symbol) => format!("{:<width$}", symbol, width = MIN_SYMBOL_SIZE),
+            None => DEFAULT_TOKEN_TICKER.to_string(),
+        };
+
+        Ok(TokenMetadata {
+            issuer_public_key,
+            network,
+            name: rune_id.to_string(),
+            symbol,
+            decimal: rune_response.divisibility,
+            max_supply: rune_response.max_supply,
+            is_freezable: DEFAULT_IS_FREEZABLE,
+            creation_entity_public_key: Some(
+                PublicKey::from_slice(&SPARK_CREATION_ENTITY_PUBLIC_KEY)
+                    .map_err(|err| BtcIndexerClientError::DecodeError(err.to_string()))?,
+            ),
+        })
     }
 }

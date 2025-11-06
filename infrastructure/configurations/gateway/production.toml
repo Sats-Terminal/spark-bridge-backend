@@ -58,3 +58,7 @@ running_authority = "Lightspark"
 url = "http://bitcoind:18443"
 username = "bitcoin"
 password = "bitcoinpass"
+
+[bitcoin_indexer_client_config]
+type = "titan"
+url = "http://localhost:3030"

@@ -1,3 +1,4 @@
+use btc_indexer_config::IndexerClientConfig;
 use config::Config;
 use global_utils::network::NetworkConfig;
 use serde::{Deserialize, Serialize};
@@ -88,6 +89,8 @@ pub struct ServerConfig {
     pub spark: SparkConfig,
     #[serde(rename = "bitcoin_client_config")]
     pub bitcoin_client: BitcoinClientConfig,
+    #[serde(rename = "bitcoin_indexer_client_config")]
+    pub bitcoin_indexer_client: IndexerClientConfig,
 }
 
 impl ServerConfig {

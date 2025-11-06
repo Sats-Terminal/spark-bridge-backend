@@ -1,6 +1,7 @@
 use crate::flow_router::FlowProcessorRouter;
 use crate::types::*;
 use bitcoin::Network;
+use btc_indexer_client::client_api::IndexerClient;
 use frost::aggregator::FrostAggregator;
 use gateway_config_parser::config::VerifierConfig;
 use gateway_local_db_store::storage::LocalDbStorage;
@@ -35,6 +36,7 @@ pub struct FlowProcessor {
     pub spark_client: Arc<SparkRpcClient>,
     pub bitcoin_client: Arc<BitcoinClient>,
     pub network: Network,
+    pub bitcoin_indexer: IndexerClient,
 }
 
 pub struct FlowProcessorInitArgs {
@@ -48,6 +50,7 @@ pub struct FlowProcessorInitArgs {
     pub spark_service: Arc<SparkService>,
     pub spark_client: Arc<SparkRpcClient>,
     pub bitcoin_client: Arc<BitcoinClient>,
+    pub bitcoin_indexer: IndexerClient,
 }
 
 impl FlowProcessor {
@@ -67,6 +70,7 @@ impl FlowProcessor {
             spark_client: flow_processor_config.spark_client,
             bitcoin_client: flow_processor_config.bitcoin_client,
             network: flow_processor_config.network,
+            bitcoin_indexer: flow_processor_config.bitcoin_indexer,
         }
     }
 
@@ -110,6 +114,7 @@ impl FlowProcessor {
                                 spark_client: self.spark_client.clone(),
                                 network: self.network,
                                 bitcoin_client: self.bitcoin_client.clone(),
+                                bitcoin_indexer: self.bitcoin_indexer.clone(),
                             };
 
                             let handle = tokio::task::spawn(async move {

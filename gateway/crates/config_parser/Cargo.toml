@@ -11,6 +11,7 @@ tracing = { workspace = true }
 thiserror = { workspace = true }
 bitcoin = { workspace = true }
 spark_client = { workspace = true }
+btc_indexer_config = { workspace = true }
 
 [dev-dependencies]
 toml = { workspace = true }
