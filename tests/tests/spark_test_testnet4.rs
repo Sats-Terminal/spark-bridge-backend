@@ -1,23 +1,28 @@
 use bitcoin::{Address, Network};
-use btc_indexer_config::{IndexerClientConfig, TitanClientConfig};
+use btc_indexer_config::{IndexerClientConfig, MaestroClientConfig};
 use global_utils::logger::init_logger;
-use std::{str::FromStr, time::Duration};
+use ordinals::RuneId;
+use std::{env, str::FromStr, time::Duration};
 use tests::{
-    bitcoin_client::{BitcoinClient, BitcoinClientConfig, BitcoinRegtestClient},
-    constants::{BLOCKS_TO_GENERATE, DEFAULT_FAUCET_AMOUNT, PAYING_INPUT_SATS_AMOUNT},
+    bitcoin_client::{BitcoinClient, BitcoinTestnetClient},
+    constants::{DEFAULT_FAUCET_AMOUNT, PAYING_INPUT_SATS_AMOUNT},
     gateway_client::*,
     rune_manager::setup_rune_manager,
     spark_client::{SparkClient, SparkClientConfig},
     user_wallet::{TransferType, UserWallet},
 };
 use tokio::time::sleep;
+use url::Url;
 
 #[tokio::test]
-async fn test_spark() {
+async fn test_spark_testnet4() {
     let _guard = init_logger();
-    let network = Network::Regtest;
+    let network = Network::Testnet4;
+    let testnet4_key = "a800a85be33a66ea91bc08b5b34494987a8fe8933b7d7a0deb2bfee15aca0883";
+    let testnet_rune_id = Some(RuneId::new(108272, 144).unwrap());
     // Setup
 
+    let esplora_url = Url::parse("https://mempool.space/testnet4/api/").unwrap();
     tracing::info!("Start setup");
 
     let gateway_client = GatewayClient::new(GatewayConfig {
@@ -39,25 +44,23 @@ async fn test_spark() {
     .await
     .unwrap();
 
-    let mut bitcoin_client = BitcoinRegtestClient::new(
-        BitcoinClientConfig {
-            url: "http://127.0.0.1:18443".to_string(),
-            username: "bitcoin".to_string(),
-            password: "bitcoinpass".to_string(),
-        },
-        IndexerClientConfig::Titan(TitanClientConfig {
-            url: "http://127.0.0.1:3030".to_string(),
+    let mut bitcoin_client = BitcoinTestnetClient::new(
+        esplora_url,
+        IndexerClientConfig::Maestro(MaestroClientConfig {
+            url: Url::parse("https://xbt-testnet.gomaestro-api.org/v0/").unwrap(),
+            key: env::var("MAESTRO_API_KEY").expect("MAESTRO_API_KEY environment variable not set"),
+            confirmation_threshold: 0,
         }),
-    )
-    .await
-    .expect("bitcoin client should work");
+    );
 
-    let (rune_manager, transaction) = setup_rune_manager(&mut bitcoin_client, network, None, None).await;
-    bitcoin_client.broadcast_transaction(transaction).await.unwrap();
-    bitcoin_client.generate_blocks(BLOCKS_TO_GENERATE, None).await.unwrap();
+    let (rune_manager, transaction) =
+        setup_rune_manager(&mut bitcoin_client, network, Some(testnet4_key), testnet_rune_id).await;
+    bitcoin_client.broadcast_transaction(transaction.clone()).await.unwrap();
 
     let rune_id = rune_manager.get_rune_id();
-    let mut user_wallet = UserWallet::new(spark_client.clone(), rune_id, network, None).await.unwrap();
+    let mut user_wallet = UserWallet::new(spark_client.clone(), rune_id, network, Some(testnet4_key))
+        .await
+        .unwrap();
     bitcoin_client
         .faucet(user_wallet.get_address(), DEFAULT_FAUCET_AMOUNT)
         .await
@@ -68,23 +71,21 @@ async fn test_spark() {
     // Mint runes for user wallet
 
     let utxos_data = bitcoin_client
-        .get_address_data(rune_manager.get_p2tr_address())
+        .get_address_data(user_wallet.get_address())
         .await
         .unwrap();
     let transaction = rune_manager
         .build_mint_tx(user_wallet.get_address(), utxos_data)
         .await
         .unwrap();
-    bitcoin_client.broadcast_transaction(transaction).await.unwrap();
-    bitcoin_client.generate_blocks(BLOCKS_TO_GENERATE, None).await.unwrap();
+    bitcoin_client.broadcast_transaction(transaction.clone()).await.unwrap();
 
     let utxos_data = bitcoin_client
         .get_address_data(user_wallet.get_address())
         .await
         .unwrap();
     let transaction = user_wallet.build_unite_unspent_utxos_tx(&utxos_data).await.unwrap();
-    bitcoin_client.broadcast_transaction(transaction).await.unwrap();
-    bitcoin_client.generate_blocks(BLOCKS_TO_GENERATE, None).await.unwrap();
+    bitcoin_client.broadcast_transaction(transaction.clone()).await.unwrap();
 
     let utxos_data = bitcoin_client
         .get_address_data(user_wallet.get_address())
@@ -128,10 +129,9 @@ async fn test_spark() {
         .await
         .unwrap();
     bitcoin_client.broadcast_transaction(transaction.clone()).await.unwrap();
-    bitcoin_client.generate_blocks(BLOCKS_TO_GENERATE, None).await.unwrap();
     let txid = transaction.compute_txid();
 
-    tracing::info!("txid: {:?}", txid);
+    tracing::info!("Transfer txid: {:?}", txid);
 
     let spark_address = user_wallet.get_spark_address().unwrap();
 
@@ -147,7 +147,8 @@ async fn test_spark() {
     let bridge_runes_response = gateway_client.bridge_runes(bridge_runes_request).await.unwrap();
     tracing::info!("bridge_runes_response: {:?}", bridge_runes_response);
 
-    sleep(Duration::from_secs(5)).await;
+    tracing::debug!("Waiting 30s to process bridge request");
+    sleep(Duration::from_secs(30)).await;
 
     // get spark deposit address
 
@@ -197,7 +198,6 @@ async fn test_spark() {
         .await
         .unwrap();
     bitcoin_client.broadcast_transaction(transaction.clone()).await.unwrap();
-    bitcoin_client.generate_blocks(BLOCKS_TO_GENERATE, None).await.unwrap();
 
     let paying_input = user_wallet
         .create_user_paying_transfer_input(transaction)
@@ -226,9 +226,5 @@ async fn test_spark() {
     let balance = user_wallet.get_rune_balance(&utxos_data).await.unwrap();
     tracing::info!("Balance: {:?}", balance);
 
-    assert_eq!(
-        balance,
-        DEFAULT_FAUCET_AMOUNT - deposit_amount + spark_deposit_amount,
-        "Balance should be equal to deposit amount"
-    );
+    assert_eq!(balance, deposit_amount, "Balance should be equal to deposit amount");
 }

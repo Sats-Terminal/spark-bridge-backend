@@ -12,11 +12,14 @@ use bitcoin::{
 use bitcoin::{Amount, TxOut, Witness};
 use rand_core::OsRng;
 
-pub fn create_credentials() -> (Address, Keypair) {
+pub fn create_credentials(network: Network, key: Option<&str>) -> (Address, Keypair) {
     let secp = Secp256k1::new();
-    let mut rng = OsRng;
-    let network = Network::Regtest;
-    let keypair = Keypair::new(&secp, &mut rng);
+    let keypair = if let Some(key) = key {
+        Keypair::from_seckey_str(&secp, key).unwrap()
+    } else {
+        let mut rng = OsRng;
+        Keypair::new(&secp, &mut rng)
+    };
     let untweaked_public_key = UntweakedPublicKey::from_keypair(&keypair).0;
     let p2tr_address = Address::p2tr(&secp, untweaked_public_key, None, network);
     (p2tr_address, keypair)

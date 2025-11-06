@@ -49,6 +49,13 @@ pub struct VerifiersConfig(pub Vec<VerifierConfig>);
 #[serde(rename_all = "snake_case")]
 pub struct BitcoinClientConfig {
     pub url: String,
+    #[serde(flatten)]
+    pub auth: Option<BitcoinNodeAuth>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub struct BitcoinNodeAuth {
     pub username: String,
     pub password: String,
 }

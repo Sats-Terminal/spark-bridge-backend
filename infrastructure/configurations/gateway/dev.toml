@@ -62,6 +62,7 @@ frost_identifier = "000000000000000000000000000000000000000000000000000000000000
 running_authority = "Flashnet"
 
 [bitcoin_client_config]
+# url = "https://mempool.space/testnet4/api/"
 url = "http://127.0.0.1:18443"
 username = "bitcoin"
 password = "bitcoinpass"

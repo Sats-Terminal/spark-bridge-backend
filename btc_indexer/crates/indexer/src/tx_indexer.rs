@@ -1,5 +1,5 @@
 use crate::error::IndexerError;
-use btc_indexer_client::client_api::BtcIndexerClientApi;
+use btc_indexer_client::client_api::BtcIndexer;
 use btc_indexer_local_db_store::storage::LocalDbStorage;
 use btc_indexer_local_db_store::schemas::txs::{TxsStorage, TxInfo};
 use tokio_util::sync::CancellationToken;
@@ -9,7 +9,7 @@ use tokio::time::Duration;
 use btc_indexer_config::BtcIndexerConfig;
 use tracing;
 
-pub struct TxIndexer<Api: BtcIndexerClientApi> {
+pub struct TxIndexer<Api: BtcIndexer> {
     indexer_client: Api,
     local_db_store: Arc<LocalDbStorage>,
     cancellation_token: CancellationToken,
@@ -17,7 +17,7 @@ pub struct TxIndexer<Api: BtcIndexerClientApi> {
     cur_block_height: u64,
 }
 
-impl<Api: BtcIndexerClientApi> TxIndexer<Api> {
+impl<Api: BtcIndexer> TxIndexer<Api> {
     pub fn new(
         indexer_client: Api, 
         local_db_store: Arc<LocalDbStorage>, 

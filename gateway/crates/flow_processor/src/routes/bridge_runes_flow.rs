@@ -47,13 +47,25 @@ pub async fn handle(
         Some(user_ids) => user_ids,
         None => {
             tracing::debug!("Issuer musig id not found, running dkg for issuer ...");
-            let issuer_public_key = generate_issuer_public_key();
-
             let issuer_ids = flow_router.storage.get_random_unused_dkg_share(&rune_id, true).await?;
 
             // Dkg flow has to be already completed
 
-            let wrunes_metadata = create_wrunes_metadata(rune_id.clone(), issuer_public_key, flow_router.network)?;
+            let issuer_public_key_package = flow_router
+                .frost_aggregator
+                .get_public_key_package(issuer_ids.dkg_share_id, None)
+                .await
+                .map_err(|e| {
+                    FlowProcessorError::FrostAggregatorError(format!("Failed to get public key package, err: {}", e))
+                })?;
+
+            let issuer_musig_public_key_bytes = issuer_public_key_package.verifying_key().serialize().map_err(|e| {
+                FlowProcessorError::InvalidDataError(format!("Failed to serialize issuer musig public key: {}", e))
+            })?;
+            let issuer_musig_public_key = PublicKey::from_slice(&issuer_musig_public_key_bytes)?;
+
+            let wrunes_metadata =
+                create_wrunes_metadata(rune_id.clone(), issuer_musig_public_key, flow_router.network)?;
 
             flow_router
                 .spark_service

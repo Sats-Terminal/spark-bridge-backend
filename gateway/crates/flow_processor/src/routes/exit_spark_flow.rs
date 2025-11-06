@@ -5,10 +5,13 @@ use bitcoin::OutPoint;
 use bitcoin::secp256k1::schnorr::Signature;
 use frost::types::SigningMetadata;
 use frost::utils::{convert_public_key_package, generate_tweak_bytes, get_tweaked_p2tr_address};
-use gateway_local_db_store::schemas::deposit_address::{DepositAddressStorage, InnerAddress, DepositAddrInfo, DepositStatus, VerifiersResponses};
+use gateway_local_db_store::schemas::deposit_address::{
+    DepositAddrInfo, DepositAddressStorage, DepositStatus, InnerAddress, VerifiersResponses,
+};
 use gateway_local_db_store::schemas::paying_utxo::PayingUtxoStorage;
 use gateway_local_db_store::schemas::user_identifier::UserIdentifierStorage;
 use gateway_local_db_store::schemas::utxo_storage::{Utxo, UtxoStatus, UtxoStorage};
+use gateway_rune_transfer::bitcoin_client::Broadcaster;
 use gateway_rune_transfer::transfer::RuneTransferOutput;
 use gateway_rune_transfer::transfer::{
     add_signature_to_transaction, create_message_hash, create_rune_partial_transaction,
@@ -146,7 +149,7 @@ pub async fn handle(
 
     flow_router
         .bitcoin_client
-        .broadcast_transaction(transaction.clone())
+        .broadcast_transaction(&transaction)
         .await
         .map_err(|e| FlowProcessorError::RuneTransferError(format!("Failed to broadcast transaction: {e}")))?;
 

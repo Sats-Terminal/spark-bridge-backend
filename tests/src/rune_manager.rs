@@ -1,90 +1,73 @@
 use crate::bitcoin_client::BitcoinClient;
 use crate::constants::{
-    BLOCKS_TO_GENERATE, DEFAULT_DUST_AMOUNT, DEFAULT_FAUCET_AMOUNT, DEFAULT_FEE_AMOUNT, DEFAULT_RUNE_AMOUNT,
-    DEFAULT_RUNE_CAP,
+    DEFAULT_DUST_AMOUNT, DEFAULT_FAUCET_AMOUNT, DEFAULT_FEE_AMOUNT, DEFAULT_RUNE_AMOUNT, DEFAULT_RUNE_CAP,
 };
 use crate::error::RuneError;
 use crate::rune_etching::{EtchRuneParams, etch_rune};
-use crate::utils::create_credentials;
-use crate::utils::sign_transaction;
-use bitcoin::Address;
-use bitcoin::key::Keypair;
-use bitcoin::transaction::Version;
-use bitcoin::{Amount, OutPoint, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Txid, Witness};
-use ordinals::RuneId;
-use ordinals::Runestone;
+use crate::utils::{create_credentials, sign_transaction};
+use bitcoin::Network;
+use bitcoin::{
+    Address, Amount, OutPoint, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Txid, Witness, key::Keypair,
+    transaction::Version,
+};
+use btc_indexer_client::client_api::AddrUtxoData;
+use ordinals::{RuneId, Runestone};
 use rand_core::{OsRng, RngCore};
+use serde::Serialize;
 use std::str::FromStr;
-use std::time::Duration;
-use titan_client::SpentStatus;
-use tokio::time::sleep;
 
 pub struct RuneManager {
-    bitcoin_client: BitcoinClient,
     p2tr_address: Address,
     keypair: Keypair,
     rune_id: RuneId,
 }
 
 impl RuneManager {
-    pub async fn new(mut bitcoin_client: BitcoinClient) -> Result<Self, RuneError> {
-        let (p2tr_address, keypair) = create_credentials();
-
-        bitcoin_client.faucet(p2tr_address.clone(), DEFAULT_FAUCET_AMOUNT)?;
-        sleep(Duration::from_secs(1)).await;
-
-        let rune_id = etch_rune(
-            EtchRuneParams {
-                rune_name: random_rune_name(),
-                cap: DEFAULT_RUNE_CAP,
-                amount: DEFAULT_RUNE_AMOUNT,
-                key_pair: keypair,
-                faucet_address: p2tr_address.clone(),
-            },
-            bitcoin_client.clone(),
-        )
-        .await?;
-
+    pub async fn new(
+        p2tr_address: Address,
+        keypair: Keypair,
+        rune_id: RuneId,
+        address_utxos_data: Vec<AddrUtxoData>,
+    ) -> Result<(Self, Transaction), RuneError> {
         let mut rune_manager = Self {
-            bitcoin_client,
             p2tr_address,
             keypair,
             rune_id,
         };
-        let _ = rune_manager.unite_unspent_utxos().await?;
-        rune_manager.bitcoin_client.generate_blocks(BLOCKS_TO_GENERATE, None)?;
-        sleep(Duration::from_secs(1)).await;
+        let tx = rune_manager.unite_unspent_utxos(address_utxos_data).await?;
 
-        Ok(rune_manager)
+        Ok((rune_manager, tx))
     }
 
-    pub async fn get_rune_id(&self) -> RuneId {
+    pub fn get_rune_id(&self) -> RuneId {
         self.rune_id
     }
 
-    async fn unite_unspent_utxos(&mut self) -> Result<Txid, RuneError> {
-        tracing::info!("Uniting unspent utxos");
+    pub fn get_p2tr_address(&self) -> Address {
+        self.p2tr_address.clone()
+    }
 
-        let address_data = self.bitcoin_client.get_address_data(self.p2tr_address.clone()).await?;
+    async fn unite_unspent_utxos(&mut self, address_utxos_data: Vec<AddrUtxoData>) -> Result<Transaction, RuneError> {
+        tracing::info!("Uniting unspent utxos");
 
         let mut total_amount = 0;
         let mut prev_input_amounts = vec![];
         let mut txins = vec![];
 
-        for utxo in address_data.outputs.iter() {
-            if !utxo.status.confirmed {
+        for utxo_data in address_utxos_data.iter() {
+            if !utxo_data.confirmed {
                 return Err(RuneError::UniteUnspentUtxosError(
                     "Unspent utxo is not confirmed".to_string(),
                 ));
             }
-            if let SpentStatus::Unspent = utxo.spent {
-                total_amount += utxo.value;
-                prev_input_amounts.push(utxo.value);
+            if !utxo_data.spent {
+                total_amount += utxo_data.value;
+                prev_input_amounts.push(utxo_data.value);
 
                 txins.push(TxIn {
                     previous_output: OutPoint {
-                        txid: utxo.txid,
-                        vout: utxo.vout,
+                        txid: Txid::from_str(&utxo_data.txid).unwrap(),
+                        vout: utxo_data.vout,
                     },
                     script_sig: ScriptBuf::new(),
                     sequence: Sequence::ENABLE_RBF_NO_LOCKTIME,
@@ -112,27 +95,21 @@ impl RuneManager {
             self.keypair,
         )?;
 
-        let txid = transaction.compute_txid();
-        self.bitcoin_client.broadcast_transaction(transaction)?;
-        self.bitcoin_client.generate_blocks(BLOCKS_TO_GENERATE, None)?;
-        sleep(Duration::from_secs(1)).await;
-
-        Ok(txid)
+        Ok(transaction)
     }
 
-    async fn get_funded_outpoint_data(&mut self) -> Result<(OutPoint, u64), RuneError> {
-        let address_data = self.bitcoin_client.get_address_data(self.p2tr_address.clone()).await?;
-
-        for output in address_data.outputs.iter() {
-            if output.value >= 100_000
-                && let SpentStatus::Unspent = output.spent
-            {
+    async fn get_funded_outpoint_data(
+        &self,
+        address_utxos_data: Vec<AddrUtxoData>,
+    ) -> Result<(OutPoint, u64), RuneError> {
+        for utxo_data in address_utxos_data.iter() {
+            if utxo_data.value >= 100_000 && !utxo_data.spent {
                 return Ok((
                     OutPoint {
-                        txid: Txid::from_str(&output.txid.to_string()).unwrap(),
-                        vout: output.vout,
+                        txid: Txid::from_str(&utxo_data.txid).unwrap(),
+                        vout: utxo_data.vout,
                     },
-                    output.value,
+                    utxo_data.value,
                 ));
             }
         }
@@ -142,7 +119,11 @@ impl RuneManager {
         ))
     }
 
-    pub async fn mint_rune(&mut self, address: Address) -> Result<Txid, RuneError> {
+    pub async fn build_mint_tx(
+        &self,
+        address: Address,
+        address_utxos_data: Vec<AddrUtxoData>,
+    ) -> Result<Transaction, RuneError> {
         tracing::info!("Minting rune");
 
         let runestone = Runestone {
@@ -153,7 +134,7 @@ impl RuneManager {
         };
         let op_return_script = runestone.encipher();
 
-        let (outpoint, value) = self.get_funded_outpoint_data().await?;
+        let (outpoint, value) = self.get_funded_outpoint_data(address_utxos_data).await?;
 
         let txin = TxIn {
             previous_output: outpoint,
@@ -185,13 +166,7 @@ impl RuneManager {
         };
 
         sign_transaction(&mut transaction, vec![value], self.p2tr_address.clone(), self.keypair)?;
-
-        let txid = transaction.compute_txid();
-        self.bitcoin_client.broadcast_transaction(transaction)?;
-        self.bitcoin_client.generate_blocks(BLOCKS_TO_GENERATE, None)?;
-        sleep(Duration::from_secs(1)).await;
-
-        Ok(txid)
+        Ok(transaction)
     }
 }
 
@@ -208,4 +183,42 @@ pub fn random_rune_name() -> String {
         result.push(new_char);
     }
     result
+}
+
+pub async fn setup_rune_manager(
+    bitcoin_client: &mut impl BitcoinClient,
+    network: Network,
+    private_key: Option<&str>,
+    rune_id: Option<RuneId>,
+) -> (RuneManager, Transaction) {
+    let (p2tr_address, keypair) = create_credentials(network, private_key);
+    bitcoin_client
+        .faucet(p2tr_address.clone(), DEFAULT_FAUCET_AMOUNT)
+        .await
+        .unwrap();
+
+    let rune_id = if rune_id.is_none() {
+        etch_rune(
+            EtchRuneParams {
+                network: network,
+                rune_name: random_rune_name(),
+                cap: DEFAULT_RUNE_CAP,
+                amount: DEFAULT_RUNE_AMOUNT,
+                key_pair: keypair,
+                faucet_address: p2tr_address.clone(),
+            },
+            bitcoin_client,
+        )
+        .await
+        .unwrap()
+    } else {
+        rune_id.unwrap()
+    };
+
+    let utxos_data = bitcoin_client.get_address_data(p2tr_address.clone()).await.unwrap();
+    let (rune_manager, transaction) = RuneManager::new(p2tr_address.clone(), keypair, rune_id, utxos_data)
+        .await
+        .unwrap();
+
+    (rune_manager, transaction)
 }

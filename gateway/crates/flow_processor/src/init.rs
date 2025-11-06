@@ -6,7 +6,7 @@ use bitcoin::secp256k1::PublicKey;
 use frost::aggregator::FrostAggregator;
 use gateway_config_parser::config::ServerConfig;
 use gateway_local_db_store::storage::LocalDbStorage;
-use gateway_rune_transfer::bitcoin_client::BitcoinClient;
+use gateway_rune_transfer::bitcoin_client::new_bitcoin_client;
 use gateway_spark_service::service::SparkService;
 use spark_client::client::SparkRpcClient;
 use std::str::FromStr;
@@ -45,7 +45,7 @@ pub async fn create_flow_processor(
         spark_operator_identity_public_keys,
     );
 
-    let bitcoin_client = BitcoinClient::new(server_config.bitcoin_client.clone())
+    let bitcoin_client = new_bitcoin_client(server_config.bitcoin_client.clone())
         .map_err(|e| FlowProcessorError::InitializationError(format!("Failed to create bitcoin client: {}", e)))?;
 
     let flow_processor = FlowProcessor::new(FlowProcessorInitArgs {

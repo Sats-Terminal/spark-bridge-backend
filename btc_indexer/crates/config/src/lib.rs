@@ -1,6 +1,7 @@
-use config::Config;
-use serde::{Deserialize, Serialize};
 use bitcoin::Network;
+use config::{Config, Environment};
+use reqwest::Url;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AppConfig {
@@ -36,14 +37,33 @@ pub struct BtcIndexerConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct IndexerClientConfig {
+#[serde(tag = "type", rename_all = "lowercase")]
+pub enum IndexerClientConfig {
+    Titan(TitanClientConfig),
+    Maestro(MaestroClientConfig),
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct TitanClientConfig {
     pub url: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct MaestroClientConfig {
+    pub url: Url,
+    pub key: String,
+    pub confirmation_threshold: u64,
 }
 
 impl AppConfig {
     pub fn init_config(path: String) -> Self {
         let config = Config::builder()
             .add_source(config::File::with_name(&path))
+            .add_source(
+                Environment::with_prefix("BTC_INDEXER")
+                    .prefix_separator("_")
+                    .separator("__"),
+            )
             .build()
             .unwrap();
         config.try_deserialize().unwrap()
