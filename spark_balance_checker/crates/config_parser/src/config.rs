@@ -1,5 +1,5 @@
 use bitcoin::Network;
-use config::Config;
+use config::{Config, Environment};
 use serde::{Deserialize, Serialize};
 use spark_client::common::config::SparkConfig;
 
@@ -30,6 +30,11 @@ impl ServerConfig {
     pub fn init_config(path: String) -> Self {
         let config = Config::builder()
             .add_source(config::File::with_name(&path))
+            .add_source(
+                Environment::with_prefix("SPARK_BALANCE_CHECKER")
+                    .prefix_separator("_")
+                    .separator("__"),
+            )
             .build()
             .unwrap();
 

@@ -1,5 +1,5 @@
 use bitcoin::Network;
-use config::Config;
+use config::{Config, Environment};
 use global_utils::common_types::Url;
 use serde::{Deserialize, Serialize};
 
@@ -77,6 +77,11 @@ impl ServerConfig {
     pub fn init_config(path: String) -> Self {
         let config = Config::builder()
             .add_source(config::File::with_name(&path))
+            .add_source(
+                Environment::with_prefix("VERIFIER")
+                    .prefix_separator("_")
+                    .separator("__"),
+            )
             .build()
             .unwrap();
         config.try_deserialize().unwrap()
