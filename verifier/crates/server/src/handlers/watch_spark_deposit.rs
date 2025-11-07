@@ -9,7 +9,6 @@ use token_identifier::TokenIdentifier;
 use tracing;
 use tracing::instrument;
 use verifier_btc_indexer_client::client::WatchRunesDepositRequest as IndexerWatchRunesDepositRequest;
-use verifier_config_parser::config::construct_hardcoded_callback_url;
 use verifier_local_db_store::schemas::{
     deposit_address::{DepositAddrInfo, DepositAddressStorage, DepositStatus, FeePayment, InnerAddress},
     user_identifier::{UserIdentifierStorage, UserIds},
@@ -96,7 +95,7 @@ pub async fn handle(
                             rune_id: None,
                             rune_amount: None,
                             sats_amount: Some(fee_cfg.amount),
-                            callback_url: construct_hardcoded_callback_url(&state.server_config.server).to_string(),
+                            callback_url: state.server_config.server.callback_url.to_string(),
                         })
                         .await
                         .map_err(|e| {

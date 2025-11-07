@@ -12,15 +12,7 @@ pub struct AppConfig {
     pub port: u16,
     #[serde(rename = "network")]
     pub network: Network,
-}
-
-// FIXME!!! This is super bad hardcode, delete these as soon as we have proper indexer logic
-pub fn construct_hardcoded_callback_url(app_config: &AppConfig) -> Url {
-    Url::parse(&format!(
-        "http://{}:{}/api/btc-indexer/notify-runes-deposit",
-        app_config.ip, app_config.port
-    ))
-    .unwrap()
+    pub callback_url: Url,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
