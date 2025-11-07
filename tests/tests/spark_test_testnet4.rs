@@ -26,7 +26,7 @@ async fn test_spark_testnet4() {
     tracing::info!("Start setup");
 
     let gateway_client = GatewayClient::new(GatewayConfig {
-        address: "http://localhost:8060".parse().unwrap(),
+        address: "http://localhost:9430".parse().unwrap(),
     });
 
     let spark_client = SparkClient::new(
