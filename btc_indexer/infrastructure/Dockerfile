@@ -1,12 +1,13 @@
 FROM rust:1.90.0-bullseye AS builder
 WORKDIR /usr/src/runes-spark-bridge
-COPY ./ ./
-RUN cargo install --path ./btc_indexer/apps/main
+
+RUN apt-get update && apt-get -y install ca-certificates libssl-dev protobuf-compiler
 RUN cargo install sqlx-cli@0.8.6 --no-default-features --features native-tls,postgres
 
-FROM debian:bullseye
+COPY ./ ./
+RUN cargo install --path ./btc_indexer/apps/main
 
-RUN apt-get update && apt-get -y install ca-certificates libssl-dev
+FROM debian:bullseye
 
 # Copying configs
 COPY ./btc_indexer/crates/local_db_store/migrations/ /migrations
