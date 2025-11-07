@@ -2,12 +2,13 @@
 http_server_ip = "0.0.0.0"
 http_server_port = 8070
 network = "regtest"
+callback_url = "http://verifier-3-svc:8070/api/btc-indexer/notify-runes-deposit"
 
 [btc_indexer_url_config]
-address="http://btc-indexer-service:8070"
+address="http://btc-indexer-svc:8070"
 
 [spark_balance_checker_url_config]
-address="http://spark-balance-checker-service:8070"
+address="http://spark-balance-checker-svc:8090"
 
 [frost_signer_config]
 identifier = 3
@@ -15,10 +16,10 @@ threshold = 2
 total_participants = 3
 
 [gateway_config]
-address = "http://gateway-service:8060"
+address = "http://gateway-svc:8060"
 
 [database_config]
-url = "postgres://admin_manager:password@persistent-db-storage_verifier_3:5432/production_db_name"
+url = "postgres://verifier:verifier@verifier-3-db/verifier"
 
 [fee_config]
 amount=1000

@@ -7,8 +7,8 @@ network = "regtest"
 
 [spark_config]
 certificates = [
-    { path = "./infrastructure/configurations/certificates/Amazon-Root-CA.pem" },
-    { path = "./infrastructure/configurations/certificates/Flashnet-CA.pem" },
+    { path = "/Amazon-Root-CA.pem" },
+    { path = "/Flashnet-CA.pem" },
 ]
 
 [[spark_config.operators]]
