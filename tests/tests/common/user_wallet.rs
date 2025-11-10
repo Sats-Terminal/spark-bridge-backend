@@ -1,10 +1,10 @@
-use crate::constants::{DEFAULT_DUST_AMOUNT, DEFAULT_FEE_AMOUNT, PAYING_INPUT_SATS_AMOUNT};
-use crate::error::RuneError;
-use crate::gateway_client::UserPayingTransferInput;
-use crate::spark_client::GetSparkAddressDataRequest;
-use crate::spark_client::SparkClient;
-use crate::utils::create_credentials;
-use crate::utils::sign_transaction;
+use crate::common::constants::{DEFAULT_DUST_AMOUNT, DEFAULT_FEE_AMOUNT, PAYING_INPUT_SATS_AMOUNT};
+use crate::common::error::RuneError;
+use crate::common::gateway_client::UserPayingTransferInput;
+use crate::common::spark_client::GetSparkAddressDataRequest;
+use crate::common::spark_client::SparkClient;
+use crate::common::utils::create_credentials;
+use crate::common::utils::sign_transaction;
 use bitcoin::Address;
 use bitcoin::Txid;
 use bitcoin::hashes::sha256::Hash as Sha256Hash;

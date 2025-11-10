@@ -1,7 +1,9 @@
+mod common;
+
 use bitcoin::{Address, Network};
 use btc_indexer_config::{IndexerClientConfig, TitanClientConfig};
 use std::str::FromStr;
-use tests::bitcoin_client::{BitcoinClient, BitcoinClientConfig, BitcoinRegtestClient};
+use common::bitcoin_client::{BitcoinClient, BitcoinClientConfig, BitcoinRegtestClient};
 use tokio;
 
 #[tokio::test]

@@ -1,4 +1,4 @@
-use crate::error::RuneError;
+use crate::common::error::RuneError;
 use bitcoin::Transaction;
 use bitcoin::key::TapTweak;
 use bitcoin::secp256k1::Message;

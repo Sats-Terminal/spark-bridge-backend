@@ -1,8 +1,10 @@
+mod common;
+
 use bitcoin::{Address, Network, OutPoint, Txid};
 use btc_indexer_config::{IndexerClientConfig, TitanClientConfig};
 use global_utils::logger::init_logger;
 use std::{str::FromStr, time::Duration};
-use tests::{
+use common::{
     bitcoin_client::{BitcoinClient, BitcoinClientConfig, BitcoinRegtestClient},
     constants::{BLOCKS_TO_GENERATE, DEFAULT_FAUCET_AMOUNT, FEE_BTC_ADDR, FEE_SPARK_ADDR, PAYING_INPUT_SATS_AMOUNT},
     gateway_client::*,

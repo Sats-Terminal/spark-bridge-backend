@@ -1,9 +1,11 @@
+mod common;
+
 use bitcoin::{Address, Network};
 use btc_indexer_config::{IndexerClientConfig, MaestroClientConfig};
 use global_utils::logger::init_logger;
 use ordinals::RuneId;
 use std::{env, str::FromStr, time::Duration};
-use tests::{
+use common::{
     bitcoin_client::{BitcoinClient, BitcoinTestnetClient},
     constants::{DEFAULT_FAUCET_AMOUNT, PAYING_INPUT_SATS_AMOUNT},
     gateway_client::*,
