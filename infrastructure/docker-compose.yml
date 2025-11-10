@@ -291,7 +291,7 @@ services:
   spark-balance-checker-svc:
     container_name: spark-balance-checker-svc
     build:
-      context: ./../
+      context: ../
       dockerfile: ./spark_balance_checker/infrastructure/Dockerfile
     restart: always
     environment:

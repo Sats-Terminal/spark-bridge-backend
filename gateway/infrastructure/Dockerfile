@@ -1,39 +1,47 @@
-FROM rust:1.90.0-bullseye AS builder
+FROM rust:1.90.0-bullseye AS base
 
-# Create a workspace directory
-WORKDIR /usr/src/runes-spark-bridge
+ARG CARGO_CHEF_VERSION=0.1.73
+ARG SCCACHE_VERSION=0.12.0
 
-# Installing proto
-ENV PROTOC_VERSION=32.0
-RUN apt update && apt upgrade -y
+RUN apt-get update && apt-get -y install ca-certificates libssl-dev protobuf-compiler libprotobuf-dev && \
+    cargo install cargo-chef --version ${CARGO_CHEF_VERSION} --locked && \
+    cargo install sccache --version ${SCCACHE_VERSION} --locked && \
+    cargo install sqlx-cli@0.8.6 --no-default-features --features native-tls,postgres
 
-# Download proto zip
-ENV PROTOC_VERSION=32.0
-ENV PROTOC_ZIP=protoc-${PROTOC_VERSION}-linux-x86_64.zip
-RUN curl -OL https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/${PROTOC_ZIP}
-RUN unzip -o ${PROTOC_ZIP} -d ./proto
-RUN chmod 755 -R ./proto/bin
-ENV BASE=/usr
-
-# Copy into path
-RUN cp ./proto/bin/protoc ${BASE}/bin/
-RUN cp -R ./proto/include/* ${BASE}/include/
-
-# Copy the entire workspace
-COPY ./ ./
-RUN cargo install --path ./gateway/apps/main
-RUN cargo install sqlx-cli@0.8.6 --no-default-features --features native-tls,postgres
+ENV RUSTC_WRAPPER=/usr/local/cargo/bin/sccache
+ENV SCCACHE_DIR=/cache/sccache
 
 
-# The final base image
+FROM base AS planner
+WORKDIR /src
+
+COPY . .
+
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=$SCCACHE_DIR,sharing=locked \
+    cargo chef prepare --recipe-path recipe.json
+
+
+FROM base AS builder
+
+WORKDIR /src
+COPY --from=planner /src/recipe.json recipe.json
+
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=$SCCACHE_DIR,sharing=locked \
+    cargo chef cook --release --recipe-path recipe.json
+
+COPY . .
+
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=$SCCACHE_DIR,sharing=locked \
+    cargo install --path gateway/apps/main
+
+
 FROM debian:bullseye
 
-RUN apt-get update && apt-get install -y libssl-dev
-
-# Copying configs
 COPY ./gateway/crates/local_db_store/migrations/ /migrations
 
-# Copying binaries
 COPY --from=builder /usr/local/cargo/bin/gateway_main /usr/local/bin/gateway_main
 COPY --from=builder /usr/local/cargo/bin/sqlx /usr/local/bin/sqlx
-CMD ["verifier_main"]
+CMD ["gateway_main"]
