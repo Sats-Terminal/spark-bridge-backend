@@ -10,7 +10,7 @@ use tracing::instrument;
 
 #[async_trait]
 pub trait PayingUtxoStorage: Send + Sync + StorageHealthcheck {
-    async fn insert_paying_utxo(&self, paying_utxo: PayingTransferInput) -> Result<(), DbError>;
+    async fn insert_paying_utxo(&self, paying_utxo: &PayingTransferInput) -> Result<(), DbError>;
     async fn get_paying_utxo_by_btc_exit_address(
         &self,
         btc_exit_address: Address,
@@ -20,7 +20,7 @@ pub trait PayingUtxoStorage: Send + Sync + StorageHealthcheck {
 #[async_trait]
 impl PayingUtxoStorage for LocalDbStorage {
     #[instrument(level = "trace", skip_all)]
-    async fn insert_paying_utxo(&self, paying_utxo: PayingTransferInput) -> Result<(), DbError> {
+    async fn insert_paying_utxo(&self, paying_utxo: &PayingTransferInput) -> Result<(), DbError> {
         let _ = sqlx::query(
             "INSERT INTO gateway.paying_utxo (txid, vout, btc_exit_address, sats_amount, none_anyone_can_pay_signature)
             VALUES ($1, $2, $3, $4, $5)",

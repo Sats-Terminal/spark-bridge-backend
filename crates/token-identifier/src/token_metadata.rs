@@ -215,7 +215,7 @@ impl TokenMetadata {
         engine.input(network_hash.as_byte_array());
 
         // Token create layer logic - matches Go implementation exactly:
-        let creation_entity_hash = if let Some(creation_entity_public_key) = &self.creation_entity_public_key {
+        let _creation_entity_hash = if let Some(creation_entity_public_key) = &self.creation_entity_public_key {
             // Spark token: layer byte (1) + creation entity public key (33 bytes, compressed)
             let mut bytes = vec![2u8]; // TokenCreateLayerSpark (layer byte 2)
             bytes.extend_from_slice(&creation_entity_public_key.serialize());
@@ -285,7 +285,6 @@ impl TokenMetadata {
         }
 
         if self.symbol.len() < MIN_SYMBOL_SIZE || self.symbol.len() > MAX_SYMBOL_SIZE {
-            return Err(TokenMetadataParseError::InvalidSymbolLength(self.symbol.len()));
             return Err(TokenMetadataParseError::InvalidSymbolLength(self.symbol.len()));
         }
 
@@ -360,7 +359,7 @@ impl TokenMetadata {
             .map_err(|err| wrap_io_error(err, "failed to read is freezable"))?;
 
         // Read the creation entity public key
-        let creation_entity_public_key_flag = cursor
+        let _creation_entity_public_key_flag = cursor
             .read_u8()
             .map_err(|err| wrap_io_error(err, "failed to read the creation entity public key flag"))?;
         let creation_entity_public_key_flag = cursor
@@ -441,7 +440,7 @@ impl From<&TokenMetadata> for TokenIdentifier {
 }
 
 fn wrap_io_error(err: impl fmt::Display, message: &str) -> TokenMetadataParseError {
-    TokenMetadataParseError::IoError(io::Error::new(io::ErrorKind::Other, format!("{}: {}", message, err)))
+    TokenMetadataParseError::IoError(io::Error::other(format!("{}: {}", message, err)))
 }
 
 /// Error type for parsing LRC20 token metadata.

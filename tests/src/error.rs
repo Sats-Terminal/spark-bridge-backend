@@ -34,10 +34,12 @@ pub enum RuneError {
 pub enum BitcoinClientError {
     #[error("Failed to make bitcoin client call: {0}")]
     BitcoinRpcError(#[from] bitcoincore_rpc::Error),
+    #[error("Failed to send request: {0}")]
+    SendRequestError(#[from] reqwest::Error),
     #[error("Decode error: {0}")]
     DecodeError(String),
-    #[error("Failed to make titan client call: {0}")]
-    TitanRpcError(#[from] titan_client::Error),
+    #[error("BTC indexer client error: {0}")]
+    BTCIndexerError(#[from] btc_indexer_client::error::BtcIndexerClientError),
 }
 
 #[derive(Error, Debug)]
@@ -66,4 +68,8 @@ pub enum SparkClientError {
     TokenIdentifierError(#[from] TokenIdentifierParseError),
     #[error("Session token not found")]
     SessionTokenNotFound(String),
+    #[error("Spark breez sdk error: {0}")]
+    BreezSDKError(#[from] breez_sdk_spark::SdkError),
+    #[error("Spark breez storage error: {0}")]
+    BreezStorageError(#[from] breez_sdk_spark::StorageError),
 }

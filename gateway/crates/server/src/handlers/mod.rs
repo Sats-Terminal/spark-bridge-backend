@@ -7,3 +7,4 @@ pub mod get_user_activity;
 pub mod get_wrunes_metadata;
 pub mod healthcheck;
 pub mod notify_runes_deposit;
+pub mod notify_spark_deposit;

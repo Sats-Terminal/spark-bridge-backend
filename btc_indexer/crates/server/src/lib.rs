@@ -1,5 +1,3 @@
+pub mod init;
+pub mod handlers;
 pub mod error;
-mod init;
-pub mod routes;
-
-pub use init::*;

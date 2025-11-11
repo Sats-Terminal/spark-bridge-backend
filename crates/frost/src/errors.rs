@@ -1,6 +1,6 @@
-use crate::types::MusigId;
 use persistent_storage::error::DbError;
 use thiserror::Error;
+use uuid::Uuid;
 
 #[derive(Error, Debug)]
 pub enum SignerError {
@@ -12,10 +12,10 @@ pub enum SignerError {
     Internal(String),
     #[error(transparent)]
     DatabaseError(#[from] DbError),
-    #[error("Musig already exists, id: {0:?}")]
-    MusigAlreadyExists(MusigId),
-    #[error("Musig not found, id: {0:?}")]
-    MusigNotFound(MusigId),
+    #[error("DkgShare already exists")]
+    DkgShareAlreadyExists(Uuid),
+    #[error("DkgShare not found")]
+    DkgShareNotFound(Uuid),
 }
 
 #[derive(Error, Debug)]
@@ -32,10 +32,8 @@ pub enum AggregatorError {
     HttpError(String),
     #[error(transparent)]
     DatabaseError(#[from] DbError),
-    #[error("User unique id already exists, id: {0:?}")]
-    MusigAlreadyExists(MusigId),
-    #[error("Failed to unlock musig, id: {0:?}")]
-    FailedToUnlockMusig(MusigId),
-    #[error("User unique id not found")]
-    MusigNotFound(String),
+    #[error("DkgShare already exists, id: {0}")]
+    DkgShareAlreadyExists(Uuid),
+    #[error("DkgShare not found, id: {0}")]
+    DkgShareNotFound(Uuid),
 }

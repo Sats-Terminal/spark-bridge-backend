@@ -25,6 +25,11 @@ update_interval_milliseconds = 10000
 [flow_processor_config]
 cancellation_retries = 10
 
+[dkg_pregen_config]
+update_interval_millis = 1000
+min_threshold = 50
+max_cached = 500
+
 [database_config]
 url = "postgres://davicoscarelli:davi2304@localhost:5432/runes_gateway"
 
@@ -57,6 +62,16 @@ frost_identifier = "000000000000000000000000000000000000000000000000000000000000
 running_authority = "Flashnet"
 
 [bitcoin_client_config]
+# url = "https://mempool.space/testnet4/api/"
 url = "http://127.0.0.1:18443"
 username = "bitcoin"
 password = "bitcoinpass"
+
+[bitcoin_indexer_client_config]
+type = "titan"
+url = "http://localhost:3030"
+
+[fee_config]
+amount=1000
+btc_address="bcrt1pwzj4xdxrdsjl900sq62982tmcehjv2hc22glzumzxyxx2ctetrjq7u3vfz"
+spark_address="sprt1pgss8ac0a8nlywyvgyna0uws4jkcm9uaycu7mxdp0atxf7cf30rnw4kv5x85wf"

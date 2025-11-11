@@ -4,14 +4,15 @@ use crate::{
     connection::{SparkServicesClients, SparkTlsConnection},
 };
 use bitcoin::secp256k1::PublicKey;
-use spark_protos::spark::{
-    QueryTokenOutputsRequest, QueryTokenOutputsResponse, QueryTokenTransactionsRequest, QueryTokenTransactionsResponse,
-};
+use spark_protos::spark::{QueryTransfersResponse, TransferFilter};
 use spark_protos::spark_authn::{
     GetChallengeRequest, GetChallengeResponse, VerifyChallengeRequest, VerifyChallengeResponse,
 };
 use spark_protos::spark_token::{
     CommitTransactionRequest, CommitTransactionResponse, StartTransactionRequest, StartTransactionResponse,
+};
+use spark_protos::spark_token::{
+    QueryTokenOutputsRequest, QueryTokenOutputsResponse, QueryTokenTransactionsRequest, QueryTokenTransactionsResponse,
 };
 use std::collections::HashMap;
 use std::{future::Future, sync::Arc};
@@ -83,8 +84,20 @@ impl SparkRpcClient {
     ) -> Result<QueryTokenOutputsResponse, SparkClientError> {
         let query_fn = |mut clients: SparkServicesClients, request: QueryTokenOutputsRequest| async move {
             clients
-                .spark
+                .spark_token
                 .query_token_outputs(request)
+                .await
+                .map_err(|e| SparkClientError::ConnectionError(format!("Failed to query balance: {}", e)))
+        };
+
+        self.retry_query(query_fn, request).await.map(|r| r.into_inner())
+    }
+
+    pub async fn get_transfers(&self, request: TransferFilter) -> Result<QueryTransfersResponse, SparkClientError> {
+        let query_fn = |mut clients: SparkServicesClients, request: TransferFilter| async move {
+            clients
+                .spark
+                .query_all_transfers(request)
                 .await
                 .map_err(|e| SparkClientError::ConnectionError(format!("Failed to query balance: {}", e)))
         };
@@ -98,7 +111,7 @@ impl SparkRpcClient {
     ) -> Result<QueryTokenTransactionsResponse, SparkClientError> {
         let query_fn = |mut clients: SparkServicesClients, request: QueryTokenTransactionsRequest| async move {
             clients
-                .spark
+                .spark_token
                 .query_token_transactions(request)
                 .await
                 .map_err(|e| SparkClientError::ConnectionError(format!("Failed to query transactions: {}", e)))
@@ -298,7 +311,7 @@ mod tests {
     pub static TEST_LOGGER: LazyLock<LoggerGuard> = LazyLock::new(|| init_logger());
 
     #[tokio::test]
-    async fn test_get_balances_direct() -> anyhow::Result<()> {
+    async fn test_get_balances_direct() -> eyre::Result<()> {
         let _logger_guard = &*TEST_LOGGER;
         info!("Starting test");
 
@@ -316,8 +329,9 @@ mod tests {
         let request = QueryTokenOutputsRequest {
             owner_public_keys: vec![identity_public_key],
             token_identifiers: vec![token_identifier],
-            token_public_keys: vec![],
+            issuer_public_keys: vec![],
             network: address_data.network as i32,
+            page_request: None,
         };
 
         let config = SparkConfig {

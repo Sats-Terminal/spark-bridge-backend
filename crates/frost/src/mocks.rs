@@ -9,19 +9,19 @@ use persistent_storage::init::StorageHealthcheck;
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]
-pub struct MockSignerMusigIdStorage {
-    storage: Arc<Mutex<BTreeMap<MusigId, SignerMusigIdData>>>,
+pub struct MockSignerDkgShareIdStorage {
+    storage: Arc<Mutex<BTreeMap<Uuid, SignerDkgShareIdData>>>,
 }
 
 #[derive(Default, Debug, Clone)]
 pub struct MockSignerSignSessionStorage {
-    storage: Arc<Mutex<BTreeMap<(MusigId, Uuid), SignerSignData>>>,
+    storage: Arc<Mutex<BTreeMap<(Uuid, Uuid), SignerSignData>>>,
 }
 
 impl MockSignerSignSessionStorage {
-    pub async fn has_session(&self, musig_id: &MusigId, session_id: &Uuid) -> bool {
+    pub async fn has_session(&self, dkg_share_id: &Uuid, session_id: &Uuid) -> bool {
         let map = self.storage.lock().await;
-        map.contains_key(&(musig_id.clone(), *session_id))
+        map.contains_key(&(*dkg_share_id, *session_id))
     }
 }
 
@@ -34,25 +34,25 @@ impl StorageHealthcheck for MockSignerSignSessionStorage {
 
 #[async_trait]
 impl SignerSignSessionStorage for MockSignerSignSessionStorage {
-    async fn get_sign_data(&self, musig_id: &MusigId, session_id: Uuid) -> Result<Option<SignerSignData>, DbError> {
-        Ok(self.storage.lock().await.get(&(musig_id.clone(), session_id)).cloned())
+    async fn get_sign_data(&self, dkg_share_id: &Uuid, session_id: Uuid) -> Result<Option<SignerSignData>, DbError> {
+        Ok(self.storage.lock().await.get(&(*dkg_share_id, session_id)).cloned())
     }
 
     async fn set_sign_data(
         &self,
-        musig_id: &MusigId,
+        dkg_share_data: &Uuid,
         session_id: Uuid,
         sign_session_data: SignerSignData,
     ) -> Result<(), DbError> {
         self.storage
             .lock()
             .await
-            .insert((musig_id.clone(), session_id), sign_session_data);
+            .insert((*dkg_share_data, session_id), sign_session_data);
         Ok(())
     }
 }
 
-impl Default for MockSignerMusigIdStorage {
+impl Default for MockSignerDkgShareIdStorage {
     fn default() -> Self {
         Self {
             storage: Arc::new(Mutex::new(BTreeMap::new())),
@@ -61,40 +61,44 @@ impl Default for MockSignerMusigIdStorage {
 }
 
 #[async_trait]
-impl StorageHealthcheck for MockSignerMusigIdStorage {
+impl StorageHealthcheck for MockSignerDkgShareIdStorage {
     async fn healthcheck(&self) -> Result<(), DbError> {
         Ok(())
     }
 }
 
 #[async_trait]
-impl SignerMusigIdStorage for MockSignerMusigIdStorage {
-    async fn get_musig_id_data(&self, musig_id: &MusigId) -> Result<Option<SignerMusigIdData>, DbError> {
-        Ok(self.storage.lock().await.get(musig_id).cloned())
+impl SignerDkgShareStorage for MockSignerDkgShareIdStorage {
+    async fn get_dkg_share_signer_data(&self, dkg_share_id: &Uuid) -> Result<Option<SignerDkgShareIdData>, DbError> {
+        Ok(self.storage.lock().await.get(dkg_share_id).cloned())
     }
 
-    async fn set_musig_id_data(&self, musig_id: &MusigId, musig_id_data: SignerMusigIdData) -> Result<(), DbError> {
-        self.storage.lock().await.insert(musig_id.clone(), musig_id_data);
+    async fn set_dkg_share_signer_data(
+        &self,
+        dkg_share_id: &Uuid,
+        dkkg_share_data: SignerDkgShareIdData,
+    ) -> Result<(), DbError> {
+        self.storage.lock().await.insert(*dkg_share_id, dkkg_share_data);
         Ok(())
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct MockAggregatorMusigIdStorage {
-    storage: Arc<Mutex<BTreeMap<MusigId, AggregatorMusigIdData>>>,
+pub struct MockAggregatorDkgShareIdStorage {
+    storage: Arc<Mutex<BTreeMap<Uuid, AggregatorDkgShareData>>>,
 }
 
-#[derive(Debug, Clone)]
-pub struct MockAggregatorSignSessionStorage {
-    storage: Arc<Mutex<BTreeMap<(MusigId, Uuid), AggregatorSignData>>>,
-}
-
-impl Default for MockAggregatorMusigIdStorage {
+impl Default for MockAggregatorDkgShareIdStorage {
     fn default() -> Self {
         Self {
             storage: Arc::new(Mutex::new(BTreeMap::default())),
         }
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct MockAggregatorSignSessionStorage {
+    storage: Arc<Mutex<BTreeMap<(Uuid, Uuid), AggregatorSignData>>>,
 }
 
 impl Default for MockAggregatorSignSessionStorage {
@@ -106,25 +110,25 @@ impl Default for MockAggregatorSignSessionStorage {
 }
 
 #[async_trait]
-impl StorageHealthcheck for MockAggregatorMusigIdStorage {
+impl StorageHealthcheck for MockAggregatorDkgShareIdStorage {
     async fn healthcheck(&self) -> Result<(), DbError> {
         Ok(())
     }
 }
 
 #[async_trait]
-impl AggregatorMusigIdStorage for MockAggregatorMusigIdStorage {
-    async fn get_musig_id_data(&self, musig_id: &MusigId) -> Result<Option<AggregatorMusigIdData>, DbError> {
+impl AggregatorDkgShareStorage for MockAggregatorDkgShareIdStorage {
+    async fn get_dkg_share_agg_data(&self, musig_id: &Uuid) -> Result<Option<AggregatorDkgShareData>, DbError> {
         Ok(self.storage.lock().await.get(musig_id).cloned())
     }
 
-    async fn set_musig_id_data(&self, musig_id: &MusigId, musig_id_data: AggregatorMusigIdData) -> Result<(), DbError> {
-        self.storage.lock().await.insert(musig_id.clone(), musig_id_data);
+    async fn set_dkg_share_agg_data(
+        &self,
+        musig_id: &Uuid,
+        dkg_share_data: AggregatorDkgShareData,
+    ) -> Result<(), DbError> {
+        self.storage.lock().await.insert(*musig_id, dkg_share_data);
         Ok(())
-    }
-
-    async fn get_issuer_musig_id(&self, _rune_id: String) -> Result<Option<MusigId>, DbError> {
-        Ok(None)
     }
 }
 
@@ -137,20 +141,24 @@ impl StorageHealthcheck for MockAggregatorSignSessionStorage {
 
 #[async_trait]
 impl AggregatorSignSessionStorage for MockAggregatorSignSessionStorage {
-    async fn get_sign_data(&self, musig_id: &MusigId, session_id: Uuid) -> Result<Option<AggregatorSignData>, DbError> {
-        Ok(self.storage.lock().await.get(&(musig_id.clone(), session_id)).cloned())
+    async fn get_sign_data(
+        &self,
+        dkg_share_id: &Uuid,
+        session_id: Uuid,
+    ) -> Result<Option<AggregatorSignData>, DbError> {
+        Ok(self.storage.lock().await.get(&(*dkg_share_id, session_id)).cloned())
     }
 
     async fn set_sign_data(
         &self,
-        musig_id: &MusigId,
+        dkg_share_id: &Uuid,
         session_id: Uuid,
         sign_session_data: AggregatorSignData,
     ) -> Result<(), DbError> {
         self.storage
             .lock()
             .await
-            .insert((musig_id.clone(), session_id), sign_session_data);
+            .insert((*dkg_share_id, session_id), sign_session_data);
         Ok(())
     }
 }

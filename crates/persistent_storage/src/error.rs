@@ -1,4 +1,3 @@
-use config_parser::error::ConfigParserError;
 use sqlx::migrate::MigrateError;
 
 #[derive(Debug, thiserror::Error)]
@@ -7,8 +6,6 @@ pub enum DbError {
     UnableToRetrieveEnvVar(String),
     #[error("Failed to establish connection with db, please check url [err: {err}, url: {url}]")]
     FailedToEstablishDbConn { err: sqlx::Error, url: String },
-    #[error("Failed to initialize initial db config, error: {0}")]
-    FailedToParseConfig(#[from] ConfigParserError),
     #[error("Failed to migrate db, error: {0}")]
     FailedToMigrateDb(#[from] MigrateError),
     #[error("Unable to retrieve db connection, error: {0}")]

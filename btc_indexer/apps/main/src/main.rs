@@ -1,65 +1,60 @@
-use anyhow::anyhow;
-use bitcoin::Network;
-use btc_indexer_internals::indexer::{BtcIndexer, IndexerParams};
-use config_parser::config::{BtcRpcCredentials, MaestroConfig, ServerConfig, TitanConfig};
-use global_utils::config_path::ConfigPath;
-use global_utils::config_variant::ConfigVariant;
-use global_utils::{env_parser::lookup_ip_addr, logger::init_logger};
-use local_db_store_indexer::{PostgresDbCredentials, init::LocalDbStorage};
-
+use axum;
+use btc_indexer::{indexer::Indexer, tx_indexer::TxIndexer};
+use btc_indexer_client::client_api::new_btc_indexer_client;
+use btc_indexer_config::AppConfig;
+use btc_indexer_local_db_store::storage::LocalDbStorage;
+use btc_indexer_server::init::create_app;
+use eyre::Result;
+use global_utils::{config_path::ConfigPath, logger::init_logger};
+use std::sync::Arc;
+use tokio;
 use tokio::net::TcpListener;
-use tracing::instrument;
+use tokio_util::sync::CancellationToken;
 
-#[instrument(level = "debug", ret)]
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    let _ = dotenvy::dotenv();
+async fn main() -> Result<()> {
     let _logger_guard = init_logger();
 
-    // Init configs
-    let config_path = ConfigPath::from_env()?;
-    let app_config = ServerConfig::init_config(ConfigVariant::OnlyOneFilepath(config_path.path))?;
+    let _ = dotenvy::dotenv();
 
-    let btc_creds = BtcRpcCredentials::new()?;
-    let postgres_creds = PostgresDbCredentials::from_db_url()?;
-    let titan_config = TitanConfig::maybe_new()?;
-    let maestro_config = MaestroConfig::maybe_from_env()?;
+    tracing::info!("Starting btc indexer");
 
-    match btc_creds.network {
-        Network::Regtest => {
-            if titan_config.is_none() {
-                return Err(anyhow!("TITAN_URL must be provided when running on regtest"));
-            }
-        }
-        _ => {
-            if maestro_config.is_none() {
-                return Err(anyhow!(
-                    "MAESTRO_API_URL and MAESTRO_API_KEY must be provided when BITCOIN_NETWORK is not regtest"
-                ));
-            }
-        }
-    };
+    let config_path = ConfigPath::from_env().map_err(|e| eyre::eyre!("Failed to parse config path: {}", e))?;
+    let app_config = AppConfig::init_config(config_path.path);
+    tracing::debug!("App config: {:?}", app_config);
 
-    // Init App
-    let db_pool = LocalDbStorage::from_config(postgres_creds).await?;
-    let btc_indexer = BtcIndexer::with_api(IndexerParams {
-        titan_config,
-        maestro_config,
-        btc_rpc_creds: btc_creds,
-        db_pool: db_pool.clone(),
-        btc_indexer_params: app_config.btc_indexer_config,
-    })?;
-    let app = btc_indexer_server::create_app(db_pool, btc_indexer).await;
+    let storage = Arc::new(LocalDbStorage::new(app_config.database, app_config.network.network).await?);
 
-    let addr_to_listen = (
-        lookup_ip_addr(&app_config.app_config.http_server_ip)?,
-        app_config.app_config.http_server_port,
+    let app = create_app(app_config.network.network, storage.clone()).await;
+
+    let btc_indexer_client = new_btc_indexer_client(app_config.indexer_client);
+    let cancellation_token = CancellationToken::new();
+
+    let indexer = Indexer::new(
+        app_config.btc_indexer.clone(),
+        btc_indexer_client.clone(),
+        storage.clone(),
+        cancellation_token.clone(),
     );
-    let listener = TcpListener::bind(addr_to_listen).await?;
 
-    tracing::info!("Listening on {:?}", addr_to_listen);
-    #[cfg(feature = "swagger")]
-    tracing::info!("Swagger UI available at {:?}/swagger-ui/", addr_to_listen);
+    tokio::spawn(async move {
+        indexer.run().await.unwrap();
+    });
 
-    Ok(axum::serve(listener, app).await?)
+    let mut tx_indexer = TxIndexer::new(
+        btc_indexer_client,
+        storage.clone(),
+        cancellation_token.clone(),
+        app_config.btc_indexer.clone(),
+    );
+
+    tokio::spawn(async move {
+        tx_indexer.run().await.unwrap();
+    });
+
+    tracing::info!("Listening on {:?}", app_config.server.hostname);
+    let listener = TcpListener::bind(app_config.server.hostname).await?;
+    axum::serve(listener, app).await?;
+
+    Ok(())
 }

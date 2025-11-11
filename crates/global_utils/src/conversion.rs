@@ -16,15 +16,14 @@ pub fn convert_network_to_spark_network(network: Network) -> SparkNetwork {
         Network::Testnet => SparkNetwork::Testnet,
         Network::Regtest => SparkNetwork::Regtest,
         Network::Signet => SparkNetwork::Signet,
-        Network::Testnet4 => SparkNetwork::Local,
+        Network::Testnet4 => SparkNetwork::Regtest,
     }
 }
 
 pub fn bitcoin_network_to_proto_network(network: Network) -> u32 {
     match network {
         Network::Bitcoin => 1,
-        Network::Regtest => 2,
-        Network::Testnet | Network::Testnet4 => 3,
+        Network::Testnet4 | Network::Testnet | Network::Regtest => 2,
         Network::Signet => 4,
     }
 }
@@ -32,8 +31,8 @@ pub fn bitcoin_network_to_proto_network(network: Network) -> u32 {
 pub fn spark_network_to_proto_network(network: SparkNetwork) -> u32 {
     match network {
         SparkNetwork::Mainnet => 1,
-        SparkNetwork::Regtest => 2,
-        SparkNetwork::Testnet | SparkNetwork::Local => 3,
+        SparkNetwork::Testnet | SparkNetwork::Regtest => 2,
+        SparkNetwork::Local => 3,
         SparkNetwork::Signet => 4,
     }
 }

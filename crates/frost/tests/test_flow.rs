@@ -2,22 +2,25 @@ mod tests {
     use bitcoin::key::TapTweak;
     use bitcoin::key::UntweakedPublicKey;
     use bitcoin::secp256k1::{PublicKey, Secp256k1};
-    use frost::types::{MusigId, SigningMetadata, TweakBytes};
+    use frost::traits::AggregatorDkgShareStorage;
+    use frost::types::{AggregatorDkgShareData, AggregatorDkgState, SigningMetadata, TweakBytes};
     use frost::utils::generate_tweak_bytes;
     use frost::{aggregator::FrostAggregator, mocks::*, signer::FrostSigner, traits::SignerClient};
     use frost_secp256k1_tr::{Identifier, keys::Tweak};
+    use global_utils::common_types::get_uuid;
     use std::str::FromStr;
     use std::{collections::BTreeMap, sync::Arc};
+    use uuid::Uuid;
 
     #[tokio::test]
-    async fn test_aggregator_signer_integration() -> anyhow::Result<()> {
+    async fn test_aggregator_signer_integration() -> eyre::Result<()> {
         let msg_hash = b"test_message";
         _test_aggregator_signer_integration(msg_hash, None).await?;
         Ok(())
     }
 
     #[tokio::test]
-    async fn test_aggregator_signer_integration_tweaked() -> anyhow::Result<()> {
+    async fn test_aggregator_signer_integration_tweaked() -> eyre::Result<()> {
         let msg_hash = b"test_message";
         let tweak = generate_tweak_bytes();
         _test_aggregator_signer_integration(msg_hash, Some(tweak)).await?;
@@ -25,7 +28,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_parallel_signing_sessions_via_aggregator() -> anyhow::Result<()> {
+    async fn test_parallel_signing_sessions_via_aggregator() -> eyre::Result<()> {
         let msg_a = b"parallel message A".to_vec();
         let msg_b = b"parallel message B".to_vec();
         _test_parallel_signing_sessions_via_aggregator(&msg_a, &msg_b, None).await?;
@@ -33,7 +36,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_parallel_signing_sessions_via_aggregator_tweaked() -> anyhow::Result<()> {
+    async fn test_parallel_signing_sessions_via_aggregator_tweaked() -> eyre::Result<()> {
         let msg_a = b"parallel message A".to_vec();
         let msg_b = b"parallel message B".to_vec();
         let tweak = generate_tweak_bytes();
@@ -56,17 +59,19 @@ mod tests {
         msg_hash_a: &[u8],
         msg_hash_b: &[u8],
         tweak: Option<TweakBytes>,
-    ) -> anyhow::Result<()> {
+    ) -> eyre::Result<()> {
         let verifiers_map = create_verifiers_map_easy();
 
-        let user_public_key =
-            PublicKey::from_str("038144ac71b61ab0e0a56967696a4f31a0cdd492cd3753d59aa978e0c8eaa5a60e")?;
-        let musig_id = MusigId::User {
-            user_public_key,
-            rune_id: "test_rune_id".to_string(),
-        };
-
-        let agg_storage = MockAggregatorMusigIdStorage::default();
+        let dkg_share_id: Uuid = get_uuid();
+        let agg_storage = MockAggregatorDkgShareIdStorage::default();
+        agg_storage
+            .set_dkg_share_agg_data(
+                &dkg_share_id,
+                AggregatorDkgShareData {
+                    dkg_state: AggregatorDkgState::Initialized,
+                },
+            )
+            .await?;
 
         let aggregator = FrostAggregator::new(
             verifiers_map,
@@ -74,12 +79,12 @@ mod tests {
             Arc::new(MockAggregatorSignSessionStorage::default()),
         );
 
-        let public_key_package = aggregator.run_dkg_flow(&musig_id).await?;
+        let public_key_package = aggregator.run_dkg_flow(&dkg_share_id).await?;
         let metadata = SigningMetadata::Authorization;
 
         let (sig_res_a, sig_res_b) = tokio::join!(
-            aggregator.run_signing_flow(musig_id.clone(), msg_hash_a, metadata.clone(), tweak),
-            aggregator.run_signing_flow(musig_id.clone(), msg_hash_b, metadata, tweak),
+            aggregator.run_signing_flow(dkg_share_id.clone(), msg_hash_a, metadata.clone(), tweak, false),
+            aggregator.run_signing_flow(dkg_share_id.clone(), msg_hash_b, metadata, tweak, false),
         );
 
         let signature_a = sig_res_a?;
@@ -105,17 +110,19 @@ mod tests {
         Ok(())
     }
 
-    async fn _test_aggregator_signer_integration(msg_hash: &[u8], tweak: Option<TweakBytes>) -> anyhow::Result<()> {
+    async fn _test_aggregator_signer_integration(msg_hash: &[u8], tweak: Option<TweakBytes>) -> eyre::Result<()> {
         let verifiers_map = create_verifiers_map_easy();
 
-        let user_public_key =
-            PublicKey::from_str("038144ac71b61ab0e0a56967696a4f31a0cdd492cd3753d59aa978e0c8eaa5a60e")?;
-        let musig_id = MusigId::User {
-            user_public_key,
-            rune_id: "test_rune_id".to_string(),
-        };
-
-        let agg_storage = MockAggregatorMusigIdStorage::default();
+        let dkg_share_id: Uuid = get_uuid();
+        let agg_storage = MockAggregatorDkgShareIdStorage::default();
+        agg_storage
+            .set_dkg_share_agg_data(
+                &dkg_share_id,
+                AggregatorDkgShareData {
+                    dkg_state: AggregatorDkgState::Initialized,
+                },
+            )
+            .await?;
 
         let aggregator = FrostAggregator::new(
             verifiers_map,
@@ -123,11 +130,11 @@ mod tests {
             Arc::new(MockAggregatorSignSessionStorage::default()),
         );
 
-        let public_key_package = aggregator.run_dkg_flow(&musig_id).await?;
+        let public_key_package = aggregator.run_dkg_flow(&dkg_share_id).await?;
         let metadata = SigningMetadata::Authorization;
 
         let signature = aggregator
-            .run_signing_flow(musig_id.clone(), msg_hash, metadata, tweak)
+            .run_signing_flow(dkg_share_id.clone(), msg_hash, metadata, tweak, false)
             .await?;
 
         let tweaked_public_key_package = match tweak.clone() {
@@ -143,7 +150,7 @@ mod tests {
     fn create_signer(identifier: u16) -> FrostSigner {
         FrostSigner::new(
             identifier,
-            Arc::new(MockSignerMusigIdStorage::default()),
+            Arc::new(MockSignerDkgShareIdStorage::default()),
             Arc::new(MockSignerSignSessionStorage::default()),
             3,
             2,

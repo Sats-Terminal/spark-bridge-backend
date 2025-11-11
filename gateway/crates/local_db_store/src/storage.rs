@@ -23,6 +23,10 @@ impl LocalDbStorage {
     pub async fn get_conn(&self) -> Result<PostgresPool, DbError> {
         Ok(self.postgres_repo.pool.clone())
     }
+
+    pub fn into_shared(self) -> Arc<Self> {
+        Arc::new(self)
+    }
 }
 
 pub async fn make_repo_with_config(db: sqlx::PgPool) -> Arc<LocalDbStorage> {

@@ -11,3 +11,4 @@ verifier_config_parser = { workspace = true }
 reqwest = { workspace = true }
 url = { workspace = true }
 bitcoin = { workspace = true }
+uuid = { workspace = true }

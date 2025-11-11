@@ -1,10 +1,14 @@
 use crate::errors::SparkServiceError;
+use crate::utils::WRunesMetadata;
 use bitcoin::secp256k1::PublicKey;
 use chrono;
 use frost::types::SigningMetadata;
 use lrc20::marshal::marshal_token_transaction;
 use lrc20::token_leaf::TokenLeafOutput;
 use lrc20::token_leaf::TokenLeafToSpend;
+use lrc20::token_metadata::DEFAULT_DECIMALS;
+use lrc20::token_metadata::DEFAULT_IS_FREEZABLE;
+use lrc20::token_metadata::DEFAULT_MAX_SUPPLY;
 use lrc20::token_transaction::TokenTransaction;
 use lrc20::token_transaction::TokenTransactionCreateInput;
 use lrc20::token_transaction::TokenTransactionInput;
@@ -15,10 +19,6 @@ use spark_address::decode_spark_address;
 use std::str::FromStr;
 use token_identifier::TokenIdentifier;
 
-pub const DEFAULT_MAX_SUPPLY: u128 = 21_000_000_000;
-pub const DEFAULT_DECIMALS: u8 = 8;
-pub const DEFAULT_IS_FREEZABLE: bool = false;
-
 #[derive(Debug, Clone)]
 pub enum SparkTransactionType {
     Mint {
@@ -26,10 +26,7 @@ pub enum SparkTransactionType {
         token_amount: u64,
     },
     Create {
-        token_name: String,
-        token_ticker: String,
-        decimals: u8,
-        max_supply: u128,
+        wrunes_metadata: WRunesMetadata,
     },
     Transfer {
         sender_spark_address: String,
@@ -76,21 +73,16 @@ pub fn create_partial_token_transaction(
             };
             Ok(token_transaction)
         }
-        SparkTransactionType::Create {
-            token_name,
-            token_ticker,
-            decimals,
-            max_supply,
-        } => {
+        SparkTransactionType::Create { wrunes_metadata } => {
             let token_transaction = TokenTransaction {
                 version: TokenTransactionVersion::V4,
                 input: TokenTransactionInput::Create(TokenTransactionCreateInput {
                     issuer_public_key,
-                    token_name,
-                    token_ticker,
-                    decimals: decimals as u32,
-                    max_supply,
-                    is_freezable: DEFAULT_IS_FREEZABLE,
+                    token_name: wrunes_metadata.meta.name,
+                    token_ticker: wrunes_metadata.meta.symbol,
+                    decimals: wrunes_metadata.meta.decimal as u32,
+                    max_supply: wrunes_metadata.meta.max_supply,
+                    is_freezable: wrunes_metadata.meta.is_freezable,
                     creation_entity_public_key: None,
                 }),
                 leaves_to_create: vec![],

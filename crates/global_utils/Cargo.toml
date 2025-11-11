@@ -4,14 +4,15 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-anyhow = { workspace = true }
 axum = { workspace = true }
 bitcoin = { workspace = true }
 dns-lookup = { workspace = true }
+eyre = { workspace = true }
 frost-secp256k1-tr = { workspace = true }
 hex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+spark-address = { workspace = true }
 sqlx = { workspace = true }
 strum = { workspace = true }
 thiserror = { workspace = true }
@@ -21,4 +22,3 @@ tracing-subscriber = { workspace = true }
 url = { workspace = true }
 utoipa = { workspace = true }
 uuid = { workspace = true }
-spark-address = { workspace = true }

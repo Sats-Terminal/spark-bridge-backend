@@ -1,6 +1,19 @@
-[application]
-http_server_ip = "0.0.0.0"
-http_server_port = 8070
+[server]
+hostname = "0.0.0.0:8070"
 
 [btc_indexer]
-update_interval_millis = 500
+indexer_update_interval_millis = 1000
+validation_timeout_millis = 1000
+confirmation_block_height_delta = 6
+tx_indexer_update_interval_millis = 1000
+start_block_height = 0
+
+[database]
+url = "postgres://admin_manager:password@persistent-db-storage_btc_indexer:5432/production_db_name"
+
+[network]
+network = "regtest"
+
+[indexer_client]
+type = "titan"
+url = "http://localhost:3030"

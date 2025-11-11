@@ -1,29 +1,16 @@
 [package]
-name = "local_db_store_indexer"
-version.workspace = true
-edition.workspace = true
-rust-version.workspace = true
-authors.workspace = true
-readme.workspace = true
+name = "btc_indexer_local_db_store"
+edition = "2024"
 
 [dependencies]
-anyhow = { workspace = true }
-async-trait = { workspace = true }
-bitcoin = { workspace = true }
-global_utils = { workspace = true }
+sqlx = { workspace = true, features = ["derive"] }
 persistent_storage = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-sqlx = { workspace = true }
-thiserror = { workspace = true }
-tracing = { workspace = true }
-url = { workspace = true }
-uuid = { workspace = true }
-btc_indexer_api = { workspace = true }
-titan-client = { workspace = true }
-ordinals = { workspace = true }
-
-[dev-dependencies]
+btc_indexer_config = { workspace = true }
 bitcoin = { workspace = true }
-dotenvy = { workspace = true }
-tokio = { workspace = true }
+ordinals = { workspace = true }
+serde = { workspace = true }
+url = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+async-trait = { workspace = true }
+hex = { workspace = true }

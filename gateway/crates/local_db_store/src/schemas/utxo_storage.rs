@@ -9,19 +9,19 @@ use tracing::instrument;
 
 #[derive(Debug, Clone)]
 pub struct Utxo {
-    pub out_point: OutPoint,
+    pub outpoint: OutPoint,
     pub btc_address: bitcoin::Address,
     pub rune_amount: u64,
     pub rune_id: String,
     pub status: UtxoStatus,
-    pub sats_fee_amount: u64,
+    pub sats_amount: u64,
 }
 
 impl Utxo {
     fn from_row(row: UtxoRow, network: bitcoin::Network) -> Result<Self, DbError> {
         Ok(Self {
-            out_point: row
-                .out_point
+            outpoint: row
+                .outpoint
                 .parse()
                 .map_err(|e| DbError::DecodeError(format!("Failed to parse out point: {}", e)))?,
             btc_address: decode_address(&row.btc_address, network)
@@ -29,19 +29,19 @@ impl Utxo {
             rune_amount: row.rune_amount as u64,
             rune_id: row.rune_id,
             status: row.status,
-            sats_fee_amount: row.sats_fee_amount as u64,
+            sats_amount: row.sats_amount as u64,
         })
     }
 }
 
 #[derive(Debug, Clone, sqlx::FromRow)]
 struct UtxoRow {
-    pub out_point: String,
+    pub outpoint: String,
     pub btc_address: String,
     pub rune_amount: i64,
     pub rune_id: String,
     pub status: UtxoStatus,
-    pub sats_fee_amount: i64,
+    pub sats_amount: i64,
 }
 
 #[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, Copy, Eq, PartialEq, Hash)]
@@ -65,12 +65,12 @@ pub enum RequestStatus {
 #[async_trait]
 pub trait UtxoStorage: Send + Sync {
     async fn insert_utxo(&self, utxo: Utxo) -> Result<Utxo, DbError>;
-    async fn update_status(&self, out_point: OutPoint, new_status: UtxoStatus) -> Result<(), DbError>;
+    async fn update_status(&self, outpoint: OutPoint, new_status: UtxoStatus) -> Result<(), DbError>;
     async fn list_unspent(&self, rune_id: String) -> Result<Vec<Utxo>, DbError>;
     async fn select_utxos_for_amount(&self, rune_id: String, target_amount: u64) -> Result<Vec<Utxo>, DbError>;
-    async fn get_utxo(&self, out_point: OutPoint) -> Result<Option<Utxo>, DbError>;
-    async fn delete_utxo(&self, out_point: OutPoint) -> Result<(), DbError>;
-    async fn update_sats_fee_amount(&self, out_point: OutPoint, sats_fee_amount: u64) -> Result<(), DbError>;
+    async fn get_utxo(&self, outpoint: OutPoint) -> Result<Option<Utxo>, DbError>;
+    async fn delete_utxo(&self, outpoint: OutPoint) -> Result<(), DbError>;
+    async fn update_sats_fee_amount(&self, outpoint: OutPoint, sats_amount: u64) -> Result<(), DbError>;
     async fn get_utxo_by_btc_address(&self, btc_address: String) -> Result<Option<Utxo>, DbError>;
 }
 
@@ -81,23 +81,23 @@ impl UtxoStorage for LocalDbStorage {
         let rec = sqlx::query_as::<_, UtxoRow>(
             r#"
             INSERT INTO gateway.utxo
-                (out_point, rune_amount, rune_id, status, btc_address, sats_fee_amount)
+                (outpoint, rune_amount, rune_id, status, btc_address, sats_amount)
             VALUES ($1, $2, $3, $4, $5, $6)
-            ON CONFLICT (out_point) DO UPDATE
+            ON CONFLICT (outpoint) DO UPDATE
             SET rune_amount = EXCLUDED.rune_amount,
                 rune_id = EXCLUDED.rune_id,
                 status = EXCLUDED.status,
                 btc_address = EXCLUDED.btc_address,
-                sats_fee_amount = EXCLUDED.sats_fee_amount
-            RETURNING out_point, rune_amount, rune_id, status, btc_address, sats_fee_amount
+                sats_amount = EXCLUDED.sats_amount
+            RETURNING outpoint, rune_amount, rune_id, status, btc_address, sats_amount
             "#,
         )
-        .bind(utxo.out_point.to_string())
+        .bind(utxo.outpoint.to_string())
         .bind(utxo.rune_amount as i64)
         .bind(&utxo.rune_id)
         .bind(utxo.status)
         .bind(utxo.btc_address.to_string())
-        .bind(utxo.sats_fee_amount as i64)
+        .bind(utxo.sats_amount as i64)
         .fetch_one(&self.postgres_repo.pool)
         .await
         .map_err(|e| DbError::BadRequest(e.to_string()))?;
@@ -106,23 +106,23 @@ impl UtxoStorage for LocalDbStorage {
     }
 
     #[instrument(level = "trace", skip_all)]
-    async fn update_status(&self, out_point: OutPoint, new_status: UtxoStatus) -> Result<(), DbError> {
+    async fn update_status(&self, outpoint: OutPoint, new_status: UtxoStatus) -> Result<(), DbError> {
         let rows = sqlx::query(
             r#"
             UPDATE gateway.utxo
             SET status = $1
-            WHERE out_point = $2
+            WHERE outpoint = $2
             "#,
         )
         .bind(new_status)
-        .bind(out_point.to_string())
+        .bind(outpoint.to_string())
         .execute(&self.postgres_repo.pool)
         .await
         .map_err(|e| DbError::BadRequest(e.to_string()))?
         .rows_affected();
 
         if rows == 0 {
-            return Err(DbError::NotFound(format!("UTXO {out_point} not found")));
+            return Err(DbError::NotFound(format!("UTXO {outpoint} not found")));
         }
 
         Ok(())
@@ -132,7 +132,7 @@ impl UtxoStorage for LocalDbStorage {
     async fn list_unspent(&self, rune_id: String) -> Result<Vec<Utxo>, DbError> {
         let rows = sqlx::query_as::<_, UtxoRow>(
             r#"
-            SELECT out_point, rune_amount, rune_id, status, btc_address, sats_fee_amount
+            SELECT outpoint, rune_amount, rune_id, status, btc_address, sats_amount
             FROM gateway.utxo
             WHERE rune_id = $1 AND status IN ('confirmed', 'pending')
             ORDER BY
@@ -178,7 +178,7 @@ impl UtxoStorage for LocalDbStorage {
             return Err(DbError::BadRequest("Not enough funds".into()));
         }
 
-        let utxo_refs: Vec<String> = selected.iter().map(|u| u.out_point.to_string()).collect();
+        let utxo_refs: Vec<String> = selected.iter().map(|u| u.outpoint.to_string()).collect();
 
         let updated_utxos = mark_utxos_as_spent(&utxo_refs, &mut tx, self.network).await?;
 
@@ -190,15 +190,15 @@ impl UtxoStorage for LocalDbStorage {
     }
 
     #[instrument(level = "trace", skip_all)]
-    async fn get_utxo(&self, out_point: OutPoint) -> Result<Option<Utxo>, DbError> {
+    async fn get_utxo(&self, outpoint: OutPoint) -> Result<Option<Utxo>, DbError> {
         let utxo = sqlx::query_as::<_, UtxoRow>(
             r#"
-            SELECT out_point, rune_amount, rune_id, status, btc_address, sats_fee_amount
+            SELECT outpoint, rune_amount, rune_id, status, btc_address, sats_amount
             FROM gateway.utxo
-            WHERE out_point = $1
+            WHERE outpoint = $1
             "#,
         )
-        .bind(out_point.to_string())
+        .bind(outpoint.to_string())
         .fetch_optional(&self.postgres_repo.pool)
         .await
         .map_err(|e| DbError::BadRequest(e.to_string()))?;
@@ -210,44 +210,44 @@ impl UtxoStorage for LocalDbStorage {
     }
 
     #[instrument(level = "trace", skip_all)]
-    async fn delete_utxo(&self, out_point: OutPoint) -> Result<(), DbError> {
+    async fn delete_utxo(&self, outpoint: OutPoint) -> Result<(), DbError> {
         let rows = sqlx::query(
             r#"
             DELETE FROM gateway.utxo
-            WHERE out_point = $1
+            WHERE outpoint = $1
             "#,
         )
-        .bind(out_point.to_string())
+        .bind(outpoint.to_string())
         .execute(&self.postgres_repo.pool)
         .await
         .map_err(|e| DbError::BadRequest(e.to_string()))?
         .rows_affected();
 
         if rows == 0 {
-            return Err(DbError::NotFound(format!("UTXO {out_point} not found")));
+            return Err(DbError::NotFound(format!("UTXO {outpoint} not found")));
         }
 
         Ok(())
     }
 
     #[instrument(level = "trace", skip_all)]
-    async fn update_sats_fee_amount(&self, out_point: OutPoint, sats_fee_amount: u64) -> Result<(), DbError> {
+    async fn update_sats_fee_amount(&self, outpoint: OutPoint, sats_amount: u64) -> Result<(), DbError> {
         let rows = sqlx::query(
             r#"
             UPDATE gateway.utxo
-            SET sats_fee_amount = $1
-            WHERE out_point = $2
+            SET sats_amount = $1
+            WHERE outpoint = $2
         "#,
         )
-        .bind(sats_fee_amount as i64)
-        .bind(out_point.to_string())
+        .bind(sats_amount as i64)
+        .bind(outpoint.to_string())
         .execute(&self.postgres_repo.pool)
         .await
         .map_err(|e| DbError::BadRequest(e.to_string()))?
         .rows_affected();
 
         if rows == 0 {
-            return Err(DbError::NotFound(format!("UTXO {} not found", out_point)));
+            return Err(DbError::NotFound(format!("UTXO {} not found", outpoint)));
         }
 
         Ok(())
@@ -257,7 +257,7 @@ impl UtxoStorage for LocalDbStorage {
     async fn get_utxo_by_btc_address(&self, btc_address: String) -> Result<Option<Utxo>, DbError> {
         let utxo = sqlx::query_as::<_, UtxoRow>(
             r#"
-            SELECT out_point, rune_amount, rune_id, status, btc_address, sats_fee_amount
+            SELECT outpoint, rune_amount, rune_id, status, btc_address, sats_amount
             FROM gateway.utxo
             WHERE btc_address = $1
         "#,
@@ -282,7 +282,7 @@ async fn get_candidate_utxos_for_update(
 ) -> Result<Vec<Utxo>, DbError> {
     let candidates = sqlx::query_as::<_, UtxoRow>(
         r#"
-        SELECT out_point, rune_amount, rune_id, status, btc_address, sats_fee_amount
+        SELECT outpoint, rune_amount, rune_id, status, btc_address, sats_amount
         FROM gateway.utxo
         WHERE rune_id = $1 AND status IN ('confirmed', 'pending')
         ORDER BY rune_amount ASC
@@ -312,22 +312,22 @@ async fn mark_utxos_as_spent(
 
     let placeholders: Vec<String> = (1..=utxo_refs.len()).map(|i| format!("${}", i)).collect();
 
-    let where_clause = format!("out_point IN ({})", placeholders.join(", "));
+    let where_clause = format!("outpoint IN ({})", placeholders.join(", "));
 
     let query_str = format!(
         r#"
         UPDATE gateway.utxo
         SET status = 'spent'
         WHERE {}
-        RETURNING out_point, rune_amount, rune_id, status, btc_address, sats_fee_amount
+        RETURNING outpoint, rune_amount, rune_id, status, btc_address, sats_amount
         "#,
         where_clause
     );
 
     let mut query = sqlx::query_as::<_, UtxoRow>(&query_str);
 
-    for out_point in utxo_refs {
-        query = query.bind(out_point);
+    for outpoint in utxo_refs {
+        query = query.bind(outpoint);
     }
 
     let updated_utxos = query
