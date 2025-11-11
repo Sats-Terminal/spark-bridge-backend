@@ -1,9 +1,9 @@
+use crate::handlers;
 use axum::Router;
 use axum::routing::{get, post};
-use crate::handlers;
-use std::sync::Arc;
-use btc_indexer_local_db_store::storage::LocalDbStorage;
 use bitcoin::Network;
+use btc_indexer_local_db_store::storage::LocalDbStorage;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -11,10 +11,7 @@ pub struct AppState {
     pub network: Network,
 }
 
-pub async fn create_app(
-    network: Network,
-    local_db_store: Arc<LocalDbStorage>,
-) -> Router {
+pub async fn create_app(network: Network, local_db_store: Arc<LocalDbStorage>) -> Router {
     let state = AppState {
         storage: local_db_store,
         network,

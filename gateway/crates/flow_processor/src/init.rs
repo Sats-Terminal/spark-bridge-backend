@@ -1,6 +1,7 @@
 use crate::error::FlowProcessorError;
 use crate::flow_processor::{FlowProcessor, FlowProcessorInitArgs};
 use crate::flow_sender::FlowSender;
+use crate::rune_metadata_client::RuneMetadataClient;
 use bitcoin::Network;
 use bitcoin::secp256k1::PublicKey;
 use btc_indexer_client::client_api::new_btc_indexer_client;
@@ -14,6 +15,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
+use tracing;
 
 pub async fn create_flow_processor(
     server_config: ServerConfig,
@@ -50,6 +52,13 @@ pub async fn create_flow_processor(
     let bitcoin_client = new_bitcoin_client(server_config.bitcoin_client.clone())
         .map_err(|e| FlowProcessorError::InitializationError(format!("Failed to create bitcoin client: {}", e)))?;
 
+    let rune_metadata_client = RuneMetadataClient::from_env().map_err(|e| {
+        FlowProcessorError::InitializationError(format!("Failed to initialize rune metadata client: {}", e))
+    })?;
+    if rune_metadata_client.is_none() {
+        tracing::warn!("MAESTRO_API_URL/MAESTRO_API_KEY not set; rune metadata normalization disabled");
+    }
+
     let flow_processor = FlowProcessor::new(FlowProcessorInitArgs {
         verifier_configs: Arc::new(server_config.verifiers.0),
         tx_receiver,
@@ -62,6 +71,7 @@ pub async fn create_flow_processor(
         spark_client: Arc::new(spark_client),
         bitcoin_client: Arc::new(bitcoin_client),
         bitcoin_indexer: bitcoin_indexer.clone(),
+        rune_metadata_client: rune_metadata_client.map(Arc::new),
     });
 
     let flow_sender = FlowSender::new(bitcoin_indexer, tx_sender, cancellation_token);

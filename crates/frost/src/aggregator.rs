@@ -230,9 +230,7 @@ impl FrostAggregator {
         match dkg_share_data {
             Some(AggregatorDkgShareData {
                 dkg_state: AggregatorDkgState::DkgFinalized { public_key_package },
-            }) => {
-                Ok(public_key_package)
-            }
+            }) => Ok(public_key_package),
             _ => Err(AggregatorError::InvalidUserState(
                 "User state is not DkgFinalized".to_string(),
             )),

@@ -34,7 +34,6 @@ pub enum FeePayment {
     Spark(String),
 }
 
-
 #[derive(Clone, Debug)]
 pub struct WatchRunesDepositRequest {
     pub request_id: Uuid,

@@ -1,13 +1,13 @@
 use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
+use bitcoin::secp256k1::PublicKey;
+use bitcoin::secp256k1::XOnlyPublicKey;
 use persistent_storage::error::DbError;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+use std::str::FromStr;
 use tracing::{info, instrument};
 use uuid::Uuid;
-use bitcoin::secp256k1::PublicKey;
-use bitcoin::secp256k1::XOnlyPublicKey;
-use std::str::FromStr;
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum UserId {
@@ -41,7 +41,10 @@ impl FromStr for UserId {
         if x_only_public_key_response.is_ok() {
             return Ok(UserId::XOnlyPublicKey(x_only_public_key_response.unwrap()));
         }
-        Err(DbError::DecodeError(format!("Invalid user id, it is not uuid, public key or x only public key: {}", s)))
+        Err(DbError::DecodeError(format!(
+            "Invalid user id, it is not uuid, public key or x only public key: {}",
+            s
+        )))
     }
 }
 
@@ -91,7 +94,7 @@ impl UserIdentifierStorage for LocalDbStorage {
             .fetch_optional(&self.get_conn().await?)
             .await
             .map_err(|e| DbError::BadRequest(e.to_string()))?;
-        
+
         match result {
             Some((user_id, dkg_share_id, rune_id, is_issuer)) => Ok(Some(UserIds {
                 user_id: UserId::from_str(&user_id)?,

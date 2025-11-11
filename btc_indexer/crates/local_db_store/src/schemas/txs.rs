@@ -1,11 +1,11 @@
 use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
-use persistent_storage::error::DbError;
-use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
 use bitcoin::Txid;
 use bitcoin::hashes::Hash;
 use hex;
+use persistent_storage::error::DbError;
+use serde::{Deserialize, Serialize};
+use sqlx::FromRow;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TxInfo {
@@ -45,22 +45,15 @@ impl TxsStorage for LocalDbStorage {
             .collect::<Vec<String>>()
             .join(",\n");
 
-        let query_str = format!(
-            "INSERT INTO btc_indexer.txs (txid, block_height) VALUES {}",
-            values
-        );
+        let query_str = format!("INSERT INTO btc_indexer.txs (txid, block_height) VALUES {}", values);
 
-        sqlx::query(&query_str)
-            .execute(&self.postgres_repo.pool)
-            .await?;
+        sqlx::query(&query_str).execute(&self.postgres_repo.pool).await?;
 
         Ok(())
     }
 
     async fn exists(&self, txid: Txid) -> Result<bool, DbError> {
-        let row = sqlx::query(
-            "SELECT 1 FROM btc_indexer.txs WHERE txid = $1",
-        )
+        let row = sqlx::query("SELECT 1 FROM btc_indexer.txs WHERE txid = $1")
             .bind(txid.to_byte_array())
             .fetch_optional(&self.postgres_repo.pool)
             .await?;

@@ -3,8 +3,8 @@ use bitcoin::OutPoint;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
-use verifier_config_parser::config::BtcIndexerConfig;
 use uuid::Uuid;
+use verifier_config_parser::config::BtcIndexerConfig;
 
 const WATCH_RUNES_DEPOSIT_PATH: &str = "/watch";
 

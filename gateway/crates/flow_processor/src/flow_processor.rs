@@ -1,4 +1,5 @@
 use crate::flow_router::FlowProcessorRouter;
+use crate::rune_metadata_client::RuneMetadataClient;
 use crate::types::*;
 use bitcoin::Network;
 use btc_indexer_client::client_api::IndexerClient;
@@ -35,6 +36,7 @@ pub struct FlowProcessor {
     pub spark_service: Arc<SparkService>,
     pub spark_client: Arc<SparkRpcClient>,
     pub bitcoin_client: Arc<BitcoinClient>,
+    pub rune_metadata_client: Option<Arc<RuneMetadataClient>>,
     pub network: Network,
     pub bitcoin_indexer: IndexerClient,
 }
@@ -51,6 +53,7 @@ pub struct FlowProcessorInitArgs {
     pub spark_client: Arc<SparkRpcClient>,
     pub bitcoin_client: Arc<BitcoinClient>,
     pub bitcoin_indexer: IndexerClient,
+    pub rune_metadata_client: Option<Arc<RuneMetadataClient>>,
 }
 
 impl FlowProcessor {
@@ -69,6 +72,7 @@ impl FlowProcessor {
             spark_service: flow_processor_config.spark_service,
             spark_client: flow_processor_config.spark_client,
             bitcoin_client: flow_processor_config.bitcoin_client,
+            rune_metadata_client: flow_processor_config.rune_metadata_client,
             network: flow_processor_config.network,
             bitcoin_indexer: flow_processor_config.bitcoin_indexer,
         }
@@ -115,6 +119,7 @@ impl FlowProcessor {
                                 network: self.network,
                                 bitcoin_client: self.bitcoin_client.clone(),
                                 bitcoin_indexer: self.bitcoin_indexer.clone(),
+                                rune_metadata_client: self.rune_metadata_client.clone(),
                             };
 
                             let handle = tokio::task::spawn(async move {

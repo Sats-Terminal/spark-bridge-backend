@@ -16,6 +16,7 @@ gateway_spark_service = { workspace = true }
 global_utils = { workspace = true }
 persistent_storage = { workspace = true }
 serde = { version = "1.0.219", features = ["derive"] }
+serde_json = { workspace = true }
 spark-address = { workspace = true }
 spark_client = { workspace = true }
 thiserror = { workspace = true }
@@ -26,6 +27,9 @@ tokio-util = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true }
 btc_indexer_client = { workspace = true }
+reqwest = { version = "0.12.7", default-features = false, features = ["json", "rustls-tls"] }
+url = { workspace = true }
+urlencoding = "2.1.3"
 
 [dev-dependencies]
 lrc20 = { workspace = true }

@@ -1,3 +1,4 @@
+use super::amount_utils::normalize_rune_amount;
 use crate::error::FlowProcessorError;
 use crate::flow_router::FlowProcessorRouter;
 use crate::types::IssueSparkDepositAddressRequest;
@@ -57,6 +58,9 @@ pub async fn handle(
         flow_router.verifier_configs.iter().map(|v| v.id).collect(),
     );
 
+    let normalized_amount =
+        normalize_rune_amount(request.amount, &request.rune_id, &flow_router.rune_metadata_client).await?;
+
     local_db_storage
         .insert_deposit_addr_info(DepositAddrInfo {
             dkg_share_id,
@@ -64,7 +68,7 @@ pub async fn handle(
             deposit_address: InnerAddress::SparkAddress(address.clone()),
             bridge_address: None,
             is_btc: false,
-            amount: request.amount,
+            amount: normalized_amount,
             confirmation_status: verifiers_responses,
         })
         .await?;

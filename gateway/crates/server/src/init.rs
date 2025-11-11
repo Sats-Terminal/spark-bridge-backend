@@ -1,6 +1,6 @@
 use crate::handlers;
 use axum::Router;
-use axum::routing::{get, post};
+use axum::routing::{delete, get, post};
 use bitcoin::Network;
 use gateway_config_parser::config::{FeeConfig, VerifiersConfig};
 use gateway_deposit_verification::aggregator::DepositVerificationAggregator;
@@ -34,6 +34,10 @@ impl GatewayApi {
     pub const NOTIFY_SPARK_DEPOSIT_ADDRESS_ENDPOINT: &'static str = "/api/verifier/notify-spark-deposit";
     pub const BRIDGE_RUNES_ADDRESS_ENDPOINT: &'static str = "/api/user/bridge-runes";
     pub const TEST_SPARK_ADDRESS_ENDPOINT: &'static str = "/api/test/test-spark";
+    pub const LIST_WRUNES_METADATA_ENDPOINT: &'static str = "/api/metadata/wrunes";
+    pub const LIST_USER_ACTIVITY_ENDPOINT: &'static str = "/api/user/activity/{user_public_key}";
+    pub const GET_TRANSACTION_ACTIVITY_ENDPOINT: &'static str = "/api/bridge/transaction/{txid}";
+    pub const DELETE_PENDING_BRIDGE_ENDPOINT: &'static str = "/api/user/bridge-request/{btc_address}";
     pub const HEALTHCHECK_ENDPOINT: &'static str = "/health";
 }
 
@@ -89,6 +93,22 @@ pub async fn create_app(
         .route(
             GatewayApi::BRIDGE_RUNES_ADDRESS_ENDPOINT,
             post(handlers::bridge_runes::handle),
+        )
+        .route(
+            GatewayApi::LIST_WRUNES_METADATA_ENDPOINT,
+            get(handlers::get_wrunes_metadata::handle),
+        )
+        .route(
+            GatewayApi::LIST_USER_ACTIVITY_ENDPOINT,
+            get(handlers::get_user_activity::handle),
+        )
+        .route(
+            GatewayApi::GET_TRANSACTION_ACTIVITY_ENDPOINT,
+            get(handlers::get_user_activity::handle_transaction),
+        )
+        .route(
+            GatewayApi::DELETE_PENDING_BRIDGE_ENDPOINT,
+            delete(handlers::delete_pending_bridge::handle),
         )
         .route(GatewayApi::HEALTHCHECK_ENDPOINT, get(handlers::healthcheck::handle))
         .with_state(state)

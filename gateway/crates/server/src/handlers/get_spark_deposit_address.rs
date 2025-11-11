@@ -3,11 +3,11 @@ use crate::init::AppState;
 use axum::{Json, extract::State};
 use gateway_flow_processor::flow_sender::TypedMessageSender;
 use gateway_flow_processor::types::IssueSparkDepositAddressRequest;
+use gateway_local_db_store::schemas::user_identifier::UserId;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use tracing::instrument;
 use uuid::Uuid;
-use std::str::FromStr;
-use gateway_local_db_store::schemas::user_identifier::UserId;
 
 #[derive(Deserialize, Debug)]
 pub struct GetSparkDepositAddressRequest {
@@ -41,7 +41,8 @@ pub async fn handle(
         request_uuid
     );
 
-    let user_id = UserId::from_str(&request.user_id).map_err(|e| GatewayError::InvalidData(format!("Invalid user id: {}", e)))?;
+    let user_id =
+        UserId::from_str(&request.user_id).map_err(|e| GatewayError::InvalidData(format!("Invalid user id: {}", e)))?;
 
     let response = state
         .flow_sender

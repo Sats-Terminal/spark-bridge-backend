@@ -2,8 +2,8 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use thiserror::Error;
 use persistent_storage::error::DbError;
+use thiserror::Error;
 use tracing;
 
 #[derive(Error, Debug)]
@@ -21,7 +21,9 @@ impl IntoResponse for BtcIndexerServerError {
         tracing::error!("Btc indexer server error: {:?}", self);
         match self {
             BtcIndexerServerError::DecodeError(message) => (StatusCode::BAD_REQUEST, message).into_response(),
-            BtcIndexerServerError::DbError(message) => (StatusCode::INTERNAL_SERVER_ERROR, message.to_string()).into_response(),
+            BtcIndexerServerError::DbError(message) => {
+                (StatusCode::INTERNAL_SERVER_ERROR, message.to_string()).into_response()
+            }
             BtcIndexerServerError::ValidationError(message) => (StatusCode::BAD_REQUEST, message).into_response(),
         }
     }

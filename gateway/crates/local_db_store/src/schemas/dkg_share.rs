@@ -5,6 +5,7 @@ use persistent_storage::error::DbError;
 use sqlx::types::Json;
 use uuid::Uuid;
 
+use crate::schemas::user_identifier::UserId;
 use crate::schemas::user_identifier::UserIds;
 use frost::traits::AggregatorDkgShareStorage;
 use frost::types::AggregatorDkgShareData;
@@ -13,7 +14,6 @@ use persistent_storage::init::PersistentRepoTrait;
 use sqlx::Acquire;
 use thiserror::Error;
 use tracing::instrument;
-use crate::schemas::user_identifier::UserId;
 
 #[derive(Debug, Error)]
 pub enum DkgShareGenerateError {

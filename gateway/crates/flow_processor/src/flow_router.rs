@@ -1,4 +1,5 @@
 use crate::error::FlowProcessorError;
+use crate::rune_metadata_client::RuneMetadataClient;
 use crate::types::*;
 use bitcoin::Network;
 use btc_indexer_client::client_api::IndexerClient;
@@ -27,6 +28,7 @@ pub struct FlowProcessorRouter {
     pub network: Network,
     pub bitcoin_client: Arc<BitcoinClient>,
     pub bitcoin_indexer: IndexerClient,
+    pub rune_metadata_client: Option<Arc<RuneMetadataClient>>,
 }
 
 impl FlowProcessorRouter {
