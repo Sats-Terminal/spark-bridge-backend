@@ -9,7 +9,6 @@ use spark_balance_checker_server::models::VerifyBalanceRequest;
 use token_identifier::TokenIdentifier;
 use uuid::Uuid;
 use verifier_btc_indexer_client::client::WatchRunesDepositRequest as IndexerWatchRunesDepositRequest;
-use verifier_config_parser::config::construct_hardcoded_callback_url;
 use verifier_gateway_client::client::{
     GatewayDepositStatus, GatewayNotifyRunesDepositRequest, GatewayNotifySparkDepositRequest,
 };
@@ -120,7 +119,7 @@ async fn handle_fee_notification(request: IndexerNotifyRequest, state: &AppState
         .map_err(|err| VerifierError::Storage(err.to_string()))?;
 
     if deposit_addr_info.is_btc {
-        let callback_url = construct_hardcoded_callback_url(&state.server_config.server);
+        let callback_url = state.server_config.server.callback_url.clone();
         state
             .btc_indexer_client
             .watch_runes_deposit(IndexerWatchRunesDepositRequest {

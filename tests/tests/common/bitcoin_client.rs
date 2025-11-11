@@ -12,7 +12,7 @@ use tokio::time::sleep;
 use tracing;
 use url::Url;
 
-use crate::{constants::BLOCKS_TO_GENERATE, error::BitcoinClientError};
+use crate::common::{constants::BLOCKS_TO_GENERATE, error::BitcoinClientError};
 
 pub struct BitcoinClientConfig {
     pub url: String,

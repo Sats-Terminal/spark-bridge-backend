@@ -9,7 +9,6 @@ use spark_balance_checker_server::models::VerifyTransferRequest;
 use tracing::instrument;
 use uuid::Uuid;
 use verifier_btc_indexer_client::client::WatchRunesDepositRequest as IndexerWatchRunesDepositRequest;
-use verifier_config_parser::config::construct_hardcoded_callback_url;
 use verifier_local_db_store::schemas::deposit_address::{
     DepositAddrInfo, DepositAddressStorage, DepositStatus, FeePayment, InnerAddress,
 };
@@ -77,7 +76,7 @@ pub async fn handle(
 
     match state.server_config.fee {
         None => {
-            let callback_url = construct_hardcoded_callback_url(&state.server_config.server);
+            let callback_url = state.server_config.server.callback_url.clone();
             state
                 .btc_indexer_client
                 .watch_runes_deposit(IndexerWatchRunesDepositRequest {
@@ -108,7 +107,7 @@ pub async fn handle(
                             rune_id: None,
                             rune_amount: None,
                             sats_amount: Some(fee_cfg.amount),
-                            callback_url: construct_hardcoded_callback_url(&state.server_config.server).to_string(),
+                            callback_url: state.server_config.server.callback_url.to_string(),
                         })
                         .await
                         .map_err(|e| {
@@ -141,7 +140,7 @@ pub async fn handle(
                         .await
                         .map_err(|e| VerifierError::Storage(format!("Failed to set fee status: {}", e)))?;
 
-                    let callback_url = construct_hardcoded_callback_url(&state.server_config.server);
+                    let callback_url = state.server_config.server.callback_url.clone();
 
                     let deposit_addr_info = state
                         .storage

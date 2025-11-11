@@ -81,7 +81,6 @@ utoipa-swagger-ui = { version = "9.0.2" }
 uuid = { version = "1.18.0", features = ["serde", "v4", "v7"] }
 enum_dispatch = { version="0.3" }
 rustls = { version = "0.23.32", default-features = false, features = ["ring"] }
-breez-sdk-spark = { git = "https://github.com/breez/spark-sdk.git", tag = "0.3.4"}
 
 ####### Global Crates #######
 global_utils = { path = "./crates/global_utils" }

@@ -1,4 +1,4 @@
-use crate::error::SparkClientError;
+use crate::common::error::SparkClientError;
 use bitcoin::hashes::{Hash, sha256};
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::{Keypair, Message as BitcoinMessage, Secp256k1};

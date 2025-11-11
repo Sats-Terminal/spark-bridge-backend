@@ -1,4 +1,4 @@
-use crate::{
+use crate::common::{
     bitcoin_client::BitcoinClient,
     constants::{BLOCKS_TO_GENERATE, DEFAULT_DUST_AMOUNT, DEFAULT_FEE_AMOUNT, DEFAULT_REVEAL_AMOUNT},
     error::RuneError,

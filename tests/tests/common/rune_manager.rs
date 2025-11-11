@@ -1,10 +1,10 @@
-use crate::bitcoin_client::BitcoinClient;
-use crate::constants::{
+use crate::common::bitcoin_client::BitcoinClient;
+use crate::common::constants::{
     DEFAULT_DUST_AMOUNT, DEFAULT_FAUCET_AMOUNT, DEFAULT_FEE_AMOUNT, DEFAULT_RUNE_AMOUNT, DEFAULT_RUNE_CAP,
 };
-use crate::error::RuneError;
-use crate::rune_etching::{EtchRuneParams, etch_rune};
-use crate::utils::{create_credentials, sign_transaction};
+use crate::common::error::RuneError;
+use crate::common::rune_etching::{EtchRuneParams, etch_rune};
+use crate::common::utils::{create_credentials, sign_transaction};
 use bitcoin::Network;
 use bitcoin::{
     Address, Amount, OutPoint, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Txid, Witness, key::Keypair,

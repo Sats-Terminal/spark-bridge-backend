@@ -1,7 +1,9 @@
+mod common;
+
 use bitcoin::Network;
 use btc_indexer_config::{IndexerClientConfig, TitanClientConfig};
 use global_utils::logger::init_logger;
-use tests::{
+use common::{
     bitcoin_client::{BitcoinClient, BitcoinClientConfig, BitcoinRegtestClient},
     constants::{BLOCKS_TO_GENERATE, DEFAULT_FAUCET_AMOUNT},
     rune_manager::setup_rune_manager,

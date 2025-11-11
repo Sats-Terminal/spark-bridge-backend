@@ -1,9 +1,11 @@
+mod common;
+
 use bitcoin::{Address, Network};
 use btc_indexer_config::{IndexerClientConfig, MaestroClientConfig};
 use global_utils::logger::init_logger;
 use ordinals::RuneId;
 use std::{env, str::FromStr, time::Duration};
-use tests::{
+use common::{
     bitcoin_client::{BitcoinClient, BitcoinTestnetClient},
     constants::{DEFAULT_FAUCET_AMOUNT, PAYING_INPUT_SATS_AMOUNT},
     gateway_client::*,
@@ -26,7 +28,7 @@ async fn test_spark_testnet4() {
     tracing::info!("Start setup");
 
     let gateway_client = GatewayClient::new(GatewayConfig {
-        address: "http://localhost:8060".parse().unwrap(),
+        address: "http://localhost:9430".parse().unwrap(),
     });
 
     let spark_client = SparkClient::new(

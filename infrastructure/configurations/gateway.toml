@@ -2,20 +2,20 @@
 network = "regtest"
 
 [application]
-http_server_ip = "127.0.0.1"
+http_server_ip = "0.0.0.0"
 http_server_port = 8060
 
 [[verifiers_config]]
 id = 1
-address = "http://localhost:8071"
+address = "http://verifier-1-svc:8070"
 
 [[verifiers_config]]
 id = 2
-address = "http://localhost:8072"
+address = "http://verifier-2-svc:8070"
 
 [[verifiers_config]]
 id = 3
-address = "http://localhost:8073"
+address = "http://verifier-3-svc:8070"
 
 [aggregator_config]
 threshold = 2
@@ -31,12 +31,12 @@ min_threshold = 50
 max_cached = 500
 
 [database_config]
-url = "postgres://postgres:postgres@localhost:5470/gateway"
+url = "postgres://gateway:gateway@gateway-db/gateway"
 
 [spark_config]
 certificates = [
-    { path = "./infrastructure/configurations/certificates/Amazon-Root-CA.pem" },
-    { path = "./infrastructure/configurations/certificates/Flashnet-CA.pem" },
+    { path = "/Amazon-Root-CA.pem" },
+    { path = "/Flashnet-CA.pem" },
 ]
 
 [[spark_config.operators]]
@@ -63,13 +63,16 @@ running_authority = "Flashnet"
 
 [bitcoin_client_config]
 # url = "https://mempool.space/testnet4/api/"
-url = "http://127.0.0.1:18443"
+url = "http://bitcoind:18443"
 username = "bitcoin"
 password = "bitcoinpass"
 
 [bitcoin_indexer_client_config]
+# type = "maestro"
+# key = "maestro_api_key"
+# confirmation_threshold = 0
 type = "titan"
-url = "http://localhost:3030"
+url = "http://titan:3030"
 
 [fee_config]
 amount=1000

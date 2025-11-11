@@ -1,4 +1,4 @@
-use crate::error::GatewayClientError;
+use crate::common::error::GatewayClientError;
 use bitcoin::{OutPoint, secp256k1::schnorr::Signature};
 use reqwest::Client;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};

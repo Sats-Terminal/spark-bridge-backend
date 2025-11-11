@@ -68,8 +68,6 @@ pub enum SparkClientError {
     TokenIdentifierError(#[from] TokenIdentifierParseError),
     #[error("Session token not found")]
     SessionTokenNotFound(String),
-    #[error("Spark breez sdk error: {0}")]
-    BreezSDKError(#[from] breez_sdk_spark::SdkError),
-    #[error("Spark breez storage error: {0}")]
-    BreezStorageError(#[from] breez_sdk_spark::StorageError),
+    #[error("{0}")]
+    Other(String),
 }
