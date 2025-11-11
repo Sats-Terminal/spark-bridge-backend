@@ -7,9 +7,11 @@ use frost::traits::AggregatorMusigIdStorage;
 use frost::types::MusigId;
 use frost::utils::generate_issuer_public_key;
 use gateway_local_db_store::schemas::deposit_address::{DepositAddressStorage, InnerAddress};
+use gateway_local_db_store::schemas::rune_metadata::RuneMetadataStorage;
 use gateway_spark_service::types::SparkTransactionType;
 use gateway_spark_service::utils::{RuneTokenConfig, create_wrunes_metadata};
 use global_utils::conversion::convert_network_to_spark_network;
+use serde_json::Value;
 use std::sync::Arc;
 use tracing::instrument;
 
@@ -134,6 +136,18 @@ pub async fn handle(
             "Bridge address not found".to_string(),
         ))?;
 
+    let spark_network = convert_network_to_spark_network(flow_router.network);
+    cache_wrune_metadata(
+        &flow_router.storage,
+        &rune_id,
+        rune_metadata.as_ref(),
+        &wrunes_metadata,
+        &issuer_musig_public_key,
+        flow_router.network,
+        spark_network,
+    )
+    .await;
+
     flow_router
         .spark_service
         .send_spark_transaction(
@@ -144,7 +158,7 @@ pub async fn handle(
                 receiver_spark_address: bridge_address.to_string(),
                 token_amount: deposit_addr_info.amount,
             },
-            convert_network_to_spark_network(flow_router.network),
+            spark_network,
         )
         .await
         .map_err(|e| FlowProcessorError::SparkServiceError(format!("Failed to send spark mint transaction: {}", e)))?;
@@ -174,5 +188,47 @@ fn build_rune_token_config(rune_id: &str, metadata: Option<&RuneMetadata>) -> Ru
         divisibility: metadata.map(|m| m.divisibility),
         max_supply: metadata.and_then(|m| m.max_supply),
         icon_url: metadata.and_then(|m| m.icon_url.clone()),
+    }
+}
+
+async fn cache_wrune_metadata(
+    storage: &Arc<gateway_local_db_store::storage::LocalDbStorage>,
+    rune_id: &str,
+    rune_metadata: Option<&RuneMetadata>,
+    wrune_metadata: &gateway_spark_service::utils::WRunesMetadata,
+    issuer_public_key: &PublicKey,
+    bitcoin_network: bitcoin::Network,
+    spark_network: spark_address::Network,
+) {
+    let rune_metadata_value = match rune_metadata {
+        Some(metadata) => match serde_json::to_value(metadata) {
+            Ok(value) => Some(value),
+            Err(err) => {
+                tracing::warn!("Failed to serialize rune metadata for {}: {}", rune_id, err);
+                return;
+            }
+        },
+        None => None,
+    };
+    let wrune_metadata_value = match serde_json::to_value(wrune_metadata) {
+        Ok(value) => value,
+        Err(err) => {
+            tracing::warn!("Failed to serialize wRune metadata for {}: {}", rune_id, err);
+            return;
+        }
+    };
+
+    if let Err(err) = storage
+        .upsert_rune_metadata(
+            rune_id.to_string(),
+            rune_metadata_value,
+            wrune_metadata_value,
+            issuer_public_key.to_string(),
+            bitcoin_network.to_string(),
+            format!("{:?}", spark_network),
+        )
+        .await
+    {
+        tracing::warn!("Failed to persist rune metadata for {}: {}", rune_id, err);
     }
 }

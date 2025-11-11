@@ -1,6 +1,9 @@
 pub mod bridge_runes;
+pub mod delete_pending_bridge;
 pub mod exit_spark;
 pub mod get_btc_deposit_address;
 pub mod get_spark_deposit_address;
+pub mod get_user_activity;
+pub mod get_wrunes_metadata;
 pub mod healthcheck;
 pub mod notify_runes_deposit;

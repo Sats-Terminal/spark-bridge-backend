@@ -4,6 +4,25 @@
 
 set -e
 
+if [ -z "${MAESTRO_API_URL:-}" ] || [ -z "${MAESTRO_API_KEY:-}" ]; then
+    if [ -f ".env.mainnet" ]; then
+        echo "Loading Maestro credentials from .env.mainnet"
+        set -a
+        # shellcheck disable=SC1091
+        source ./.env.mainnet
+        set +a
+    fi
+fi
+
+if [ -z "${MAESTRO_API_URL:-}" ]; then
+    export MAESTRO_API_URL="https://xbt-mainnet.gomaestro-api.org"
+fi
+
+if [ -z "${MAESTRO_API_KEY:-}" ]; then
+    echo "MAESTRO_API_KEY environment variable is not set. Please set it before running this script."
+    exit 1
+fi
+
 GATEWAY_DATABASE_URL="postgres://davicoscarelli:davi2304@localhost:5432/runes_gateway"
 VERIFIER_1_DATABASE_URL="postgres://davicoscarelli:davi2304@localhost:5432/runes_verifier_1"
 VERIFIER_2_DATABASE_URL="postgres://davicoscarelli:davi2304@localhost:5432/runes_verifier_2"
@@ -62,8 +81,8 @@ run_services() {
     echo "Running services..."
 
     CONFIG_PATH=$GATEWAY_CONFIG_PATH \
-      MAESTRO_API_URL=${MAESTRO_API_URL:-https://xbt-mainnet.gomaestro-api.org} \
-      MAESTRO_API_KEY=${MAESTRO_API_KEY:-replace-me} \
+      MAESTRO_API_URL=$MAESTRO_API_URL \
+      MAESTRO_API_KEY=$MAESTRO_API_KEY \
       pm2 start ./target/debug/gateway_main \
         --name gateway \
         --log $GATEWAY_LOG_PATH 
@@ -91,8 +110,8 @@ run_services() {
       BITCOIN_RPC_PORT=${BITCOIN_RPC_PORT:-8332} \
       BITCOIN_RPC_USERNAME=${BITCOIN_RPC_USERNAME:-bitcoin} \
       BITCOIN_RPC_PASSWORD=${BITCOIN_RPC_PASSWORD:-bitcoinpass} \
-      MAESTRO_API_URL=${MAESTRO_API_URL:-https://xbt-mainnet.gomaestro-api.org} \
-      MAESTRO_API_KEY=${MAESTRO_API_KEY:-replace-me} \
+      MAESTRO_API_URL=$MAESTRO_API_URL \
+      MAESTRO_API_KEY=$MAESTRO_API_KEY \
       pm2 start ./target/debug/btc_indexer_main \
         --name btc_indexer \
         --log $BTC_INDEXER_LOG_PATH 

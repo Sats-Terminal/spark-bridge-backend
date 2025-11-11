@@ -27,3 +27,4 @@ frost = { workspace = true }
 gateway_config_parser = { workspace = true }
 gateway_rune_transfer = { workspace = true }
 gateway_spark_service = { workspace = true }
+serde_json = { workspace = true }

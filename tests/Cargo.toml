@@ -27,3 +27,6 @@ rustls = { workspace = true }
 lrc20 = { workspace = true }
 chrono = { workspace = true }
 proto-hasher = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+anyhow = { workspace = true }
+serde_json = { workspace = true }

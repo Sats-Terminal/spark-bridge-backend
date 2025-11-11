@@ -11,12 +11,14 @@ use gateway_flow_processor::flow_sender::{FlowSender, TypedMessageSender};
 use gateway_flow_processor::rune_metadata_client::{RuneMetadata, RuneMetadataClient};
 use gateway_flow_processor::types::{BridgeRunesRequest, ExitSparkRequest};
 use gateway_local_db_store::schemas::deposit_address::{
-    DepositAddressStorage, DepositStatus, InnerAddress, VerifiersResponses,
+    DepositActivity, DepositAddressStorage, DepositStatus, InnerAddress, VerifiersResponses,
 };
 use gateway_local_db_store::schemas::paying_utxo::PayingUtxoStorage;
+use gateway_local_db_store::schemas::rune_metadata::{RuneMetadataStorage, StoredRuneMetadata};
 use gateway_local_db_store::schemas::utxo_storage::{Utxo, UtxoStatus, UtxoStorage};
 use gateway_local_db_store::storage::LocalDbStorage;
-use gateway_spark_service::utils::{RuneTokenConfig, create_wrunes_metadata};
+use gateway_spark_service::utils::{RuneTokenConfig, WRunesMetadata, create_wrunes_metadata};
+use global_utils::conversion::convert_network_to_spark_network;
 use persistent_storage::init::StorageHealthcheck;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -239,12 +241,20 @@ impl DepositVerificationAggregator {
                 })?;
 
                 let rune_id = deposit_addr_info.musig_id.get_rune_id();
-                let rune_metadata = fetch_rune_metadata(&self.rune_metadata_client, &rune_id).await;
-                let rune_token_config = build_rune_token_config(&rune_id, rune_metadata.as_ref());
-                let wrunes_metadata = create_wrunes_metadata(&rune_token_config, musig_public_key, self.network)
-                    .map_err(|e| {
-                        DepositVerificationError::InvalidDataError(format!("Failed to create wrunes metadata: {}", e))
-                    })?;
+                let wrunes_metadata = match self.storage.get_rune_metadata(&rune_id).await? {
+                    Some(entry) => match serde_json::from_value::<WRunesMetadata>(entry.wrune_metadata.clone()) {
+                        Ok(metadata) => metadata,
+                        Err(err) => {
+                            tracing::warn!(
+                                "Failed to decode cached wRune metadata for {}: {}. Recomputing.",
+                                rune_id,
+                                err
+                            );
+                            self.rebuild_wrune_metadata(&rune_id, musig_public_key).await?
+                        }
+                    },
+                    None => self.rebuild_wrune_metadata(&rune_id, musig_public_key).await?,
+                };
                 wrunes_metadata.token_identifier
             }
             _ => {
@@ -321,6 +331,105 @@ impl DepositVerificationAggregator {
     pub async fn healthcheck(&self) -> Result<(), DepositVerificationError> {
         self.storage.postgres_repo.healthcheck().await?;
         Self::check_set_of_verifiers(&self.verifiers).await?;
+        Ok(())
+    }
+
+    #[instrument(level = "trace", skip(self), ret)]
+    pub async fn list_user_activity(
+        &self,
+        user_public_key: bitcoin::secp256k1::PublicKey,
+    ) -> Result<Vec<DepositActivity>, DepositVerificationError> {
+        let activity = self
+            .storage
+            .list_deposit_activity_by_public_key(user_public_key)
+            .await?;
+        Ok(activity)
+    }
+
+    #[instrument(level = "trace", skip(self), ret)]
+    pub async fn get_activity_by_txid(&self, txid: &str) -> Result<Option<DepositActivity>, DepositVerificationError> {
+        let activity = self.storage.get_deposit_activity_by_txid(txid).await?;
+        Ok(activity)
+    }
+
+    #[instrument(level = "trace", skip(self), ret)]
+    pub async fn delete_pending_bridge_by_address(
+        &self,
+        btc_address: bitcoin::Address,
+    ) -> Result<(), DepositVerificationError> {
+        let removed = self
+            .storage
+            .delete_pending_deposit(InnerAddress::BitcoinAddress(btc_address))
+            .await?;
+        if removed {
+            Ok(())
+        } else {
+            Err(DepositVerificationError::InvalidRequest(
+                "Pending bridge request not found or already confirmed".to_string(),
+            ))
+        }
+    }
+
+    #[instrument(level = "trace", skip(self), ret)]
+    pub async fn list_wrune_metadata(&self) -> Result<Vec<StoredRuneMetadata>, DepositVerificationError> {
+        let metadata = self.storage.list_rune_metadata().await?;
+        Ok(metadata)
+    }
+
+    async fn rebuild_wrune_metadata(
+        &self,
+        rune_id: &str,
+        musig_public_key: PublicKey,
+    ) -> Result<WRunesMetadata, DepositVerificationError> {
+        let rune_metadata = fetch_rune_metadata(&self.rune_metadata_client, rune_id).await;
+        let rune_token_config = build_rune_token_config(rune_id, rune_metadata.as_ref());
+        let wrunes_metadata =
+            create_wrunes_metadata(&rune_token_config, musig_public_key, self.network).map_err(|e| {
+                DepositVerificationError::InvalidDataError(format!(
+                    "Failed to create wrunes metadata for {}: {}",
+                    rune_id, e
+                ))
+            })?;
+
+        self.persist_wrune_metadata(rune_id, rune_metadata.as_ref(), &wrunes_metadata, &musig_public_key)
+            .await?;
+        Ok(wrunes_metadata)
+    }
+
+    async fn persist_wrune_metadata(
+        &self,
+        rune_id: &str,
+        rune_metadata: Option<&RuneMetadata>,
+        wrune_metadata: &WRunesMetadata,
+        musig_public_key: &PublicKey,
+    ) -> Result<(), DepositVerificationError> {
+        let rune_metadata_value = match rune_metadata {
+            Some(metadata) => Some(serde_json::to_value(metadata).map_err(|err| {
+                DepositVerificationError::InvalidDataError(format!(
+                    "Failed to serialize rune metadata for {}: {}",
+                    rune_id, err
+                ))
+            })?),
+            None => None,
+        };
+        let wrune_metadata_value = serde_json::to_value(wrune_metadata).map_err(|err| {
+            DepositVerificationError::InvalidDataError(format!(
+                "Failed to serialize wRune metadata for {}: {}",
+                rune_id, err
+            ))
+        })?;
+
+        self.storage
+            .upsert_rune_metadata(
+                rune_id.to_string(),
+                rune_metadata_value,
+                wrune_metadata_value,
+                musig_public_key.to_string(),
+                self.network.to_string(),
+                format!("{:?}", convert_network_to_spark_network(self.network)),
+            )
+            .await?;
+
         Ok(())
     }
 

@@ -1,0 +1,5 @@
+BEGIN TRANSACTION;
+
+DROP TABLE IF EXISTS gateway.rune_metadata_map;
+
+COMMIT;

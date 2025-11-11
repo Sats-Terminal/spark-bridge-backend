@@ -38,6 +38,7 @@ bitcoin = { version = "0.32.7", features = ["serde", "rand-std", "rand"] }
 bitcoincore-rpc = { version = "0.19.0" }
 bitcoincore-rpc-json = { version = "0.19.0" }
 chrono = { version = "0.4.41", features = ["serde"] }
+clap = { version = "4.5.23", features = ["derive"] }
 config = { version = "0.15.13" }
 dns-lookup = { version = "3.0.0" }
 dotenvy = { version = "0.15.7" }

@@ -18,6 +18,7 @@ serde = { workspace = true }
 anyhow = { workspace = true }
 gateway_rune_transfer = { workspace = true }
 gateway_config_parser = { path = "../config_parser" }
+chrono = { workspace = true }
 
 [dev-dependencies]
 frost-secp256k1-tr = { workspace = true }

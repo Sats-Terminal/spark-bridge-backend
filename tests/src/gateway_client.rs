@@ -2,6 +2,7 @@ use crate::error::GatewayClientError;
 use bitcoin::secp256k1::schnorr::Signature;
 use reqwest::Client;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde_json::Value;
 use url::Url;
 
 #[derive(Clone, Debug)]
@@ -56,6 +57,7 @@ pub struct BridgeRunesSparkRequest {
 pub type BridgeRunesSparkResponse = ();
 
 const EXIT_SPARK_PATH: &str = "/api/user/exit-spark";
+const LIST_WRUNES_METADATA_PATH: &str = "/api/metadata/wrunes";
 
 #[derive(Serialize, Debug)]
 pub struct ExitSparkRequest {
@@ -73,6 +75,18 @@ pub struct UserPayingTransferInput {
 }
 
 pub type ExitSparkResponse = ();
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct CachedRuneMetadata {
+    pub rune_id: String,
+    pub rune_metadata: Option<Value>,
+    pub wrune_metadata: Value,
+    pub issuer_public_key: String,
+    pub bitcoin_network: String,
+    pub spark_network: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
 
 impl GatewayClient {
     pub fn new(config: GatewayConfig) -> Self {
@@ -125,5 +139,21 @@ impl GatewayClient {
 
     pub async fn exit_spark(&self, request: ExitSparkRequest) -> Result<ExitSparkResponse, GatewayClientError> {
         self.send_request(EXIT_SPARK_PATH, request).await
+    }
+
+    pub async fn list_wrune_metadata(&self) -> Result<Vec<CachedRuneMetadata>, GatewayClientError> {
+        let url = self.config.address.join(LIST_WRUNES_METADATA_PATH)?;
+
+        let response = self.client.get(url).send().await?;
+
+        if response.status().is_success() {
+            let payload = response.json::<Vec<CachedRuneMetadata>>().await?;
+            Ok(payload)
+        } else {
+            Err(GatewayClientError::ErrorResponse(format!(
+                "Error response with status: {}",
+                response.status()
+            )))
+        }
     }
 }

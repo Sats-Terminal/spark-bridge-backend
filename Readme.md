@@ -33,7 +33,7 @@ Through this service, users can:
 ## Further info
 
 Additional docs you can be found by the [link][1].
+- [Backend integration guide](./INTEGRATION_GUIDE.md)
 
 [1]: https://docs.google.com/document/d/1fJfDpyc_hQEHg1-W9oYYqUqf3onWqntPGi5kQqC1i0o/edit?usp=sharing
-
 

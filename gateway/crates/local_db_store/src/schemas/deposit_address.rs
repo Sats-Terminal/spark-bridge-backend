@@ -1,3 +1,4 @@
+use crate::schemas::utxo_storage::UtxoStatus;
 use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
 use bitcoin::Address;
@@ -132,6 +133,14 @@ pub struct DepositAddrInfo {
     pub confirmation_status: VerifiersResponses,
 }
 
+#[derive(Debug, Clone)]
+pub struct DepositActivity {
+    pub deposit_info: DepositAddrInfo,
+    pub out_point: Option<String>,
+    pub utxo_status: Option<UtxoStatus>,
+    pub sats_fee_amount: Option<u64>,
+}
+
 impl DepositAddrInfo {
     fn to_db_format(&self) -> DbDepositAddrInfo {
         DbDepositAddrInfo {
@@ -188,6 +197,12 @@ pub trait DepositAddressStorage: Send + Sync {
         deposit_address: InnerAddress,
         bridge_address: InnerAddress,
     ) -> Result<(), DbError>;
+    async fn list_deposit_activity_by_public_key(
+        &self,
+        user_public_key: bitcoin::secp256k1::PublicKey,
+    ) -> Result<Vec<DepositActivity>, DbError>;
+    async fn get_deposit_activity_by_txid(&self, txid: &str) -> Result<Option<DepositActivity>, DbError>;
+    async fn delete_pending_deposit(&self, deposit_address: InnerAddress) -> Result<bool, DbError>;
 }
 
 #[async_trait]
@@ -391,5 +406,191 @@ impl DepositAddressStorage for LocalDbStorage {
         .await?;
 
         Ok(())
+    }
+
+    #[tracing::instrument(level = "trace", skip_all)]
+    async fn list_deposit_activity_by_public_key(
+        &self,
+        user_public_key: bitcoin::secp256k1::PublicKey,
+    ) -> Result<Vec<DepositActivity>, DbError> {
+        let rows: Vec<(
+            String,
+            String,
+            TweakBytes,
+            String,
+            Option<String>,
+            bool,
+            i64,
+            Json<VerifiersResponses>,
+            Option<String>,
+            Option<UtxoStatus>,
+            Option<i64>,
+        )> = sqlx::query_as(
+            r#"
+            SELECT
+                da.public_key,
+                da.rune_id,
+                da.nonce_tweak,
+                da.deposit_address,
+                da.bridge_address,
+                da.is_btc,
+                da.amount,
+                da.confirmation_status,
+                u.out_point,
+                u.status,
+                u.sats_fee_amount
+            FROM gateway.deposit_address da
+            LEFT JOIN gateway.utxo u ON u.btc_address = da.deposit_address
+            WHERE da.public_key = $1 AND da.is_btc = TRUE
+            ORDER BY da.deposit_address
+            "#,
+        )
+        .bind(user_public_key.to_string())
+        .fetch_all(&self.get_conn().await?)
+        .await
+        .map_err(|e| DbError::BadRequest(e.to_string()))?;
+
+        let mut activities = Vec::with_capacity(rows.len());
+        for (
+            public_key,
+            rune_id,
+            nonce_tweak,
+            deposit_address,
+            bridge_address,
+            is_btc,
+            amount,
+            confirmation_status,
+            out_point,
+            utxo_status,
+            sats_fee_amount,
+        ) in rows
+        {
+            let musig_id = MusigId::User {
+                rune_id: rune_id.clone(),
+                user_public_key: bitcoin::secp256k1::PublicKey::from_str(&public_key)
+                    .map_err(|e| DbError::BadRequest(format!("Invalid public key: {}", e)))?,
+            };
+
+            let db_info = DbDepositAddrInfo {
+                deposit_address: deposit_address.clone(),
+                bridge_address,
+                is_btc,
+                amount: amount as u64,
+                confirmation_status: confirmation_status.0.clone(),
+            };
+
+            let deposit_info = DepositAddrInfo::from_db_format(musig_id, nonce_tweak, db_info)
+                .map_err(|e| DbError::BadRequest(format!("Failed to parse deposit address info: {}", e)))?;
+
+            activities.push(DepositActivity {
+                deposit_info,
+                out_point,
+                utxo_status,
+                sats_fee_amount: sats_fee_amount.map(|v| v as u64),
+            });
+        }
+
+        Ok(activities)
+    }
+
+    #[tracing::instrument(level = "trace", skip_all)]
+    async fn get_deposit_activity_by_txid(&self, txid: &str) -> Result<Option<DepositActivity>, DbError> {
+        let pattern = format!("{txid}:%");
+        let row: Option<(
+            String,
+            String,
+            TweakBytes,
+            String,
+            Option<String>,
+            bool,
+            i64,
+            Json<VerifiersResponses>,
+            String,
+            UtxoStatus,
+            i64,
+        )> = sqlx::query_as(
+            r#"
+            SELECT
+                da.public_key,
+                da.rune_id,
+                da.nonce_tweak,
+                da.deposit_address,
+                da.bridge_address,
+                da.is_btc,
+                da.amount,
+                da.confirmation_status,
+                u.out_point,
+                u.status,
+                u.sats_fee_amount
+            FROM gateway.utxo u
+            JOIN gateway.deposit_address da ON da.deposit_address = u.btc_address
+            WHERE da.is_btc = TRUE AND u.out_point LIKE $1
+            "#,
+        )
+        .bind(pattern)
+        .fetch_optional(&self.get_conn().await?)
+        .await
+        .map_err(|e| DbError::BadRequest(e.to_string()))?;
+
+        let Some((
+            public_key,
+            rune_id,
+            nonce_tweak,
+            deposit_address,
+            bridge_address,
+            is_btc,
+            amount,
+            confirmation_status,
+            out_point,
+            utxo_status,
+            sats_fee_amount,
+        )) = row
+        else {
+            return Ok(None);
+        };
+
+        let musig_id = MusigId::User {
+            rune_id: rune_id.clone(),
+            user_public_key: bitcoin::secp256k1::PublicKey::from_str(&public_key)
+                .map_err(|e| DbError::BadRequest(format!("Invalid public key: {}", e)))?,
+        };
+
+        let db_info = DbDepositAddrInfo {
+            deposit_address,
+            bridge_address,
+            is_btc,
+            amount: amount as u64,
+            confirmation_status: confirmation_status.0.clone(),
+        };
+
+        let deposit_info = DepositAddrInfo::from_db_format(musig_id, nonce_tweak, db_info)
+            .map_err(|e| DbError::BadRequest(format!("Failed to parse deposit address info: {}", e)))?;
+
+        Ok(Some(DepositActivity {
+            deposit_info,
+            out_point: Some(out_point),
+            utxo_status: Some(utxo_status),
+            sats_fee_amount: Some(sats_fee_amount as u64),
+        }))
+    }
+
+    #[tracing::instrument(level = "trace", skip_all)]
+    async fn delete_pending_deposit(&self, deposit_address: InnerAddress) -> Result<bool, DbError> {
+        let addr_str = deposit_address.to_string();
+        let result = sqlx::query(
+            r#"
+            DELETE FROM gateway.deposit_address da
+            WHERE da.deposit_address = $1
+              AND NOT EXISTS (
+                SELECT 1 FROM gateway.utxo u WHERE u.btc_address = da.deposit_address
+              )
+            "#,
+        )
+        .bind(addr_str)
+        .execute(&self.get_conn().await?)
+        .await
+        .map_err(|e| DbError::BadRequest(e.to_string()))?;
+
+        Ok(result.rows_affected() > 0)
     }
 }
