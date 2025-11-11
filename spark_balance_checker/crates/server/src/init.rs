@@ -11,6 +11,7 @@ use tracing::instrument;
 #[derive(Clone)]
 pub struct AppState {
     pub client: SparkRpcClient,
+    pub spark_config: SparkConfig,
 }
 
 pub const VERIFY_TRANSACTION_ENDPOINT: &'static str = "/verify-transaction";
@@ -21,7 +22,8 @@ pub const HEALTHCHECK_ENDPOINT: &'static str = "/health";
 pub async fn create_app(config: SparkConfig) -> Result<Router, ServerError> {
     tracing::info!("Creating app");
     let state = AppState {
-        client: SparkRpcClient::new(config).await?,
+        client: SparkRpcClient::new(config.clone()).await?,
+        spark_config: config,
     };
     let app = Router::new()
         .route(VERIFY_BALANCE_ENDPOINT, post(handlers::verify_balance::handle))

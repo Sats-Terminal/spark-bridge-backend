@@ -3,7 +3,12 @@ use crate::{
     common::{config::SparkConfig, error::SparkClientError},
     connection::{SparkServicesClients, SparkTlsConnection},
 };
-use bitcoin::secp256k1::PublicKey;
+use bitcoin::{
+    hashes::{Hash, sha256},
+    key::{Keypair, Secp256k1, rand::rngs::OsRng},
+    secp256k1::PublicKey,
+};
+use spark_protos::prost::Message;
 use spark_protos::spark::{QueryTransfersResponse, TransferFilter};
 use spark_protos::spark_authn::{
     GetChallengeRequest, GetChallengeResponse, VerifyChallengeRequest, VerifyChallengeResponse,
@@ -15,6 +20,7 @@ use spark_protos::spark_token::{
     QueryTokenOutputsRequest, QueryTokenOutputsResponse, QueryTokenTransactionsRequest, QueryTokenTransactionsResponse,
 };
 use std::collections::HashMap;
+use std::ops::Deref;
 use std::{future::Future, sync::Arc};
 use tokio::sync::Mutex;
 use tonic::metadata::MetadataValue;
@@ -93,13 +99,105 @@ impl SparkRpcClient {
         self.retry_query(query_fn, request).await.map(|r| r.into_inner())
     }
 
-    pub async fn get_transfers(&self, request: TransferFilter) -> Result<QueryTransfersResponse, SparkClientError> {
+    pub async fn mocked_auth(&self) -> Result<(SparkAuthSession, PublicKey), SparkClientError> {
+        let secp = Secp256k1::new();
+        let mut rng = OsRng;
+        let keypair = Keypair::new(&secp, &mut rng);
+        let pub_key = PublicKey::from_keypair(&keypair);
+
+        tracing::info!(pub_key = pub_key.to_string(), "Getting challenge");
+
+        let request = GetChallengeRequest {
+            public_key: pub_key.serialize().to_vec(),
+        };
+        let query_fn = |mut clients: SparkServicesClients, request: GetChallengeRequest| async move {
+            clients
+                .spark_auth
+                .get_challenge(request)
+                .await
+                .map_err(|e| SparkClientError::AuthenticationError(format!("Failed to get challenge: {}", e)))
+        };
+        let response = self
+            .retry_query(query_fn, request)
+            .await
+            .map(|r| r.into_inner())
+            .map_err(|e| SparkClientError::AuthenticationError(format!("Failed to get challenge: {}", e)))?;
+
+        let protected_challenge = response.protected_challenge;
+        let challenge = protected_challenge
+            .clone()
+            .ok_or(SparkClientError::DecodeError("Challenge is not found".to_string()))?
+            .challenge
+            .ok_or(SparkClientError::DecodeError("Challenge is not found".to_string()))?;
+
+        tracing::info!(pub_key = pub_key.to_string(), "Received challenge");
+
+        let message_hash = sha256::Hash::hash(challenge.encode_to_vec().as_slice());
+        let msg = bitcoin::secp256k1::Message::from_digest(message_hash.to_byte_array());
+        let serialized_signature = secp.sign_ecdsa(&msg, &keypair.secret_key()).serialize_der();
+
+        tracing::info!(pub_key = pub_key.to_string(), "Verifying challenge");
+
+        let request = VerifyChallengeRequest {
+            protected_challenge,
+            signature: serialized_signature.to_vec(),
+            public_key: pub_key.serialize().to_vec(),
+        };
+        let query_fn = |mut clients: SparkServicesClients, request: VerifyChallengeRequest| async move {
+            clients
+                .spark_auth
+                .verify_challenge(request)
+                .await
+                .map_err(|e| SparkClientError::AuthenticationError(format!("Failed to verify challenge: {}", e)))
+        };
+        let verify_resp = self
+            .retry_query(query_fn, request)
+            .await
+            .map(|r| r.into_inner())
+            .map_err(|e| SparkClientError::AuthenticationError(format!("Failed to verify challenge: {}", e)))?;
+
+        tracing::info!(pub_key = pub_key.to_string(), "Challenge verified");
+
+        Ok((
+            SparkAuthSession {
+                session_token: verify_resp.session_token,
+                expiration_time: verify_resp.expiration_timestamp as u64,
+            },
+            pub_key,
+        ))
+    }
+
+    pub async fn get_transfers(
+        &self,
+        request: TransferFilter,
+        _user_public_key: PublicKey,
+    ) -> Result<QueryTransfersResponse, SparkClientError> {
+        // let (spark_session, user_public_key) = self.mocked_auth().await?;
+        // let request = QueryTransfersRequestWithAuth {
+        //     request,
+        //     user_public_key,
+        //     spark_session,
+        // };
+
+        // let query_fn = |mut clients: SparkServicesClients, request: QueryTransfersRequestWithAuth| async move {
+        //     let mut tonic_request = tonic::Request::new(request.request);
+        //     create_request(&mut tonic_request, request.user_public_key, request.spark_session)?;
+
+        //     clients
+        //         .spark
+        //         .query_all_transfers(tonic_request)
+        //         .await
+        //         .map_err(|e| SparkClientError::ConnectionError(format!("Failed to query transfers: {}", e)))
+        // };
+
+        // self.retry_query(query_fn, request).await.map(|r| r.into_inner())
+
         let query_fn = |mut clients: SparkServicesClients, request: TransferFilter| async move {
             clients
                 .spark
                 .query_all_transfers(request)
                 .await
-                .map_err(|e| SparkClientError::ConnectionError(format!("Failed to query balance: {}", e)))
+                .map_err(|e| SparkClientError::ConnectionError(format!("Failed to query transfers: {}", e)))
         };
 
         self.retry_query(query_fn, request).await.map(|r| r.into_inner())
@@ -290,6 +388,13 @@ struct StartTransactionRequestWithAuth {
 #[derive(Debug, Clone)]
 struct CommitTransactionRequestWithAuth {
     request: CommitTransactionRequest,
+    user_public_key: PublicKey,
+    spark_session: SparkAuthSession,
+}
+
+#[derive(Debug, Clone)]
+struct QueryTransfersRequestWithAuth {
+    request: TransferFilter,
     user_public_key: PublicKey,
     spark_session: SparkAuthSession,
 }
