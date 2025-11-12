@@ -1,0 +1,11 @@
+[package]
+name = "sparkscan"
+edition = { workspace = true }
+
+[dependencies]
+global_utils = { workspace = true }
+serde = { workspace = true }
+reqwest = { workspace = true }
+thiserror = { workspace = true }
+url = { workspace = true }
+tracing = { workspace = true }
