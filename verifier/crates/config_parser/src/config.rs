@@ -1,4 +1,4 @@
-use bitcoin::Network;
+use bitcoin::{Network, secp256k1::SecretKey};
 use config::{Config, Environment};
 use global_utils::common_types::Url;
 use serde::{Deserialize, Serialize};
@@ -13,6 +13,7 @@ pub struct AppConfig {
     #[serde(rename = "network")]
     pub network: Network,
     pub callback_url: Url,
+    pub secret_key: Option<SecretKey>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
