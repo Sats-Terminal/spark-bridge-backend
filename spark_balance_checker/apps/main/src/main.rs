@@ -25,7 +25,7 @@ async fn main() -> Result<()> {
     // Init configs
     let config_path = ConfigPath::from_env().map_err(|e| eyre::eyre!("Failed to parse config path: {}", e))?;
     let config = ServerConfig::init_config(config_path.path);
-    let app = create_app(config.spark.clone())
+    let app = create_app(config.clone())
         .await
         .map_err(|e| eyre::eyre!("Failed to create app: {}", e))?;
 

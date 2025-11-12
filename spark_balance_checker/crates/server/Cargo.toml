@@ -23,10 +23,11 @@ tracing = { workspace = true }
 utoipa = { workspace = true }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 uuid = { workspace = true }
+sparkscan = { workspace = true }
+spark_balance_checker_config_parser = { workspace = true }
 
 [dev-dependencies]
 axum-test = { workspace = true }
 dotenvy = { workspace = true }
 eyre = { workspace = true }
-spark_balance_checker_config_parser = { workspace = true }
 tokio = { workspace = true }

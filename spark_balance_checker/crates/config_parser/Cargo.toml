@@ -12,3 +12,4 @@ spark_client = { workspace = true }
 thiserror = { workspace = true }
 tonic = { workspace = true }
 tracing = { workspace = true }
+sparkscan = { workspace = true }

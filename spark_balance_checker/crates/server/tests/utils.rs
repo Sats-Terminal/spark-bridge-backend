@@ -30,7 +30,7 @@ pub async fn init_mocked_test_server() -> eyre::Result<TestServer> {
         },
     ];
 
-    let app = create_app(config.spark).await?;
+    let app = create_app(config).await?;
     let test_server = TestServer::builder()
         .http_transport()
         .build(app.into_make_service())
