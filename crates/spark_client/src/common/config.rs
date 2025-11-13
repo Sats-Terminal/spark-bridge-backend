@@ -1,8 +1,10 @@
-use crate::common::error::SparkClientError;
+use std::io;
+
 use global_utils::common_types::UrlWrapped;
 use serde::{Deserialize, Serialize};
-use std::io;
 use tonic::transport::Certificate;
+
+use crate::common::error::SparkClientError;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct SparkOperatorConfig {

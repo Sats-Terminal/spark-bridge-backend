@@ -4,12 +4,10 @@ edition = "2024"
 
 [dependencies]
 axum = { workspace = true }
-bitcoin = { workspace = true }
 dotenvy = { workspace = true }
 eyre = { workspace = true }
 frost = { workspace = true }
 frost-secp256k1-tr = { workspace = true }
-futures = { workspace = true }
 gateway_config_parser = { workspace = true }
 gateway_deposit_verification = { workspace = true }
 gateway_dkg_pregen = { workspace = true }

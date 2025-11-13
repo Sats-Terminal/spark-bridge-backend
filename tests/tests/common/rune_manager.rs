@@ -1,20 +1,23 @@
-use crate::common::bitcoin_client::BitcoinClient;
-use crate::common::constants::{
-    DEFAULT_DUST_AMOUNT, DEFAULT_FAUCET_AMOUNT, DEFAULT_FEE_AMOUNT, DEFAULT_RUNE_AMOUNT, DEFAULT_RUNE_CAP,
-};
-use crate::common::error::RuneError;
-use crate::common::rune_etching::{EtchRuneParams, etch_rune};
-use crate::common::utils::{create_credentials, sign_transaction};
-use bitcoin::Network;
+use std::str::FromStr;
+
 use bitcoin::{
-    Address, Amount, OutPoint, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Txid, Witness, key::Keypair,
+    Address, Amount, Network, OutPoint, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Txid, Witness, key::Keypair,
     transaction::Version,
 };
 use btc_indexer_client::client_api::AddrUtxoData;
 use ordinals::{RuneId, Runestone};
 use rand_core::{OsRng, RngCore};
 use serde::Serialize;
-use std::str::FromStr;
+
+use crate::common::{
+    bitcoin_client::BitcoinClient,
+    constants::{
+        DEFAULT_DUST_AMOUNT, DEFAULT_FAUCET_AMOUNT, DEFAULT_FEE_AMOUNT, DEFAULT_RUNE_AMOUNT, DEFAULT_RUNE_CAP,
+    },
+    error::RuneError,
+    rune_etching::{EtchRuneParams, etch_rune},
+    utils::{create_credentials, sign_transaction},
+};
 
 pub struct RuneManager {
     p2tr_address: Address,

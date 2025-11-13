@@ -1,19 +1,20 @@
 mod utils;
 mod tests {
-    use crate::utils::common::{CONFIG_PATH, TEST_LOGGER};
-    use frost::aggregator::FrostAggregator;
-    use frost::mocks::{MockSignerClient, MockSignerDkgShareIdStorage, MockSignerSignSessionStorage};
-    use frost::signer::FrostSigner;
-    use frost::traits::SignerClient;
+    use std::{collections::BTreeMap, sync::Arc, time::Duration};
+
+    use frost::{
+        aggregator::FrostAggregator,
+        mocks::{MockSignerClient, MockSignerDkgShareIdStorage, MockSignerSignSessionStorage},
+        signer::FrostSigner,
+        traits::SignerClient,
+    };
     use frost_secp256k1_tr::Identifier;
     use gateway_config_parser::config::ServerConfig;
     use gateway_dkg_pregen::dkg_pregen_thread::DkgPregenThread;
-    use gateway_local_db_store::schemas::dkg_share::DkgShareGenerate;
-    use gateway_local_db_store::storage::LocalDbStorage;
+    use gateway_local_db_store::{schemas::dkg_share::DkgShareGenerate, storage::LocalDbStorage};
     use persistent_storage::init::{PostgresPool, PostgresRepo};
-    use std::collections::BTreeMap;
-    use std::sync::Arc;
-    use std::time::Duration;
+
+    use crate::utils::common::{CONFIG_PATH, TEST_LOGGER};
 
     #[sqlx::test(migrator = "crate::utils::common::MIGRATOR")]
     async fn test_dkg_flow_logic(db: PostgresPool) -> eyre::Result<()> {

@@ -9,10 +9,8 @@ bitcoincore-rpc = { workspace = true }
 chrono = { workspace = true }
 global_utils = { workspace = true }
 hex = { workspace = true }
-lazy_static = { workspace = true }
 lrc20 = { workspace = true }
 ord = { workspace = true }
-ord-rs = { workspace = true }
 ordinals = { workspace = true }
 proto-hasher = { workspace = true }
 rand_core = { workspace = true }
@@ -22,7 +20,6 @@ serde = { workspace = true }
 spark-address = { workspace = true }
 spark-protos = { workspace = true }
 thiserror = { workspace = true }
-titan-client = { workspace = true }
 token-identifier = { workspace = true }
 tokio = { workspace = true }
 tonic = { workspace = true }
@@ -31,7 +28,6 @@ url = { workspace = true }
 uuid = { workspace = true }
 btc_indexer_client = { workspace = true }
 btc_indexer_config = { workspace = true }
-serde_str = { workspace = true }
 serde_json = { workspace = true }
 
 breez-sdk-spark = { git = "https://github.com/breez/spark-sdk.git", tag = "0.3.4" }

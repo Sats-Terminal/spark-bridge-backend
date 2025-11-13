@@ -1,10 +1,5 @@
-use crate::{
-    token_leaf::{TokenLeafOutput, TokenLeafToSpend},
-    token_transaction::{
-        TokenTransaction, TokenTransactionCreateInput, TokenTransactionError, TokenTransactionInput,
-        TokenTransactionMintInput, TokenTransactionTransferInput, TokenTransactionVersion,
-    },
-};
+use std::collections::HashMap;
+
 use bitcoin::{
     absolute::LockTime,
     hashes::{Hash, sha256::Hash as Sha256Hash},
@@ -13,10 +8,17 @@ use bitcoin::{
 use prost_wkt_types::Timestamp;
 use spark_address::decode_spark_address;
 use spark_protos::spark_token::{self, InvoiceAttachment, TokenTransaction as TokenTransactionV2SparkProto};
-use std::collections::HashMap;
 use token_identifier::TokenIdentifier;
 use tracing::{debug, error};
 use uuid::Uuid;
+
+use crate::{
+    token_leaf::{TokenLeafOutput, TokenLeafToSpend},
+    token_transaction::{
+        TokenTransaction, TokenTransactionCreateInput, TokenTransactionError, TokenTransactionInput,
+        TokenTransactionMintInput, TokenTransactionTransferInput, TokenTransactionVersion,
+    },
+};
 
 /// Converts a `TokenTransaction` struct into a `spark_protos::spark_token::TokenTransaction` message.
 ///

@@ -1,27 +1,34 @@
-use crate::error::DepositVerificationError;
-use crate::traits::VerificationClient;
-use crate::types::*;
-use crate::types::{
-    NotifyRunesDepositRequest, NotifySparkDepositRequest, VerifyRunesDepositRequest, VerifySparkDepositRequest,
+use std::{collections::HashMap, sync::Arc};
+
+use bitcoin::{Network, secp256k1::PublicKey};
+use frost::{
+    traits::AggregatorDkgShareStorage,
+    types::{AggregatorDkgShareData, AggregatorDkgState},
 };
-use bitcoin::Network;
-use bitcoin::secp256k1::PublicKey;
-use frost::traits::AggregatorDkgShareStorage;
-use frost::types::{AggregatorDkgShareData, AggregatorDkgState};
 use futures::future::join_all;
-use gateway_flow_processor::flow_sender::{FlowSender, TypedMessageSender};
-use gateway_flow_processor::types::{BridgeRunesRequest, ExitSparkRequest};
-use gateway_local_db_store::schemas::deposit_address::{
-    DepositAddressStorage, DepositStatus, InnerAddress, VerifiersResponses,
+use gateway_flow_processor::{
+    flow_sender::{FlowSender, TypedMessageSender},
+    types::{BridgeRunesRequest, ExitSparkRequest},
 };
-use gateway_local_db_store::schemas::paying_utxo::PayingUtxoStorage;
-use gateway_local_db_store::schemas::user_identifier::{UserIdentifierStorage, UserIds};
-use gateway_local_db_store::schemas::utxo_storage::{Utxo, UtxoStatus, UtxoStorage};
-use gateway_local_db_store::storage::LocalDbStorage;
+use gateway_local_db_store::{
+    schemas::{
+        deposit_address::{DepositAddressStorage, DepositStatus, InnerAddress, VerifiersResponses},
+        paying_utxo::PayingUtxoStorage,
+        user_identifier::{UserIdentifierStorage, UserIds},
+        utxo_storage::{Utxo, UtxoStatus, UtxoStorage},
+    },
+    storage::LocalDbStorage,
+};
 use gateway_spark_service::utils::create_wrunes_metadata;
-use std::collections::HashMap;
-use std::sync::Arc;
 use tracing::instrument;
+
+use crate::{
+    error::DepositVerificationError,
+    traits::VerificationClient,
+    types::{
+        NotifyRunesDepositRequest, NotifySparkDepositRequest, VerifyRunesDepositRequest, VerifySparkDepositRequest, *,
+    },
+};
 
 #[derive(Clone)]
 pub struct DepositVerificationAggregator {

@@ -1,9 +1,12 @@
-use crate::errors::ProtoHasherError;
-use crate::google_protobuf::{GoogleValue, is_google_proto_value_null};
-use bitcoin::hashes::sha256::Hash as Sha256Hash;
-use bitcoin::hashes::{Hash, HashEngine};
-use prost_reflect::{DynamicMessage, FieldDescriptor, Kind, MapKey, MessageDescriptor, ReflectMessage, Value};
 use std::collections::HashMap;
+
+use bitcoin::hashes::{Hash, HashEngine, sha256::Hash as Sha256Hash};
+use prost_reflect::{DynamicMessage, FieldDescriptor, Kind, MapKey, MessageDescriptor, ReflectMessage, Value};
+
+use crate::{
+    errors::ProtoHasherError,
+    google_protobuf::{GoogleValue, is_google_proto_value_null},
+};
 
 const BOOL_IDENTIFIER: &str = "b";
 pub(crate) const MAP_IDENTIFIER: &str = "d";

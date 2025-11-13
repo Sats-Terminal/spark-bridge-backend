@@ -10,7 +10,6 @@ futures = { workspace = true }
 global_utils = { workspace = true }
 lrc20 = { workspace = true }
 proto-hasher = { workspace = true }
-prost-reflect = { workspace = true }
 serde = { workspace = true }
 spark-address = { workspace = true }
 spark-protos = { workspace = true }
@@ -19,5 +18,4 @@ thiserror = { workspace = true }
 token-identifier = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true }
-async-trait = { workspace = true }
 btc_indexer_client = { workspace = true }

@@ -1,9 +1,8 @@
-use crate::errors::VerifierError;
-use crate::init::AppState;
-use axum::Json;
-use axum::extract::State;
+use axum::{Json, extract::State};
 use frost::types::{DkgRound1Request, DkgRound1Response};
 use tracing::instrument;
+
+use crate::{errors::VerifierError, init::AppState};
 
 #[instrument(level = "trace", skip_all)]
 pub async fn handle(

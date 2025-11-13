@@ -1,13 +1,14 @@
-use crate::error::ServerError;
-use crate::init::AppState;
-use axum::Json;
-use axum::extract::State;
+use axum::{Json, extract::State};
 use global_utils::conversion::spark_network_to_proto_network;
 use spark_address::decode_spark_address;
 use spark_protos::spark_token::QueryTokenOutputsRequest;
 use tracing::instrument;
 
-use crate::models::{DepositStatus, VerificationErrorDetails, VerifyBalanceRequest, VerifyBalanceResponse};
+use crate::{
+    error::ServerError,
+    init::AppState,
+    models::{DepositStatus, VerificationErrorDetails, VerifyBalanceRequest, VerifyBalanceResponse},
+};
 
 #[instrument(level = "trace", skip(state), ret)]
 pub async fn handle(

@@ -1,4 +1,3 @@
-use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
 use bitcoin::OutPoint;
 use global_utils::conversion::decode_address;
@@ -6,6 +5,8 @@ use persistent_storage::error::DbError;
 use serde::{Deserialize, Serialize};
 use sqlx::{Postgres, Transaction};
 use tracing::instrument;
+
+use crate::storage::LocalDbStorage;
 
 #[derive(Debug, Clone)]
 pub struct Utxo {

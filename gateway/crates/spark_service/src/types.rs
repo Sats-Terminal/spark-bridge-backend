@@ -1,23 +1,20 @@
-use crate::errors::SparkServiceError;
-use crate::utils::WRunesMetadata;
+use std::str::FromStr;
+
 use bitcoin::secp256k1::PublicKey;
 use chrono;
 use frost::types::SigningMetadata;
-use lrc20::marshal::marshal_token_transaction;
-use lrc20::token_leaf::TokenLeafOutput;
-use lrc20::token_leaf::TokenLeafToSpend;
-use lrc20::token_metadata::DEFAULT_DECIMALS;
-use lrc20::token_metadata::DEFAULT_IS_FREEZABLE;
-use lrc20::token_metadata::DEFAULT_MAX_SUPPLY;
-use lrc20::token_transaction::TokenTransaction;
-use lrc20::token_transaction::TokenTransactionCreateInput;
-use lrc20::token_transaction::TokenTransactionInput;
-use lrc20::token_transaction::TokenTransactionMintInput;
-use lrc20::token_transaction::TokenTransactionTransferInput;
-use lrc20::token_transaction::TokenTransactionVersion;
+use lrc20::{
+    marshal::marshal_token_transaction,
+    token_leaf::{TokenLeafOutput, TokenLeafToSpend},
+    token_transaction::{
+        TokenTransaction, TokenTransactionCreateInput, TokenTransactionInput, TokenTransactionMintInput,
+        TokenTransactionTransferInput, TokenTransactionVersion,
+    },
+};
 use spark_address::decode_spark_address;
-use std::str::FromStr;
 use token_identifier::TokenIdentifier;
+
+use crate::{errors::SparkServiceError, utils::WRunesMetadata};
 
 #[derive(Debug, Clone)]
 pub enum SparkTransactionType {

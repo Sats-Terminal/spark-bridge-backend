@@ -1,3 +1,5 @@
+use std::{sync::Arc, time::Duration};
+
 use async_trait::async_trait;
 use bitcoin::{
     Address, CompressedPublicKey, Network, PrivateKey, Transaction, Txid, consensus::Encodable, secp256k1::Secp256k1,
@@ -7,7 +9,6 @@ use btc_indexer_client::client_api::{AddrUtxoData, BtcIndexer, IndexerClient, ne
 use btc_indexer_config::IndexerClientConfig;
 use ordinals::RuneId;
 use serde::Deserialize;
-use std::{sync::Arc, time::Duration};
 use tokio::time::sleep;
 use tracing;
 use url::Url;

@@ -1,15 +1,18 @@
-use crate::storage::LocalDbStorage;
+use std::{
+    fmt::{Debug, Display, Formatter},
+    str::FromStr,
+};
+
 use async_trait::async_trait;
-use bitcoin::{Address, OutPoint, Txid};
+use bitcoin::{Address, OutPoint};
 use frost::types::TweakBytes;
 use persistent_storage::error::DbError;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
-use sqlx::types::Json;
-use std::fmt::{Debug, Display, Formatter};
-use std::str::FromStr;
 use tracing::instrument;
 use uuid::Uuid;
+
+use crate::storage::LocalDbStorage;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum InnerAddress {
@@ -74,10 +77,10 @@ impl std::fmt::Display for FeePayment {
 impl std::str::FromStr for FeePayment {
     type Err = DbError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if let Some((txid_str, vout_str)) = s.split_once(':') {
-            if let (Ok(txid), Ok(vout)) = (bitcoin::Txid::from_str(txid_str), vout_str.parse::<u32>()) {
-                return Ok(FeePayment::Btc(bitcoin::OutPoint { txid, vout }));
-            }
+        if let Some((txid_str, vout_str)) = s.split_once(':')
+            && let (Ok(txid), Ok(vout)) = (bitcoin::Txid::from_str(txid_str), vout_str.parse::<u32>())
+        {
+            return Ok(FeePayment::Btc(bitcoin::OutPoint { txid, vout }));
         }
         Ok(FeePayment::Spark(s.to_owned()))
     }
@@ -246,7 +249,7 @@ impl DepositAddressStorage for LocalDbStorage {
             .bind(db_info.is_btc)
             .bind(db_info.deposit_amount)
             .bind(db_info.token)
-            .bind(db_info.sats_amount.map(|amount| amount))
+            .bind(db_info.sats_amount)
             .bind(db_info.confirmation_status)
             .bind(db_info.outpoint.map(|outpoint| outpoint.to_string()))
             .bind(db_info.fee_payment.map(|fee_payment| fee_payment.to_string()))

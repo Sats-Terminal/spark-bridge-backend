@@ -1,9 +1,8 @@
-use crate::errors::VerifierError;
-use crate::init::AppState;
-use axum::Json;
-use axum::extract::State;
+use axum::{Json, extract::State};
 use global_utils::common_resp::Empty;
 use persistent_storage::init::StorageHealthcheck;
+
+use crate::{errors::VerifierError, init::AppState};
 
 #[tracing::instrument(skip_all, err)]
 pub async fn handle(State(state): State<AppState>) -> Result<Json<Empty>, VerifierError> {

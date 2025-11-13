@@ -1,11 +1,8 @@
-use bitcoin::Address;
-use bitcoin::OutPoint;
+use bitcoin::{Address, OutPoint};
 use frost::types::TweakBytes;
-use gateway_local_db_store::schemas::deposit_address::DepositStatus;
-use gateway_local_db_store::schemas::user_identifier::UserIds;
+use gateway_local_db_store::schemas::{deposit_address::DepositStatus, user_identifier::UserIds};
 use gateway_rune_transfer::transfer::PayingTransferInput;
-use serde::Deserialize;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use token_identifier::TokenIdentifier;
 use uuid::Uuid;
 
@@ -33,7 +30,6 @@ pub enum FeePayment {
     Btc(OutPoint),
     Spark(String),
 }
-
 
 #[derive(Clone, Debug)]
 pub struct WatchRunesDepositRequest {

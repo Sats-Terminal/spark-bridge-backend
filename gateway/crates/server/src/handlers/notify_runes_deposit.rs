@@ -1,7 +1,4 @@
-use crate::error::GatewayError;
-use crate::init::AppState;
-use axum::Json;
-use axum::extract::State;
+use axum::{Json, extract::State};
 use bitcoin::OutPoint;
 use gateway_deposit_verification::types::NotifyRunesDepositRequest;
 use gateway_local_db_store::schemas::deposit_address::DepositStatus;
@@ -9,15 +6,17 @@ use serde::Deserialize;
 use tracing::instrument;
 use uuid::Uuid;
 
+use crate::{error::GatewayError, init::AppState};
+
 #[derive(Deserialize, Debug)]
 pub enum NotifyRequestStatus {
     Confirmed,
     Failed,
 }
 
-impl Into<DepositStatus> for NotifyRequestStatus {
-    fn into(self) -> DepositStatus {
-        match self {
+impl From<NotifyRequestStatus> for DepositStatus {
+    fn from(val: NotifyRequestStatus) -> Self {
+        match val {
             NotifyRequestStatus::Confirmed => DepositStatus::Confirmed,
             NotifyRequestStatus::Failed => DepositStatus::Failed,
         }

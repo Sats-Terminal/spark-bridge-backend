@@ -1,19 +1,21 @@
-use crate::client::VerifierClient;
 use async_trait::async_trait;
 use bitcoin::OutPoint;
 use frost::types::TweakBytes;
-use gateway_deposit_verification::error::DepositVerificationError;
-use gateway_deposit_verification::traits::VerificationClient;
-use gateway_deposit_verification::types::{
-    FeePayment, WatchRunesDepositRequest, WatchRunesDepositResponse, WatchSparkDepositRequest,
-    WatchSparkDepositResponse,
+use gateway_deposit_verification::{
+    error::DepositVerificationError,
+    traits::VerificationClient,
+    types::{
+        FeePayment, WatchRunesDepositRequest, WatchRunesDepositResponse, WatchSparkDepositRequest,
+        WatchSparkDepositResponse,
+    },
 };
-use gateway_local_db_store::schemas::deposit_address::DepositStatus;
-use gateway_local_db_store::schemas::user_identifier::UserIds;
+use gateway_local_db_store::schemas::{deposit_address::DepositStatus, user_identifier::UserIds};
 use serde::{Deserialize, Serialize};
 use token_identifier::TokenIdentifier;
 use tracing::instrument;
 use uuid::Uuid;
+
+use crate::client::VerifierClient;
 
 const WATCH_RUNES_DEPOSIT_PATH: &str = "/api/gateway/watch-runes-deposit";
 const WATCH_SPARK_DEPOSIT_PATH: &str = "/api/gateway/watch-spark-deposit";
@@ -88,9 +90,9 @@ pub enum VerifierDepositStatus {
     Failed,
 }
 
-impl Into<DepositStatus> for VerifierDepositStatus {
-    fn into(self) -> DepositStatus {
-        match self {
+impl From<VerifierDepositStatus> for DepositStatus {
+    fn from(val: VerifierDepositStatus) -> Self {
+        match val {
             VerifierDepositStatus::Confirmed => DepositStatus::Confirmed,
             VerifierDepositStatus::Pending => DepositStatus::WaitingForConfirmation,
             VerifierDepositStatus::Failed => DepositStatus::Failed,

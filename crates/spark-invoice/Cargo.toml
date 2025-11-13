@@ -7,4 +7,3 @@ token-identifier = { workspace = true }
 bitcoin = { workspace = true }
 chrono = { workspace = true }
 uuid = { workspace = true }
-eyre = { workspace = true }

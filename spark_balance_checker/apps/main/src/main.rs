@@ -1,9 +1,9 @@
+use std::sync::Once;
+
 use eyre::Result;
-use global_utils::config_path::ConfigPath;
-use global_utils::logger::init_logger;
+use global_utils::{config_path::ConfigPath, logger::init_logger};
 use spark_balance_checker_config_parser::config::ServerConfig;
 use spark_balance_checker_server::init::create_app;
-use std::sync::Once;
 use tokio::{self, net::TcpListener};
 
 fn install_rustls_provider() {

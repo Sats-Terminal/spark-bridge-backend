@@ -1,14 +1,14 @@
-use crate::error::GatewayError;
-use crate::init::AppState;
-use axum::Json;
-use axum::extract::State;
+use std::str::FromStr;
+
+use axum::{Json, extract::State};
 use bitcoin::{OutPoint, Txid};
 use gateway_deposit_verification::types::{FeePayment, VerifyRunesDepositRequest};
 use global_utils::conversion::decode_address;
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
 use tracing::instrument;
 use uuid::Uuid;
+
+use crate::{error::GatewayError, init::AppState};
 
 #[derive(Deserialize, Debug)]
 pub struct BridgeRunesSparkRequest {

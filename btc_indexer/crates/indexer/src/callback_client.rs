@@ -1,10 +1,11 @@
-use reqwest::Client;
-use crate::error::IndexerError;
-use serde::Serialize;
-use url::Url;
 use bitcoin::OutPoint;
 use ordinals::RuneId;
+use reqwest::Client;
+use serde::Serialize;
+use url::Url;
 use uuid::Uuid;
+
+use crate::error::IndexerError;
 
 #[derive(Debug, Clone)]
 pub struct CallbackClient {
@@ -28,13 +29,20 @@ pub struct NotifyRunesDepositRequest {
     pub error_details: Option<String>,
 }
 
+impl Default for CallbackClient {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CallbackClient {
     pub fn new() -> Self {
         Self { client: Client::new() }
     }
 
     pub async fn send_callback_request<T: Serialize>(&self, request: T, callback_url: Url) -> Result<(), IndexerError> {
-        let response = self.client
+        let response = self
+            .client
             .post(callback_url)
             .json(&request)
             .send()
@@ -46,11 +54,18 @@ impl CallbackClient {
         } else {
             let error_message = response.text().await.unwrap_or_default().to_string();
             tracing::error!("Failed to send callback request: {:?}", error_message.clone());
-            Err(IndexerError::CallbackClientError(format!("Failed to send callback request: {:?}", error_message)))
+            Err(IndexerError::CallbackClientError(format!(
+                "Failed to send callback request: {:?}",
+                error_message
+            )))
         }
     }
 
-    pub async fn send_notify_request(&self, request: NotifyRunesDepositRequest, callback_url: Url) -> Result<(), IndexerError> {
+    pub async fn send_notify_request(
+        &self,
+        request: NotifyRunesDepositRequest,
+        callback_url: Url,
+    ) -> Result<(), IndexerError> {
         self.send_callback_request(request, callback_url).await
     }
 }

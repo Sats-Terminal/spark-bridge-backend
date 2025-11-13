@@ -1,15 +1,15 @@
-use crate::types::TweakBytes;
-use crate::{errors::AggregatorError, traits::*, types::*};
+use std::{collections::BTreeMap, sync::Arc};
+
 use frost_secp256k1_tr::{Identifier, Signature, SigningPackage, keys, keys::Tweak};
 use futures::future::join_all;
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    sync::Arc,
-};
-use tokio::sync::Mutex;
-use tracing::debug;
-use tracing::instrument;
+use tracing::{debug, instrument};
 use uuid::Uuid;
+
+use crate::{
+    errors::AggregatorError,
+    traits::*,
+    types::{TweakBytes, *},
+};
 
 #[derive(Clone)]
 pub struct FrostAggregator {
@@ -230,9 +230,7 @@ impl FrostAggregator {
         match dkg_share_data {
             Some(AggregatorDkgShareData {
                 dkg_state: AggregatorDkgState::DkgFinalized { public_key_package },
-            }) => {
-                Ok(public_key_package)
-            }
+            }) => Ok(public_key_package),
             _ => Err(AggregatorError::InvalidUserState(
                 "User state is not DkgFinalized".to_string(),
             )),

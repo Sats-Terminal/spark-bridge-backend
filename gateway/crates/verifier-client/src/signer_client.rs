@@ -1,13 +1,15 @@
-use crate::client::VerifierClient;
 use async_trait::async_trait;
-use frost::errors::AggregatorError;
-use frost::traits::SignerClient;
-use frost::types::{DkgFinalizeRequest, DkgFinalizeResponse};
-use frost::types::{DkgRound1Request, DkgRound1Response};
-use frost::types::{DkgRound2Request, DkgRound2Response};
-use frost::types::{SignRound1Request, SignRound1Response};
-use frost::types::{SignRound2Request, SignRound2Response};
+use frost::{
+    errors::AggregatorError,
+    traits::SignerClient,
+    types::{
+        DkgFinalizeRequest, DkgFinalizeResponse, DkgRound1Request, DkgRound1Response, DkgRound2Request,
+        DkgRound2Response, SignRound1Request, SignRound1Response, SignRound2Request, SignRound2Response,
+    },
+};
 use tracing::instrument;
+
+use crate::client::VerifierClient;
 
 const DKG_ROUND_1_PATH: &str = "/api/gateway/dkg-round-1";
 const DKG_ROUND_2_PATH: &str = "/api/gateway/dkg-round-2";

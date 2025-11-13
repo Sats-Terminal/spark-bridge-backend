@@ -2,34 +2,45 @@ use frost::traits::SignerClient;
 
 mod utils;
 mod tests {
+    use std::{
+        collections::BTreeMap,
+        sync::{Arc, LazyLock},
+    };
+
+    use bitcoin::{Network, key::Secp256k1, secp256k1::SecretKey};
+    use frost::{
+        aggregator::FrostAggregator,
+        mocks::{MockSignerClient, MockSignerDkgShareIdStorage, MockSignerSignSessionStorage},
+        signer::FrostSigner,
+        traits::SignerClient,
+        types::{SigningMetadata, TweakBytes},
+        utils::generate_tweak_bytes,
+    };
+    use frost_secp256k1_tr::{Identifier, keys::Tweak};
+    use gateway_config_parser::config::{ServerConfig, VerifierConfig};
+    use gateway_local_db_store::{
+        schemas::{
+            dkg_share::{DkgShareGenerate, DkgShareGenerateError},
+            user_identifier::{UserIdentifierStorage, UserIds},
+        },
+        storage::LocalDbStorage,
+    };
+    use global_utils::{
+        common_types::get_uuid,
+        config_path::ConfigPath,
+        logger::{LoggerGuard, init_logger},
+    };
+    use persistent_storage::{
+        config::PostgresDbCredentials,
+        error::DbError,
+        init::{PostgresPool, PostgresRepo},
+    };
+    use serde_json::json;
+    use tracing::info;
+
     use crate::utils::common::{
         GATEWAY_CONFIG_PATH, MIGRATOR, TEST_LOGGER, create_mock_signer, create_mock_verifiers_map,
     };
-    use bitcoin::Network;
-    use bitcoin::key::Secp256k1;
-    use bitcoin::secp256k1::SecretKey;
-    use frost::aggregator::FrostAggregator;
-    use frost::mocks::{MockSignerClient, MockSignerDkgShareIdStorage, MockSignerSignSessionStorage};
-    use frost::signer::FrostSigner;
-    use frost::traits::SignerClient;
-    use frost::types::{SigningMetadata, TweakBytes};
-    use frost::utils::generate_tweak_bytes;
-    use frost_secp256k1_tr::Identifier;
-    use frost_secp256k1_tr::keys::Tweak;
-    use gateway_config_parser::config::{ServerConfig, VerifierConfig};
-    use gateway_local_db_store::schemas::dkg_share::{DkgShareGenerate, DkgShareGenerateError};
-    use gateway_local_db_store::schemas::user_identifier::{UserIdentifierStorage, UserIds};
-    use gateway_local_db_store::storage::LocalDbStorage;
-    use global_utils::common_types::get_uuid;
-    use global_utils::config_path::ConfigPath;
-    use global_utils::logger::{LoggerGuard, init_logger};
-    use persistent_storage::config::PostgresDbCredentials;
-    use persistent_storage::error::DbError;
-    use persistent_storage::init::{PostgresPool, PostgresRepo};
-    use serde_json::json;
-    use std::collections::BTreeMap;
-    use std::sync::{Arc, LazyLock};
-    use tracing::info;
 
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_create_session(db: PostgresPool) -> Result<(), DbError> {

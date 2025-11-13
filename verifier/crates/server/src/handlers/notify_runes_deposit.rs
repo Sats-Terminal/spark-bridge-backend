@@ -1,11 +1,7 @@
-use crate::errors::VerifierError;
-use crate::init::AppState;
-use axum::Json;
-use axum::extract::State;
+use axum::{Json, extract::State};
 use bitcoin::OutPoint;
 use serde::{Deserialize, Serialize};
-use spark_balance_checker_server::models::DepositStatus as SparkDepositStatus;
-use spark_balance_checker_server::models::VerifyBalanceRequest;
+use spark_balance_checker_server::models::{DepositStatus as SparkDepositStatus, VerifyBalanceRequest};
 use token_identifier::TokenIdentifier;
 use uuid::Uuid;
 use verifier_btc_indexer_client::client::WatchRunesDepositRequest as IndexerWatchRunesDepositRequest;
@@ -15,24 +11,26 @@ use verifier_gateway_client::client::{
 use verifier_local_db_store::schemas::deposit_address::{DepositAddressStorage, DepositStatus, FeePayment};
 use verifier_spark_balance_checker_client::client::cast_deposit_status;
 
+use crate::{errors::VerifierError, init::AppState};
+
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum BtcIndexerDepositStatus {
     Confirmed,
     Failed,
 }
 
-impl Into<DepositStatus> for BtcIndexerDepositStatus {
-    fn into(self) -> DepositStatus {
-        match self {
+impl From<BtcIndexerDepositStatus> for DepositStatus {
+    fn from(val: BtcIndexerDepositStatus) -> Self {
+        match val {
             BtcIndexerDepositStatus::Confirmed => DepositStatus::Confirmed,
             BtcIndexerDepositStatus::Failed => DepositStatus::Failed,
         }
     }
 }
 
-impl Into<GatewayDepositStatus> for BtcIndexerDepositStatus {
-    fn into(self) -> GatewayDepositStatus {
-        match self {
+impl From<BtcIndexerDepositStatus> for GatewayDepositStatus {
+    fn from(val: BtcIndexerDepositStatus) -> Self {
+        match val {
             BtcIndexerDepositStatus::Confirmed => GatewayDepositStatus::Confirmed,
             BtcIndexerDepositStatus::Failed => GatewayDepositStatus::Failed,
         }
@@ -85,7 +83,7 @@ pub async fn handle(
         verifier_id: state.server_config.frost_signer.identifier,
         request_id: request.request_id,
         outpoint: request.outpoint,
-        sats_amount: sats_amount,
+        sats_amount,
         status: request.deposit_status.clone().into(),
         error_details: request.error_details,
     };

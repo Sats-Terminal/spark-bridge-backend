@@ -1,10 +1,11 @@
-use crate::error::BtcIndexerClientError;
 use bitcoin::OutPoint;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
-use verifier_config_parser::config::BtcIndexerConfig;
 use uuid::Uuid;
+use verifier_config_parser::config::BtcIndexerConfig;
+
+use crate::error::BtcIndexerClientError;
 
 const WATCH_RUNES_DEPOSIT_PATH: &str = "/watch";
 
