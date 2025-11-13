@@ -7,10 +7,10 @@ use gateway_local_db_store::schemas::user_identifier::UserId;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use tracing::instrument;
-use uuid::Uuid;
 
 #[derive(Deserialize, Debug)]
 pub struct GetSparkDepositAddressRequest {
+    #[serde(alias = "user_public_key")]
     pub user_id: String,
     pub rune_id: String,
     pub amount: u64,

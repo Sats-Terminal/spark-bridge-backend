@@ -189,8 +189,6 @@ services:
       - RUST_LOG=trace
       - CONFIG_PATH=/configuration_indexer/production.toml
       - TITAN_URL=http://titan:${TITAN_HTTP_PORT:-3030}
-      - MAESTRO_API_URL=${MAESTRO_API_URL:-https://xbt-mainnet.gomaestro-api.org}
-      - MAESTRO_API_KEY=${MAESTRO_API_KEY:-}
       - BITCOIN_NETWORK=${BITCOIN_NETWORK:-regtest}
       - BITCOIN_RPC_HOST=bitcoind
       - BITCOIN_RPC_PORT=${BITCOIN_RPC_PORT:-18443}
@@ -210,7 +208,6 @@ services:
       start_period: 10s
     depends_on:
       - persistent-db-storage_btc_indexer
-      # Remove `titan` dependency when running against Maestro
       - titan
       - bitcoind
     volumes:
@@ -233,7 +230,6 @@ services:
     volumes:
       - service-data_btc_indexer:/pgdata
 
-  # Titan indexer (used for regtest/local development)
   # https://github.com/SaturnBTC/Titan/blob/master/docker-compose.yml
 
   titan:

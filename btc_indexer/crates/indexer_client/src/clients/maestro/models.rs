@@ -1,4 +1,5 @@
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
+use serde_json::Value;
 
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -29,7 +30,7 @@ pub struct TransactionInfoData {
     pub height: u64,
     pub inputs: Vec<InputVariant>,
     pub metaprotocols: Vec<Metaprotocol>,
-    pub outputs: Vec<OutputVariant>,
+    pub outputs: Vec<OutputMetaprotocols>,
     pub sats_per_vb: u64,
     pub timestamp: String,
     pub tx_index: u64,
@@ -63,23 +64,18 @@ pub struct Input {
     pub address: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
-pub enum OutputVariant {
-    WithMetaprotocols(OutputMetaprotocols),
-    Default(Output),
-}
-
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct OutputMetaprotocols {
     #[serde(flatten)]
     pub base: Output,
 
+    #[serde(default)]
     pub inscriptions: Vec<Inscription>,
+    #[serde(default)]
     pub runes: Vec<RuneData>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Output {
     pub address: Option<String>,
     #[serde(with = "serde_str")]
@@ -88,16 +84,16 @@ pub struct Output {
     pub spending_tx: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Inscription {
     pub inscription_id: String,
     pub offset: u64,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct RuneData {
-    #[serde(with = "serde_str")]
-    pub amount: u64,
+    #[serde(deserialize_with = "deserialize_amount_to_string")]
+    pub amount: String,
     pub rune_id: String,
 }
 
@@ -200,6 +196,21 @@ pub struct AddrUtxoData {
     pub address: Option<String>,
 }
 
+fn deserialize_amount_to_string<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = Value::deserialize(deserializer)?;
+    match value {
+        Value::String(s) => Ok(s),
+        Value::Number(num) => Ok(num.to_string()),
+        other => Err(serde::de::Error::custom(format!(
+            "Unsupported rune amount format: {}",
+            other
+        ))),
+    }
+}
+
 #[derive(Debug, Deserialize)]
 pub struct IndexerInfo {
     pub chain_tip: ChainTip,
@@ -239,7 +250,7 @@ pub struct MempoolTxInfoData {
     pub height: u64,
     pub inputs: Vec<InputVariant>,
     pub metaprotocols: Vec<Metaprotocol>,
-    pub outputs: Vec<OutputVariant>,
+    pub outputs: Vec<OutputMetaprotocols>,
     pub sats_per_vb: u64,
     pub volume: String,
 }

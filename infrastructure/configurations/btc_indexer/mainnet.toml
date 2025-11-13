@@ -1,0 +1,21 @@
+[server]
+hostname = "0.0.0.0:8070"
+
+[btc_indexer]
+indexer_update_interval_millis = 1000
+validation_timeout_millis = 1000
+confirmation_block_height_delta = 3
+tx_indexer_update_interval_millis = 1000
+start_block_height = 840000
+
+[database]
+url = "postgres://postgres:postgres@127.0.0.1:5474/btc_indexer"
+
+[network]
+network = "bitcoin"
+
+[indexer_client]
+type = "maestro"
+url = "https://xbt-mainnet.gomaestro-api.org/v0/"
+key = "WJTMnRcKf3bgtWgooCrL9FB2FVOPii4q"
+confirmation_threshold = 3

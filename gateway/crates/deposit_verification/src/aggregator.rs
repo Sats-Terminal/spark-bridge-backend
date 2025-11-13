@@ -1,5 +1,5 @@
 use crate::error::DepositVerificationError;
-use crate::traits::{DepositVerificationClientTrait, VerificationClient};
+use crate::traits::DepositVerificationClientTrait;
 use crate::types::*;
 use crate::types::{
     NotifyRunesDepositRequest, NotifySparkDepositRequest, VerifyRunesDepositRequest, VerifySparkDepositRequest,
@@ -29,7 +29,7 @@ use std::sync::Arc;
 use tokio::task::JoinSet;
 use tracing::{instrument, warn};
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct DepositVerificationAggregator {
     flow_sender: FlowSender,
     verifiers: HashMap<u16, Arc<dyn DepositVerificationClientTrait>>,

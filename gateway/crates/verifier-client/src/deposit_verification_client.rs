@@ -157,7 +157,12 @@ impl VerificationClient for VerifierClient {
 #[async_trait]
 impl VerificationClientHealthCheck for VerifierClient {
     async fn healthcheck(&self) -> Result<(), DepositVerificationError> {
-        self.healthcheck().await
+        VerifierClient::healthcheck(self).await.map_err(|e| {
+            DepositVerificationError::FailedToCheckHealthOfDepositVerifier {
+                id: self.get_id(),
+                msg: e.to_string(),
+            }
+        })
     }
 }
 

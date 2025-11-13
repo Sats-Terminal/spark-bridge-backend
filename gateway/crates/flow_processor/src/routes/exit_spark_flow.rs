@@ -96,6 +96,7 @@ pub async fn handle(
                 bridge_address: None,
                 is_btc: true,
                 amount: total_amount - exit_amount,
+                requested_amount: total_amount - exit_amount,
                 confirmation_status: VerifiersResponses::new(
                     DepositStatus::Confirmed,
                     flow_router.verifier_configs.iter().map(|v| v.id).collect(),

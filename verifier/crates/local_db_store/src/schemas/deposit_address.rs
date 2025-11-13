@@ -1,11 +1,10 @@
 use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
-use bitcoin::{Address, OutPoint, Txid};
+use bitcoin::{Address, OutPoint};
 use frost::types::TweakBytes;
 use persistent_storage::error::DbError;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
-use sqlx::types::Json;
 use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
 use tracing::instrument;
@@ -198,9 +197,9 @@ pub trait DepositAddressStorage: Send + Sync {
         err: Option<String>,
     ) -> Result<(), DbError>;
     async fn set_sats_amount_by_out_point(&self, outpoint: OutPoint, sats_amount: u64) -> Result<(), DbError>;
-    async fn set_confirmation_status_by_deposit_address(
+    async fn set_confirmation_status_by_nonce(
         &self,
-        deposit_address: InnerAddress,
+        nonce: TweakBytes,
         confirmation_status: DepositStatus,
         error_details: Option<String>,
     ) -> Result<(), DbError>;
@@ -320,20 +319,20 @@ impl DepositAddressStorage for LocalDbStorage {
     }
 
     #[instrument(level = "trace", skip(self), ret)]
-    async fn set_confirmation_status_by_deposit_address(
+    async fn set_confirmation_status_by_nonce(
         &self,
-        deposit_address: InnerAddress,
+        nonce: TweakBytes,
         confirmation_status: DepositStatus,
         error_details: Option<String>,
     ) -> Result<(), DbError> {
         let _ = sqlx::query(
             "UPDATE verifier.deposit_address 
             SET confirmation_status = $1, error_details = $2 
-            WHERE deposit_address = $3",
+            WHERE nonce_tweak = $3",
         )
         .bind(confirmation_status)
         .bind(error_details)
-        .bind(deposit_address.to_string())
+        .bind(nonce)
         .execute(&self.get_conn().await?)
         .await
         .map_err(|e| DbError::BadRequest(e.to_string()))?;

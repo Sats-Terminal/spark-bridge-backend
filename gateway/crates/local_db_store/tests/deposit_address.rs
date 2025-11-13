@@ -61,6 +61,7 @@ mod tests {
             bridge_address: None,
             is_btc: true,
             amount: 12344,
+            requested_amount: 12344,
             confirmation_status: VerifiersResponses {
                 responses: Default::default(),
             },

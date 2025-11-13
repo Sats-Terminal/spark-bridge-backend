@@ -80,7 +80,7 @@ pub async fn handle(
         .map_err(|e| VerifierError::Storage(format!("Failed to set deposit address info: {}", e)))?;
 
     let status = match state.server_config.fee.clone() {
-        None => verify_spark_deposit(&state, &request, deposit_address).await?,
+        None => verify_spark_deposit(&state, &request, request.nonce).await?,
         Some(fee_cfg) => {
             // Safe to unwrap since none case was handled before
             match request.fee_payment.clone().unwrap() {
@@ -133,7 +133,7 @@ pub async fn handle(
                         .await
                         .map_err(|e| VerifierError::Storage(format!("Failed to set fee status: {}", e)))?;
 
-                    verify_spark_deposit(&state, &request, deposit_address).await?
+                    verify_spark_deposit(&state, &request, request.nonce).await?
                 }
             }
         }
@@ -149,7 +149,7 @@ pub async fn handle(
 async fn verify_spark_deposit(
     state: &AppState,
     request: &WatchSparkDepositRequest,
-    deposit_address: InnerAddress,
+    nonce: TweakBytes,
 ) -> Result<DepositStatus, VerifierError> {
     tracing::info!("Verifying balance for spark address: {}", request.spark_address);
 
@@ -169,7 +169,7 @@ async fn verify_spark_deposit(
     let status = cast_deposit_status(&response.deposit_status);
     state
         .storage
-        .set_confirmation_status_by_deposit_address(deposit_address, status.clone(), response.error_details)
+        .set_confirmation_status_by_nonce(nonce, status.clone(), response.error_details)
         .await
         .map_err(|e| VerifierError::Storage(format!("Failed to update confirmation status: {}", e)))?;
 

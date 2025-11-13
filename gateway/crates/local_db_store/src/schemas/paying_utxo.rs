@@ -2,7 +2,6 @@ use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
 use bitcoin::{Address, Txid};
 use gateway_rune_transfer::transfer::PayingTransferInput;
-use global_utils::conversion::decode_address;
 use persistent_storage::error::DbError;
 use persistent_storage::init::StorageHealthcheck;
 use std::str::FromStr;

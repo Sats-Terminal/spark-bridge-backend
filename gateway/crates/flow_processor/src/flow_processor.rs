@@ -36,9 +36,9 @@ pub struct FlowProcessor {
     pub spark_service: Arc<SparkService>,
     pub spark_client: Arc<SparkRpcClient>,
     pub bitcoin_client: Arc<BitcoinClient>,
-    pub rune_metadata_client: Option<Arc<RuneMetadataClient>>,
     pub network: Network,
     pub bitcoin_indexer: IndexerClient,
+    pub rune_metadata_client: Option<Arc<RuneMetadataClient>>,
 }
 
 pub struct FlowProcessorInitArgs {
@@ -72,9 +72,9 @@ impl FlowProcessor {
             spark_service: flow_processor_config.spark_service,
             spark_client: flow_processor_config.spark_client,
             bitcoin_client: flow_processor_config.bitcoin_client,
-            rune_metadata_client: flow_processor_config.rune_metadata_client,
             network: flow_processor_config.network,
             bitcoin_indexer: flow_processor_config.bitcoin_indexer,
+            rune_metadata_client: flow_processor_config.rune_metadata_client,
         }
     }
 

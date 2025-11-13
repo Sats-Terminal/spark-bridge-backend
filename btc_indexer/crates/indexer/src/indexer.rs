@@ -65,15 +65,14 @@ impl<Api: BtcIndexer> Indexer<Api> {
         tracing::debug!("Watch requests: {:?}", watch_requests);
         for watch_request in watch_requests {
             let blockchain_info = self.indexer_client.get_blockchain_info().await?;
-            if self.local_db_store.exists(watch_request.outpoint.txid).await? {
-                let outpoint_data = self
-                    .indexer_client
-                    .get_transaction_outpoint(watch_request.outpoint.clone())
-                    .await?
-                    .ok_or(IndexerError::InvalidData("Outpoint data not found".to_string()))?;
 
+            if let Some(outpoint_data) = self
+                .indexer_client
+                .get_transaction_outpoint(watch_request.outpoint.clone())
+                .await?
+            {
                 let (validation_result, validation_metadata) = self
-                    .validate_deposit_transaction(watch_request.clone(), outpoint_data.clone(), blockchain_info.clone())
+                    .validate_deposit_transaction(watch_request.clone(), outpoint_data, blockchain_info.clone())
                     .await?;
 
                 match validation_result.watch_request_status {
@@ -188,6 +187,9 @@ impl<Api: BtcIndexer> Indexer<Api> {
                     expected_rune_amount,
                     rune_amount
                 );
+                validation_metadata.sats_amount = Some(outpoint_data.sats_amount);
+                validation_metadata.rune_id = Some(rune_id);
+                validation_metadata.rune_amount = Some(rune_amount);
                 return Ok((
                     ValidationResult {
                         watch_request_status: WatchRequestStatus::Failed,
@@ -196,7 +198,7 @@ impl<Api: BtcIndexer> Indexer<Api> {
                             expected_rune_amount, rune_amount
                         ))),
                     },
-                    None,
+                    Some(validation_metadata),
                 ));
             } else {
                 validation_metadata.rune_id = Some(rune_id);
@@ -212,6 +214,7 @@ impl<Api: BtcIndexer> Indexer<Api> {
                     expected_sats_amount,
                     sats_amount
                 );
+                validation_metadata.sats_amount = Some(sats_amount);
                 return Ok((
                     ValidationResult {
                         watch_request_status: WatchRequestStatus::Failed,
@@ -220,7 +223,7 @@ impl<Api: BtcIndexer> Indexer<Api> {
                             expected_sats_amount, sats_amount
                         ))),
                     },
-                    None,
+                    Some(validation_metadata),
                 ));
             } else {
                 validation_metadata.sats_amount = Some(sats_amount);
@@ -271,6 +274,7 @@ impl<Api: BtcIndexer> Indexer<Api> {
                     .await?;
             }
             WatchRequestStatus::Failed => {
+                let metadata = validation_metadata.unwrap_or_default();
                 tracing::error!(
                     "Sending notify request for failed watch request for outpoint: {}",
                     watch_request.outpoint
@@ -281,9 +285,9 @@ impl<Api: BtcIndexer> Indexer<Api> {
                             request_id: watch_request.request_id,
                             outpoint: watch_request.outpoint,
                             deposit_status: DepositStatus::Failed,
-                            sats_amount: None,
-                            rune_id: None,
-                            rune_amount: None,
+                            sats_amount: metadata.sats_amount,
+                            rune_id: metadata.rune_id,
+                            rune_amount: metadata.rune_amount,
                             error_details: validation_result.error_details.map(|e| e.to_string()),
                         },
                         watch_request.callback_url,

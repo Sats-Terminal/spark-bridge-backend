@@ -73,6 +73,7 @@ struct DbDepositAddrInfo {
     pub bridge_address: Option<String>,
     pub is_btc: bool,
     pub amount: u64,
+    pub requested_amount: u64,
     pub confirmation_status: VerifiersResponses,
 }
 
@@ -126,12 +127,14 @@ pub struct DepositAddrInfo {
     pub bridge_address: Option<InnerAddress>,
     pub is_btc: bool,
     pub amount: u64,
+    pub requested_amount: u64,
     pub confirmation_status: VerifiersResponses,
 }
 
 #[derive(Debug, Clone)]
 pub struct DepositActivity {
     pub deposit_info: DepositAddrInfo,
+    pub rune_id: String,
     pub out_point: Option<String>,
     pub utxo_status: Option<UtxoStatus>,
     pub sats_fee_amount: Option<u64>,
@@ -146,6 +149,7 @@ impl DepositAddrInfo {
             bridge_address: self.bridge_address.as_ref().map(|addr| addr.to_string()),
             is_btc: self.is_btc,
             amount: self.amount,
+            requested_amount: self.requested_amount,
             confirmation_status: self.confirmation_status.clone(),
         }
     }
@@ -165,6 +169,7 @@ impl DepositAddrInfo {
             bridge_address,
             is_btc: db_info.is_btc,
             amount: db_info.amount,
+            requested_amount: db_info.requested_amount,
             confirmation_status: db_info.confirmation_status,
         })
     }
@@ -205,9 +210,9 @@ impl DepositAddressStorage for LocalDbStorage {
         let db_info = deposit_addr_info.to_db_format();
 
         let _ = sqlx::query(
-            "INSERT INTO gateway.deposit_address (nonce_tweak, dkg_share_id, deposit_address, bridge_address, is_btc, amount, confirmation_status)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
-            ON CONFLICT (nonce_tweak) DO UPDATE SET confirmation_status = $7",
+            "INSERT INTO gateway.deposit_address (nonce_tweak, dkg_share_id, deposit_address, bridge_address, is_btc, amount, requested_amount, confirmation_status)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            ON CONFLICT (nonce_tweak) DO UPDATE SET confirmation_status = $8",
         )
             .bind(deposit_addr_info.nonce)
             .bind(deposit_addr_info.dkg_share_id)
@@ -215,6 +220,7 @@ impl DepositAddressStorage for LocalDbStorage {
             .bind(db_info.bridge_address)
             .bind(db_info.is_btc)
             .bind(db_info.amount as i64)
+            .bind(db_info.requested_amount as i64)
             .bind(Json(db_info.confirmation_status))
             .execute(&self.get_conn().await?)
             .await
@@ -254,9 +260,10 @@ impl DepositAddressStorage for LocalDbStorage {
             Option<String>,
             bool,
             i64,
+            i64,
             Json<VerifiersResponses>,
         )> = sqlx::query_as(
-            "SELECT dkg_share_id, nonce_tweak, deposit_address, bridge_address, is_btc, amount, confirmation_status
+            "SELECT dkg_share_id, nonce_tweak, deposit_address, bridge_address, is_btc, amount, requested_amount, confirmation_status
             FROM gateway.deposit_address WHERE deposit_address = $1",
         )
         .bind(address_str)
@@ -272,6 +279,7 @@ impl DepositAddressStorage for LocalDbStorage {
                 bridge_address_str,
                 is_btc,
                 amount,
+                requested_amount,
                 confirmation_status,
             )) => {
                 let db_info = DbDepositAddrInfo {
@@ -281,6 +289,7 @@ impl DepositAddressStorage for LocalDbStorage {
                     bridge_address: bridge_address_str,
                     is_btc,
                     amount: amount as u64,
+                    requested_amount: requested_amount as u64,
                     confirmation_status: confirmation_status.0,
                 };
 
@@ -367,77 +376,80 @@ impl DepositAddressStorage for LocalDbStorage {
         &self,
         user_public_key: bitcoin::secp256k1::PublicKey,
     ) -> Result<Vec<DepositActivity>, DbError> {
+        let user_id = user_public_key.to_string();
         let rows: Vec<(
-            String,
-            String,
+            Uuid,
             TweakBytes,
             String,
             Option<String>,
             bool,
             i64,
+            i64,
             Json<VerifiersResponses>,
+            String,
             Option<String>,
             Option<UtxoStatus>,
             Option<i64>,
         )> = sqlx::query_as(
             r#"
             SELECT
-                da.public_key,
-                da.rune_id,
+                da.dkg_share_id,
                 da.nonce_tweak,
                 da.deposit_address,
                 da.bridge_address,
                 da.is_btc,
                 da.amount,
+                da.requested_amount,
                 da.confirmation_status,
-                u.out_point,
+                ui.rune_id,
+                u.outpoint as out_point,
                 u.status,
-                u.sats_fee_amount
+                u.sats_amount as sats_fee_amount
             FROM gateway.deposit_address da
+            JOIN gateway.user_identifier ui ON ui.dkg_share_id = da.dkg_share_id
             LEFT JOIN gateway.utxo u ON u.btc_address = da.deposit_address
-            WHERE da.public_key = $1 AND da.is_btc = TRUE
+            WHERE da.is_btc = TRUE AND (ui.user_id = $1 OR ui.external_user_id = $1)
             ORDER BY da.deposit_address
             "#,
         )
-        .bind(user_public_key.to_string())
+        .bind(user_id)
         .fetch_all(&self.get_conn().await?)
         .await
         .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
         let mut activities = Vec::with_capacity(rows.len());
         for (
-            public_key,
-            rune_id,
+            dkg_share_id,
             nonce_tweak,
             deposit_address,
             bridge_address,
             is_btc,
             amount,
+            requested_amount,
             confirmation_status,
+            rune_id,
             out_point,
             utxo_status,
             sats_fee_amount,
         ) in rows
         {
-            let musig_id = MusigId::User {
-                rune_id: rune_id.clone(),
-                user_public_key: bitcoin::secp256k1::PublicKey::from_str(&public_key)
-                    .map_err(|e| DbError::BadRequest(format!("Invalid public key: {}", e)))?,
-            };
-
             let db_info = DbDepositAddrInfo {
+                dkg_share_id,
+                nonce: nonce_tweak,
                 deposit_address: deposit_address.clone(),
                 bridge_address,
                 is_btc,
                 amount: amount as u64,
+                requested_amount: requested_amount as u64,
                 confirmation_status: confirmation_status.0.clone(),
             };
 
-            let deposit_info = DepositAddrInfo::from_db_format(musig_id, nonce_tweak, db_info)
+            let deposit_info = DepositAddrInfo::from_db_format(db_info)
                 .map_err(|e| DbError::BadRequest(format!("Failed to parse deposit address info: {}", e)))?;
 
             activities.push(DepositActivity {
                 deposit_info,
+                rune_id,
                 out_point,
                 utxo_status,
                 sats_fee_amount: sats_fee_amount.map(|v| v as u64),
@@ -451,34 +463,37 @@ impl DepositAddressStorage for LocalDbStorage {
     async fn get_deposit_activity_by_txid(&self, txid: &str) -> Result<Option<DepositActivity>, DbError> {
         let pattern = format!("{txid}:%");
         let row: Option<(
-            String,
-            String,
+            Uuid,
             TweakBytes,
             String,
             Option<String>,
             bool,
             i64,
+            i64,
             Json<VerifiersResponses>,
+            String,
             String,
             UtxoStatus,
             i64,
         )> = sqlx::query_as(
             r#"
             SELECT
-                da.public_key,
-                da.rune_id,
+                da.dkg_share_id,
                 da.nonce_tweak,
                 da.deposit_address,
                 da.bridge_address,
                 da.is_btc,
                 da.amount,
+                da.requested_amount,
                 da.confirmation_status,
-                u.out_point,
+                ui.rune_id,
+                u.outpoint as out_point,
                 u.status,
-                u.sats_fee_amount
+                u.sats_amount as sats_fee_amount
             FROM gateway.utxo u
             JOIN gateway.deposit_address da ON da.deposit_address = u.btc_address
-            WHERE da.is_btc = TRUE AND u.out_point LIKE $1
+            JOIN gateway.user_identifier ui ON ui.dkg_share_id = da.dkg_share_id
+            WHERE da.is_btc = TRUE AND u.outpoint LIKE $1
             "#,
         )
         .bind(pattern)
@@ -487,14 +502,15 @@ impl DepositAddressStorage for LocalDbStorage {
         .map_err(|e| DbError::BadRequest(e.to_string()))?;
 
         let Some((
-            public_key,
-            rune_id,
+            dkg_share_id,
             nonce_tweak,
             deposit_address,
             bridge_address,
             is_btc,
             amount,
+            requested_amount,
             confirmation_status,
+            rune_id,
             out_point,
             utxo_status,
             sats_fee_amount,
@@ -503,25 +519,23 @@ impl DepositAddressStorage for LocalDbStorage {
             return Ok(None);
         };
 
-        let musig_id = MusigId::User {
-            rune_id: rune_id.clone(),
-            user_public_key: bitcoin::secp256k1::PublicKey::from_str(&public_key)
-                .map_err(|e| DbError::BadRequest(format!("Invalid public key: {}", e)))?,
-        };
-
         let db_info = DbDepositAddrInfo {
+            dkg_share_id,
+            nonce: nonce_tweak,
             deposit_address,
             bridge_address,
             is_btc,
             amount: amount as u64,
+            requested_amount: requested_amount as u64,
             confirmation_status: confirmation_status.0.clone(),
         };
 
-        let deposit_info = DepositAddrInfo::from_db_format(musig_id, nonce_tweak, db_info)
+        let deposit_info = DepositAddrInfo::from_db_format(db_info)
             .map_err(|e| DbError::BadRequest(format!("Failed to parse deposit address info: {}", e)))?;
 
         Ok(Some(DepositActivity {
             deposit_info,
+            rune_id,
             out_point: Some(out_point),
             utxo_status: Some(utxo_status),
             sats_fee_amount: Some(sats_fee_amount as u64),

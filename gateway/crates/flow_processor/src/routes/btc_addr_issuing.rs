@@ -17,22 +17,28 @@ pub async fn handle(
     flow_router: &mut FlowProcessorRouter,
     request: IssueBtcDepositAddressRequest,
 ) -> Result<Address, FlowProcessorError> {
-    tracing::info!("Handling btc addr issuing for musig id: {:?}", request.user_id);
+    let IssueBtcDepositAddressRequest {
+        user_id,
+        rune_id,
+        amount,
+    } = request;
+    tracing::info!("Handling btc addr issuing for musig id: {:?}", user_id);
     let local_db_storage = flow_router.storage.clone();
 
-    let dkg_share_id = match flow_router
+    let maybe_existing = flow_router
         .storage
-        .get_row_by_user_id(request.user_id, &request.rune_id)
-        .await?
-    {
-        Some(user_ids) => user_ids.dkg_share_id,
-        None => {
-            flow_router
-                .storage
-                .get_random_unused_dkg_share(&request.rune_id, false)
-                .await?
-                .dkg_share_id
-        }
+        .get_row_by_user_id(user_id.clone(), &rune_id)
+        .await?;
+
+    let dkg_share_id = if let Some(user_ids) = maybe_existing {
+        user_ids.dkg_share_id
+    } else {
+        let user_ids = flow_router.storage.get_random_unused_dkg_share(&rune_id, false).await?;
+        flow_router
+            .storage
+            .set_external_user_id(user_ids.dkg_share_id, &user_id)
+            .await?;
+        user_ids.dkg_share_id
     };
 
     let nonce = generate_tweak_bytes();
@@ -51,8 +57,7 @@ pub async fn handle(
         flow_router.verifier_configs.iter().map(|v| v.id).collect(),
     );
 
-    let normalized_amount =
-        normalize_rune_amount(request.amount, &request.rune_id, &flow_router.rune_metadata_client).await?;
+    let normalized_amount = normalize_rune_amount(amount, &rune_id, &flow_router.rune_metadata_client).await?;
 
     local_db_storage
         .insert_deposit_addr_info(DepositAddrInfo {
@@ -62,6 +67,7 @@ pub async fn handle(
             bridge_address: None,
             is_btc: true,
             amount: normalized_amount,
+            requested_amount: amount,
             confirmation_status: verifiers_responses,
         })
         .await?;

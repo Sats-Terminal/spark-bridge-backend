@@ -41,6 +41,9 @@ pub async fn handle(
         .ok_or(FlowProcessorError::InvalidDataError("User info not found".to_string()))?;
     let rune_id = user_info.rune_id;
 
+    let rune_metadata = fetch_rune_metadata(&flow_router.rune_metadata_client, &rune_id).await;
+    let rune_token_config = build_rune_token_config(&rune_id, rune_metadata.as_ref());
+
     let possible_issuer_user_ids = flow_router
         .storage
         .get_issuer_ids(&rune_id)
@@ -68,13 +71,10 @@ pub async fn handle(
             })?;
             let issuer_musig_public_key = PublicKey::from_slice(&issuer_musig_public_key_bytes)?;
 
-            let wrunes_metadata = create_wrunes_metadata(
-                &rune_id,
-                issuer_musig_public_key,
-                flow_router.network,
-                &flow_router.bitcoin_indexer,
-            )
-            .await?;
+            let wrunes_metadata =
+                create_wrunes_metadata(&rune_token_config, issuer_musig_public_key, flow_router.network).map_err(
+                    |e| FlowProcessorError::InvalidDataError(format!("Failed to create wrunes metadata: {}", e)),
+                )?;
 
             flow_router
                 .spark_service
@@ -112,8 +112,6 @@ pub async fn handle(
     })?;
     let issuer_musig_public_key = PublicKey::from_slice(&issuer_musig_public_key_bytes)?;
 
-    let rune_metadata = fetch_rune_metadata(&flow_router.rune_metadata_client, &rune_id).await;
-    let rune_token_config = build_rune_token_config(&rune_id, rune_metadata.as_ref());
     let wrunes_metadata = create_wrunes_metadata(&rune_token_config, issuer_musig_public_key, flow_router.network)
         .map_err(|e| FlowProcessorError::InvalidDataError(format!("Failed to create wrunes metadata: {}", e)))?;
 

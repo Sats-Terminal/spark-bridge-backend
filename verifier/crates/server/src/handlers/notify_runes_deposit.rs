@@ -152,8 +152,8 @@ async fn handle_fee_notification(request: IndexerNotifyRequest, state: &AppState
 
         state
             .storage
-            .set_confirmation_status_by_deposit_address(
-                deposit_addr_info.deposit_address.clone(),
+            .set_confirmation_status_by_nonce(
+                deposit_addr_info.nonce,
                 cast_deposit_status(&response.deposit_status),
                 response.error_details,
             )

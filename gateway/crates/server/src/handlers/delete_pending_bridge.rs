@@ -2,7 +2,6 @@ use crate::error::GatewayError;
 use crate::init::AppState;
 use axum::Json;
 use axum::extract::{Path, State};
-use gateway_local_db_store::schemas::deposit_address::InnerAddress;
 use global_utils::conversion::decode_address;
 use tracing::instrument;
 

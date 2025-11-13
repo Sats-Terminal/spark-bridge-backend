@@ -1,0 +1,27 @@
+[application]
+http_server_ip = "0.0.0.0"
+http_server_port = 8071
+network = "bitcoin"
+
+[btc_indexer_url_config]
+address = "http://127.0.0.1:8070"
+
+[spark_balance_checker_url_config]
+address = "http://127.0.0.1:8090"
+
+[frost_signer_config]
+identifier = 1
+threshold = 2
+total_participants = 3
+
+[gateway_config]
+address = "http://127.0.0.1:8060"
+
+[database_config]
+url = "postgres://davicoscarelli:davi2304@localhost:5432/runes_verifier_1"
+
+# Uncomment and update if on-chain fee collection is required.
+# [fee_config]
+# amount = 1000
+# btc_address = "bc1..."
+# spark_address = "sprt1..."

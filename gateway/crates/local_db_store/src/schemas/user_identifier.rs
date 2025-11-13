@@ -62,6 +62,7 @@ pub trait UserIdentifierStorage: Send + Sync + Debug {
     async fn get_row_by_dkg_id(&self, dkg_share_id: Uuid) -> Result<Option<UserIds>, DbError>;
     async fn insert_row(&self, user_ids: &UserIds) -> Result<(), DbError>;
     async fn get_issuer_ids(&self, rune_id: &str) -> Result<Option<UserIds>, DbError>;
+    async fn set_external_user_id(&self, dkg_share_id: Uuid, external_user_id: &UserId) -> Result<(), DbError>;
 }
 
 #[async_trait]
@@ -106,7 +107,7 @@ impl UserIdentifierStorage for LocalDbStorage {
 
     async fn get_row_by_user_id(&self, user_id: UserId, rune_id: &str) -> Result<Option<UserIds>, DbError> {
         let result: Option<(String, Uuid, String, bool,)> = sqlx::query_as(
-            "SELECT user_id, dkg_share_id, rune_id, is_issuer FROM gateway.user_identifier WHERE user_id = $1 AND rune_id = $2;",
+            "SELECT user_id, dkg_share_id, rune_id, is_issuer FROM gateway.user_identifier WHERE (user_id = $1 OR external_user_id = $1) AND rune_id = $2;",
         )
             .bind(user_id.to_string())
             .bind(rune_id)
@@ -146,6 +147,23 @@ impl UserIdentifierStorage for LocalDbStorage {
             })),
             None => Ok(None),
         }
+    }
+
+    #[instrument(level = "trace", skip(self), ret)]
+    async fn set_external_user_id(&self, dkg_share_id: Uuid, external_user_id: &UserId) -> Result<(), DbError> {
+        let _ = sqlx::query(
+            "UPDATE gateway.user_identifier
+            SET external_user_id = $1
+            WHERE dkg_share_id = $2
+              AND (external_user_id IS NULL OR external_user_id = $1)",
+        )
+        .bind(external_user_id.to_string())
+        .bind(dkg_share_id)
+        .execute(&self.get_conn().await?)
+        .await
+        .map_err(|e| DbError::BadRequest(e.to_string()))?;
+
+        Ok(())
     }
 }
 
