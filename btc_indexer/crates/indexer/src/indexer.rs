@@ -64,7 +64,7 @@ impl<Api: BtcIndexer> Indexer<Api> {
         for watch_request in watch_requests {
             let blockchain_info = self.indexer_client.get_blockchain_info().await?;
             if self.local_db_store.exists(watch_request.outpoint.txid).await? {
-                let outpoint_data = self.indexer_client.get_transaction_outpoint(watch_request.outpoint.clone()).await?
+                let outpoint_data = self.indexer_client.get_transaction_outpoint(watch_request.outpoint).await?
                     .ok_or(IndexerError::InvalidData("Outpoint data not found".to_string()))?;
 
                 let (validation_result, validation_metadata) = self.validate_deposit_transaction(watch_request.clone(), outpoint_data.clone(), blockchain_info.clone()).await?;
@@ -124,7 +124,7 @@ impl<Api: BtcIndexer> Indexer<Api> {
         let mut validation_metadata = ValidationMetadata::default();
 
         if let Some(rune_id) = watch_request.rune_id {
-            let rune_amount = outpoint_data.rune_amounts.get(&rune_id).unwrap_or(&0).clone();
+            let rune_amount = *outpoint_data.rune_amounts.get(&rune_id).unwrap_or(&0);
             let expected_rune_amount = watch_request.rune_amount.unwrap_or(0);
             if rune_amount != expected_rune_amount {
                 tracing::error!("Invalid rune amount: expected: {}, got: {}", expected_rune_amount, rune_amount);
@@ -197,18 +197,10 @@ impl<Api: BtcIndexer> Indexer<Api> {
 }
 
 #[derive(Clone, Debug)]
+#[derive(Default)]
 pub struct ValidationMetadata {
     pub sats_amount: Option<u64>,
     pub rune_id: Option<RuneId>,
     pub rune_amount: Option<u128>,
 }
 
-impl Default for ValidationMetadata {
-    fn default() -> Self {
-        Self {
-            sats_amount: None,
-            rune_id: None,
-            rune_amount: None,
-        }
-    }
-}

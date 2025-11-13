@@ -5,7 +5,6 @@ use gateway_flow_processor::flow_sender::TypedMessageSender;
 use gateway_flow_processor::types::IssueBtcDepositAddressRequest;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
-use uuid::Uuid;
 use std::str::FromStr;
 use gateway_local_db_store::schemas::user_identifier::UserId;
 
@@ -46,7 +45,7 @@ pub async fn handle(
     let possible_response = state
         .flow_sender
         .send(IssueBtcDepositAddressRequest {
-            user_id: user_id,
+            user_id,
             rune_id: request.rune_id,
             amount: request.amount,
         })

@@ -21,18 +21,18 @@ pub enum BtcIndexerDepositStatus {
     Failed,
 }
 
-impl Into<DepositStatus> for BtcIndexerDepositStatus {
-    fn into(self) -> DepositStatus {
-        match self {
+impl From<BtcIndexerDepositStatus> for DepositStatus {
+    fn from(val: BtcIndexerDepositStatus) -> Self {
+        match val {
             BtcIndexerDepositStatus::Confirmed => DepositStatus::Confirmed,
             BtcIndexerDepositStatus::Failed => DepositStatus::Failed,
         }
     }
 }
 
-impl Into<GatewayDepositStatus> for BtcIndexerDepositStatus {
-    fn into(self) -> GatewayDepositStatus {
-        match self {
+impl From<BtcIndexerDepositStatus> for GatewayDepositStatus {
+    fn from(val: BtcIndexerDepositStatus) -> Self {
+        match val {
             BtcIndexerDepositStatus::Confirmed => GatewayDepositStatus::Confirmed,
             BtcIndexerDepositStatus::Failed => GatewayDepositStatus::Failed,
         }
@@ -85,7 +85,7 @@ pub async fn handle(
         verifier_id: state.server_config.frost_signer.identifier,
         request_id: request.request_id,
         outpoint: request.outpoint,
-        sats_amount: sats_amount,
+        sats_amount,
         status: request.deposit_status.clone().into(),
         error_details: request.error_details,
     };

@@ -5,7 +5,6 @@ use frost::types::SignerDkgShareIdData;
 use frost::types::SignerDkgState;
 use persistent_storage::error::DbError;
 use sqlx::types::Json;
-use tracing::info;
 use uuid::Uuid;
 
 #[async_trait]

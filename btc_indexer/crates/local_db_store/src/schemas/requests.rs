@@ -1,7 +1,4 @@
 use persistent_storage::error::DbError;
-use persistent_storage::init::{PersistentRepoTrait, PostgresRepo};
-use btc_indexer_config::DatabaseConfig;
-use persistent_storage::config::PostgresDbCredentials;
 use sqlx;
 use sqlx::Type;
 use bitcoin::{OutPoint, Address};
@@ -89,9 +86,9 @@ impl WatchRequest {
             rune_id: self.rune_id.map(|rune_id| rune_id.to_string()),
             rune_amount: self.rune_amount.map(|rune_amount| rune_amount as i64),
             sats_amount: self.sats_amount.map(|sats_amount| sats_amount as i64),
-            created_at: self.created_at.timestamp_millis() as i64,
+            created_at: self.created_at.timestamp_millis(),
             status: self.status,
-            error_details: self.error_details.map(|error_details| Json(error_details)),
+            error_details: self.error_details.map(Json),
             callback_url: self.callback_url.to_string(),
         }
     }
@@ -193,7 +190,7 @@ impl RequestsStorage for LocalDbStorage {
             WHERE id = $3",
         )
             .bind(status.watch_request_status)
-            .bind(status.error_details.map(|error_details| Json(error_details)))
+            .bind(status.error_details.map(Json))
             .bind(id)
             .execute(&self.postgres_repo.pool)
             .await?;

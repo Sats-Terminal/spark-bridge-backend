@@ -4,12 +4,9 @@ use crate::{
     connection::{SparkServicesClients, SparkTlsConnection},
 };
 use bitcoin::{
-    hashes::{Hash, sha256},
-    key::{Keypair, Secp256k1, rand::rngs::OsRng},
+    hashes::Hash,
     secp256k1::PublicKey,
 };
-use spark_protos::prost::Message;
-use spark_protos::spark::{QueryTransfersResponse, TransferFilter};
 use spark_protos::spark_authn::{
     GetChallengeRequest, GetChallengeResponse, VerifyChallengeRequest, VerifyChallengeResponse,
 };
@@ -20,7 +17,6 @@ use spark_protos::spark_token::{
     QueryTokenOutputsRequest, QueryTokenOutputsResponse, QueryTokenTransactionsRequest, QueryTokenTransactionsResponse,
 };
 use std::collections::HashMap;
-use std::ops::Deref;
 use std::{future::Future, sync::Arc};
 use tokio::sync::Mutex;
 use tonic::metadata::MetadataValue;

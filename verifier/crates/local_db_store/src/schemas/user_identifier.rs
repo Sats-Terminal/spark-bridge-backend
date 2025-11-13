@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use persistent_storage::error::DbError;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
-use tracing::{info, instrument};
+use tracing::instrument;
 use uuid::Uuid;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::XOnlyPublicKey;

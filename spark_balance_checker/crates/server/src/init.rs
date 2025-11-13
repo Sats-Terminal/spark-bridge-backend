@@ -16,9 +16,9 @@ pub struct AppState {
     pub spark_config: SparkConfig,
 }
 
-pub const VERIFY_TRANSACTION_ENDPOINT: &'static str = "/verify-transaction";
-pub const VERIFY_BALANCE_ENDPOINT: &'static str = "/verify-balance";
-pub const HEALTHCHECK_ENDPOINT: &'static str = "/health";
+pub const VERIFY_TRANSACTION_ENDPOINT: &str = "/verify-transaction";
+pub const VERIFY_BALANCE_ENDPOINT: &str = "/verify-balance";
+pub const HEALTHCHECK_ENDPOINT: &str = "/health";
 
 #[instrument(level = "debug", ret, skip(config), fields(operators=?config.spark.operators))]
 pub async fn create_app(config: ServerConfig) -> Result<Router, ServerError> {

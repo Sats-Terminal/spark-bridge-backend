@@ -10,7 +10,7 @@ use lrc20::token_metadata::{
 use ordinals::RuneId;
 use reqwest::{Client, Url};
 use serde::de::DeserializeOwned;
-use std::{collections::HashMap, iter::repeat, str::FromStr};
+use std::{collections::HashMap, str::FromStr};
 use tracing::{debug, error};
 
 use crate::{
@@ -87,7 +87,7 @@ impl MaestroClient {
 
     async fn get_rune_info(&self, rune_id: &str) -> Result<RuneInfoResponse, BtcIndexerClientError> {
         let rune_info_url = format!("assets/runes/{}", rune_id);
-        Ok(self.do_get_request::<RuneInfoResponse>(&rune_info_url, None).await?)
+        self.do_get_request::<RuneInfoResponse>(&rune_info_url, None).await
     }
 }
 
@@ -97,7 +97,7 @@ impl BtcIndexer for MaestroClient {
         &self,
         outpoint: OutPoint,
     ) -> Result<Option<OutPointData>, BtcIndexerClientError> {
-        let tx_info_url = format!("mempool/transactions/{}/metaprotocols", outpoint.txid.to_string());
+        let tx_info_url = format!("mempool/transactions/{}/metaprotocols", outpoint.txid);
         let tx_info = self.do_get_request::<MempoolTxInfoResponse>(&tx_info_url, None).await?;
         let output = tx_info
             .data
@@ -140,12 +140,12 @@ impl BtcIndexer for MaestroClient {
         let txids = self.do_get_request::<Vec<String>>(&block_txids_url, None).await?;
         Ok(txids
             .iter()
-            .map(|txid| Txid::from_str(&txid))
+            .map(|txid| Txid::from_str(txid))
             .collect::<Result<Vec<Txid>, _>>()?)
     }
 
     async fn get_rune_id(&self, txid: &Txid) -> Result<RuneId, BtcIndexerClientError> {
-        let tx_info_url = format!("transactions/{}", txid.to_string());
+        let tx_info_url = format!("transactions/{}", txid);
         let tx_info = self.do_get_request::<TxInfoResponse>(&tx_info_url, None).await?;
 
         let rune_id = RuneId::new(tx_info.data.height, tx_info.data.tx_index as u32).ok_or(
@@ -166,7 +166,7 @@ impl BtcIndexer for MaestroClient {
     }
 
     async fn get_address_utxos(&self, address: Address) -> Result<Vec<AddrUtxoData>, BtcIndexerClientError> {
-        let address_runes_utxos_url = format!("mempool/addresses/{}/utxos", address.to_string());
+        let address_runes_utxos_url = format!("mempool/addresses/{}/utxos", address);
         let mut addr_utxos = Vec::new();
 
         let mut query: Option<Vec<(String, String)>> = None;
@@ -185,7 +185,7 @@ impl BtcIndexer for MaestroClient {
                         >= self.confirmation_threshold);
                 addr_utxos.push(AddrUtxoData {
                     spent: false,
-                    confirmed: confirmed,
+                    confirmed,
                     txid: addr_utxo.txid.clone(),
                     vout: addr_utxo.vout,
                     value: addr_utxo.satoshis,
@@ -222,7 +222,7 @@ impl Runer for MaestroClient {
         issuer_public_key: PublicKey,
         network: Network,
     ) -> Result<TokenMetadata, BtcIndexerClientError> {
-        let rune_info_response = self.get_rune_info(&rune_id).await?;
+        let rune_info_response = self.get_rune_info(rune_id).await?;
         let symbol = match rune_info_response.data.symbol {
             Some(symbol) => {
                 let width = symbol.len().clamp(MIN_SYMBOL_SIZE, MAX_SYMBOL_SIZE);

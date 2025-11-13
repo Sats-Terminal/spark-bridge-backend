@@ -28,6 +28,12 @@ pub struct NotifyRunesDepositRequest {
     pub error_details: Option<String>,
 }
 
+impl Default for CallbackClient {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CallbackClient {
     pub fn new() -> Self {
         Self { client: Client::new() }

@@ -2,7 +2,6 @@ use crate::error::FlowProcessorError;
 use crate::flow_router::FlowProcessorRouter;
 use crate::types::BridgeRunesRequest;
 use bitcoin::secp256k1::PublicKey;
-use frost::utils::generate_issuer_public_key;
 use gateway_local_db_store::schemas::deposit_address::{DepositAddressStorage, InnerAddress};
 use gateway_local_db_store::schemas::dkg_share::DkgShareGenerate;
 use gateway_local_db_store::schemas::user_identifier::{UserIdentifierStorage, UserIds};

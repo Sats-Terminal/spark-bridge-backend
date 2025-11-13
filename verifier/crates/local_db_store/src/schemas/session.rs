@@ -43,14 +43,14 @@ impl From<RequestRow> for SessionInfo {
     }
 }
 
-impl Into<RequestRow> for SessionInfo {
-    fn into(self) -> RequestRow {
+impl From<SessionInfo> for RequestRow {
+    fn from(val: SessionInfo) -> Self {
         RequestRow {
-            request_id: self.request_id,
-            request_type: self.request_type,
-            request_status: self.request_status,
-            deposit_address: self.deposit_address,
-            error_details: self.error_details.map(|error_details| Json(error_details)),
+            request_id: val.request_id,
+            request_type: val.request_type,
+            request_status: val.request_status,
+            deposit_address: val.deposit_address,
+            error_details: val.error_details.map(Json),
         }
     }
 }

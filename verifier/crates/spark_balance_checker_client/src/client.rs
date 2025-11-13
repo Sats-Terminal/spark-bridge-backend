@@ -77,7 +77,7 @@ impl SparkBalanceCheckerClient {
     ) -> Result<VerifyBalanceResponse, SparkBalanceCheckerClientError> {
         let url = self.get_url(VERIFY_BALANCE_ENDPOINT).await?;
 
-        Ok(self.send_request(url, request).await?)
+        self.send_request(url, request).await
     }
 
     #[instrument(level = "trace", skip(self), ret)]
@@ -87,7 +87,7 @@ impl SparkBalanceCheckerClient {
     ) -> Result<VerifyBalanceResponse, SparkBalanceCheckerClientError> {
         let url = self.get_url(VERIFY_TRANSACTION_ENDPOINT).await?;
 
-        Ok(self.send_request(url, request).await?)
+        self.send_request(url, request).await
     }
 
     #[tracing::instrument(skip_all, err)]

@@ -88,9 +88,9 @@ pub enum VerifierDepositStatus {
     Failed,
 }
 
-impl Into<DepositStatus> for VerifierDepositStatus {
-    fn into(self) -> DepositStatus {
-        match self {
+impl From<VerifierDepositStatus> for DepositStatus {
+    fn from(val: VerifierDepositStatus) -> Self {
+        match val {
             VerifierDepositStatus::Confirmed => DepositStatus::Confirmed,
             VerifierDepositStatus::Pending => DepositStatus::WaitingForConfirmation,
             VerifierDepositStatus::Failed => DepositStatus::Failed,

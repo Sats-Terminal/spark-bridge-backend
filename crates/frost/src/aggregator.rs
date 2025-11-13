@@ -3,10 +3,9 @@ use crate::{errors::AggregatorError, traits::*, types::*};
 use frost_secp256k1_tr::{Identifier, Signature, SigningPackage, keys, keys::Tweak};
 use futures::future::join_all;
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::BTreeMap,
     sync::Arc,
 };
-use tokio::sync::Mutex;
 use tracing::debug;
 use tracing::instrument;
 use uuid::Uuid;

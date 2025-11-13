@@ -15,9 +15,9 @@ pub enum NotifyRequestStatus {
     Failed,
 }
 
-impl Into<DepositStatus> for NotifyRequestStatus {
-    fn into(self) -> DepositStatus {
-        match self {
+impl From<NotifyRequestStatus> for DepositStatus {
+    fn from(val: NotifyRequestStatus) -> Self {
+        match val {
             NotifyRequestStatus::Confirmed => DepositStatus::Confirmed,
             NotifyRequestStatus::Failed => DepositStatus::Failed,
         }

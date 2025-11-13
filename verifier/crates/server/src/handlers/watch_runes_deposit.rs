@@ -103,7 +103,7 @@ pub async fn handle(
                         .watch_runes_deposit(IndexerWatchRunesDepositRequest {
                             request_id: request.request_id,
                             btc_address: fee_cfg.btc_address.clone(),
-                            outpoint: outpoint,
+                            outpoint,
                             rune_id: None,
                             rune_amount: None,
                             sats_amount: Some(fee_cfg.amount),
