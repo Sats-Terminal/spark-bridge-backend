@@ -5,11 +5,6 @@ edition = { workspace = true }
 [dependencies]
 bitcoin = { workspace = true }
 config = { workspace = true }
-dotenvy = { workspace = true }
-global_utils = { workspace = true }
 serde = { workspace = true }
 spark_client = { workspace = true }
-thiserror = { workspace = true }
-tonic = { workspace = true }
-tracing = { workspace = true }
 sparkscan = { workspace = true }

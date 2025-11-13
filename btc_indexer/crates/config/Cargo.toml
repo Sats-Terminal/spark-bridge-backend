@@ -5,6 +5,5 @@ edition = "2024"
 [dependencies]
 serde = { workspace = true }
 config = { workspace = true }
-thiserror = { workspace = true }
 bitcoin = { workspace = true }
 reqwest = { workspace = true }
