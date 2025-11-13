@@ -146,6 +146,7 @@ start_service() {
     local binary="$2"
     local config_path="$3"
     local log_path="$4"
+    local extra_env="${5:-}"
     local profile_dir="target/$BUILD_PROFILE"
     local pm2_cmd
     pm2_cmd="$(pm2_bin_path)"
@@ -155,8 +156,15 @@ start_service() {
         exit 1
     fi
 
+    local env_prefix=""
+    if [[ -n "$extra_env" ]]; then
+        env_prefix="env $extra_env"
+    else
+        env_prefix="env"
+    fi
+
     echo "Starting $name with config $config_path"
-    CONFIG_PATH="$config_path" $pm2_cmd start "./$profile_dir/$binary" \
+    $env_prefix CONFIG_PATH="$config_path" $pm2_cmd start "./$profile_dir/$binary" \
         --name "$name" \
         --log "$log_path" \
         --time
@@ -164,9 +172,31 @@ start_service() {
 
 run_services() {
     start_service "gateway" "gateway_main" "$GATEWAY_CONFIG_PATH" "$GATEWAY_LOG_PATH"
-    start_service "verifier_1" "verifier_main" "$VERIFIER_1_CONFIG_PATH" "$VERIFIER_1_LOG_PATH"
-    start_service "verifier_2" "verifier_main" "$VERIFIER_2_CONFIG_PATH" "$VERIFIER_2_LOG_PATH"
-    start_service "verifier_3" "verifier_main" "$VERIFIER_3_CONFIG_PATH" "$VERIFIER_3_LOG_PATH"
+
+    local secret="${VERIFIER_1_SECRET_KEY:-}"
+    if [[ -z "$secret" ]]; then
+        echo "Environment variable VERIFIER_1_SECRET_KEY is required."
+        exit 1
+    fi
+    start_service "verifier_1" "verifier_main" "$VERIFIER_1_CONFIG_PATH" "$VERIFIER_1_LOG_PATH" \
+        "VERIFIER_APPLICATION__SECRET_KEY=$secret"
+
+    secret="${VERIFIER_2_SECRET_KEY:-}"
+    if [[ -z "$secret" ]]; then
+        echo "Environment variable VERIFIER_2_SECRET_KEY is required."
+        exit 1
+    fi
+    start_service "verifier_2" "verifier_main" "$VERIFIER_2_CONFIG_PATH" "$VERIFIER_2_LOG_PATH" \
+        "VERIFIER_APPLICATION__SECRET_KEY=$secret"
+
+    secret="${VERIFIER_3_SECRET_KEY:-}"
+    if [[ -z "$secret" ]]; then
+        echo "Environment variable VERIFIER_3_SECRET_KEY is required."
+        exit 1
+    fi
+    start_service "verifier_3" "verifier_main" "$VERIFIER_3_CONFIG_PATH" "$VERIFIER_3_LOG_PATH" \
+        "VERIFIER_APPLICATION__SECRET_KEY=$secret"
+
     start_service "spark_balance_checker" "spark_balance_checker_main" "$SPARK_BALANCE_CHECKER_CONFIG_PATH" "$SPARK_BALANCE_CHECKER_LOG_PATH"
     start_service "btc_indexer" "btc_indexer_main" "$BTC_INDEXER_CONFIG_PATH" "$BTC_INDEXER_LOG_PATH"
 }

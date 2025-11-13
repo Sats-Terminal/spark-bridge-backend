@@ -8,17 +8,17 @@ http_server_port = 8060
 [[verifiers_config]]
 id = 1
 address = "http://127.0.0.1:8071"
-public_key = "031c854e841de7983e201bd110a62c58374e8db2c95e626b5c940d9ca656f1dc53"
+public_key = "02ca87e05fb76d0455a78cfdde4ed4d3e459682f41bc4b66d63cbc7c8f0fee5db5"
 
 [[verifiers_config]]
 id = 2
 address = "http://127.0.0.1:8072"
-public_key = "037f3486ec5db1183a187ff233f9f31d68323dd7788f469405d98aef9c77a58346"
+public_key = "02e433425b709263954fa94218eca4deffc22392682f1fe13364cc9437ae4813e6"
 
 [[verifiers_config]]
 id = 3
 address = "http://127.0.0.1:8073"
-public_key = "03dedac4ad6461af9d45369a94cc06ea7663ff531d69ebcfdfad7190dface103df"
+public_key = "02ede6320e81ccf8134af95134b7b64e06e65c580ceeb414ef8aeeda1196bc384e"
 
 [aggregator_config]
 threshold = 2

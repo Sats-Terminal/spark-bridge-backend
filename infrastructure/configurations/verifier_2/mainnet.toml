@@ -3,7 +3,6 @@ http_server_ip = "0.0.0.0"
 http_server_port = 8072
 network = "bitcoin"
 callback_url = "http://127.0.0.1:8072/api/btc-indexer/notify-runes-deposit"
-secret_key = "1c14e4446865a72658a59168e99bde1a12297b8b72861cabdaa0e9b5c6cffbf2"
 
 [btc_indexer_url_config]
 address = "http://127.0.0.1:8070"
