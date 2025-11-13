@@ -1,0 +1,19 @@
+[server]
+hostname = "0.0.0.0:8070"
+
+[btc_indexer]
+indexer_update_interval_millis = 1000
+validation_timeout_millis = 1000
+confirmation_block_height_delta = 6
+tx_indexer_update_interval_millis = 1000
+start_block_height = 0
+
+[database]
+url = "postgres://btc_indexer:btc_indexer@btc-indexer-db/btc_indexer"
+
+[network]
+network = "regtest"
+
+[indexer_client]
+type = "titan"
+url = "http://titan:3030"

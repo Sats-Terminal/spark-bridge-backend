@@ -1,11 +1,11 @@
-use crate::error::GatewayClientError;
 use bitcoin::OutPoint;
 use reqwest::Client;
 use serde::Serialize;
-use tracing;
-use tracing::instrument;
+use tracing::{self, instrument};
 use uuid::Uuid;
 use verifier_config_parser::config::GatewayConfig;
+
+use crate::error::GatewayClientError;
 
 const NOTIFY_RUNES_DEPOSIT_PATH: &str = "/api/verifier/notify-runes-deposit";
 const NOTIFY_SPARK_DEPOSIT_PATH: &str = "/api/verifier/notify-spark-deposit";

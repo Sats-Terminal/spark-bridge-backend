@@ -1,20 +1,17 @@
-use crate::errors::VerifierError;
-use crate::init::AppState;
-use axum::Json;
-use axum::extract::State;
+use axum::{Json, extract::State};
 use bitcoin::OutPoint;
 use serde::{Deserialize, Serialize};
-use spark_balance_checker_server::models::DepositStatus as SparkDepositStatus;
-use spark_balance_checker_server::models::VerifyBalanceRequest;
+use spark_balance_checker_server::models::{DepositStatus as SparkDepositStatus, VerifyBalanceRequest};
 use token_identifier::TokenIdentifier;
 use uuid::Uuid;
 use verifier_btc_indexer_client::client::WatchRunesDepositRequest as IndexerWatchRunesDepositRequest;
-use verifier_config_parser::config::construct_hardcoded_callback_url;
 use verifier_gateway_client::client::{
     GatewayDepositStatus, GatewayNotifyRunesDepositRequest, GatewayNotifySparkDepositRequest,
 };
 use verifier_local_db_store::schemas::deposit_address::{DepositAddressStorage, DepositStatus, FeePayment};
 use verifier_spark_balance_checker_client::client::cast_deposit_status;
+
+use crate::{errors::VerifierError, init::AppState};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum BtcIndexerDepositStatus {
@@ -22,18 +19,18 @@ pub enum BtcIndexerDepositStatus {
     Failed,
 }
 
-impl Into<DepositStatus> for BtcIndexerDepositStatus {
-    fn into(self) -> DepositStatus {
-        match self {
+impl From<BtcIndexerDepositStatus> for DepositStatus {
+    fn from(val: BtcIndexerDepositStatus) -> Self {
+        match val {
             BtcIndexerDepositStatus::Confirmed => DepositStatus::Confirmed,
             BtcIndexerDepositStatus::Failed => DepositStatus::Failed,
         }
     }
 }
 
-impl Into<GatewayDepositStatus> for BtcIndexerDepositStatus {
-    fn into(self) -> GatewayDepositStatus {
-        match self {
+impl From<BtcIndexerDepositStatus> for GatewayDepositStatus {
+    fn from(val: BtcIndexerDepositStatus) -> Self {
+        match val {
             BtcIndexerDepositStatus::Confirmed => GatewayDepositStatus::Confirmed,
             BtcIndexerDepositStatus::Failed => GatewayDepositStatus::Failed,
         }
@@ -86,7 +83,7 @@ pub async fn handle(
         verifier_id: state.server_config.frost_signer.identifier,
         request_id: request.request_id,
         outpoint: request.outpoint,
-        sats_amount: sats_amount,
+        sats_amount,
         status: request.deposit_status.clone().into(),
         error_details: request.error_details,
     };
@@ -120,7 +117,7 @@ async fn handle_fee_notification(request: IndexerNotifyRequest, state: &AppState
         .map_err(|err| VerifierError::Storage(err.to_string()))?;
 
     if deposit_addr_info.is_btc {
-        let callback_url = construct_hardcoded_callback_url(&state.server_config.server);
+        let callback_url = state.server_config.server.callback_url.clone();
         state
             .btc_indexer_client
             .watch_runes_deposit(IndexerWatchRunesDepositRequest {

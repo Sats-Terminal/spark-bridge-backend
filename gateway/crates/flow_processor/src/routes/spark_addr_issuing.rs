@@ -1,16 +1,14 @@
-use crate::error::FlowProcessorError;
-use crate::flow_router::FlowProcessorRouter;
-use crate::types::IssueSparkDepositAddressRequest;
-use frost::utils::convert_public_key_package;
-use frost::utils::generate_tweak_bytes;
-use gateway_local_db_store::schemas::deposit_address::{
-    DepositAddrInfo, DepositAddressStorage, DepositStatus, InnerAddress, VerifiersResponses,
+use frost::utils::{convert_public_key_package, generate_tweak_bytes};
+use gateway_local_db_store::schemas::{
+    deposit_address::{DepositAddrInfo, DepositAddressStorage, DepositStatus, InnerAddress, VerifiersResponses},
+    dkg_share::DkgShareGenerate,
+    user_identifier::UserIdentifierStorage,
 };
-use gateway_local_db_store::schemas::dkg_share::DkgShareGenerate;
-use gateway_local_db_store::schemas::user_identifier::UserIdentifierStorage;
 use global_utils::conversion::convert_network_to_spark_network;
 use spark_address::{SparkAddressData, encode_spark_address};
 use tracing::instrument;
+
+use crate::{error::FlowProcessorError, flow_router::FlowProcessorRouter, types::IssueSparkDepositAddressRequest};
 
 #[instrument(skip(flow_router), level = "trace", ret)]
 pub async fn handle(

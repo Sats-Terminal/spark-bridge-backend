@@ -1,17 +1,19 @@
 //! Spark Invoice
 
+use bitcoin::{
+    Network,
+    hashes::{Hash, HashEngine, sha256::Hash as Sha256Hash},
+    secp256k1::PublicKey,
+};
+use chrono::{DateTime, Utc};
+use token_identifier::TokenIdentifier;
+use uuid::Uuid;
+
 use crate::proto::{
     DecodeError, decode_timestamp, read_bytes, read_len, read_string, read_varint_u32, read_varint_u64, skip_field,
     timestamp_to_datetime, write_len_prefixed_bytes, write_len_prefixed_str, write_timestamp, write_u128_be_bytes,
     write_varint_u32, write_varint_u64,
 };
-use bitcoin::Network;
-use bitcoin::hashes::sha256::Hash as Sha256Hash;
-use bitcoin::hashes::{Hash, HashEngine};
-use bitcoin::secp256k1::PublicKey;
-use chrono::{DateTime, Utc};
-use token_identifier::TokenIdentifier;
-use uuid::Uuid;
 
 pub mod proto;
 

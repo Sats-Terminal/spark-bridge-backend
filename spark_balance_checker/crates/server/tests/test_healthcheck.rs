@@ -1,9 +1,10 @@
 mod utils;
 mod test_healthcheck {
-    use crate::utils::{TEST_LOGGER, init_mocked_test_server};
     use axum_test::http::StatusCode;
     use spark_balance_checker_server::init::HEALTHCHECK_ENDPOINT;
     use tracing::instrument;
+
+    use crate::utils::{TEST_LOGGER, init_mocked_test_server};
 
     #[instrument]
     #[tokio::test]

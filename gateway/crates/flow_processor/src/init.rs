@@ -1,8 +1,6 @@
-use crate::error::FlowProcessorError;
-use crate::flow_processor::{FlowProcessor, FlowProcessorInitArgs};
-use crate::flow_sender::FlowSender;
-use bitcoin::Network;
-use bitcoin::secp256k1::PublicKey;
+use std::{str::FromStr, sync::Arc};
+
+use bitcoin::{Network, secp256k1::PublicKey};
 use btc_indexer_client::client_api::new_btc_indexer_client;
 use frost::aggregator::FrostAggregator;
 use gateway_config_parser::config::ServerConfig;
@@ -10,10 +8,14 @@ use gateway_local_db_store::storage::LocalDbStorage;
 use gateway_rune_transfer::bitcoin_client::new_bitcoin_client;
 use gateway_spark_service::service::SparkService;
 use spark_client::client::SparkRpcClient;
-use std::str::FromStr;
-use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
+
+use crate::{
+    error::FlowProcessorError,
+    flow_processor::{FlowProcessor, FlowProcessorInitArgs},
+    flow_sender::FlowSender,
+};
 
 pub async fn create_flow_processor(
     server_config: ServerConfig,

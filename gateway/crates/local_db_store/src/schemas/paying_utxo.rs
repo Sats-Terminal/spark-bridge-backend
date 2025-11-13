@@ -1,11 +1,12 @@
-use crate::storage::LocalDbStorage;
+use std::str::FromStr;
+
 use async_trait::async_trait;
 use bitcoin::{Address, Txid};
 use gateway_rune_transfer::transfer::PayingTransferInput;
-use persistent_storage::error::DbError;
-use persistent_storage::init::StorageHealthcheck;
-use std::str::FromStr;
+use persistent_storage::{error::DbError, init::StorageHealthcheck};
 use tracing::instrument;
+
+use crate::storage::LocalDbStorage;
 
 #[async_trait]
 pub trait PayingUtxoStorage: Send + Sync + StorageHealthcheck {

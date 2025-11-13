@@ -1,0 +1,28 @@
+[application]
+http_server_ip = "0.0.0.0"
+http_server_port = 8070
+network = "regtest"
+callback_url = "http://verifier-3-svc:8070/api/btc-indexer/notify-runes-deposit"
+secret_key = "fab291f69e0c58ad61299cc3b681d3ed3e1183510add9a25416cf898dca3c67c"
+
+[btc_indexer_url_config]
+address="http://btc-indexer-svc:8070"
+
+[spark_balance_checker_url_config]
+address="http://spark-balance-checker-svc:8090"
+
+[frost_signer_config]
+identifier = 3
+threshold = 2
+total_participants = 3
+
+[gateway_config]
+address = "http://gateway-svc:8060"
+
+[database_config]
+url = "postgres://verifier:verifier@verifier-3-db/verifier"
+
+[fee_config]
+amount=1000
+btc_address="bcrt1pwzj4xdxrdsjl900sq62982tmcehjv2hc22glzumzxyxx2ctetrjq7u3vfz"
+spark_address="sprt1pgss8ac0a8nlywyvgyna0uws4jkcm9uaycu7mxdp0atxf7cf30rnw4kv5x85wf"

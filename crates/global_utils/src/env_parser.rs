@@ -1,6 +1,7 @@
+use std::{env::VarError, io, net::IpAddr};
+
 use bitcoin::network::ParseNetworkError;
 use dns_lookup::lookup_host;
-use std::{env::VarError, io, net::IpAddr};
 use thiserror::Error;
 use tracing::instrument;
 

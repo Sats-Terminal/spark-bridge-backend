@@ -1,10 +1,15 @@
-use frost::mocks::{MockSignerClient, MockSignerDkgShareIdStorage, MockSignerSignSessionStorage};
-use frost::signer::FrostSigner;
-use frost::traits::SignerClient;
+use std::{
+    collections::BTreeMap,
+    sync::{Arc, LazyLock},
+};
+
+use frost::{
+    mocks::{MockSignerClient, MockSignerDkgShareIdStorage, MockSignerSignSessionStorage},
+    signer::FrostSigner,
+    traits::SignerClient,
+};
 use frost_secp256k1_tr::Identifier;
 use global_utils::logger::{LoggerGuard, init_logger};
-use std::collections::BTreeMap;
-use std::sync::{Arc, LazyLock};
 
 pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
 pub static TEST_LOGGER: LazyLock<LoggerGuard> = LazyLock::new(|| init_logger());

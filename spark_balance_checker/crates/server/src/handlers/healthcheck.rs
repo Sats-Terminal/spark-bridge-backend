@@ -1,10 +1,9 @@
-use crate::error::ServerError;
-use crate::init::AppState;
-use axum::Json;
-use axum::extract::State;
+use axum::{Json, extract::State};
 use global_utils::common_resp::Empty;
 use spark_protos::spark_token::QueryTokenTransactionsRequest;
 use tonic_health::pb::health_check_response::ServingStatus;
+
+use crate::{error::ServerError, init::AppState};
 
 const EXPECTED_SPARK_OPERATOR_STATUS: ServingStatus = ServingStatus::Serving;
 

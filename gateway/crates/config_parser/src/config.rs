@@ -1,5 +1,6 @@
+use bitcoin::secp256k1::PublicKey;
 use btc_indexer_config::IndexerClientConfig;
-use config::Config;
+use config::{Config, Environment};
 use global_utils::network::NetworkConfig;
 use serde::{Deserialize, Serialize};
 use spark_client::common::config::SparkConfig;
@@ -18,6 +19,7 @@ pub struct AppConfig {
 pub struct VerifierConfig {
     pub id: u16,
     pub address: String,
+    pub public_key: PublicKey,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
@@ -107,6 +109,11 @@ impl ServerConfig {
     pub fn init_config(path: String) -> Self {
         let config = Config::builder()
             .add_source(config::File::with_name(&path))
+            .add_source(
+                Environment::with_prefix("GATEWAY")
+                    .prefix_separator("_")
+                    .separator("__"),
+            )
             .build()
             .unwrap();
         config.try_deserialize().unwrap()

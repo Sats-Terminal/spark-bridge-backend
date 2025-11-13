@@ -1,34 +1,47 @@
-FROM rust:1.90.0-bullseye AS builder
+FROM rust:1.90.0-bullseye AS base
 
-# Create a workspace directory
-WORKDIR /usr/src/runes-spark-bridge
+ARG CARGO_CHEF_VERSION=0.1.73
+ARG SCCACHE_VERSION=0.12.0
 
-# Copy the entire workspace
-COPY ./ ./
+RUN apt-get update && apt-get -y install ca-certificates libssl-dev protobuf-compiler libprotobuf-dev && \
+    cargo install cargo-chef --version ${CARGO_CHEF_VERSION} --locked && \
+    cargo install sccache --version ${SCCACHE_VERSION} --locked && \
+    cargo install sqlx-cli@0.8.6 --no-default-features --features native-tls,postgres
 
-# Installing proto
-ENV PROTOC_VERSION=32.0
-RUN apt update && apt upgrade -y
+ENV RUSTC_WRAPPER=/usr/local/cargo/bin/sccache
+ENV SCCACHE_DIR=/cache/sccache
 
-# Download proto zip
-ENV PROTOC_VERSION=32.0
-ENV PROTOC_ZIP=protoc-${PROTOC_VERSION}-linux-x86_64.zip
-RUN curl -OL https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/${PROTOC_ZIP}
-RUN unzip -o ${PROTOC_ZIP} -d ./proto
-RUN chmod 755 -R ./proto/bin
-ENV BASE=/usr
 
-# Copy into path
-RUN cp ./proto/bin/protoc ${BASE}/bin/
-RUN cp -R ./proto/include/* ${BASE}/include/
+FROM base AS planner
+WORKDIR /src
 
-RUN cargo install --path ./spark_balance_checker/apps/main
+COPY . .
+
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=$SCCACHE_DIR,sharing=locked \
+    cargo chef prepare --recipe-path recipe.json
+
+
+FROM base AS builder
+
+WORKDIR /src
+COPY --from=planner /src/recipe.json recipe.json
+
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=$SCCACHE_DIR,sharing=locked \
+    cargo chef cook --release --recipe-path recipe.json
+
+COPY . .
+
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=$SCCACHE_DIR,sharing=locked \
+    cargo install --path spark_balance_checker/apps/main
+
 
 # The final base image
 FROM debian:bullseye
 
-RUN apt-get update
+RUN apt-get update && apt-get -y install ca-certificates
 
-# Copying binaries
 COPY --from=builder /usr/local/cargo/bin/spark_balance_checker_main /usr/local/bin/spark_balance_checker_main
 CMD ["spark_balance_checker_main"]

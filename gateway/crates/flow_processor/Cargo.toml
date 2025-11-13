@@ -4,23 +4,17 @@ edition = "2024"
 
 [dependencies]
 async-trait = { workspace = true }
-axum = { workspace = true }
 bitcoin = { workspace = true }
-eyre = { workspace = true }
 frost = { workspace = true }
-frost-secp256k1-tr = { workspace = true }
 gateway_config_parser = { workspace = true }
 gateway_local_db_store = { workspace = true }
 gateway_rune_transfer = { workspace = true }
 gateway_spark_service = { workspace = true }
 global_utils = { workspace = true }
 persistent_storage = { workspace = true }
-serde = { version = "1.0.219", features = ["derive"] }
 spark-address = { workspace = true }
 spark_client = { workspace = true }
 thiserror = { workspace = true }
-titan-client = { workspace = true }
-token-identifier = { workspace = true }
 tokio = { workspace = true }
 tokio-util = { workspace = true }
 tracing = { workspace = true }
@@ -28,5 +22,3 @@ uuid = { workspace = true }
 btc_indexer_client = { workspace = true }
 
 [dev-dependencies]
-lrc20 = { workspace = true }
-serde_json = { workspace = true }

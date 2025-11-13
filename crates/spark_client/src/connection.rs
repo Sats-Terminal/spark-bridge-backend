@@ -1,8 +1,9 @@
 use std::str::FromStr;
 
-use spark_protos::spark::spark_service_client::SparkServiceClient;
-use spark_protos::spark_authn::spark_authn_service_client::SparkAuthnServiceClient;
-use spark_protos::spark_token::spark_token_service_client::SparkTokenServiceClient;
+use spark_protos::{
+    spark::spark_service_client::SparkServiceClient, spark_authn::spark_authn_service_client::SparkAuthnServiceClient,
+    spark_token::spark_token_service_client::SparkTokenServiceClient,
+};
 use tonic::transport::{Channel, ClientTlsConfig, Uri};
 use tonic_health::pb::health_client::HealthClient;
 use tracing;
@@ -74,12 +75,16 @@ impl SparkTlsConnection {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::LazyLock;
+
+    use global_utils::{
+        common_types::{Url, UrlWrapped},
+        logger::{LoggerGuard, init_logger},
+    };
+    use tokio;
+
     use super::*;
     use crate::common::config::{CertificateConfig, SparkOperatorConfig};
-    use global_utils::common_types::{Url, UrlWrapped};
-    use global_utils::logger::{LoggerGuard, init_logger};
-    use std::sync::LazyLock;
-    use tokio;
 
     const PATH_TO_AMAZON_CA: &str = "../../infrastructure/configurations/certificates/Amazon-Root-CA.pem";
     const PATH_TO_FLASHNET: &str = "../../infrastructure/configurations/certificates/Flashnet-CA.pem";

@@ -1,5 +1,5 @@
-use crate::error::FlowProcessorError;
-use crate::types::*;
+use std::sync::Arc;
+
 use bitcoin::Network;
 use btc_indexer_client::client_api::IndexerClient;
 use frost::aggregator::FrostAggregator;
@@ -8,10 +8,11 @@ use gateway_local_db_store::storage::LocalDbStorage;
 use gateway_rune_transfer::bitcoin_client::BitcoinClient;
 use gateway_spark_service::service::SparkService;
 use spark_client::client::SparkRpcClient;
-use std::sync::Arc;
 use tokio::sync::mpsc;
 use tracing;
 use uuid::Uuid;
+
+use crate::{error::FlowProcessorError, types::*};
 
 // This struct is used to route the message to the correct flow
 // This struct instance is created for each message that is sent to the flow processor

@@ -1,12 +1,15 @@
-use crate::errors::ProtoHasherError;
-use crate::hashing::{
-    MAP_IDENTIFIER, hash_bool, hash_f64, hash_fields_by_names, hash_i32, hash_i64, hash_list, hash_message,
-    hash_string, hash_u32, hash_u64, key_type_label, value_type_label,
-};
-use bitcoin::hashes::sha256::Hash as Sha256Hash;
-use bitcoin::hashes::{Hash, HashEngine};
-use prost_reflect::{DynamicMessage, FieldDescriptor, OneofDescriptor, ReflectMessage, Value};
 use std::borrow::Cow;
+
+use bitcoin::hashes::{Hash, HashEngine, sha256::Hash as Sha256Hash};
+use prost_reflect::{DynamicMessage, FieldDescriptor, OneofDescriptor, ReflectMessage, Value};
+
+use crate::{
+    errors::ProtoHasherError,
+    hashing::{
+        MAP_IDENTIFIER, hash_bool, hash_f64, hash_fields_by_names, hash_i32, hash_i64, hash_list, hash_message,
+        hash_string, hash_u32, hash_u64, key_type_label, value_type_label,
+    },
+};
 
 const VALUE_NAME: &str = "value";
 

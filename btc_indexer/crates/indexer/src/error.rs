@@ -1,6 +1,6 @@
-use thiserror::Error;
 use btc_indexer_client::error::BtcIndexerClientError;
 use persistent_storage::error::DbError;
+use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum IndexerError {

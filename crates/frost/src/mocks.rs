@@ -1,12 +1,11 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use async_trait::async_trait;
-use persistent_storage::error::DbError;
+use persistent_storage::{error::DbError, init::StorageHealthcheck};
 use tokio::sync::Mutex;
+use uuid::Uuid;
 
 use crate::{errors::AggregatorError, signer::FrostSigner, traits::*, types::*};
-use persistent_storage::init::StorageHealthcheck;
-use uuid::Uuid;
 
 #[derive(Debug, Clone)]
 pub struct MockSignerDkgShareIdStorage {

@@ -1,11 +1,11 @@
-use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
 use persistent_storage::error::DbError;
 use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
-use sqlx::types::Json;
+use sqlx::{FromRow, types::Json};
 use tracing::instrument;
 use uuid::Uuid;
+
+use crate::storage::LocalDbStorage;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionInfo {
@@ -43,14 +43,14 @@ impl From<RequestRow> for SessionInfo {
     }
 }
 
-impl Into<RequestRow> for SessionInfo {
-    fn into(self) -> RequestRow {
+impl From<SessionInfo> for RequestRow {
+    fn from(val: SessionInfo) -> Self {
         RequestRow {
-            request_id: self.request_id,
-            request_type: self.request_type,
-            request_status: self.request_status,
-            deposit_address: self.deposit_address,
-            error_details: self.error_details.map(|error_details| Json(error_details)),
+            request_id: val.request_id,
+            request_type: val.request_type,
+            request_status: val.request_status,
+            deposit_address: val.deposit_address,
+            error_details: val.error_details.map(Json),
         }
     }
 }
@@ -71,9 +71,14 @@ pub enum RequestStatus {
 }
 
 #[async_trait]
-pub trait SessionStorage: Send + Sync  {
+pub trait SessionStorage: Send + Sync {
     async fn insert_session(&self, session_info: SessionInfo) -> Result<(), DbError>;
-    async fn update_session_status(&self, request_id: Uuid, status: RequestStatus, error_details: Option<RequestErrorDetails>) -> Result<(), DbError>;
+    async fn update_session_status(
+        &self,
+        request_id: Uuid,
+        status: RequestStatus,
+        error_details: Option<RequestErrorDetails>,
+    ) -> Result<(), DbError>;
     async fn get_session(&self, request_id: Uuid) -> Result<SessionInfo, DbError>;
 }
 
@@ -82,23 +87,30 @@ impl SessionStorage for LocalDbStorage {
     #[instrument(level = "trace", skip_all)]
     async fn insert_session(&self, session_info: SessionInfo) -> Result<(), DbError> {
         let session_info: RequestRow = session_info.into();
-        let _ = sqlx::query(r#"
+        let _ = sqlx::query(
+            r#"
             INSERT INTO gateway.sessions (request_id, request_type, request_status, deposit_address, error_details)
             VALUES ($1, $2, $3, $4)
-        "#)
-            .bind(session_info.request_id)
-            .bind(session_info.request_type)
-            .bind(session_info.request_status)
-            .bind(session_info.deposit_address)
-            .bind(session_info.error_details)
-            .execute(&self.get_conn().await?)
-            .await
-            .map_err(|e| DbError::BadRequest(e.to_string()))?;
+        "#,
+        )
+        .bind(session_info.request_id)
+        .bind(session_info.request_type)
+        .bind(session_info.request_status)
+        .bind(session_info.deposit_address)
+        .bind(session_info.error_details)
+        .execute(&self.get_conn().await?)
+        .await
+        .map_err(|e| DbError::BadRequest(e.to_string()))?;
         Ok(())
     }
 
     #[instrument(level = "trace", skip_all)]
-    async fn update_session_status(&self, request_id: Uuid, status: RequestStatus, error_details: Option<RequestErrorDetails>) -> Result<(), DbError> {
+    async fn update_session_status(
+        &self,
+        request_id: Uuid,
+        status: RequestStatus,
+        error_details: Option<RequestErrorDetails>,
+    ) -> Result<(), DbError> {
         let query = r#"
             UPDATE gateway.sessions
             SET request_status = $1, error_details = $2
@@ -133,9 +145,8 @@ impl SessionStorage for LocalDbStorage {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::storage::make_repo_with_config;
     use persistent_storage::error::DbError as DatabaseError;
 
-    
+    use super::*;
+    use crate::storage::make_repo_with_config;
 }

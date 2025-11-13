@@ -1,13 +1,16 @@
+use std::{
+    sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering},
+    },
+    time::Duration,
+};
+
 use frost::aggregator::FrostAggregator;
 use gateway_config_parser::config::DkgPregenConfig;
-use gateway_local_db_store::schemas::dkg_share::DkgShareGenerate;
-use gateway_local_db_store::storage::LocalDbStorage;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::Duration;
+use gateway_local_db_store::{schemas::dkg_share::DkgShareGenerate, storage::LocalDbStorage};
 use tokio::task::JoinSet;
-use tokio_util::sync::CancellationToken;
-use tokio_util::task::TaskTracker;
+use tokio_util::{sync::CancellationToken, task::TaskTracker};
 use tracing::instrument;
 
 static EPOCH: AtomicU64 = AtomicU64::new(0);

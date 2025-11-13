@@ -1,26 +1,24 @@
-use crate::utils::time::current_epoch_time_in_seconds;
+use std::{collections::HashMap, future::Future, sync::Arc};
+
+use bitcoin::{hashes::Hash, secp256k1::PublicKey};
+use spark_protos::{
+    spark_authn::{GetChallengeRequest, GetChallengeResponse, VerifyChallengeRequest, VerifyChallengeResponse},
+    spark_token::{
+        CommitTransactionRequest, CommitTransactionResponse, QueryTokenOutputsRequest, QueryTokenOutputsResponse,
+        QueryTokenTransactionsRequest, QueryTokenTransactionsResponse, StartTransactionRequest,
+        StartTransactionResponse,
+    },
+};
+use tokio::sync::Mutex;
+use tonic::metadata::MetadataValue;
+use tonic_health::pb::{HealthCheckRequest, health_check_response::ServingStatus};
+use tracing;
+
 use crate::{
     common::{config::SparkConfig, error::SparkClientError},
     connection::{SparkServicesClients, SparkTlsConnection},
+    utils::time::current_epoch_time_in_seconds,
 };
-use bitcoin::secp256k1::PublicKey;
-use spark_protos::spark::{QueryTransfersResponse, TransferFilter};
-use spark_protos::spark_authn::{
-    GetChallengeRequest, GetChallengeResponse, VerifyChallengeRequest, VerifyChallengeResponse,
-};
-use spark_protos::spark_token::{
-    CommitTransactionRequest, CommitTransactionResponse, StartTransactionRequest, StartTransactionResponse,
-};
-use spark_protos::spark_token::{
-    QueryTokenOutputsRequest, QueryTokenOutputsResponse, QueryTokenTransactionsRequest, QueryTokenTransactionsResponse,
-};
-use std::collections::HashMap;
-use std::{future::Future, sync::Arc};
-use tokio::sync::Mutex;
-use tonic::metadata::MetadataValue;
-use tonic_health::pb::HealthCheckRequest;
-use tonic_health::pb::health_check_response::ServingStatus;
-use tracing;
 
 const N_QUERY_RETRIES: usize = 3;
 const SPARK_OPERATOR_SERVICE_NAME: &str = "spark-operator";
@@ -86,18 +84,6 @@ impl SparkRpcClient {
             clients
                 .spark_token
                 .query_token_outputs(request)
-                .await
-                .map_err(|e| SparkClientError::ConnectionError(format!("Failed to query balance: {}", e)))
-        };
-
-        self.retry_query(query_fn, request).await.map(|r| r.into_inner())
-    }
-
-    pub async fn get_transfers(&self, request: TransferFilter) -> Result<QueryTransfersResponse, SparkClientError> {
-        let query_fn = |mut clients: SparkServicesClients, request: TransferFilter| async move {
-            clients
-                .spark
-                .query_all_transfers(request)
                 .await
                 .map_err(|e| SparkClientError::ConnectionError(format!("Failed to query balance: {}", e)))
         };
@@ -296,14 +282,17 @@ struct CommitTransactionRequestWithAuth {
 
 #[cfg(test)]
 mod tests {
+    use std::{str::FromStr, sync::LazyLock};
+
+    use global_utils::{
+        common_types::{Url, UrlWrapped},
+        logger::{LoggerGuard, init_logger},
+    };
+    use spark_address::decode_spark_address;
+    use tracing::info;
+
     use super::*;
     use crate::common::config::{CertificateConfig, SparkConfig, SparkOperatorConfig};
-    use global_utils::common_types::{Url, UrlWrapped};
-    use global_utils::logger::{LoggerGuard, init_logger};
-    use spark_address::decode_spark_address;
-    use std::str::FromStr;
-    use std::sync::LazyLock;
-    use tracing::info;
 
     const PATH_TO_AMAZON_CA: &str = "../../infrastructure/configurations/certificates/Amazon-Root-CA.pem";
     const PATH_TO_FLASHNET: &str = "../../infrastructure/configurations/certificates/Flashnet-CA.pem";

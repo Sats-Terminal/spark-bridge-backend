@@ -1,6 +1,6 @@
-use crate::client::VerifierClient;
-use crate::error::VerifierClientError;
 use tracing::instrument;
+
+use crate::{client::VerifierClient, error::VerifierClientError};
 
 const HEALTHCHECK_PATH: &str = "/health";
 

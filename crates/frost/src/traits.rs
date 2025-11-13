@@ -1,9 +1,8 @@
-use crate::errors::AggregatorError;
-use crate::types::*;
 use async_trait::async_trait;
-use persistent_storage::error::DbError;
-use persistent_storage::init::StorageHealthcheck;
+use persistent_storage::{error::DbError, init::StorageHealthcheck};
 use uuid::Uuid;
+
+use crate::{errors::AggregatorError, types::*};
 
 #[async_trait]
 pub trait SignerClient: Send + Sync {

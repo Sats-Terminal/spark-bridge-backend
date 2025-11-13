@@ -1,20 +1,16 @@
-use persistent_storage::error::DbError;
-use persistent_storage::init::{PersistentRepoTrait, PostgresRepo};
-use btc_indexer_config::DatabaseConfig;
-use persistent_storage::config::PostgresDbCredentials;
-use sqlx;
-use sqlx::Type;
-use bitcoin::{OutPoint, Address};
-use ordinals::RuneId;
-use serde::{Deserialize, Serialize};
-use sqlx::types::Json;
 use std::str::FromStr;
-use bitcoin::Network;
-use url::Url;
-use chrono::{DateTime, Utc};
-use uuid::Uuid;
-use crate::storage::LocalDbStorage;
+
 use async_trait::async_trait;
+use bitcoin::{Address, Network, OutPoint};
+use chrono::{DateTime, Utc};
+use ordinals::RuneId;
+use persistent_storage::error::DbError;
+use serde::{Deserialize, Serialize};
+use sqlx::{self, Type, types::Json};
+use url::Url;
+use uuid::Uuid;
+
+use crate::storage::LocalDbStorage;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, Type)]
 #[sqlx(rename_all = "snake_case", type_name = "WATCH_REQUEST_STATUS")]
@@ -89,9 +85,9 @@ impl WatchRequest {
             rune_id: self.rune_id.map(|rune_id| rune_id.to_string()),
             rune_amount: self.rune_amount.map(|rune_amount| rune_amount as i64),
             sats_amount: self.sats_amount.map(|sats_amount| sats_amount as i64),
-            created_at: self.created_at.timestamp_millis() as i64,
+            created_at: self.created_at.timestamp_millis(),
             status: self.status,
-            error_details: self.error_details.map(|error_details| Json(error_details)),
+            error_details: self.error_details.map(Json),
             callback_url: self.callback_url.to_string(),
         }
     }
@@ -104,8 +100,10 @@ impl WatchRequest {
             .require_network(network)
             .map_err(|e| DbError::DecodeError(format!("Failed to require network: {}", e)))?;
         let rune_id = match row.rune_id {
-            Some(rune_id) => Some(RuneId::from_str(&rune_id)
-                .map_err(|e| DbError::DecodeError(format!("Failed to parse rune id: {}", e)))?),
+            Some(rune_id) => Some(
+                RuneId::from_str(&rune_id)
+                    .map_err(|e| DbError::DecodeError(format!("Failed to parse rune id: {}", e)))?,
+            ),
             None => None,
         };
         Ok(Self {
@@ -116,10 +114,12 @@ impl WatchRequest {
             rune_id,
             rune_amount: row.rune_amount.map(|rune_amount| rune_amount as u128),
             sats_amount: row.sats_amount.map(|sats_amount| sats_amount as u64),
-            created_at: DateTime::from_timestamp_millis(row.created_at).ok_or(DbError::DecodeError("Failed to parse created at".to_string()))?,
+            created_at: DateTime::from_timestamp_millis(row.created_at)
+                .ok_or(DbError::DecodeError("Failed to parse created at".to_string()))?,
             status: row.status,
             error_details: row.error_details.map(|error_details| error_details.0),
-            callback_url: Url::parse(&row.callback_url).map_err(|e| DbError::DecodeError(format!("Failed to parse callback url: {}", e)))?,
+            callback_url: Url::parse(&row.callback_url)
+                .map_err(|e| DbError::DecodeError(format!("Failed to parse callback url: {}", e)))?,
         })
     }
 }
@@ -157,7 +157,8 @@ impl RequestsStorage for LocalDbStorage {
         )
             .fetch_all(&self.postgres_repo.pool)
             .await?;
-        let watch_requests = rows.into_iter()
+        let watch_requests = rows
+            .into_iter()
             .map(|row| WatchRequest::from_row(row, self.network))
             .collect::<Result<Vec<WatchRequest>, DbError>>()
             .map_err(|e| DbError::DecodeError(format!("Failed to decode watch request: {}", e)))?;
@@ -192,11 +193,11 @@ impl RequestsStorage for LocalDbStorage {
             SET status = $1, error_details = $2
             WHERE id = $3",
         )
-            .bind(status.watch_request_status)
-            .bind(status.error_details.map(|error_details| Json(error_details)))
-            .bind(id)
-            .execute(&self.postgres_repo.pool)
-            .await?;
+        .bind(status.watch_request_status)
+        .bind(status.error_details.map(Json))
+        .bind(id)
+        .execute(&self.postgres_repo.pool)
+        .await?;
         Ok(())
     }
 }

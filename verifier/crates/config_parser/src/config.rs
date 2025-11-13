@@ -1,5 +1,5 @@
-use bitcoin::Network;
-use config::Config;
+use bitcoin::{Network, secp256k1::SecretKey};
+use config::{Config, Environment};
 use global_utils::common_types::Url;
 use serde::{Deserialize, Serialize};
 
@@ -12,15 +12,8 @@ pub struct AppConfig {
     pub port: u16,
     #[serde(rename = "network")]
     pub network: Network,
-}
-
-// FIXME!!! This is super bad hardcode, delete these as soon as we have proper indexer logic
-pub fn construct_hardcoded_callback_url(app_config: &AppConfig) -> Url {
-    Url::parse(&format!(
-        "http://{}:{}/api/btc-indexer/notify-runes-deposit",
-        app_config.ip, app_config.port
-    ))
-    .unwrap()
+    pub callback_url: Url,
+    pub secret_key: SecretKey,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -85,6 +78,11 @@ impl ServerConfig {
     pub fn init_config(path: String) -> Self {
         let config = Config::builder()
             .add_source(config::File::with_name(&path))
+            .add_source(
+                Environment::with_prefix("VERIFIER")
+                    .prefix_separator("_")
+                    .separator("__"),
+            )
             .build()
             .unwrap();
         config.try_deserialize().unwrap()
