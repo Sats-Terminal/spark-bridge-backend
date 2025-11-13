@@ -2,6 +2,7 @@ use bitcoin::Network;
 use config::{Config, Environment};
 use serde::{Deserialize, Serialize};
 use spark_client::common::config::SparkConfig;
+use sparkscan::client::SparkScanConfig;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ServerConfig {
@@ -11,6 +12,7 @@ pub struct ServerConfig {
     pub network: NetworkConfig,
     #[serde(rename(deserialize = "spark_config"))]
     pub spark: SparkConfig,
+    pub sparkscan: SparkScanConfig,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

@@ -6,3 +6,4 @@ pub mod conversion;
 pub mod env_parser;
 pub mod logger;
 pub mod network;
+pub mod http_client;

@@ -147,6 +147,9 @@ async fn test_spark() {
 
     // let fee_txid = pay_fee_via_btc(&mut user_wallet, &mut bitcoin_client).await;
     let fee_txid = pay_fee_via_spark(&spark_breez_client).await;
+    // Give some time for sparkscan to index the transaction
+    // TODO: implement async approach to wait for indexation
+    sleep(Duration::from_secs(60)).await;
     tracing::info!("fee transfer txid: {:?}", fee_txid);
 
     let spark_address = user_wallet.get_spark_address().unwrap();

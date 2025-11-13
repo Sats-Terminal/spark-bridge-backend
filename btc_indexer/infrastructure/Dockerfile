@@ -43,6 +43,8 @@ FROM debian:bullseye
 # Copying configs
 COPY ./btc_indexer/crates/local_db_store/migrations/ /migrations
 
+RUN apt-get update && apt-get -y install ca-certificates
+
 COPY --from=builder /usr/local/cargo/bin/btc_indexer_main /usr/local/bin/btc_indexer
 COPY --from=builder /usr/local/cargo/bin/sqlx /usr/local/bin/sqlx
 CMD ["btc_indexer"]

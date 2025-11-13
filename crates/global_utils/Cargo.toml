@@ -22,3 +22,4 @@ tracing-subscriber = { workspace = true }
 url = { workspace = true }
 utoipa = { workspace = true }
 uuid = { workspace = true }
+reqwest = { workspace = true }

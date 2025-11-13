@@ -44,6 +44,8 @@ FROM debian:bullseye
 # Copying configs
 COPY ./verifier/crates/local_db_store/migrations/ /migrations
 
+RUN apt-get update && apt-get -y install ca-certificates
+
 # Copying binaries
 COPY --from=builder /usr/local/cargo/bin/verifier_main /usr/local/bin/verifier_main
 COPY --from=builder /usr/local/cargo/bin/sqlx /usr/local/bin/sqlx

@@ -5,6 +5,10 @@ http_server_port = 8090
 [network]
 network = "regtest"
 
+[sparkscan]
+base_url = "https://api.sparkscan.io"
+api_key = "your_api_key_here"
+
 [spark_config]
 certificates = [
     { path = "/Amazon-Root-CA.pem" },
