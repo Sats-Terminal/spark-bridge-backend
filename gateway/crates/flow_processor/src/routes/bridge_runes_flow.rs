@@ -1,14 +1,14 @@
-use crate::error::FlowProcessorError;
-use crate::flow_router::FlowProcessorRouter;
-use crate::types::BridgeRunesRequest;
 use bitcoin::secp256k1::PublicKey;
-use gateway_local_db_store::schemas::deposit_address::{DepositAddressStorage, InnerAddress};
-use gateway_local_db_store::schemas::dkg_share::DkgShareGenerate;
-use gateway_local_db_store::schemas::user_identifier::{UserIdentifierStorage, UserIds};
-use gateway_spark_service::types::SparkTransactionType;
-use gateway_spark_service::utils::create_wrunes_metadata;
+use gateway_local_db_store::schemas::{
+    deposit_address::{DepositAddressStorage, InnerAddress},
+    dkg_share::DkgShareGenerate,
+    user_identifier::{UserIdentifierStorage, UserIds},
+};
+use gateway_spark_service::{types::SparkTransactionType, utils::create_wrunes_metadata};
 use global_utils::conversion::convert_network_to_spark_network;
 use tracing::instrument;
+
+use crate::{error::FlowProcessorError, flow_router::FlowProcessorRouter, types::BridgeRunesRequest};
 
 #[instrument(skip(flow_router), level = "trace", ret)]
 pub async fn handle(

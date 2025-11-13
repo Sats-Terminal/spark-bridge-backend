@@ -1,10 +1,11 @@
-use crate::types::TweakBytes;
-use bitcoin::Address;
-use bitcoin::Network;
-use bitcoin::secp256k1::Secp256k1;
-use bitcoin::secp256k1::{Keypair, PublicKey};
+use bitcoin::{
+    Address, Network,
+    secp256k1::{Keypair, PublicKey, Secp256k1},
+};
 use frost_secp256k1_tr::keys::PublicKeyPackage;
 use rand_core::{OsRng, RngCore};
+
+use crate::types::TweakBytes;
 
 pub fn convert_public_key_package(public_key_package: &PublicKeyPackage) -> eyre::Result<PublicKey> {
     let public_key_bytes = public_key_package.verifying_key().serialize()?;

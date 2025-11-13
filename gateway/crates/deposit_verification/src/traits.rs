@@ -1,9 +1,11 @@
-use crate::error::DepositVerificationError;
-use crate::types::{
-    WatchRunesDepositRequest, WatchRunesDepositResponse, WatchSparkDepositRequest, WatchSparkDepositResponse,
-};
-use async_trait::async_trait;
 use std::fmt::Debug;
+
+use async_trait::async_trait;
+
+use crate::{
+    error::DepositVerificationError,
+    types::{WatchRunesDepositRequest, WatchRunesDepositResponse, WatchSparkDepositRequest, WatchSparkDepositResponse},
+};
 
 #[async_trait]
 pub trait VerificationClient: Debug + Send + Sync {

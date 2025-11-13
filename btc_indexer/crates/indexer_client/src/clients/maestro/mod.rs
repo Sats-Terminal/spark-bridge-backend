@@ -1,5 +1,7 @@
 pub mod models;
 
+use std::{collections::HashMap, str::FromStr};
+
 use async_trait::async_trait;
 use bitcoin::{Address, Network, OutPoint, Txid, secp256k1::PublicKey};
 use btc_indexer_config::MaestroClientConfig;
@@ -10,7 +12,6 @@ use lrc20::token_metadata::{
 use ordinals::RuneId;
 use reqwest::{Client, Url};
 use serde::de::DeserializeOwned;
-use std::{collections::HashMap, str::FromStr};
 use tracing::{debug, error};
 
 use crate::{

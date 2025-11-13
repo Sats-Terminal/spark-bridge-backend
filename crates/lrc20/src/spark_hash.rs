@@ -1,18 +1,20 @@
 use std::ops::Deref;
 
-use crate::marshal::marshal_token_transaction;
-use crate::{
-    token_leaf::{TokenLeafOutput, TokenLeafToSpend},
-    token_transaction::{TokenTransaction, TokenTransactionInput, TokenTransactionVersion},
-};
 use bitcoin::hashes::{Hash, HashEngine, sha256::Hash as Sha256Hash};
-use proto_hasher::ProtoHasher;
-use proto_hasher::errors::ProtoHasherError;
-use spark_protos::reflect::{SparkProtoReflectError, ToDynamicMessage};
-use spark_protos::spark_token::token_transaction::TokenInputs;
+use proto_hasher::{ProtoHasher, errors::ProtoHasherError};
+use spark_protos::{
+    reflect::{SparkProtoReflectError, ToDynamicMessage},
+    spark_token::token_transaction::TokenInputs,
+};
 use thiserror::Error;
 use tracing::debug;
 use uuid::Uuid;
+
+use crate::{
+    marshal::marshal_token_transaction,
+    token_leaf::{TokenLeafOutput, TokenLeafToSpend},
+    token_transaction::{TokenTransaction, TokenTransactionInput, TokenTransactionVersion},
+};
 
 /// A hash of the LRC20 receipt data that uniquely identifies a receipt (coin).
 ///
@@ -294,6 +296,14 @@ pub enum SparkHashError {
 
 #[cfg(test)]
 mod test {
+    use core::str::FromStr;
+    use std::collections::HashMap;
+
+    use bitcoin::{Network, hashes::sha256::Hash as Sha256Hash, secp256k1};
+    use once_cell::sync::Lazy;
+    use token_identifier::TokenIdentifier;
+    use uuid::Uuid;
+
     use super::SparkHash;
     use crate::{
         token_leaf::{TokenLeafOutput, TokenLeafToSpend},
@@ -302,12 +312,6 @@ mod test {
             TokenTransactionVersion,
         },
     };
-    use bitcoin::{Network, hashes::sha256::Hash as Sha256Hash, secp256k1};
-    use core::str::FromStr;
-    use once_cell::sync::Lazy;
-    use std::collections::HashMap;
-    use token_identifier::TokenIdentifier;
-    use uuid::Uuid;
 
     static TOKEN_IDENTIFIER: Lazy<TokenIdentifier> = Lazy::new(|| {
         TokenIdentifier::from_str(

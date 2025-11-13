@@ -1,19 +1,18 @@
-use axum::Json;
-use axum::extract::State;
-use crate::init::AppState;
-use crate::error::BtcIndexerServerError;
-use bitcoin::OutPoint;
-use serde::{Deserialize, Serialize};
-use btc_indexer_local_db_store::schemas::requests::WatchRequest as LocalDbWatchRequest;
-use btc_indexer_local_db_store::schemas::requests::WatchRequestStatus;
-use btc_indexer_local_db_store::schemas::requests::RequestsStorage;
-use ordinals::RuneId;
 use std::str::FromStr;
+
+use axum::{Json, extract::State};
+use bitcoin::{Address, Network, OutPoint};
+use btc_indexer_local_db_store::schemas::requests::{
+    RequestsStorage, WatchRequest as LocalDbWatchRequest, WatchRequestStatus,
+};
 use chrono::{DateTime, Utc};
-use bitcoin::{Address, Network};
-use url::Url;
+use ordinals::RuneId;
+use serde::{Deserialize, Serialize};
 use tracing::instrument;
+use url::Url;
 use uuid::Uuid;
+
+use crate::{error::BtcIndexerServerError, init::AppState};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct WatchRequest {
@@ -37,7 +36,8 @@ pub async fn handle(
         Some(rune_id) => Some(validate_rune_id(rune_id)?),
         None => None,
     };
-    let callback_url = Url::parse(&request.callback_url).map_err(|e| BtcIndexerServerError::ValidationError(format!("Invalid callback url: {}", e)))?;
+    let callback_url = Url::parse(&request.callback_url)
+        .map_err(|e| BtcIndexerServerError::ValidationError(format!("Invalid callback url: {}", e)))?;
     let local_db_watch_request = LocalDbWatchRequest {
         id: Uuid::new_v4(),
         request_id: request.request_id,
@@ -57,7 +57,8 @@ pub async fn handle(
 }
 
 pub fn validate_rune_id(rune_id: String) -> Result<RuneId, BtcIndexerServerError> {
-    let rune_id = RuneId::from_str(&rune_id).map_err(|e| BtcIndexerServerError::ValidationError(format!("Invalid rune id: {}", e)))?;
+    let rune_id = RuneId::from_str(&rune_id)
+        .map_err(|e| BtcIndexerServerError::ValidationError(format!("Invalid rune id: {}", e)))?;
     Ok(rune_id)
 }
 

@@ -1,46 +1,46 @@
-use crate::common::constants::{DEFAULT_DUST_AMOUNT, DEFAULT_FEE_AMOUNT, PAYING_INPUT_SATS_AMOUNT};
-use crate::common::error::RuneError;
-use crate::common::gateway_client::UserPayingTransferInput;
-use crate::common::spark_client::GetSparkAddressDataRequest;
-use crate::common::spark_client::SparkClient;
-use crate::common::utils::create_credentials;
-use crate::common::utils::sign_transaction;
-use bitcoin::Address;
-use bitcoin::Txid;
-use bitcoin::hashes::sha256::Hash as Sha256Hash;
-use bitcoin::hashes::{Hash, HashEngine};
-use bitcoin::key::TapTweak;
-use bitcoin::secp256k1::Message;
-use bitcoin::secp256k1::Secp256k1;
-use bitcoin::secp256k1::{Keypair, PublicKey};
-use bitcoin::sighash::{Prevouts, SighashCache, TapSighashType};
-use bitcoin::transaction::Version;
-use bitcoin::{Amount, OutPoint, ScriptBuf, Sequence, TxIn, TxOut, Witness};
-use bitcoin::{Network, Transaction};
+use std::str::FromStr;
+
+use bitcoin::{
+    Address, Amount, Network, OutPoint, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Txid, Witness,
+    hashes::{Hash, HashEngine, sha256::Hash as Sha256Hash},
+    key::TapTweak,
+    secp256k1::{Keypair, Message, PublicKey, Secp256k1},
+    sighash::{Prevouts, SighashCache, TapSighashType},
+    transaction::Version,
+};
 use btc_indexer_client::client_api::AddrUtxoData;
 use chrono::Utc;
-use global_utils::common_types::get_uuid;
-use global_utils::conversion::{bitcoin_network_to_proto_network, convert_network_to_spark_network};
-use lrc20::marshal::marshal_token_transaction;
-use lrc20::token_leaf::TokenLeafOutput;
-use lrc20::token_leaf::TokenLeafToSpend;
-use lrc20::token_transaction::TokenTransaction;
-use lrc20::token_transaction::TokenTransactionInput;
-use lrc20::token_transaction::TokenTransactionTransferInput;
-use lrc20::token_transaction::TokenTransactionVersion;
-use ordinals::RuneId;
-use ordinals::{Edict, Runestone};
+use global_utils::{
+    common_types::get_uuid,
+    conversion::{bitcoin_network_to_proto_network, convert_network_to_spark_network},
+};
+use lrc20::{
+    marshal::marshal_token_transaction,
+    token_leaf::{TokenLeafOutput, TokenLeafToSpend},
+    token_transaction::{
+        TokenTransaction, TokenTransactionInput, TokenTransactionTransferInput, TokenTransactionVersion,
+    },
+};
+use ordinals::{Edict, RuneId, Runestone};
 use proto_hasher::ProtoHasher;
 use spark_address::{SparkAddressData, decode_spark_address, encode_spark_address};
-use spark_protos::reflect::ToDynamicMessage;
-use spark_protos::spark_token::CommitTransactionRequest;
-use spark_protos::spark_token::InputTtxoSignaturesPerOperator;
-use spark_protos::spark_token::SignatureWithIndex;
-use spark_protos::spark_token::StartTransactionRequest;
-use std::str::FromStr;
+use spark_protos::{
+    reflect::ToDynamicMessage,
+    spark_token::{
+        CommitTransactionRequest, InputTtxoSignaturesPerOperator, SignatureWithIndex, StartTransactionRequest,
+    },
+};
 use token_identifier::TokenIdentifier;
 use tracing;
 use uuid::Uuid;
+
+use crate::common::{
+    constants::{DEFAULT_DUST_AMOUNT, DEFAULT_FEE_AMOUNT, PAYING_INPUT_SATS_AMOUNT},
+    error::RuneError,
+    gateway_client::UserPayingTransferInput,
+    spark_client::{GetSparkAddressDataRequest, SparkClient},
+    utils::{create_credentials, sign_transaction},
+};
 
 pub enum TransferType {
     RuneTransfer { rune_amount: u64 },

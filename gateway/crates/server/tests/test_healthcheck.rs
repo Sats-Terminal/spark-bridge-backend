@@ -1,12 +1,14 @@
 mod utils;
 mod test_healthcheck {
-    use crate::utils::common::MIGRATOR;
-    use crate::utils::common::TEST_LOGGER;
-    use crate::utils::healthcheck_mock::init_mocked_test_server;
     use axum_test::http::StatusCode;
     use gateway_server::init::GatewayApi;
     use persistent_storage::init::PostgresPool;
     use tracing::instrument;
+
+    use crate::utils::{
+        common::{MIGRATOR, TEST_LOGGER},
+        healthcheck_mock::init_mocked_test_server,
+    };
 
     #[instrument(ret)]
     #[sqlx::test(migrator = "MIGRATOR")]

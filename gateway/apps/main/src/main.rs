@@ -1,23 +1,20 @@
+use std::{
+    collections::{BTreeMap, HashMap},
+    sync::{Arc, Once},
+};
+
 use eyre::Result;
-use frost::aggregator::FrostAggregator;
-use frost::traits::SignerClient;
+use frost::{aggregator::FrostAggregator, traits::SignerClient};
 use frost_secp256k1_tr::Identifier;
 use gateway_config_parser::config::ServerConfig;
-use gateway_deposit_verification::aggregator::DepositVerificationAggregator;
-use gateway_deposit_verification::traits::VerificationClient;
+use gateway_deposit_verification::{aggregator::DepositVerificationAggregator, traits::VerificationClient};
+use gateway_dkg_pregen::dkg_pregen_thread::DkgPregenThread;
 use gateway_flow_processor::init::create_flow_processor;
 use gateway_local_db_store::storage::LocalDbStorage;
 use gateway_server::init::create_app;
 use gateway_verifier_client::client::VerifierClient;
-use global_utils::config_path::ConfigPath;
-use global_utils::logger::init_logger;
-
-use gateway_dkg_pregen::dkg_pregen_thread::DkgPregenThread;
-use persistent_storage::config::PostgresDbCredentials;
-use persistent_storage::init::PostgresRepo;
-use std::collections::{BTreeMap, HashMap};
-use std::sync::Arc;
-use std::sync::Once;
+use global_utils::{config_path::ConfigPath, logger::init_logger};
+use persistent_storage::{config::PostgresDbCredentials, init::PostgresRepo};
 use tokio::net::TcpListener;
 use tokio_util::task::TaskTracker;
 use tracing::instrument;

@@ -1,9 +1,8 @@
-use crate::error::FlowProcessorError;
-use crate::types::*;
 use btc_indexer_client::client_api::IndexerClient;
-use tokio::sync::mpsc;
-use tokio::sync::oneshot;
+use tokio::sync::{mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
+
+use crate::{error::FlowProcessorError, types::*};
 
 // This trait is used in order to send typed messages to the flow processor
 #[async_trait::async_trait]

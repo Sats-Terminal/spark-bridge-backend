@@ -1,15 +1,19 @@
-use crate::storage::LocalDbStorage;
+use std::{
+    collections::HashMap,
+    fmt::{Debug, Display, Formatter},
+    str::FromStr,
+    string::ToString,
+};
+
 use async_trait::async_trait;
 use bitcoin::Address;
 use frost::types::TweakBytes;
 use persistent_storage::error::DbError;
 use serde::{Deserialize, Serialize};
 use sqlx::types::Json;
-use std::collections::HashMap;
-use std::fmt::{Debug, Display, Formatter};
-use std::str::FromStr;
-use std::string::ToString;
 use uuid::Uuid;
+
+use crate::storage::LocalDbStorage;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum InnerAddress {

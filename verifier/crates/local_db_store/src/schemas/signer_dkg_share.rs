@@ -1,11 +1,13 @@
-use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
-use frost::traits::SignerDkgShareStorage;
-use frost::types::SignerDkgShareIdData;
-use frost::types::SignerDkgState;
+use frost::{
+    traits::SignerDkgShareStorage,
+    types::{SignerDkgShareIdData, SignerDkgState},
+};
 use persistent_storage::error::DbError;
 use sqlx::types::Json;
 use uuid::Uuid;
+
+use crate::storage::LocalDbStorage;
 
 #[async_trait]
 impl SignerDkgShareStorage for LocalDbStorage {

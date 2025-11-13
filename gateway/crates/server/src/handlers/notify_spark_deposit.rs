@@ -1,12 +1,11 @@
-use crate::error::GatewayError;
-use crate::init::AppState;
-use axum::Json;
-use axum::extract::State;
+use axum::{Json, extract::State};
 use gateway_deposit_verification::types::NotifySparkDepositRequest;
 use gateway_local_db_store::schemas::deposit_address::DepositStatus;
 use serde::Deserialize;
 use tracing::instrument;
 use uuid::Uuid;
+
+use crate::{error::GatewayError, init::AppState};
 
 #[derive(Deserialize, Debug)]
 pub enum NotifyRequestStatus {

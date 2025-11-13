@@ -1,4 +1,3 @@
-use crate::error::SparkBalanceCheckerClientError;
 use reqwest::Client;
 use serde::{Serialize, de::DeserializeOwned};
 use spark_balance_checker_server::{
@@ -9,6 +8,8 @@ use tracing::instrument;
 use url::Url;
 pub use verifier_config_parser::config::SparkBalanceCheckerConfig;
 use verifier_local_db_store::schemas::deposit_address::DepositStatus as DepositStatusDB;
+
+use crate::error::SparkBalanceCheckerClientError;
 
 #[derive(Clone, Debug)]
 pub struct SparkBalanceCheckerClient {

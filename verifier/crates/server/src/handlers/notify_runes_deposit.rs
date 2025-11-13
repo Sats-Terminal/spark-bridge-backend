@@ -1,11 +1,7 @@
-use crate::errors::VerifierError;
-use crate::init::AppState;
-use axum::Json;
-use axum::extract::State;
+use axum::{Json, extract::State};
 use bitcoin::OutPoint;
 use serde::{Deserialize, Serialize};
-use spark_balance_checker_server::models::DepositStatus as SparkDepositStatus;
-use spark_balance_checker_server::models::VerifyBalanceRequest;
+use spark_balance_checker_server::models::{DepositStatus as SparkDepositStatus, VerifyBalanceRequest};
 use token_identifier::TokenIdentifier;
 use uuid::Uuid;
 use verifier_btc_indexer_client::client::WatchRunesDepositRequest as IndexerWatchRunesDepositRequest;
@@ -14,6 +10,8 @@ use verifier_gateway_client::client::{
 };
 use verifier_local_db_store::schemas::deposit_address::{DepositAddressStorage, DepositStatus, FeePayment};
 use verifier_spark_balance_checker_client::client::cast_deposit_status;
+
+use crate::{errors::VerifierError, init::AppState};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum BtcIndexerDepositStatus {

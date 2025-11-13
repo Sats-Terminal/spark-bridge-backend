@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use btc_indexer::{indexer::Indexer, tx_indexer::TxIndexer};
 use btc_indexer_client::client_api::new_btc_indexer_client;
 use btc_indexer_config::AppConfig;
@@ -5,7 +7,6 @@ use btc_indexer_local_db_store::storage::LocalDbStorage;
 use btc_indexer_server::init::create_app;
 use eyre::Result;
 use global_utils::{config_path::ConfigPath, logger::init_logger};
-use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio_util::sync::CancellationToken;
 

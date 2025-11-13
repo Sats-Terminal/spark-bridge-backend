@@ -1,5 +1,4 @@
-use axum::Json;
-use axum::extract::State;
+use axum::{Json, extract::State};
 use spark_address::{Network, decode_spark_address};
 use sparkscan::models::{Network as ScanNetwork, TxStatus};
 use tracing::instrument;

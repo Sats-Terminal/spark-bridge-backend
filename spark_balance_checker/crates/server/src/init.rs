@@ -1,5 +1,3 @@
-use crate::error::ServerError;
-use crate::handlers;
 use axum::{
     Router,
     routing::{get, post},
@@ -8,6 +6,8 @@ use spark_balance_checker_config_parser::config::ServerConfig;
 use spark_client::{client::SparkRpcClient, common::config::SparkConfig};
 use sparkscan::client::SparkScanClient;
 use tracing::instrument;
+
+use crate::{error::ServerError, handlers};
 
 #[derive(Clone)]
 pub struct AppState {

@@ -1,4 +1,3 @@
-use crate::error::VerifierClientError;
 use bitcoin::{
     hashes::{Hash, HashEngine, sha256::Hash as SHA256},
     key::Secp256k1,
@@ -9,6 +8,8 @@ use hex;
 use reqwest::{Client, Url, header::HeaderMap};
 use serde::{Serialize, de::DeserializeOwned};
 use tracing::error;
+
+use crate::error::VerifierClientError;
 
 #[derive(Clone, Debug)]
 pub struct VerifierClient {

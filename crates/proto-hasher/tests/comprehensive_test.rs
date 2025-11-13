@@ -4,7 +4,6 @@ use std::collections::HashMap;
 
 use lazy_static::lazy_static;
 use prost_reflect::{DescriptorPool, DynamicMessage, MapKey, MessageDescriptor, Value};
-
 use proto_hasher::ProtoHasher;
 
 lazy_static! {

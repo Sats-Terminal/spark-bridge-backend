@@ -1,8 +1,9 @@
+use std::{path::Path, sync::Arc};
+
 use breez_sdk_spark::{
     BreezSdk, Config, Network, PrepareSendPaymentResponse, SdkBuilder, Seed, SendPaymentMethod, SendPaymentRequest,
     SqliteStorage,
 };
-use std::{path::Path, sync::Arc};
 
 use crate::common::error::SparkClientError;
 

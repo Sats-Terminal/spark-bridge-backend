@@ -1,14 +1,18 @@
-use crate::storage::LocalDbStorage;
+use std::{
+    fmt::{Debug, Display, Formatter},
+    str::FromStr,
+};
+
 use async_trait::async_trait;
 use bitcoin::{Address, OutPoint};
 use frost::types::TweakBytes;
 use persistent_storage::error::DbError;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
-use std::fmt::{Debug, Display, Formatter};
-use std::str::FromStr;
 use tracing::instrument;
 use uuid::Uuid;
+
+use crate::storage::LocalDbStorage;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum InnerAddress {
@@ -74,9 +78,10 @@ impl std::str::FromStr for FeePayment {
     type Err = DbError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let Some((txid_str, vout_str)) = s.split_once(':')
-            && let (Ok(txid), Ok(vout)) = (bitcoin::Txid::from_str(txid_str), vout_str.parse::<u32>()) {
-                return Ok(FeePayment::Btc(bitcoin::OutPoint { txid, vout }));
-            }
+            && let (Ok(txid), Ok(vout)) = (bitcoin::Txid::from_str(txid_str), vout_str.parse::<u32>())
+        {
+            return Ok(FeePayment::Btc(bitcoin::OutPoint { txid, vout }));
+        }
         Ok(FeePayment::Spark(s.to_owned()))
     }
 }

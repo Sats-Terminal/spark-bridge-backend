@@ -1,9 +1,9 @@
+use std::sync::Arc;
+
 use eyre::Result;
 use frost::signer::FrostSigner;
-use global_utils::config_path::ConfigPath;
-use global_utils::logger::init_logger;
+use global_utils::{config_path::ConfigPath, logger::init_logger};
 use persistent_storage::{config::PostgresDbCredentials, init::PostgresRepo};
-use std::sync::Arc;
 use tokio::net::TcpListener;
 use tracing::instrument;
 use verifier_config_parser::config::ServerConfig;

@@ -1,7 +1,4 @@
-use crate::errors::VerifierError;
-use crate::init::AppState;
-use axum::Json;
-use axum::extract::State;
+use axum::{Json, extract::State};
 use bitcoin::OutPoint;
 use frost::types::TweakBytes;
 use serde::{Deserialize, Serialize};
@@ -9,11 +6,13 @@ use spark_balance_checker_server::models::VerifyTransferRequest;
 use tracing::instrument;
 use uuid::Uuid;
 use verifier_btc_indexer_client::client::WatchRunesDepositRequest as IndexerWatchRunesDepositRequest;
-use verifier_local_db_store::schemas::deposit_address::{
-    DepositAddrInfo, DepositAddressStorage, DepositStatus, FeePayment, InnerAddress,
+use verifier_local_db_store::schemas::{
+    deposit_address::{DepositAddrInfo, DepositAddressStorage, DepositStatus, FeePayment, InnerAddress},
+    user_identifier::{UserIdentifierStorage, UserIds},
 };
-use verifier_local_db_store::schemas::user_identifier::{UserIdentifierStorage, UserIds};
 use verifier_spark_balance_checker_client::client::cast_deposit_status;
+
+use crate::{errors::VerifierError, init::AppState};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WatchRunesDepositRequest {

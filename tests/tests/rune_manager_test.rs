@@ -2,7 +2,6 @@ mod common;
 
 use bitcoin::Network;
 use btc_indexer_config::{IndexerClientConfig, TitanClientConfig};
-use global_utils::logger::init_logger;
 use common::{
     bitcoin_client::{BitcoinClient, BitcoinClientConfig, BitcoinRegtestClient},
     constants::{BLOCKS_TO_GENERATE, DEFAULT_FAUCET_AMOUNT},
@@ -11,6 +10,7 @@ use common::{
     user_wallet::{TransferType, UserWallet},
     utils::create_credentials,
 };
+use global_utils::logger::init_logger;
 
 #[tokio::test]
 async fn test_rune_manager() {

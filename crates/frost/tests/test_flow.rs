@@ -1,15 +1,20 @@
 mod tests {
-    use bitcoin::key::TapTweak;
-    use bitcoin::key::UntweakedPublicKey;
-    use bitcoin::secp256k1::{PublicKey, Secp256k1};
-    use frost::traits::AggregatorDkgShareStorage;
-    use frost::types::{AggregatorDkgShareData, AggregatorDkgState, SigningMetadata, TweakBytes};
-    use frost::utils::generate_tweak_bytes;
-    use frost::{aggregator::FrostAggregator, mocks::*, signer::FrostSigner, traits::SignerClient};
+    use std::{collections::BTreeMap, str::FromStr, sync::Arc};
+
+    use bitcoin::{
+        key::{TapTweak, UntweakedPublicKey},
+        secp256k1::{PublicKey, Secp256k1},
+    };
+    use frost::{
+        aggregator::FrostAggregator,
+        mocks::*,
+        signer::FrostSigner,
+        traits::{AggregatorDkgShareStorage, SignerClient},
+        types::{AggregatorDkgShareData, AggregatorDkgState, SigningMetadata, TweakBytes},
+        utils::generate_tweak_bytes,
+    };
     use frost_secp256k1_tr::{Identifier, keys::Tweak};
     use global_utils::common_types::get_uuid;
-    use std::str::FromStr;
-    use std::{collections::BTreeMap, sync::Arc};
     use uuid::Uuid;
 
     #[tokio::test]

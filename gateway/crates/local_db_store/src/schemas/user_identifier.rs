@@ -1,13 +1,13 @@
-use crate::storage::LocalDbStorage;
+use std::{fmt::Debug, str::FromStr};
+
 use async_trait::async_trait;
+use bitcoin::secp256k1::{PublicKey, XOnlyPublicKey};
 use persistent_storage::error::DbError;
 use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
 use tracing::instrument;
 use uuid::Uuid;
-use bitcoin::secp256k1::PublicKey;
-use bitcoin::secp256k1::XOnlyPublicKey;
-use std::str::FromStr;
+
+use crate::storage::LocalDbStorage;
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum UserId {
@@ -41,7 +41,10 @@ impl FromStr for UserId {
         if x_only_public_key_response.is_ok() {
             return Ok(UserId::XOnlyPublicKey(x_only_public_key_response.unwrap()));
         }
-        Err(DbError::DecodeError(format!("Invalid user id, it is not uuid, public key or x only public key: {}", s)))
+        Err(DbError::DecodeError(format!(
+            "Invalid user id, it is not uuid, public key or x only public key: {}",
+            s
+        )))
     }
 }
 
@@ -89,7 +92,7 @@ impl UserIdentifierStorage for LocalDbStorage {
         .fetch_optional(&self.get_conn().await?)
         .await
         .map_err(|e| DbError::BadRequest(e.to_string()))?;
-        
+
         match result {
             Some((user_id, dkg_share_id, rune_id, is_issuer)) => Ok(Some(UserIds {
                 user_id: UserId::from_str(&user_id)?,
@@ -148,22 +151,23 @@ impl UserIdentifierStorage for LocalDbStorage {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::schemas::dkg_share::DkgShareGenerate;
+    use std::{collections::BTreeMap, sync::Arc};
+
     use bitcoin::secp256k1::{Secp256k1, SecretKey};
-    use frost::aggregator::FrostAggregator;
-    use frost::mocks::*;
-    use frost::signer::FrostSigner;
-    use frost::traits::SignerClient;
-    use frost::traits::*;
-    use frost::types::{SigningMetadata, TweakBytes};
-    use frost::utils::generate_tweak_bytes;
-    use frost_secp256k1_tr::Identifier;
-    use frost_secp256k1_tr::keys::Tweak;
+    use frost::{
+        aggregator::FrostAggregator,
+        mocks::*,
+        signer::FrostSigner,
+        traits::{SignerClient, *},
+        types::{SigningMetadata, TweakBytes},
+        utils::generate_tweak_bytes,
+    };
+    use frost_secp256k1_tr::{Identifier, keys::Tweak};
     use gateway_config_parser::config::ServerConfig;
     use persistent_storage::init::{PostgresPool, PostgresRepo};
-    use std::collections::BTreeMap;
-    use std::sync::Arc;
+
+    use super::*;
+    use crate::schemas::dkg_share::DkgShareGenerate;
 
     pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
     pub const GATEWAY_CONFIG_PATH: &str = "../../../infrastructure/configurations/gateway/dev.toml";

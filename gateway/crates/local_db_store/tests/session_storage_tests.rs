@@ -1,13 +1,15 @@
 #[cfg(test)]
 mod tests {
-    use bitcoin::Network;
-    use gateway_local_db_store::schemas::session::{RequestType, SessionInfo, SessionStatus, SessionStorage};
-    use gateway_local_db_store::storage::LocalDbStorage;
-    use global_utils::common_types::get_uuid;
-    use persistent_storage::error::DbError;
-    use persistent_storage::init::PostgresRepo;
-    use sqlx::types::Json;
     use std::sync::Arc;
+
+    use bitcoin::Network;
+    use gateway_local_db_store::{
+        schemas::session::{RequestType, SessionInfo, SessionStatus, SessionStorage},
+        storage::LocalDbStorage,
+    };
+    use global_utils::common_types::get_uuid;
+    use persistent_storage::{error::DbError, init::PostgresRepo};
+    use sqlx::types::Json;
 
     pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
 

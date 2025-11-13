@@ -1,23 +1,24 @@
-use crate::utils::common::{CONFIG_PATH, obtain_random_localhost_socket_addr};
-use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
-use axum::routing::{get, post};
-use axum::{Json, Router, debug_handler};
+use std::{net::SocketAddr, str::FromStr, sync::Arc};
+
+use axum::{
+    Json, Router, debug_handler,
+    http::StatusCode,
+    response::{IntoResponse, Response},
+    routing::{get, post},
+};
 use axum_test::TestServer;
 use eyre::eyre;
 use frost::signer::FrostSigner;
-use global_utils::common_resp::Empty;
-use global_utils::config_path::ConfigPath;
+use global_utils::{common_resp::Empty, config_path::ConfigPath};
 use persistent_storage::init::{PostgresPool, PostgresRepo};
-use std::net::SocketAddr;
-use std::str::FromStr;
-use std::sync::Arc;
 use tokio::net::TcpListener;
 use tracing::info;
 use url::Url;
 use verifier_config_parser::config::ServerConfig;
 use verifier_local_db_store::storage::LocalDbStorage;
 use verifier_server::init::{VerifierApi, create_app};
+
+use crate::utils::common::{CONFIG_PATH, obtain_random_localhost_socket_addr};
 
 pub async fn init_mocked_test_server(pool: PostgresPool) -> eyre::Result<TestServer> {
     let config_path = ConfigPath {

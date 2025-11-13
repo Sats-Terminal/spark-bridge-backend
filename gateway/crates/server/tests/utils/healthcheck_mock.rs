@@ -1,33 +1,35 @@
-use crate::utils::common::obtain_random_localhost_socket_addr;
-use crate::utils::common::{CONFIG_PATH, PATH_TO_AMAZON_CA, PATH_TO_FLASHNET};
-use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
-use axum::routing::{get, post};
-use axum::{Json, Router, debug_handler};
+use std::{
+    collections::{BTreeMap, HashMap},
+    sync::Arc,
+};
+
+use axum::{
+    Json, Router, debug_handler,
+    http::StatusCode,
+    response::{IntoResponse, Response},
+    routing::{get, post},
+};
 use axum_test::TestServer;
 use bitcoin::Network;
 use eyre::eyre;
-use frost::aggregator::FrostAggregator;
-use frost::traits::SignerClient;
+use frost::{aggregator::FrostAggregator, traits::SignerClient};
 use frost_secp256k1_tr::Identifier;
 use gateway_config_parser::config::ServerConfig;
-use gateway_deposit_verification::aggregator::DepositVerificationAggregator;
-use gateway_deposit_verification::traits::VerificationClient;
+use gateway_deposit_verification::{aggregator::DepositVerificationAggregator, traits::VerificationClient};
 use gateway_dkg_pregen::dkg_pregen_thread::DkgPregenThread;
 use gateway_flow_processor::init::create_flow_processor;
 use gateway_local_db_store::storage::LocalDbStorage;
 use gateway_server::init::create_app;
 use gateway_verifier_client::client::VerifierClient;
-use global_utils::common_resp::Empty;
-use global_utils::config_path::ConfigPath;
+use global_utils::{common_resp::Empty, config_path::ConfigPath};
 use persistent_storage::init::{PostgresPool, PostgresRepo};
 use spark_client::common::config::CertificateConfig;
-use std::collections::{BTreeMap, HashMap};
-use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio_util::task::{TaskTracker, task_tracker};
 use tracing::{info, instrument};
 use verifier_server::init::VerifierApi;
+
+use crate::utils::common::{CONFIG_PATH, PATH_TO_AMAZON_CA, PATH_TO_FLASHNET, obtain_random_localhost_socket_addr};
 
 #[instrument(skip(pool))]
 pub async fn init_mocked_test_server(pool: PostgresPool) -> eyre::Result<TestServer> {

@@ -1,5 +1,5 @@
-use crate::flow_router::FlowProcessorRouter;
-use crate::types::*;
+use std::{collections::HashMap, sync::Arc};
+
 use bitcoin::Network;
 use btc_indexer_client::client_api::IndexerClient;
 use frost::aggregator::FrostAggregator;
@@ -9,16 +9,12 @@ use gateway_rune_transfer::bitcoin_client::BitcoinClient;
 use gateway_spark_service::service::SparkService;
 use global_utils::common_types::get_uuid;
 use spark_client::client::SparkRpcClient;
-use std::collections::HashMap;
-use std::sync::Arc;
-use tokio;
-use tokio::sync::mpsc;
-use tokio::task::JoinHandle;
-use tokio::time::Duration;
+use tokio::{self, sync::mpsc, task::JoinHandle, time::Duration};
 use tokio_util::sync::CancellationToken;
-use tracing;
-use tracing::instrument;
+use tracing::{self, instrument};
 use uuid::Uuid;
+
+use crate::{flow_router::FlowProcessorRouter, types::*};
 
 // This is core struct that handles flows execution
 // For each request it creates a thread that runs the flow

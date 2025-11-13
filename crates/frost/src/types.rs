@@ -1,3 +1,8 @@
+use std::{
+    collections::BTreeMap,
+    fmt::{Debug, Formatter},
+};
+
 use frost_secp256k1_tr::{
     Identifier, Signature, SigningPackage,
     keys::{
@@ -9,8 +14,6 @@ use frost_secp256k1_tr::{
 };
 use serde::{Deserialize, Serialize};
 use spark_protos::spark_token::TokenTransaction;
-use std::collections::BTreeMap;
-use std::fmt::{Debug, Formatter};
 use uuid::Uuid;
 
 pub type TweakBytes = [u8; 32];

@@ -45,8 +45,10 @@ use std::{string::String, vec::Vec};
 
 use bech32::{self, Bech32m, Hrp};
 use hex::{decode as hex_to_bytes, encode as bytes_to_hex};
-use spark_invoice::SparkInvoiceFields;
-use spark_invoice::proto::{read_varint_u32, write_len_prefixed_bytes, write_varint_u32};
+use spark_invoice::{
+    SparkInvoiceFields,
+    proto::{read_varint_u32, write_len_prefixed_bytes, write_varint_u32},
+};
 /* ------------------------------------------------------------- *
  *  Network ⇄ HRP                                                 *
  * ------------------------------------------------------------- */
@@ -382,14 +384,16 @@ fn _validate_pubkey(_: &str) {}
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use core::str::FromStr;
+
     use bitcoin::secp256k1::PublicKey;
     use chrono::{DateTime, NaiveDateTime, Utc};
-    use core::str::FromStr;
     use lazy_static::lazy_static;
     use spark_invoice::{PaymentType, SatsPayment, TokensPayment};
     use token_identifier::TokenIdentifier;
     use uuid::Uuid;
+
+    use super::*;
 
     const PUBKEY: &str = "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
     const MAINNET_ADDRESS: &str = "sp1pgssy7d7vel0nh9m4326qc54e6rskpczn07dktww9rv4nu5ptvt0s9ucez8h3s";

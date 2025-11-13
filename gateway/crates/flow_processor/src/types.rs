@@ -1,7 +1,8 @@
-use crate::error::FlowProcessorError;
 use bitcoin::Address;
-use tokio::sync::oneshot;
 use gateway_local_db_store::schemas::user_identifier::UserId;
+use tokio::sync::oneshot;
+
+use crate::error::FlowProcessorError;
 
 pub type OneshotFlowProcessorSender = oneshot::Sender<Result<FlowProcessorResponse, FlowProcessorError>>;
 pub type OneshotFlowProcessorReceiver = oneshot::Receiver<Result<FlowProcessorResponse, FlowProcessorError>>;

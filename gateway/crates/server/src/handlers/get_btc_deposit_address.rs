@@ -1,12 +1,12 @@
-use crate::error::GatewayError;
-use crate::init::AppState;
+use std::str::FromStr;
+
 use axum::{Json, extract::State};
-use gateway_flow_processor::flow_sender::TypedMessageSender;
-use gateway_flow_processor::types::IssueBtcDepositAddressRequest;
+use gateway_flow_processor::{flow_sender::TypedMessageSender, types::IssueBtcDepositAddressRequest};
+use gateway_local_db_store::schemas::user_identifier::UserId;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
-use std::str::FromStr;
-use gateway_local_db_store::schemas::user_identifier::UserId;
+
+use crate::{error::GatewayError, init::AppState};
 
 #[derive(Deserialize, Debug)]
 pub struct GetBtcDepositAddressRequest {
@@ -40,7 +40,8 @@ pub async fn handle(
         request_uuid
     );
 
-    let user_id = UserId::from_str(&request.user_id).map_err(|e| GatewayError::InvalidData(format!("Invalid user id: {}", e)))?;
+    let user_id =
+        UserId::from_str(&request.user_id).map_err(|e| GatewayError::InvalidData(format!("Invalid user id: {}", e)))?;
 
     let possible_response = state
         .flow_sender
@@ -68,6 +69,6 @@ pub async fn handle(
                 btc_address: fee_cfg.btc_address.clone(),
                 spark_address: fee_cfg.spark_address.clone(),
             }),
-        }
+        },
     }))
 }

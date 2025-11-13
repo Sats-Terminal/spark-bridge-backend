@@ -1,16 +1,19 @@
-use crate::handlers;
-use axum::Router;
-use axum::routing::{get, post};
+use std::sync::Arc;
+
+use axum::{
+    Router,
+    routing::{get, post},
+};
 use bitcoin::Network;
 use gateway_config_parser::config::{FeeConfig, VerifiersConfig};
 use gateway_deposit_verification::aggregator::DepositVerificationAggregator;
 use gateway_dkg_pregen::dkg_pregen_thread::DkgPregenThread;
 use gateway_flow_processor::flow_sender::FlowSender;
 use gateway_verifier_client::client::VerifierClient;
-use std::sync::Arc;
-use tokio_util::sync::CancellationToken;
-use tokio_util::task::TaskTracker;
+use tokio_util::{sync::CancellationToken, task::TaskTracker};
 use tracing::instrument;
+
+use crate::handlers;
 
 #[derive(Clone)]
 pub struct AppState {
