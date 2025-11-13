@@ -1,12 +1,13 @@
 mod utils;
 mod tests {
+    use std::{str::FromStr, sync::Arc};
+
     use bitcoin::{Network, OutPoint, Txid};
-    use gateway_local_db_store::schemas::utxo_storage::{Utxo, UtxoStatus, UtxoStorage};
-    use gateway_local_db_store::storage::LocalDbStorage;
-    use persistent_storage::error::DbError;
-    use persistent_storage::init::PostgresRepo;
-    use std::str::FromStr;
-    use std::sync::Arc;
+    use gateway_local_db_store::{
+        schemas::utxo_storage::{Utxo, UtxoStatus, UtxoStorage},
+        storage::LocalDbStorage,
+    };
+    use persistent_storage::{error::DbError, init::PostgresRepo};
 
     pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
 

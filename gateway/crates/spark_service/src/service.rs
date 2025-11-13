@@ -1,30 +1,34 @@
-use crate::errors::SparkServiceError;
-use crate::types::create_partial_token_transaction;
-use crate::types::*;
-use bitcoin::hashes::sha256::Hash as Sha256Hash;
-use bitcoin::hashes::{Hash, HashEngine, sha256};
-use bitcoin::secp256k1::PublicKey;
-use frost::aggregator::FrostAggregator;
-use frost::types::SigningMetadata;
-use frost::types::TweakBytes;
+use std::sync::Arc;
+
+use bitcoin::{
+    hashes::{Hash, HashEngine, sha256, sha256::Hash as Sha256Hash},
+    secp256k1::PublicKey,
+};
+use frost::{
+    aggregator::FrostAggregator,
+    types::{SigningMetadata, TweakBytes},
+};
 use futures::future::join_all;
 use global_utils::conversion::spark_network_to_proto_network;
-use lrc20::marshal::marshal_token_transaction;
-use lrc20::marshal::unmarshal_token_transaction;
+use lrc20::marshal::{marshal_token_transaction, unmarshal_token_transaction};
 use proto_hasher::ProtoHasher;
 use spark_address::Network;
 use spark_client::client::SparkRpcClient;
-use spark_protos::prost::Message;
-use spark_protos::reflect::ToDynamicMessage;
-use spark_protos::spark_authn::GetChallengeRequest;
-use spark_protos::spark_authn::VerifyChallengeRequest;
-use spark_protos::spark_token::CommitTransactionRequest;
-use spark_protos::spark_token::InputTtxoSignaturesPerOperator;
-use spark_protos::spark_token::SignatureWithIndex;
-use spark_protos::spark_token::StartTransactionRequest;
-use std::sync::Arc;
+use spark_protos::{
+    prost::Message,
+    reflect::ToDynamicMessage,
+    spark_authn::{GetChallengeRequest, VerifyChallengeRequest},
+    spark_token::{
+        CommitTransactionRequest, InputTtxoSignaturesPerOperator, SignatureWithIndex, StartTransactionRequest,
+    },
+};
 use token_identifier::TokenIdentifier;
 use uuid::Uuid;
+
+use crate::{
+    errors::SparkServiceError,
+    types::{create_partial_token_transaction, *},
+};
 
 const DEFAULT_VALIDITY_DURATION_SECONDS: u64 = 300;
 

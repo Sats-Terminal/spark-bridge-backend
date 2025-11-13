@@ -1,6 +1,6 @@
+use prost_reflect::{DescriptorError, DescriptorPool, DynamicMessage, MessageDescriptor, prost::DecodeError};
+
 use crate::{SPARK_FILE_DESCRIPTOR_SET, spark_token};
-use prost_reflect::prost::DecodeError;
-use prost_reflect::{DescriptorError, DescriptorPool, DynamicMessage, MessageDescriptor};
 
 pub trait ToDynamicMessage {
     fn to_dynamic(&self) -> Result<DynamicMessage, SparkProtoReflectError>;

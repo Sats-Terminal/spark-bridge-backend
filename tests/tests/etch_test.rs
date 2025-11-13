@@ -1,3 +1,7 @@
+mod common;
+
+use std::{str::FromStr, time::Duration};
+
 use bitcoin::{
     Address, Amount, Network, OutPoint, Transaction, TxIn, TxOut, Txid, Witness, XOnlyPublicKey,
     blockdata::opcodes::all::OP_CHECKSIG,
@@ -10,12 +14,11 @@ use bitcoin::{
     transaction::Version,
 };
 use btc_indexer_config::{IndexerClientConfig, TitanClientConfig};
+use common::bitcoin_client::{BitcoinClient, BitcoinClientConfig, BitcoinRegtestClient};
 use global_utils::logger::init_logger;
 use ord::Inscription;
 use ordinals::{Etching, Rune, Runestone, Terms};
 use rand_core::{OsRng, RngCore};
-use std::{str::FromStr, time::Duration};
-use tests::bitcoin_client::{BitcoinClient, BitcoinClientConfig, BitcoinRegtestClient};
 use tokio::time::sleep;
 use tracing;
 

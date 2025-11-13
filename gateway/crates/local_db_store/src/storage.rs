@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use bitcoin::Network;
 use gateway_config_parser::config::ServerConfig;
 use global_utils::config_path::ConfigPath;
@@ -6,7 +8,6 @@ pub(crate) use persistent_storage::{
     config::*,
     init::{PostgresPool, PostgresRepo},
 };
-use std::sync::Arc;
 
 #[derive(Clone, Debug)]
 pub struct LocalDbStorage {

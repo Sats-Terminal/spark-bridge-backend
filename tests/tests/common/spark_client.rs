@@ -1,31 +1,37 @@
-use crate::error::SparkClientError;
-use bitcoin::hashes::{Hash, sha256};
-use bitcoin::secp256k1::PublicKey;
-use bitcoin::secp256k1::{Keypair, Message as BitcoinMessage, Secp256k1};
+use std::{
+    collections::HashMap,
+    str::FromStr,
+    sync::Once,
+    time::{SystemTime, UNIX_EPOCH},
+};
+
+use bitcoin::{
+    hashes::{Hash, sha256},
+    secp256k1::{Keypair, Message as BitcoinMessage, PublicKey, Secp256k1},
+};
 use global_utils::conversion::{convert_network_to_spark_network, spark_network_to_proto_network};
 use hex;
 use rand_core::OsRng;
-use rustls;
-use rustls::crypto::CryptoProvider;
+use rustls::{self, crypto::CryptoProvider};
 use spark_address::decode_spark_address;
-use spark_protos::prost::Message;
-use spark_protos::spark::spark_service_client::SparkServiceClient;
-use spark_protos::spark_authn::spark_authn_service_client::SparkAuthnServiceClient;
-use spark_protos::spark_authn::{GetChallengeRequest, VerifyChallengeRequest};
-use spark_protos::spark_token::QueryTokenOutputsRequest;
-use spark_protos::spark_token::spark_token_service_client::SparkTokenServiceClient;
-use spark_protos::spark_token::{
-    CommitTransactionRequest, CommitTransactionResponse, StartTransactionRequest, StartTransactionResponse,
+use spark_protos::{
+    prost::Message,
+    spark::spark_service_client::SparkServiceClient,
+    spark_authn::{GetChallengeRequest, VerifyChallengeRequest, spark_authn_service_client::SparkAuthnServiceClient},
+    spark_token::{
+        CommitTransactionRequest, CommitTransactionResponse, QueryTokenOutputsRequest, StartTransactionRequest,
+        StartTransactionResponse, spark_token_service_client::SparkTokenServiceClient,
+    },
 };
-use std::collections::HashMap;
-use std::str::FromStr;
-use std::sync::Once;
-use std::time::{SystemTime, UNIX_EPOCH};
 use token_identifier::TokenIdentifier;
-use tonic::Request;
-use tonic::metadata::MetadataValue;
-use tonic::transport::{Certificate, Channel, ClientTlsConfig, Uri};
+use tonic::{
+    Request,
+    metadata::MetadataValue,
+    transport::{Certificate, Channel, ClientTlsConfig, Uri},
+};
 use tracing;
+
+use crate::common::error::SparkClientError;
 
 pub fn current_epoch_time_in_seconds() -> u64 {
     let now = SystemTime::now();

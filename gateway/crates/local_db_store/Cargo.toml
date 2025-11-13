@@ -6,7 +6,6 @@ edition = "2024"
 [dependencies]
 async-trait = { workspace = true }
 bitcoin = { workspace = true }
-chrono = { workspace = true }
 eyre = { workspace = true }
 frost = { workspace = true }
 gateway_config_parser = { workspace = true }
@@ -22,7 +21,5 @@ tracing = { workspace = true }
 uuid = { workspace = true }
 
 [dev-dependencies]
-dotenvy = { workspace = true }
 frost = { workspace = true }
 frost-secp256k1-tr = { workspace = true }
-futures = { workspace = true }

@@ -1,17 +1,17 @@
-use crate::errors::RuneTransferError;
-use bitcoin::hashes::Hash;
-use bitcoin::key::TapTweak;
-use bitcoin::secp256k1::Keypair;
-use bitcoin::secp256k1::Message;
-use bitcoin::secp256k1::Secp256k1;
-use bitcoin::secp256k1::SecretKey;
-use bitcoin::secp256k1::schnorr::Signature;
-use bitcoin::sighash::{Prevouts, SighashCache, TapSighashType};
-use bitcoin::taproot::Signature as TaprootSignature;
-use bitcoin::transaction::Version;
-use bitcoin::{Address, Amount, OutPoint, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Txid, Witness};
-use ordinals::{Edict, RuneId, Runestone};
 use std::str::FromStr;
+
+use bitcoin::{
+    Address, Amount, OutPoint, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Txid, Witness,
+    hashes::Hash,
+    key::TapTweak,
+    secp256k1::{Keypair, Message, Secp256k1, SecretKey, schnorr::Signature},
+    sighash::{Prevouts, SighashCache, TapSighashType},
+    taproot::Signature as TaprootSignature,
+    transaction::Version,
+};
+use ordinals::{Edict, RuneId, Runestone};
+
+use crate::errors::RuneTransferError;
 
 #[derive(Clone, Debug)]
 pub struct PayingTransferInput {

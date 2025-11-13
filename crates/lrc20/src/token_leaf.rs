@@ -1,6 +1,5 @@
 use bitcoin::{BlockHash, Txid, absolute::LockTime as AbsoluteLocktime, hashes::sha256::Hash, secp256k1};
 use serde::{Deserialize, Serialize};
-
 use token_identifier::TokenIdentifier;
 
 /// Represents the data structure for a Spark LRC-20 token leaf node.

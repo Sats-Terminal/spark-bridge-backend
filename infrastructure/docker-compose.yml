@@ -1,239 +1,242 @@
-name: runes-spark-bridge_gateway
+name: runes-spark-bridge
 services:
   # ====== Gateway ======
-  persistent-db-storage_gateway:
-    image: postgres:17.5-alpine3.22
+  gateway-db:
+    container_name: gateway-db
+    image: postgres:17
     restart: always
-    networks:
-      all-network:
     ports:
-      - "5470:5432"
+      - "8730:5432"
     environment:
-      - POSTGRES_USER=${POSTGRES_USER:-admin_manager}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
-      - POSTGRES_HOST=persistent-db-storage_gateway
-      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
-      - POSTGRES_DB=${POSTGRES_DB:-production_db_name}
+      - POSTGRES_USER=gateway
+      - POSTGRES_PASSWORD=gateway
+      - POSTGRES_DB=gateway
       - PGDATA=/pgdata
     volumes:
-      - service-data_gateway:/pgdata
+      - "gateway-db-data:/pgdata"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gateway"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
-  gateway-service:
+  gateway-svc:
+    container_name: gateway-svc
     build:
-      context: ./../
+      context: ../
       dockerfile: ./gateway/infrastructure/Dockerfile
     restart: always
-    networks:
-      all-network:
     environment:
-      - ${BITCOIN_NETWORK:-regtest}
-      - RUST_LOG=trace
+      - RUST_LOG=debug,sqlx=info
       - CONFIG_PATH=/config.toml
-      - DATABASE_URL=postgres://${POSTGRES_USER:-admin_manager}:${POSTGRES_PASSWORD:-password}@persistent-db-storage_gateway:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-production_db_name}
+      - DATABASE_URL=postgres://gateway:gateway@gateway-db/gateway
     ports:
-      - "8070:8060"
+      - "9430:8060"
+    command: sh -c "sqlx migrate run && gateway_main"
+    depends_on:
+      - gateway-db
+      - verifier-1-svc
+      - verifier-2-svc
+      - verifier-3-svc
+    volumes:
+      - ./configurations/gateway.toml:/config.toml
+      - ./configurations/certificates/Amazon-Root-CA.pem:/Amazon-Root-CA.pem
+      - ./configurations/certificates/Flashnet-CA.pem:/Flashnet-CA.pem
     healthcheck:
-      test: [ "CMD", "curl", "-X", "GET", "-f", "http://localhost:8060/health" ]
+      test: ["CMD", "curl", "-X", "GET", "-f", "http://localhost:8060/health"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 10s
-    entrypoint: sh -c "sqlx migrate run && gateway_main"
-    depends_on:
-      - persistent-db-storage_gateway
-      - verifier1-service
-      - verifier2-service
-      - verifier3-service
-    volumes:
-      - ./configurations/gateway/production.toml:/config.toml
-      - ./configurations/certificates/Amazon-Root-CA.pem:/configuration_gateway/Amazon-Root-CA.pem
-      - ./configurations/certificates/Flashnet-CA.pem:/configuration_gateway/Flashnet-CA.pem
 
   # ====== Verifier 1 ======
-  persistent-db-storage_verifier_1:
-    image: postgres:17.5-alpine3.22
+  verifier-1-db:
+    container_name: verifier-1-db
+    image: postgres:17
     restart: always
-    networks:
-      all-network:
     ports:
-      - "5471:5432"
+      - "8731:5432"
     environment:
-      - POSTGRES_USER=${POSTGRES_USER:-admin_manager}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
-      - POSTGRES_HOST=persistent-db-storage_verifier_1
-      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
-      - POSTGRES_DB=${POSTGRES_DB:-production_db_name}
+      - POSTGRES_USER=verifier
+      - POSTGRES_PASSWORD=verifier
+      - POSTGRES_DB=verifier
       - PGDATA=/pgdata
     volumes:
-      - service-data_verifier_1:/pgdata
+      - verifier-1-db-data:/pgdata
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U verifier"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
-  verifier1-service:
+  verifier-1-svc:
+    container_name: verifier-1-svc
     build:
-      context: ./../
+      context: ../
       dockerfile: ./verifier/infrastructure/Dockerfile
     restart: always
-    networks:
-      all-network:
     environment:
-      - RUST_LOG=trace
+      - RUST_LOG=debug,sqlx=info
       - CONFIG_PATH=/config.toml
-      - DATABASE_URL=postgres://${POSTGRES_USER:-admin_manager}:${POSTGRES_PASSWORD:-password}@persistent-db-storage_verifier_1:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-production_db_name}
+      - DATABASE_URL=postgres://verifier:verifier@verifier-1-db/verifier
     ports:
-      - "8071:8070"
+      - "9431:8070"
+    command: sh -c "sqlx migrate run && verifier_main"
+    depends_on:
+      - verifier-1-db
+    volumes:
+      - ./configurations/verifier_1.toml:/config.toml
     healthcheck:
-      test: [ "CMD", "curl", "-X", "GET", "-f", "http://localhost:8070/health" ]
+      test: ["CMD", "curl", "-X", "GET", "-f", "http://localhost:8070/health"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 10s
-    entrypoint: sh -c "sqlx migrate run && verifier_main"
-    depends_on:
-      - persistent-db-storage_verifier_1
-    volumes:
-      - ./configurations/verifier_1/production.toml:/config.toml
 
   # ====== Verifier 2 ======
-  persistent-db-storage_verifier_2:
-    image: postgres:17.5-alpine3.22
+  verifier-2-db:
+    container_name: verifier-2-db
+    image: postgres:17
     restart: always
-    networks:
-      all-network:
     ports:
-      - "5472:5432"
+      - "8732:5432"
     environment:
-      - POSTGRES_USER=${POSTGRES_USER:-admin_manager}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
-      - POSTGRES_HOST=persistent-db-storage_verifier_2
-      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
-      - POSTGRES_DB=${POSTGRES_DB:-production_db_name}
+      - POSTGRES_USER=verifier
+      - POSTGRES_PASSWORD=verifier
+      - POSTGRES_DB=verifier
       - PGDATA=/pgdata
     volumes:
-      - service-data_verifier_2:/pgdata
+      - verifier-2-db-data:/pgdata
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U verifier"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
-  verifier2-service:
+  verifier-2-svc:
+    container_name: verifier-2-svc
     build:
-      context: ./../
+      context: ../
       dockerfile: ./verifier/infrastructure/Dockerfile
     restart: always
-    networks:
-      all-network:
     environment:
-      - RUST_LOG=trace
+      - RUST_LOG=debug,sqlx=info
       - CONFIG_PATH=/config.toml
-      - DATABASE_URL=postgres://${POSTGRES_USER:-admin_manager}:${POSTGRES_PASSWORD:-password}@persistent-db-storage_verifier_2:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-production_db_name}
+      - DATABASE_URL=postgres://verifier:verifier@verifier-2-db/verifier
     ports:
-      - "8072:8070"
+      - "9432:8070"
     healthcheck:
-      test: [ "CMD", "curl", "-X", "GET", "-f", "http://localhost:8070/health" ]
+      test: ["CMD", "curl", "-X", "GET", "-f", "http://localhost:8070/health"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 10s
-    entrypoint: sh -c "sqlx migrate run && verifier_main"
+    command: sh -c "sqlx migrate run && verifier_main"
     depends_on:
-      - persistent-db-storage_verifier_2
+      - verifier-2-db
     volumes:
-      - ./configurations/verifier_2/production.toml:/config.toml
+      - ./configurations/verifier_2.toml:/config.toml
 
   # ====== Verifier 3 ======
-  persistent-db-storage_verifier_3:
-    image: postgres:17.5-alpine3.22
+  verifier-3-db:
+    container_name: verifier-3-db
+    image: postgres:17
     restart: always
-    networks:
-      all-network:
     ports:
-      - "5473:5432"
+      - "8733:5432"
     environment:
-      - POSTGRES_USER=${POSTGRES_USER:-admin_manager}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
-      - POSTGRES_HOST=persistent-db-storage_verifier_3
-      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
-      - POSTGRES_DB=${POSTGRES_DB:-production_db_name}
+      - POSTGRES_USER=verifier
+      - POSTGRES_PASSWORD=verifier
+      - POSTGRES_DB=verifier
       - PGDATA=/pgdata
     volumes:
-      - service-data_verifier_3:/pgdata
+      - verifier-3-db-data:/pgdata
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U verifier"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
-  verifier3-service:
+  verifier-3-svc:
+    container_name: verifier-3-svc
     build:
-      context: ./../
+      context: ../
       dockerfile: ./verifier/infrastructure/Dockerfile
     restart: always
-    networks:
-      all-network:
     environment:
-      - RUST_LOG=trace
+      - RUST_LOG=debug,sqlx=info
       - CONFIG_PATH=/config.toml
-      - DATABASE_URL=postgres://${POSTGRES_USER:-admin_manager}:${POSTGRES_PASSWORD:-password}@persistent-db-storage_verifier_3:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-production_db_name}
+      - DATABASE_URL=postgres://verifier:verifier@verifier-3-db/verifier
     ports:
-      - "8073:8070"
+      - "9433:8070"
     healthcheck:
-      test: [ "CMD", "curl", "-X", "GET", "-f", "http://localhost:8070/health" ]
+      test: ["CMD", "curl", "-X", "GET", "-f", "http://localhost:8070/health"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 10s
-    entrypoint: sh -c "sqlx migrate run && verifier_main"
+    command: sh -c "sqlx migrate run && verifier_main"
     depends_on:
-      - persistent-db-storage_verifier_3
+      - verifier-3-db
     volumes:
-      - ./configurations/verifier_3/production.toml:/config.toml
+      - ./configurations/verifier_3.toml:/config.toml
 
-  # ===== Btc indexer =====
-
-  btc-indexer-service:
+  # ====== Btc indexer ======
+  btc-indexer-svc:
+    container_name: btc-indexer-svc
     build:
-      context: ./../
+      context: ../
       dockerfile: ./btc_indexer/infrastructure/Dockerfile
     restart: always
     environment:
-      - RUST_LOG=trace
-      - CONFIG_PATH=/configuration_indexer/production.toml
-      - TITAN_URL=http://titan:${TITAN_HTTP_PORT:-3030}
-      - BITCOIN_NETWORK=${BITCOIN_NETWORK:-regtest}
-      - BITCOIN_RPC_HOST=bitcoind
-      - BITCOIN_RPC_PORT=${BITCOIN_RPC_PORT:-18443}
-      - BITCOIN_RPC_USERNAME=${BITCOIN_RPC_USERNAME:-bitcoin}
-      - BITCOIN_RPC_PASSWORD=${BITCOIN_RPC_PASSWORD:-bitcoinpass}
-      - DATABASE_URL=postgres://${POSTGRES_USER:-admin_manager}:${POSTGRES_PASSWORD:-password}@persistent-db-storage_btc_indexer:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-production_db_name}
-    networks:
-      all-network:
-    entrypoint: sh -c "sqlx migrate run && btc_indexer"
+      - RUST_LOG=debug,sqlx=info
+      - CONFIG_PATH=/config.toml
+      - DATABASE_URL=postgres://btc_indexer:btc_indexer@btc-indexer-db/btc_indexer
+    command: sh -c "sqlx migrate run && btc_indexer"
     ports:
-      - "8060:8070"
+      - "9434:8070"
     healthcheck:
-      test: [ "CMD", "curl", "-X", "GET", "-f", "http://localhost:8070/health" ]
+      test: ["CMD", "curl", "-X", "GET", "-f", "http://localhost:8070/health"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 10s
     depends_on:
-      - persistent-db-storage_btc_indexer
+      - btc-indexer-db
       - titan
       - bitcoind
     volumes:
-      - ./configurations/btc_indexer/production.toml:/configuration_indexer/production.toml
+      - ./configurations/btc_indexer.toml:/config.toml
 
-  persistent-db-storage_btc_indexer:
-    image: postgres:17.5-alpine3.22
+  btc-indexer-db:
+    container_name: btc-indexer-db
+    image: postgres:17
     restart: always
-    networks:
-      all-network:
     ports:
-      - "5432:5432"
+      - "8734:5432"
     environment:
-      - POSTGRES_USER=${POSTGRES_USER:-admin_manager}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
-      - POSTGRES_HOST=persistent-db-storage_btc_indexer
-      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
-      - POSTGRES_DB=${POSTGRES_DB:-production_db_name}
+      - POSTGRES_USER=btc_indexer
+      - POSTGRES_PASSWORD=btc_indexer
+      - POSTGRES_DB=btc_indexer
       - PGDATA=/pgdata
     volumes:
-      - service-data_btc_indexer:/pgdata
+      - btc-indexer-db-data:/pgdata
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U btc_indexer"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   # https://github.com/SaturnBTC/Titan/blob/master/docker-compose.yml
 
   titan:
-    image: ghcr.io/${GITHUB_REPOSITORY:-saturnbtc/titan}:${DOCKER_TAG:-latest}
+    container_name: titan
+    image: ghcr.io/saturnbtc/titan:latest
     restart: always
     depends_on:
       bitcoind:
@@ -241,8 +244,6 @@ services:
     ports:
       - 0.0.0.0:${TITAN_TCP_PORT:-8080}:${TITAN_TCP_PORT:-8080}
       - 0.0.0.0:${TITAN_HTTP_PORT:-3030}:${TITAN_HTTP_PORT:-3030}
-    networks:
-      all-network:
     environment:
       - COMMIT_INTERVAL=${COMMIT_INTERVAL:-5}
       - BITCOIN_RPC_URL=http://bitcoind:${BITCOIN_RPC_PORT:-18443}
@@ -255,13 +256,12 @@ services:
       - "titan-data:/home/titan/data"
 
   bitcoind:
+    container_name: bitcoind
     image: bitcoin/bitcoin
     ports:
       - 0.0.0.0:${BITCOIN_RPC_PORT:-18443}:${BITCOIN_RPC_PORT:-18443}
     volumes:
       - "btcd-data:/var/lib/bitcoin-core"
-    networks:
-      all-network:
     command: |
       -${BITCOIN_NETWORK:-regtest}
       -rpcallowip=0.0.0.0/0
@@ -287,40 +287,35 @@ services:
       timeout: 5s
       retries: 10
 
-    # ===== Spark balance checker =====
-  spark-balance-checker-service:
+  # ====== Spark balance checker ======
+  spark-balance-checker-svc:
+    container_name: spark-balance-checker-svc
     build:
-      context: ./../
+      context: ../
       dockerfile: ./spark_balance_checker/infrastructure/Dockerfile
     restart: always
     environment:
-      - RUST_LOG=trace
-      - CONFIG_PATH=/configuration_spark_balance_checker/production.toml
-    networks:
-      all-network:
+      - RUST_LOG=debug,sqlx=info
+      - CONFIG_PATH=/config.toml
     ports:
-      - "8090:8070"
+      - "9435:8090"
     healthcheck:
-      test: [ "CMD", "curl", "-X", "GET", "-f", "http://localhost:8070/health" ]
+      test: ["CMD", "curl", "-X", "GET", "-f", "http://spark-balance-checker-svc:8090/health"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 10s
-    entrypoint: sh -c "spark_balance_checker_main"
-    #    entrypoint: tail -f /dev/null
+    command: sh -c "spark_balance_checker_main"
     volumes:
-      - ./configurations/spark_balance_checker/production.toml:/configuration_spark_balance_checker/production.toml
-      - ./configurations/certificates/Amazon-Root-CA.pem:/configuration_spark_balance_checker/Amazon-Root-CA.pem
-      - ./configurations/certificates/Flashnet-CA.pem:/configuration_spark_balance_checker/Flashnet-CA.pem
-
-networks:
-  all-network:
+      - ./configurations/spark_balance_checker.toml:/config.toml
+      - ./configurations/certificates/Amazon-Root-CA.pem:/Amazon-Root-CA.pem
+      - ./configurations/certificates/Flashnet-CA.pem:/Flashnet-CA.pem
 
 volumes:
-  service-data_gateway:
-  service-data_verifier_1:
-  service-data_verifier_2:
-  service-data_verifier_3:
-  service-data_btc_indexer:
+  gateway-db-data:
+  verifier-1-db-data:
+  verifier-2-db-data:
+  verifier-3-db-data:
+  btc-indexer-db-data:
   titan-data:
   btcd-data:

@@ -1,8 +1,10 @@
+mod common;
+
+use std::{str::FromStr, time::Duration};
+
 use bitcoin::{Address, Network, OutPoint, Txid};
 use btc_indexer_config::{IndexerClientConfig, TitanClientConfig};
-use global_utils::logger::init_logger;
-use std::{str::FromStr, time::Duration};
-use tests::{
+use common::{
     bitcoin_client::{BitcoinClient, BitcoinClientConfig, BitcoinRegtestClient},
     constants::{BLOCKS_TO_GENERATE, DEFAULT_FAUCET_AMOUNT, FEE_BTC_ADDR, FEE_SPARK_ADDR, PAYING_INPUT_SATS_AMOUNT},
     gateway_client::*,
@@ -11,6 +13,7 @@ use tests::{
     spark_client::{SparkClient, SparkClientConfig},
     user_wallet::{TransferType, UserWallet},
 };
+use global_utils::logger::init_logger;
 use tokio::time::sleep;
 
 #[tokio::test]
@@ -22,7 +25,7 @@ async fn test_spark() {
     tracing::info!("Start setup");
 
     let gateway_client = GatewayClient::new(GatewayConfig {
-        address: "http://localhost:8060".parse().unwrap(),
+        address: "http://localhost:9430".parse().unwrap(),
     });
 
     let spark_client = SparkClient::new(
@@ -145,6 +148,9 @@ async fn test_spark() {
 
     // let fee_txid = pay_fee_via_btc(&mut user_wallet, &mut bitcoin_client).await;
     let fee_txid = pay_fee_via_spark(&spark_breez_client).await;
+    // Give some time for sparkscan to index the transaction
+    // TODO: implement async approach to wait for indexation
+    sleep(Duration::from_secs(60)).await;
     tracing::info!("fee transfer txid: {:?}", fee_txid);
 
     let spark_address = user_wallet.get_spark_address().unwrap();

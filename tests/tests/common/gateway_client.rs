@@ -1,10 +1,11 @@
-use crate::error::GatewayClientError;
 use bitcoin::{OutPoint, secp256k1::schnorr::Signature};
 use reqwest::Client;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value;
 use url::Url;
 use uuid::Uuid;
+
+use crate::common::error::GatewayClientError;
 
 #[derive(Clone, Debug)]
 pub struct GatewayClient {

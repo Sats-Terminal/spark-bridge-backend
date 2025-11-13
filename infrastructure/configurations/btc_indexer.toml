@@ -9,11 +9,11 @@ tx_indexer_update_interval_millis = 1000
 start_block_height = 0
 
 [database]
-url = "postgres://postgres:postgres@127.0.0.1:5474/btc_indexer"
+url = "postgres://btc_indexer:btc_indexer@btc-indexer-db/btc_indexer"
 
 [network]
 network = "regtest"
 
 [indexer_client]
 type = "titan"
-url = "http://127.0.0.1:3030"
+url = "http://titan:3030"

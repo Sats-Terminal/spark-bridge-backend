@@ -1,11 +1,11 @@
-use crate::storage::LocalDbStorage;
 use async_trait::async_trait;
-use bitcoin::Txid;
-use bitcoin::hashes::Hash;
+use bitcoin::{Txid, hashes::Hash};
 use hex;
 use persistent_storage::error::DbError;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+
+use crate::storage::LocalDbStorage;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TxInfo {
@@ -19,11 +19,11 @@ pub struct TxInfoRow {
     pub block_height: i64,
 }
 
-impl Into<TxInfoRow> for TxInfo {
-    fn into(self) -> TxInfoRow {
+impl From<TxInfo> for TxInfoRow {
+    fn from(val: TxInfo) -> Self {
         TxInfoRow {
-            txid: self.txid.to_byte_array(),
-            block_height: self.block_height as i64,
+            txid: val.txid.to_byte_array(),
+            block_height: val.block_height as i64,
         }
     }
 }

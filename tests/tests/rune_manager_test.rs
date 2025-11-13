@@ -1,7 +1,8 @@
+mod common;
+
 use bitcoin::Network;
 use btc_indexer_config::{IndexerClientConfig, TitanClientConfig};
-use global_utils::logger::init_logger;
-use tests::{
+use common::{
     bitcoin_client::{BitcoinClient, BitcoinClientConfig, BitcoinRegtestClient},
     constants::{BLOCKS_TO_GENERATE, DEFAULT_FAUCET_AMOUNT},
     rune_manager::setup_rune_manager,
@@ -9,6 +10,7 @@ use tests::{
     user_wallet::{TransferType, UserWallet},
     utils::create_credentials,
 };
+use global_utils::logger::init_logger;
 
 #[tokio::test]
 async fn test_rune_manager() {

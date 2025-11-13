@@ -2,25 +2,25 @@ mod utils;
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::utils::common::{MIGRATOR, TEST_LOGGER};
+    use std::{collections::BTreeMap, sync::Arc};
+
     use bitcoin::secp256k1::{PublicKey, Secp256k1, SecretKey};
-    use frost::aggregator::FrostAggregator;
-    use frost::mocks::*;
-    use frost::signer::FrostSigner;
-    use frost::traits::SignerDkgShareStorage;
-    use frost::traits::SignerSignSessionStorage;
-    use frost::traits::{AggregatorDkgShareStorage, SignerClient};
-    use frost::types::{AggregatorDkgShareData, AggregatorDkgState, SigningMetadata, TweakBytes};
-    use frost::utils::generate_tweak_bytes;
-    use frost_secp256k1_tr::Identifier;
-    use frost_secp256k1_tr::keys::Tweak;
+    use frost::{
+        aggregator::FrostAggregator,
+        mocks::*,
+        signer::FrostSigner,
+        traits::{AggregatorDkgShareStorage, SignerClient, SignerDkgShareStorage, SignerSignSessionStorage},
+        types::{AggregatorDkgShareData, AggregatorDkgState, SigningMetadata, TweakBytes},
+        utils::generate_tweak_bytes,
+    };
+    use frost_secp256k1_tr::{Identifier, keys::Tweak};
     use global_utils::common_types::get_uuid;
     use persistent_storage::init::{PostgresPool, PostgresRepo};
-    use std::collections::BTreeMap;
-    use std::sync::Arc;
     use tracing::{debug, instrument};
     use verifier_local_db_store::storage::LocalDbStorage;
+
+    use super::*;
+    use crate::utils::common::{MIGRATOR, TEST_LOGGER};
 
     #[instrument]
     #[sqlx::test(migrator = "MIGRATOR")]

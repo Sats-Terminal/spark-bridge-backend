@@ -1,16 +1,13 @@
-use crate::error::RuneError;
-use bitcoin::Transaction;
-use bitcoin::key::TapTweak;
-use bitcoin::secp256k1::Message;
-use bitcoin::sighash::{Prevouts, SighashCache, TapSighashType};
-use bitcoin::taproot::Signature as TaprootSignature;
 use bitcoin::{
-    Address, Network,
-    key::UntweakedPublicKey,
-    secp256k1::{Keypair, Secp256k1},
+    Address, Amount, Network, Transaction, TxOut, Witness,
+    key::{TapTweak, UntweakedPublicKey},
+    secp256k1::{Keypair, Message, Secp256k1},
+    sighash::{Prevouts, SighashCache, TapSighashType},
+    taproot::Signature as TaprootSignature,
 };
-use bitcoin::{Amount, TxOut, Witness};
 use rand_core::OsRng;
+
+use crate::common::error::RuneError;
 
 pub fn create_credentials(network: Network, key: Option<&str>) -> (Address, Keypair) {
     let secp = Secp256k1::new();

@@ -1,10 +1,11 @@
-use crate::error::IndexerError;
 use bitcoin::OutPoint;
 use ordinals::RuneId;
 use reqwest::Client;
 use serde::Serialize;
 use url::Url;
 use uuid::Uuid;
+
+use crate::error::IndexerError;
 
 #[derive(Debug, Clone)]
 pub struct CallbackClient {
@@ -26,6 +27,12 @@ pub struct NotifyRunesDepositRequest {
     pub rune_id: Option<RuneId>,
     pub rune_amount: Option<u128>,
     pub error_details: Option<String>,
+}
+
+impl Default for CallbackClient {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl CallbackClient {

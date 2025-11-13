@@ -1,28 +1,31 @@
 mod utils;
 
 mod tests {
-    use crate::utils::common::{GATEWAY_CONFIG_PATH, MIGRATOR, TEST_LOGGER, create_mock_verifiers_map};
-    use frost::aggregator::FrostAggregator;
-    use frost::mocks::MockSignerClient;
-    use frost::traits::SignerClient;
-    use frost::types::TweakBytes;
-    use frost::utils::generate_tweak_bytes;
+    use std::{collections::BTreeMap, str::FromStr, sync::Arc};
+
+    use frost::{
+        aggregator::FrostAggregator, mocks::MockSignerClient, traits::SignerClient, types::TweakBytes,
+        utils::generate_tweak_bytes,
+    };
     use frost_secp256k1_tr::Identifier;
     use gateway_config_parser::config::ServerConfig;
-    use gateway_local_db_store::schemas::deposit_address::{
-        DepositAddrInfo, DepositAddressStorage, InnerAddress, VerifiersResponses,
+    use gateway_local_db_store::{
+        schemas::{
+            deposit_address::{DepositAddrInfo, DepositAddressStorage, InnerAddress, VerifiersResponses},
+            dkg_share::DkgShareGenerate,
+            user_identifier::UserIdentifierStorage,
+        },
+        storage::LocalDbStorage,
     };
-    use gateway_local_db_store::schemas::dkg_share::DkgShareGenerate;
-    use gateway_local_db_store::schemas::user_identifier::UserIdentifierStorage;
-    use gateway_local_db_store::storage::LocalDbStorage;
     use global_utils::common_types::get_uuid;
-    use persistent_storage::config::PostgresDbCredentials;
-    use persistent_storage::error::DbError;
-    use persistent_storage::init::{PostgresPool, PostgresRepo};
-    use std::collections::BTreeMap;
-    use std::str::FromStr;
-    use std::sync::Arc;
+    use persistent_storage::{
+        config::PostgresDbCredentials,
+        error::DbError,
+        init::{PostgresPool, PostgresRepo},
+    };
     use tracing::info;
+
+    use crate::utils::common::{GATEWAY_CONFIG_PATH, MIGRATOR, TEST_LOGGER, create_mock_verifiers_map};
 
     #[sqlx::test(migrator = "MIGRATOR")]
     async fn test_create_session(db: PostgresPool) -> eyre::Result<()> {

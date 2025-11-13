@@ -1,10 +1,11 @@
+use std::{path::Path, sync::Arc};
+
 use breez_sdk_spark::{
     BreezSdk, Config, Network, PrepareSendPaymentResponse, SdkBuilder, Seed, SendPaymentMethod, SendPaymentRequest,
     SqliteStorage,
 };
-use std::{path::Path, sync::Arc};
 
-use crate::error::SparkClientError;
+use crate::common::error::SparkClientError;
 
 pub struct SparkConfig {
     pub mnemonic: String,
@@ -35,9 +36,12 @@ impl SparkBreezClient {
         };
 
         let storage_path = Path::new(&spark_config.sqlite_storage_path);
-        let storage = SqliteStorage::new(storage_path)?;
+        let storage = SqliteStorage::new(storage_path).map_err(|err| SparkClientError::Other(err.to_string()))?;
 
-        let sdk = SdkBuilder::new(sdk_config, mnemonic, Arc::new(storage)).build().await?;
+        let sdk = SdkBuilder::new(sdk_config, mnemonic, Arc::new(storage))
+            .build()
+            .await
+            .map_err(|err| SparkClientError::Other(err.to_string()))?;
 
         Ok(SparkBreezClient { sdk })
     }
@@ -57,7 +61,8 @@ impl SparkBreezClient {
                 },
                 options: None,
             })
-            .await?;
+            .await
+            .map_err(|err| SparkClientError::Other(err.to_string()))?;
 
         Ok(resp.payment.id)
     }

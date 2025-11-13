@@ -12,7 +12,6 @@ pub(crate) mod google_protobuf;
 /// Errors
 pub mod errors;
 use errors::ProtoHasherError;
-
 /// Main function for hashing protobufs
 pub use hashing::hash_message;
 

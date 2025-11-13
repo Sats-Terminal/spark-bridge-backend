@@ -1,3 +1,5 @@
+use std::{collections::HashMap, str::FromStr};
+
 use async_trait::async_trait;
 use bitcoin::{Address, Network, OutPoint, Txid, hashes::Hash, secp256k1::PublicKey};
 use btc_indexer_config::TitanClientConfig;
@@ -5,7 +7,6 @@ use lrc20::token_metadata::{
     DEFAULT_IS_FREEZABLE, DEFAULT_TOKEN_TICKER, MIN_SYMBOL_SIZE, SPARK_CREATION_ENTITY_PUBLIC_KEY, TokenMetadata,
 };
 use ordinals::RuneId;
-use std::{collections::HashMap, str::FromStr};
 use titan_client::{
     SpentStatus, TitanApi, TitanClient as TitanInnerClient,
     query::{Block, Rune},

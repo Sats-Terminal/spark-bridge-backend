@@ -42,6 +42,8 @@ pub enum ServerError {
     HealthCheckError { msg: String, err: SparkClientError },
     #[error("Service is unhealthy, msg: '{msg}'")]
     IncorrectHealthCheckStatus { msg: String },
+    #[error("HTTP client error: {0}")]
+    HttpClientError(#[from] global_utils::http_client::HttpClientError),
 }
 
 impl IntoResponse for ServerError {
@@ -52,6 +54,7 @@ impl IntoResponse for ServerError {
             ServerError::InvalidData(_) => (StatusCode::BAD_REQUEST, self.to_string()),
             ServerError::HealthCheckError { .. } => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()),
             ServerError::IncorrectHealthCheckStatus { .. } => (StatusCode::FAILED_DEPENDENCY, self.to_string()),
+            ServerError::HttpClientError { .. } => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()),
         };
 
         (status, error_message).into_response()

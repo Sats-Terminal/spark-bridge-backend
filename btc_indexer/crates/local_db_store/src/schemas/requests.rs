@@ -1,20 +1,16 @@
-use crate::storage::LocalDbStorage;
+use std::str::FromStr;
+
 use async_trait::async_trait;
-use bitcoin::Network;
-use bitcoin::{Address, OutPoint};
-use btc_indexer_config::DatabaseConfig;
+use bitcoin::{Address, Network, OutPoint};
 use chrono::{DateTime, Utc};
 use ordinals::RuneId;
-use persistent_storage::config::PostgresDbCredentials;
 use persistent_storage::error::DbError;
-use persistent_storage::init::{PersistentRepoTrait, PostgresRepo};
 use serde::{Deserialize, Serialize};
-use sqlx;
-use sqlx::Type;
-use sqlx::types::Json;
-use std::str::FromStr;
+use sqlx::{self, Type, types::Json};
 use url::Url;
 use uuid::Uuid;
+
+use crate::storage::LocalDbStorage;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, Type)]
 #[sqlx(rename_all = "snake_case", type_name = "WATCH_REQUEST_STATUS")]
@@ -89,9 +85,9 @@ impl WatchRequest {
             rune_id: self.rune_id.map(|rune_id| rune_id.to_string()),
             rune_amount: self.rune_amount.map(|rune_amount| rune_amount as i64),
             sats_amount: self.sats_amount.map(|sats_amount| sats_amount as i64),
-            created_at: self.created_at.timestamp_millis() as i64,
+            created_at: self.created_at.timestamp_millis(),
             status: self.status,
-            error_details: self.error_details.map(|error_details| Json(error_details)),
+            error_details: self.error_details.map(Json),
             callback_url: self.callback_url.to_string(),
         }
     }
@@ -198,7 +194,7 @@ impl RequestsStorage for LocalDbStorage {
             WHERE id = $3",
         )
         .bind(status.watch_request_status)
-        .bind(status.error_details.map(|error_details| Json(error_details)))
+        .bind(status.error_details.map(Json))
         .bind(id)
         .execute(&self.postgres_repo.pool)
         .await?;

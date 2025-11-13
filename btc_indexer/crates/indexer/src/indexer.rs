@@ -1,23 +1,24 @@
-use crate::callback_client::CallbackClient;
-use crate::callback_client::DepositStatus;
-use crate::callback_client::NotifyRunesDepositRequest;
-use crate::error::IndexerError;
-use btc_indexer_client::client_api::BlockchainInfo;
-use btc_indexer_client::client_api::BtcIndexer;
-use btc_indexer_client::client_api::OutPointData;
+use std::sync::Arc;
+
+use btc_indexer_client::client_api::{BlockchainInfo, BtcIndexer, OutPointData};
 use btc_indexer_config::BtcIndexerConfig;
-use btc_indexer_local_db_store::schemas::requests::{
-    RequestsStorage, ValidationResult, WatchRequest, WatchRequestErrorDetails, WatchRequestStatus,
+use btc_indexer_local_db_store::{
+    schemas::{
+        requests::{RequestsStorage, ValidationResult, WatchRequest, WatchRequestErrorDetails, WatchRequestStatus},
+        txs::TxsStorage,
+    },
+    storage::LocalDbStorage,
 };
-use btc_indexer_local_db_store::schemas::txs::TxsStorage;
-use btc_indexer_local_db_store::storage::LocalDbStorage;
 use chrono::Utc;
 use ordinals::RuneId;
-use std::sync::Arc;
-use tokio::select;
-use tokio::time::Duration;
+use tokio::{select, time::Duration};
 use tokio_util::sync::CancellationToken;
 use tracing::instrument;
+
+use crate::{
+    callback_client::{CallbackClient, DepositStatus, NotifyRunesDepositRequest},
+    error::IndexerError,
+};
 
 pub struct Indexer<Api: BtcIndexer> {
     callback_client: CallbackClient,
@@ -65,14 +66,15 @@ impl<Api: BtcIndexer> Indexer<Api> {
         tracing::debug!("Watch requests: {:?}", watch_requests);
         for watch_request in watch_requests {
             let blockchain_info = self.indexer_client.get_blockchain_info().await?;
+            if self.local_db_store.exists(watch_request.outpoint.txid).await? {
+                let outpoint_data = self
+                    .indexer_client
+                    .get_transaction_outpoint(watch_request.outpoint)
+                    .await?
+                    .ok_or(IndexerError::InvalidData("Outpoint data not found".to_string()))?;
 
-            if let Some(outpoint_data) = self
-                .indexer_client
-                .get_transaction_outpoint(watch_request.outpoint.clone())
-                .await?
-            {
                 let (validation_result, validation_metadata) = self
-                    .validate_deposit_transaction(watch_request.clone(), outpoint_data, blockchain_info.clone())
+                    .validate_deposit_transaction(watch_request.clone(), outpoint_data.clone(), blockchain_info.clone())
                     .await?;
 
                 match validation_result.watch_request_status {
@@ -179,7 +181,7 @@ impl<Api: BtcIndexer> Indexer<Api> {
         let mut validation_metadata = ValidationMetadata::default();
 
         if let Some(rune_id) = watch_request.rune_id {
-            let rune_amount = outpoint_data.rune_amounts.get(&rune_id).unwrap_or(&0).clone();
+            let rune_amount = *outpoint_data.rune_amounts.get(&rune_id).unwrap_or(&0);
             let expected_rune_amount = watch_request.rune_amount.unwrap_or(0);
             if rune_amount != expected_rune_amount {
                 tracing::error!(
@@ -187,9 +189,6 @@ impl<Api: BtcIndexer> Indexer<Api> {
                     expected_rune_amount,
                     rune_amount
                 );
-                validation_metadata.sats_amount = Some(outpoint_data.sats_amount);
-                validation_metadata.rune_id = Some(rune_id);
-                validation_metadata.rune_amount = Some(rune_amount);
                 return Ok((
                     ValidationResult {
                         watch_request_status: WatchRequestStatus::Failed,
@@ -198,7 +197,7 @@ impl<Api: BtcIndexer> Indexer<Api> {
                             expected_rune_amount, rune_amount
                         ))),
                     },
-                    Some(validation_metadata),
+                    None,
                 ));
             } else {
                 validation_metadata.rune_id = Some(rune_id);
@@ -214,7 +213,6 @@ impl<Api: BtcIndexer> Indexer<Api> {
                     expected_sats_amount,
                     sats_amount
                 );
-                validation_metadata.sats_amount = Some(sats_amount);
                 return Ok((
                     ValidationResult {
                         watch_request_status: WatchRequestStatus::Failed,
@@ -223,7 +221,7 @@ impl<Api: BtcIndexer> Indexer<Api> {
                             expected_sats_amount, sats_amount
                         ))),
                     },
-                    Some(validation_metadata),
+                    None,
                 ));
             } else {
                 validation_metadata.sats_amount = Some(sats_amount);
@@ -274,7 +272,6 @@ impl<Api: BtcIndexer> Indexer<Api> {
                     .await?;
             }
             WatchRequestStatus::Failed => {
-                let metadata = validation_metadata.unwrap_or_default();
                 tracing::error!(
                     "Sending notify request for failed watch request for outpoint: {}",
                     watch_request.outpoint
@@ -285,9 +282,9 @@ impl<Api: BtcIndexer> Indexer<Api> {
                             request_id: watch_request.request_id,
                             outpoint: watch_request.outpoint,
                             deposit_status: DepositStatus::Failed,
-                            sats_amount: metadata.sats_amount,
-                            rune_id: metadata.rune_id,
-                            rune_amount: metadata.rune_amount,
+                            sats_amount: None,
+                            rune_id: None,
+                            rune_amount: None,
                             error_details: validation_result.error_details.map(|e| e.to_string()),
                         },
                         watch_request.callback_url,
@@ -304,19 +301,9 @@ impl<Api: BtcIndexer> Indexer<Api> {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct ValidationMetadata {
     pub sats_amount: Option<u64>,
     pub rune_id: Option<RuneId>,
     pub rune_amount: Option<u128>,
-}
-
-impl Default for ValidationMetadata {
-    fn default() -> Self {
-        Self {
-            sats_amount: None,
-            rune_id: None,
-            rune_amount: None,
-        }
-    }
 }

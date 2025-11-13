@@ -1,9 +1,10 @@
-use crate::env_parser::{EnvParser, EnvParserError};
+use std::{net::ToSocketAddrs, str::FromStr};
+
 use bitcoin::Network;
 use serde::{Deserialize, Serialize};
-use std::net::ToSocketAddrs;
-use std::str::FromStr;
 use url::Url;
+
+use crate::env_parser::{EnvParser, EnvParserError};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NetworkConfig {

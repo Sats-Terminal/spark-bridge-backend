@@ -1,10 +1,12 @@
-use crate::{errors::SignerError, traits::*, types::*};
+use std::{collections::BTreeSet, sync::Arc};
+
 use frost_secp256k1_tr::{Identifier, keys::Tweak};
 use rand_core::OsRng;
-use std::{collections::BTreeSet, sync::Arc};
 use tokio::sync::Mutex;
 use tracing::debug;
 use uuid::Uuid;
+
+use crate::{errors::SignerError, traits::*, types::*};
 
 #[derive(Clone)]
 pub struct FrostSigner {

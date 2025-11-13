@@ -1,8 +1,5 @@
-use crate::{
-    bitcoin_client::BitcoinClient,
-    constants::{BLOCKS_TO_GENERATE, DEFAULT_DUST_AMOUNT, DEFAULT_FEE_AMOUNT, DEFAULT_REVEAL_AMOUNT},
-    error::RuneError,
-};
+use std::{str::FromStr, time::Duration};
+
 use bitcoin::{
     Address, Amount, Network, OutPoint, Transaction, TxIn, TxOut, Txid, Witness, XOnlyPublicKey,
     blockdata::opcodes::all::OP_CHECKSIG,
@@ -16,9 +13,14 @@ use bitcoin::{
 };
 use ord::Inscription;
 use ordinals::{Etching, Rune, RuneId, Runestone, Terms};
-use std::{str::FromStr, time::Duration};
 use tokio::time::sleep;
 use tracing;
+
+use crate::common::{
+    bitcoin_client::BitcoinClient,
+    constants::{BLOCKS_TO_GENERATE, DEFAULT_DUST_AMOUNT, DEFAULT_FEE_AMOUNT, DEFAULT_REVEAL_AMOUNT},
+    error::RuneError,
+};
 
 pub struct EtchRuneParams {
     pub rune_name: String,

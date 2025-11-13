@@ -1,9 +1,8 @@
-use crate::error::GatewayError;
-use crate::init::AppState;
-use axum::Json;
-use axum::extract::State;
+use axum::{Json, extract::State};
 use global_utils::common_resp::Empty;
 use tracing::instrument;
+
+use crate::{error::GatewayError, init::AppState};
 
 #[instrument(level = "trace", skip(state), ret)]
 pub async fn handle(State(state): State<AppState>) -> Result<Json<Empty>, GatewayError> {
