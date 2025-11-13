@@ -1,6 +1,7 @@
 use crate::handlers;
-use axum::Router;
+use crate::middleware::build_signature;
 use axum::routing::{get, post};
+use axum::{Router, middleware};
 use frost::signer::FrostSigner;
 use std::sync::Arc;
 use tracing::instrument;
@@ -73,5 +74,6 @@ pub async fn create_app(
         .route(VerifierApi::SIGN_ROUND1_ENDPOINT, post(handlers::sign_round_1::handle))
         .route(VerifierApi::SIGN_ROUND2_ENDPOINT, post(handlers::sign_round_2::handle))
         .route(VerifierApi::HEALTHCHECK_ENDPOINT, get(handlers::healthcheck::handle))
-        .with_state(state)
+        .with_state(state.clone())
+        .layer(middleware::from_fn_with_state(state.clone(), build_signature))
 }

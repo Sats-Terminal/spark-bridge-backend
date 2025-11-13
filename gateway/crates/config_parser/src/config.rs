@@ -1,3 +1,4 @@
+use bitcoin::secp256k1::PublicKey;
 use btc_indexer_config::IndexerClientConfig;
 use config::{Config, Environment};
 use global_utils::network::NetworkConfig;
@@ -18,6 +19,7 @@ pub struct AppConfig {
 pub struct VerifierConfig {
     pub id: u16,
     pub address: String,
+    pub public_key: PublicKey,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
