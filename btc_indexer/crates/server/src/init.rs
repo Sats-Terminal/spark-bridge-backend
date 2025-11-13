@@ -1,13 +1,9 @@
-use std::sync::Arc;
-
-use axum::{
-    Router,
-    routing::{get, post},
-};
+use crate::handlers;
+use axum::Router;
+use axum::routing::{get, post};
 use bitcoin::Network;
 use btc_indexer_local_db_store::storage::LocalDbStorage;
-
-use crate::handlers;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct AppState {

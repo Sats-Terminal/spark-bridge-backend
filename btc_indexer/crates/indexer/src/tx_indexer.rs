@@ -1,16 +1,13 @@
-use std::sync::Arc;
-
+use crate::error::IndexerError;
 use btc_indexer_client::client_api::BtcIndexer;
 use btc_indexer_config::BtcIndexerConfig;
-use btc_indexer_local_db_store::{
-    schemas::txs::{TxInfo, TxsStorage},
-    storage::LocalDbStorage,
-};
-use tokio::{select, time::Duration};
+use btc_indexer_local_db_store::schemas::txs::{TxInfo, TxsStorage};
+use btc_indexer_local_db_store::storage::LocalDbStorage;
+use std::sync::Arc;
+use tokio::select;
+use tokio::time::Duration;
 use tokio_util::sync::CancellationToken;
 use tracing;
-
-use crate::error::IndexerError;
 
 pub struct TxIndexer<Api: BtcIndexer> {
     indexer_client: Api,

@@ -1,18 +1,19 @@
-use std::str::FromStr;
-
-use axum::{Json, extract::State};
-use bitcoin::{Address, Network, OutPoint};
-use btc_indexer_local_db_store::schemas::requests::{
-    RequestsStorage, WatchRequest as LocalDbWatchRequest, WatchRequestStatus,
-};
+use crate::error::BtcIndexerServerError;
+use crate::init::AppState;
+use axum::Json;
+use axum::extract::State;
+use bitcoin::OutPoint;
+use bitcoin::{Address, Network};
+use btc_indexer_local_db_store::schemas::requests::RequestsStorage;
+use btc_indexer_local_db_store::schemas::requests::WatchRequest as LocalDbWatchRequest;
+use btc_indexer_local_db_store::schemas::requests::WatchRequestStatus;
 use chrono::{DateTime, Utc};
 use ordinals::RuneId;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use tracing::instrument;
 use url::Url;
 use uuid::Uuid;
-
-use crate::{error::BtcIndexerServerError, init::AppState};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct WatchRequest {

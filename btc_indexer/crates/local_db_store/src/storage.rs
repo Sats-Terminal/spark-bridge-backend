@@ -1,6 +1,8 @@
 use bitcoin::Network;
 use btc_indexer_config::DatabaseConfig;
-use persistent_storage::{config::PostgresDbCredentials, error::DbError, init::PostgresRepo};
+use persistent_storage::config::PostgresDbCredentials;
+use persistent_storage::error::DbError;
+use persistent_storage::init::PostgresRepo;
 
 #[derive(Clone, Debug)]
 pub struct LocalDbStorage {
