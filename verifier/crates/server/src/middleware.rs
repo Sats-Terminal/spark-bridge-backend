@@ -10,7 +10,7 @@ use bitcoin::{
     key::Secp256k1,
     secp256k1::Message,
 };
-use tracing::{debug, error};
+use tracing::error;
 
 use crate::init::AppState;
 
@@ -34,7 +34,6 @@ pub async fn build_signature(
             return Ok((StatusCode::INTERNAL_SERVER_ERROR, "Internal server error").into_response());
         }
     };
-    debug!("Generating response signature");
 
     let mut hasher = SHA256::engine();
     hasher.input(&bytes);
@@ -43,8 +42,6 @@ pub async fn build_signature(
 
     let secp = Secp256k1::new();
     let signature = secp.sign_ecdsa(&msg, &secret_key).serialize_der();
-
-    debug!("Response signature generated successfully");
 
     parts
         .headers

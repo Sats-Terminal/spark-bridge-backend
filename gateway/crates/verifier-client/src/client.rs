@@ -8,7 +8,7 @@ use gateway_config_parser::config::VerifierConfig;
 use hex;
 use reqwest::{Client, Url, header::HeaderMap};
 use serde::{Serialize, de::DeserializeOwned};
-use tracing::debug;
+use tracing::error;
 
 #[derive(Clone, Debug)]
 pub struct VerifierClient {
@@ -67,8 +67,6 @@ impl VerifierClient {
 
     fn verify_signature(&self, headers: &HeaderMap, body_text: &str) -> Result<(), VerifierClientError> {
         if let Some(key) = &self.config.public_key {
-            debug!("Verifying response signature");
-
             let sig_hex = headers
                 .get("x-signature")
                 .ok_or_else(|| VerifierClientError::InvalidRequest("Missing 'x-signature' header".to_string()))?
@@ -84,9 +82,16 @@ impl VerifierClient {
             let msg = Message::from_digest(hash.to_byte_array());
 
             let secp = Secp256k1::new();
-            secp.verify_ecdsa(&msg, &signature, key)?;
-
-            debug!("Response signature verified successfully");
+            secp.verify_ecdsa(&msg, &signature, key).map_err(|err| {
+                error!(
+                    id = self.config.id,
+                    address = self.config.address,
+                    public_key = key.to_string(),
+                    "Failed to verify signature: {:?}",
+                    err
+                );
+                VerifierClientError::VerificationError(format!("Failed to verify signature: {:?}", err))
+            })?;
         }
 
         Ok(())

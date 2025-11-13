@@ -8,14 +8,17 @@ http_server_port = 8060
 [[verifiers_config]]
 id = 1
 address = "http://verifier-1-svc:8070"
+public_key="031c854e841de7983e201bd110a62c58374e8db2c95e626b5c940d9ca656f1dc53"
 
 [[verifiers_config]]
 id = 2
 address = "http://verifier-2-svc:8070"
+public_key="037f3486ec5db1183a187ff233f9f31d68323dd7788f469405d98aef9c77a58346"
 
 [[verifiers_config]]
 id = 3
 address = "http://verifier-3-svc:8070"
+public_key="03dedac4ad6461af9d45369a94cc06ea7663ff531d69ebcfdfad7190dface103df"
 
 [aggregator_config]
 threshold = 2

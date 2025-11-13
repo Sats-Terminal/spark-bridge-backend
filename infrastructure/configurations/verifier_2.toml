@@ -3,6 +3,7 @@ http_server_ip = "0.0.0.0"
 http_server_port = 8070
 network = "regtest"
 callback_url = "http://verifier-2-svc:8070/api/btc-indexer/notify-runes-deposit"
+secret_key = "fb523878a9d58313c3769f82b6009f7a9154b13c68637474b058b83cb2cdf7dd"
 
 [btc_indexer_url_config]
 address="http://btc-indexer-svc:8070"
