@@ -21,10 +21,6 @@ pub async fn build_signature(
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let res = next.run(req).await;
 
-    let Some(secret_key) = state.server_config.server.secret_key else {
-        return Ok(res);
-    };
-
     let (mut parts, body) = res.into_parts();
 
     let bytes = match axum::body::to_bytes(body, usize::MAX).await {
@@ -41,7 +37,9 @@ pub async fn build_signature(
     let msg = Message::from_digest(hash.to_byte_array());
 
     let secp = Secp256k1::new();
-    let signature = secp.sign_ecdsa(&msg, &secret_key).serialize_der();
+    let signature = secp
+        .sign_ecdsa(&msg, &state.server_config.server.secret_key)
+        .serialize_der();
 
     parts
         .headers

@@ -13,7 +13,7 @@ pub struct AppConfig {
     #[serde(rename = "network")]
     pub network: Network,
     pub callback_url: Url,
-    pub secret_key: Option<SecretKey>,
+    pub secret_key: SecretKey,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

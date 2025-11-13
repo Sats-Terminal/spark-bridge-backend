@@ -66,33 +66,32 @@ impl VerifierClient {
     }
 
     fn verify_signature(&self, headers: &HeaderMap, body_text: &str) -> Result<(), VerifierClientError> {
-        if let Some(key) = &self.config.public_key {
-            let sig_hex = headers
-                .get("x-signature")
-                .ok_or_else(|| VerifierClientError::InvalidRequest("Missing 'x-signature' header".to_string()))?
-                .to_str()
-                .map_err(|_| VerifierClientError::InvalidRequest("Invalid 'x-signature' header format".to_string()))?;
+        let sig_hex = headers
+            .get("x-signature")
+            .ok_or_else(|| VerifierClientError::InvalidRequest("Missing 'x-signature' header".to_string()))?
+            .to_str()
+            .map_err(|_| VerifierClientError::InvalidRequest("Invalid 'x-signature' header format".to_string()))?;
 
-            let sig_bytes = hex::decode(sig_hex)?;
-            let signature = Signature::from_der(&sig_bytes)?;
+        let sig_bytes = hex::decode(sig_hex)?;
+        let signature = Signature::from_der(&sig_bytes)?;
 
-            let mut hasher = SHA256::engine();
-            hasher.input(body_text.as_bytes());
-            let hash = SHA256::from_engine(hasher);
-            let msg = Message::from_digest(hash.to_byte_array());
+        let mut hasher = SHA256::engine();
+        hasher.input(body_text.as_bytes());
+        let hash = SHA256::from_engine(hasher);
+        let msg = Message::from_digest(hash.to_byte_array());
 
-            let secp = Secp256k1::new();
-            secp.verify_ecdsa(&msg, &signature, key).map_err(|err| {
-                error!(
-                    id = self.config.id,
-                    address = self.config.address,
-                    public_key = key.to_string(),
-                    "Failed to verify signature: {:?}",
-                    err
-                );
-                VerifierClientError::VerificationError(format!("Failed to verify signature: {:?}", err))
-            })?;
-        }
+        let secp = Secp256k1::new();
+        let key = self.config.public_key;
+        secp.verify_ecdsa(&msg, &signature, &key).map_err(|err| {
+            error!(
+                id = self.config.id,
+                address = self.config.address,
+                public_key = key.to_string(),
+                "Failed to verify signature: {:?}",
+                err
+            );
+            VerifierClientError::VerificationError(format!("Failed to verify signature: {:?}", err))
+        })?;
 
         Ok(())
     }

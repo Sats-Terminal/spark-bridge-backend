@@ -19,7 +19,7 @@ pub struct AppConfig {
 pub struct VerifierConfig {
     pub id: u16,
     pub address: String,
-    pub public_key: Option<PublicKey>,
+    pub public_key: PublicKey,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
