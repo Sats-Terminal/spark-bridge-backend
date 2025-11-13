@@ -5,6 +5,10 @@ http_server_port = 8090
 [network]
 network = "bitcoin"
 
+[sparkscan]
+base_url = "https://api.sparkscan.io"
+api_key = "ss_sk_live_HfLDKdtU-m-sUQhTqbkUe3FMDtYhUvHH0MkbnhKHPCJf4IUKDHZ2V"
+
 [spark_config]
 certificates = [
     { path = "./infrastructure/configurations/certificates/Amazon-Root-CA.pem" },
