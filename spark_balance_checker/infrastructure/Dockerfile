@@ -17,9 +17,7 @@ WORKDIR /src
 
 COPY . .
 
-RUN --mount=type=cache,id=railway-sbc-cargo-registry,target=/usr/local/cargo/registry \
-    --mount=type=cache,id=railway-sbc-sccache,target=$SCCACHE_DIR,sharing=locked \
-    cargo chef prepare --recipe-path recipe.json
+RUN cargo chef prepare --recipe-path recipe.json
 
 
 FROM base AS builder
@@ -27,15 +25,11 @@ FROM base AS builder
 WORKDIR /src
 COPY --from=planner /src/recipe.json recipe.json
 
-RUN --mount=type=cache,id=railway-sbc-cargo-registry,target=/usr/local/cargo/registry \
-    --mount=type=cache,id=railway-sbc-sccache,target=$SCCACHE_DIR,sharing=locked \
-    cargo chef cook --release --recipe-path recipe.json
+RUN cargo chef cook --release --recipe-path recipe.json
 
 COPY . .
 
-RUN --mount=type=cache,id=railway-sbc-cargo-registry,target=/usr/local/cargo/registry \
-    --mount=type=cache,id=railway-sbc-sccache,target=$SCCACHE_DIR,sharing=locked \
-    cargo install --path spark_balance_checker/apps/main
+RUN cargo install --path spark_balance_checker/apps/main
 
 
 # The final base image
