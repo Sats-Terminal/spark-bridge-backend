@@ -16,8 +16,6 @@ members = [
     "btc_indexer/apps/*",
     "btc_indexer/crates/*",
 
-    # tests
-    "tests",
 ]
 
 [workspace.package]
