@@ -43,6 +43,7 @@ FROM debian:bullseye
 
 # Copying configs
 COPY ./verifier/crates/local_db_store/migrations/ /migrations
+COPY ./infrastructure/configurations /configuration
 
 RUN apt-get update && apt-get -y install ca-certificates
 

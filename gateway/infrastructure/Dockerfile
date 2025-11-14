@@ -41,6 +41,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 FROM debian:bullseye
 
 COPY ./gateway/crates/local_db_store/migrations/ /migrations
+COPY ./infrastructure/configurations /configuration
 
 RUN apt-get update && apt-get -y install ca-certificates
 

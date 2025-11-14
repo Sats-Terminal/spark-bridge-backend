@@ -1,0 +1,76 @@
+plugins:
+  gateway-db:
+    source: railway/postgres
+  verifier-1-db:
+    source: railway/postgres
+  verifier-2-db:
+    source: railway/postgres
+  verifier-3-db:
+    source: railway/postgres
+  btc-indexer-db:
+    source: railway/postgres
+
+services:
+  gateway:
+    name: gateway
+    build:
+      context: .
+      dockerfilePath: gateway/infrastructure/Dockerfile
+    envVars:
+      CONFIG_PATH: /configuration/gateway/mainnet.toml
+      RUST_LOG: info
+    dependsOn:
+      - gateway-db
+
+  verifier-1:
+    name: verifier-1
+    build:
+      context: .
+      dockerfilePath: verifier/infrastructure/Dockerfile
+    envVars:
+      CONFIG_PATH: /configuration/verifier_1/mainnet.toml
+      RUST_LOG: info
+    dependsOn:
+      - verifier-1-db
+
+  verifier-2:
+    name: verifier-2
+    build:
+      context: .
+      dockerfilePath: verifier/infrastructure/Dockerfile
+    envVars:
+      CONFIG_PATH: /configuration/verifier_2/mainnet.toml
+      RUST_LOG: info
+    dependsOn:
+      - verifier-2-db
+
+  verifier-3:
+    name: verifier-3
+    build:
+      context: .
+      dockerfilePath: verifier/infrastructure/Dockerfile
+    envVars:
+      CONFIG_PATH: /configuration/verifier_3/mainnet.toml
+      RUST_LOG: info
+    dependsOn:
+      - verifier-3-db
+
+  btc-indexer:
+    name: btc-indexer
+    build:
+      context: .
+      dockerfilePath: btc_indexer/infrastructure/Dockerfile
+    envVars:
+      CONFIG_PATH: /configuration/btc_indexer/mainnet.toml
+      RUST_LOG: info
+    dependsOn:
+      - btc-indexer-db
+
+  spark-balance-checker:
+    name: spark-balance-checker
+    build:
+      context: .
+      dockerfilePath: spark_balance_checker/infrastructure/Dockerfile
+    envVars:
+      CONFIG_PATH: /configuration/spark_balance_checker/mainnet.toml
+      RUST_LOG: info

@@ -43,5 +43,6 @@ FROM debian:bullseye
 
 RUN apt-get update && apt-get -y install ca-certificates
 
+COPY ./infrastructure/configurations /configuration
 COPY --from=builder /usr/local/cargo/bin/spark_balance_checker_main /usr/local/bin/spark_balance_checker_main
 CMD ["spark_balance_checker_main"]
