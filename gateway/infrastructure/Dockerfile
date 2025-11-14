@@ -17,8 +17,8 @@ WORKDIR /src
 
 COPY . .
 
-RUN --mount=type=cache,id=gateway-cargo-registry,target=/usr/local/cargo/registry \
-    --mount=type=cache,id=gateway-sccache,target=$SCCACHE_DIR,sharing=locked \
+RUN --mount=type=cache,id=railway-gateway-cargo-registry,target=/usr/local/cargo/registry \
+    --mount=type=cache,id=railway-gateway-sccache,target=$SCCACHE_DIR,sharing=locked \
     cargo chef prepare --recipe-path recipe.json
 
 
@@ -27,14 +27,14 @@ FROM base AS builder
 WORKDIR /src
 COPY --from=planner /src/recipe.json recipe.json
 
-RUN --mount=type=cache,id=gateway-cargo-registry,target=/usr/local/cargo/registry \
-    --mount=type=cache,id=gateway-sccache,target=$SCCACHE_DIR,sharing=locked \
+RUN --mount=type=cache,id=railway-gateway-cargo-registry,target=/usr/local/cargo/registry \
+    --mount=type=cache,id=railway-gateway-sccache,target=$SCCACHE_DIR,sharing=locked \
     cargo chef cook --release --recipe-path recipe.json
 
 COPY . .
 
-RUN --mount=type=cache,id=gateway-cargo-registry,target=/usr/local/cargo/registry \
-    --mount=type=cache,id=gateway-sccache,target=$SCCACHE_DIR,sharing=locked \
+RUN --mount=type=cache,id=railway-gateway-cargo-registry,target=/usr/local/cargo/registry \
+    --mount=type=cache,id=railway-gateway-sccache,target=$SCCACHE_DIR,sharing=locked \
     cargo install --path gateway/apps/main
 
 
