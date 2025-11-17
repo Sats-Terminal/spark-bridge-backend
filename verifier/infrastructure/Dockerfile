@@ -47,4 +47,4 @@ RUN apt-get update && apt-get -y install ca-certificates && \
 # Copying binaries
 COPY --from=builder /usr/local/cargo/bin/verifier_main /usr/local/bin/verifier_main
 COPY --from=builder /usr/local/cargo/bin/sqlx /usr/local/bin/sqlx
-CMD ["verifier_main"]
+CMD ["sh", "-c", "sqlx migrate run --source /migrations && verifier_main"]

@@ -44,4 +44,4 @@ RUN apt-get update && apt-get -y install ca-certificates && \
 
 COPY --from=builder /usr/local/cargo/bin/gateway_main /usr/local/bin/gateway_main
 COPY --from=builder /usr/local/cargo/bin/sqlx /usr/local/bin/sqlx
-CMD ["gateway_main"]
+CMD ["sh", "-c", "sqlx migrate run --source /migrations && gateway_main"]
