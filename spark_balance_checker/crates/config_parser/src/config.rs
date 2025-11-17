@@ -37,6 +37,11 @@ impl ServerConfig {
                     .prefix_separator("_")
                     .separator("__"),
             )
+            .add_source(
+                Environment::with_prefix("SPARK_BALANCE_CHECKER")
+                    .prefix_separator("__")
+                    .separator("__"),
+            )
             .build()
             .unwrap();
 

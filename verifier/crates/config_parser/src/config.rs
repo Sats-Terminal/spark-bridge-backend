@@ -83,6 +83,11 @@ impl ServerConfig {
                     .prefix_separator("_")
                     .separator("__"),
             )
+            .add_source(
+                Environment::with_prefix("VERIFIER")
+                    .prefix_separator("__")
+                    .separator("__"),
+            )
             .build()
             .unwrap();
         config.try_deserialize().unwrap()

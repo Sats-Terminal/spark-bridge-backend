@@ -64,6 +64,11 @@ impl AppConfig {
                     .prefix_separator("_")
                     .separator("__"),
             )
+            .add_source(
+                Environment::with_prefix("BTC_INDEXER")
+                    .prefix_separator("__")
+                    .separator("__"),
+            )
             .build()
             .unwrap();
         config.try_deserialize().unwrap()
