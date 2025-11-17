@@ -142,7 +142,9 @@ fn capture_verifier_address_overrides() -> BTreeMap<usize, String> {
             if let Some(index_part) = rest.strip_suffix(SUFFIX) {
                 if let Ok(index) = index_part.parse::<usize>() {
                     overrides.insert(index, value);
-                    env::remove_var(key);
+                    unsafe {
+                        env::remove_var(key);
+                    }
                 }
             }
         }
