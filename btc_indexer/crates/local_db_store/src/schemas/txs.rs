@@ -45,7 +45,10 @@ impl TxsStorage for LocalDbStorage {
             .collect::<Vec<String>>()
             .join(",\n");
 
-        let query_str = format!("INSERT INTO btc_indexer.txs (txid, block_height) VALUES {}", values);
+        let query_str = format!(
+            "INSERT INTO btc_indexer.txs (txid, block_height) VALUES {} ON CONFLICT (txid) DO NOTHING",
+            values
+        );
 
         sqlx::query(&query_str).execute(&self.postgres_repo.pool).await?;
 
