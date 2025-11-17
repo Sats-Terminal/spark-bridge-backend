@@ -45,4 +45,4 @@ RUN apt-get update && apt-get -y install ca-certificates && \
 
 COPY --from=builder /usr/local/cargo/bin/btc_indexer_main /usr/local/bin/btc_indexer
 COPY --from=builder /usr/local/cargo/bin/sqlx /usr/local/bin/sqlx
-CMD ["sh", "-c", "sqlx migrate run && btc_indexer"]
+CMD ["sh", "-c", "sqlx migrate run --source /migrations && btc_indexer"]
