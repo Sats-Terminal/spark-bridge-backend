@@ -33,12 +33,15 @@ RUN cargo install --path btc_indexer/apps/main
 
 
 FROM debian:bullseye
+WORKDIR /app
 
 # Copying configs
 COPY ./btc_indexer/crates/local_db_store/migrations/ /migrations
 COPY ./infrastructure/configurations /configuration
 
-RUN apt-get update && apt-get -y install ca-certificates
+RUN apt-get update && apt-get -y install ca-certificates && \
+    mkdir -p /app/infrastructure && \
+    ln -s /configuration /app/infrastructure/configurations
 
 COPY --from=builder /usr/local/cargo/bin/btc_indexer_main /usr/local/bin/btc_indexer
 COPY --from=builder /usr/local/cargo/bin/sqlx /usr/local/bin/sqlx

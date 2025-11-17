@@ -34,12 +34,15 @@ RUN cargo install --path verifier/apps/main
 
 # The final base image
 FROM debian:bullseye
+WORKDIR /app
 
 # Copying configs
 COPY ./verifier/crates/local_db_store/migrations/ /migrations
 COPY ./infrastructure/configurations /configuration
 
-RUN apt-get update && apt-get -y install ca-certificates
+RUN apt-get update && apt-get -y install ca-certificates && \
+    mkdir -p /app/infrastructure && \
+    ln -s /configuration /app/infrastructure/configurations
 
 # Copying binaries
 COPY --from=builder /usr/local/cargo/bin/verifier_main /usr/local/bin/verifier_main

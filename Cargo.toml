@@ -15,7 +15,6 @@ members = [
     # btc indexer
     "btc_indexer/apps/*",
     "btc_indexer/crates/*",
-
 ]
 
 [workspace.package]
@@ -145,6 +144,3 @@ btc_indexer_config = { path = "./btc_indexer/crates/config" }
 
 # Btc indexer apps
 btc_indexer_main = { path = "./btc_indexer/apps/main" }
-
-####### Tests #######
-tests = { path = "./tests" }

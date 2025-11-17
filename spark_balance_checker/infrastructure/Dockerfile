@@ -34,9 +34,13 @@ RUN cargo install --path spark_balance_checker/apps/main
 
 # The final base image
 FROM debian:bullseye
-
-RUN apt-get update && apt-get -y install ca-certificates
+WORKDIR /app
 
 COPY ./infrastructure/configurations /configuration
+
+RUN apt-get update && apt-get -y install ca-certificates && \
+    mkdir -p /app/infrastructure && \
+    ln -s /configuration /app/infrastructure/configurations
+
 COPY --from=builder /usr/local/cargo/bin/spark_balance_checker_main /usr/local/bin/spark_balance_checker_main
 CMD ["spark_balance_checker_main"]

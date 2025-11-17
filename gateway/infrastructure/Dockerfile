@@ -33,11 +33,14 @@ RUN cargo install --path gateway/apps/main
 
 
 FROM debian:bullseye
+WORKDIR /app
 
 COPY ./gateway/crates/local_db_store/migrations/ /migrations
 COPY ./infrastructure/configurations /configuration
 
-RUN apt-get update && apt-get -y install ca-certificates
+RUN apt-get update && apt-get -y install ca-certificates && \
+    mkdir -p /app/infrastructure && \
+    ln -s /configuration /app/infrastructure/configurations
 
 COPY --from=builder /usr/local/cargo/bin/gateway_main /usr/local/bin/gateway_main
 COPY --from=builder /usr/local/cargo/bin/sqlx /usr/local/bin/sqlx
