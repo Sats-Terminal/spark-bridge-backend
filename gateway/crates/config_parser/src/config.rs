@@ -4,6 +4,7 @@ use config::{Config, Environment};
 use global_utils::network::NetworkConfig;
 use serde::{Deserialize, Serialize};
 use spark_client::common::config::SparkConfig;
+use std::{collections::BTreeMap, env};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
@@ -107,6 +108,8 @@ pub struct ServerConfig {
 
 impl ServerConfig {
     pub fn init_config(path: String) -> Self {
+        let verifier_env_overrides = capture_verifier_address_overrides();
+
         let config = Config::builder()
             .add_source(config::File::with_name(&path))
             .add_source(
@@ -121,6 +124,37 @@ impl ServerConfig {
             )
             .build()
             .unwrap();
-        config.try_deserialize().unwrap()
+
+        let mut server_config: Self = config.try_deserialize().unwrap();
+        apply_verifier_address_overrides(&mut server_config.verifiers, verifier_env_overrides);
+        server_config
+    }
+}
+
+fn capture_verifier_address_overrides() -> BTreeMap<usize, String> {
+    const PREFIX: &str = "GATEWAY__VERIFIERS_CONFIG__";
+    const SUFFIX: &str = "__ADDRESS";
+    let mut overrides = BTreeMap::new();
+
+    // Collect first so we can safely mutate the environment while iterating.
+    for (key, value) in env::vars().collect::<Vec<_>>() {
+        if let Some(rest) = key.strip_prefix(PREFIX) {
+            if let Some(index_part) = rest.strip_suffix(SUFFIX) {
+                if let Ok(index) = index_part.parse::<usize>() {
+                    overrides.insert(index, value);
+                    env::remove_var(key);
+                }
+            }
+        }
+    }
+
+    overrides
+}
+
+fn apply_verifier_address_overrides(verifiers: &mut VerifiersConfig, overrides: BTreeMap<usize, String>) {
+    for (index, address) in overrides {
+        if let Some(verifier) = verifiers.0.get_mut(index) {
+            verifier.address = address;
+        }
     }
 }
