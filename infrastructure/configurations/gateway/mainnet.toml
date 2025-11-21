@@ -71,7 +71,7 @@ url = "https://mempool.space/api/"
 type = "maestro"
 url = "https://xbt-mainnet.gomaestro-api.org/v0/"
 key = "WJTMnRcKf3bgtWgooCrL9FB2FVOPii4q"
-confirmation_threshold = 3
+confirmation_threshold = 1
 
 # Uncomment and update if mainnet fee collection is required.
 # [fee_config]

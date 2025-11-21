@@ -4,7 +4,7 @@ hostname = "0.0.0.0:8070"
 [btc_indexer]
 indexer_update_interval_millis = 1000
 validation_timeout_millis = 1000
-confirmation_block_height_delta = 3
+confirmation_block_height_delta = 1
 tx_indexer_update_interval_millis = 1000
 start_block_height = 840000
 
@@ -18,4 +18,4 @@ network = "bitcoin"
 type = "maestro"
 url = "https://xbt-mainnet.gomaestro-api.org/v0/"
 key = "WJTMnRcKf3bgtWgooCrL9FB2FVOPii4q"
-confirmation_threshold = 3
+confirmation_threshold = 1
