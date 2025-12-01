@@ -19,3 +19,4 @@ token-identifier = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true }
 btc_indexer_client = { workspace = true }
+hex = { workspace = true }
