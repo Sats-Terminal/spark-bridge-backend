@@ -76,6 +76,12 @@ pub async fn handle(
                     |e| FlowProcessorError::InvalidDataError(format!("Failed to create wrunes metadata: {}", e)),
                 )?;
 
+            tracing::info!(
+                "Spark create starting: rune_id={}, token_identifier={}, issuer_pubkey={}",
+                rune_id,
+                wrunes_metadata.token_identifier.to_string(),
+                issuer_musig_public_key.to_string()
+            );
             flow_router
                 .spark_service
                 .send_spark_transaction(
@@ -141,6 +147,15 @@ pub async fn handle(
         spark_network,
     )
     .await;
+
+    tracing::info!(
+        "Spark mint starting: rune_id={}, token_identifier={}, amount={}, bridge_address={}, issuer_pubkey={}",
+        rune_id,
+        wrunes_metadata.token_identifier.to_string(),
+        deposit_addr_info.amount,
+        bridge_address.to_string(),
+        issuer_musig_public_key.to_string()
+    );
 
     flow_router
         .spark_service
