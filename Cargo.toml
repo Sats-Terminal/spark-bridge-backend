@@ -144,3 +144,12 @@ btc_indexer_config = { path = "./btc_indexer/crates/config" }
 
 # Btc indexer apps
 btc_indexer_main = { path = "./btc_indexer/apps/main" }
+
+[patch.crates-io]
+prost = "=0.13.5"
+prost-derive = "=0.13.5"
+prost-types = "=0.13.5"
+prost-reflect = "=0.16.1"
+prost-wkt = "=0.6.1"
+prost-wkt-build = "=0.6.1"
+prost-wkt-types = "=0.6.1"
