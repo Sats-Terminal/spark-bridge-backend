@@ -188,18 +188,34 @@ impl SparkService {
             })?)
             .map_err(|e| SparkServiceError::HashError(format!("Failed to hash partial token transaction: {:?}", e)))?;
 
+        let signing_metadata =
+            create_signing_metadata(partial_token_transaction.clone(), transaction_type.clone(), true)?;
+        tracing::info!(
+            "SparkService signing partial tx hash (round1/2): issuer_dkg_share_id={}, nonce_tweak_present={}, tx_type={:?}, token_identifier={}",
+            issuer_dkg_share_id,
+            nonce_tweak.is_some(),
+            transaction_type,
+            token_identifier.to_string()
+        );
         let signature = self
             .frost_aggregator
             .run_signing_flow(
                 issuer_dkg_share_id,
                 partial_token_transaction_hash.as_ref(),
-                create_signing_metadata(partial_token_transaction.clone(), transaction_type.clone(), true)?,
+                signing_metadata,
                 nonce_tweak,
                 false,
             )
             .await
             .map_err(|e| SparkServiceError::FrostAggregatorError(e.to_string()))?;
 
+        tracing::info!(
+            "SparkService starting token transaction: issuer_dkg_share_id={}, nonce_tweak_present={}, tx_type={:?}, token_identifier={}",
+            issuer_dkg_share_id,
+            nonce_tweak.is_some(),
+            transaction_type,
+            token_identifier.to_string()
+        );
         let response = self
             .spark_client
             .start_token_transaction(
@@ -257,6 +273,11 @@ impl SparkService {
         let mut join_handles = vec![];
 
         for operator_public_key in self.spark_operator_identity_public_keys.clone() {
+            tracing::info!(
+                "SparkService signing operator-specific payload: issuer_dkg_share_id={}, operator_pk={}",
+                issuer_dkg_share_id,
+                hex::encode(operator_public_key.serialize())
+            );
             let operator_specific_signable_payload = hash_operator_specific_signable_payload(
                 final_token_transaction_hash,
                 operator_public_key,
@@ -311,6 +332,12 @@ impl SparkService {
             token_identifier.to_string()
         );
 
+        tracing::info!(
+            "SparkService committing token transaction: issuer_dkg_share_id={}, tx_type={:?}, token_identifier={}",
+            issuer_dkg_share_id,
+            transaction_type,
+            token_identifier.to_string()
+        );
         let _response = self
             .spark_client
             .commit_token_transaction(
