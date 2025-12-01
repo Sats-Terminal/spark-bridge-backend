@@ -49,11 +49,11 @@ once_cell = { version = "1.21.3" }
 ord = { version = "0.23.3" }
 ord-rs = { version = "0.3.0", features = ["rune"] }
 ordinals = { version = "0.0.15" }
-prost = "0.13.5"
-prost-reflect = { version = "0.16.1", features = ["serde"] }
-prost-wkt = "0.6.1"
-prost-wkt-build = "0.6.1"
-prost-wkt-types = "0.6.1"
+prost = { version = "=0.13.5" }
+prost-reflect = { version = "=0.16.1", features = ["serde"] }
+prost-wkt = { version = "=0.6.1" }
+prost-wkt-build = { version = "=0.6.1" }
+prost-wkt-types = { version = "=0.6.1" }
 rand_core = { version = "0.6.4", features = ["getrandom"] }
 reqwest = { version = "0.12.23", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
@@ -144,12 +144,3 @@ btc_indexer_config = { path = "./btc_indexer/crates/config" }
 
 # Btc indexer apps
 btc_indexer_main = { path = "./btc_indexer/apps/main" }
-
-[patch.crates-io]
-prost = "=0.13.5"
-prost-derive = "=0.13.5"
-prost-types = "=0.13.5"
-prost-reflect = "=0.16.1"
-prost-wkt = "=0.6.1"
-prost-wkt-build = "=0.6.1"
-prost-wkt-types = "=0.6.1"
