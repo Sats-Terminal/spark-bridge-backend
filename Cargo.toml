@@ -50,7 +50,7 @@ ord = { version = "0.23.3" }
 ord-rs = { version = "0.3.0", features = ["rune"] }
 ordinals = { version = "0.0.15" }
 prost = { version = "=0.13.5" }
-prost-reflect = { version = "=0.16.1", features = ["serde"] }
+prost-reflect = { version = "=0.15.0", features = ["serde"] }
 prost-wkt = { version = "=0.6.1" }
 prost-wkt-build = { version = "=0.6.1" }
 prost-wkt-types = { version = "=0.6.1" }
