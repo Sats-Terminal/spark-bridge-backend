@@ -73,6 +73,7 @@ pub fn marshal_token_transaction(
                 client_created_timestamp: Some(client_created_ts),
                 token_inputs,
                 invoice_attachments: Default::default(),
+                validity_duration_seconds: None,
             };
 
             Ok(tx_proto)
@@ -111,6 +112,7 @@ pub fn marshal_token_transaction(
                 client_created_timestamp: Some(client_created_ts),
                 token_inputs,
                 invoice_attachments,
+                validity_duration_seconds: None,
             };
 
             Ok(tx_proto)
