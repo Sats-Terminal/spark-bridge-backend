@@ -51,13 +51,15 @@ pub async fn handle(
     Json(request): Json<VerifierNotifyRunesDepositRequest>,
 ) -> Result<Json<()>, GatewayError> {
     let outpoint = request.outpoint;
+    let deposit_request: NotifyRunesDepositRequest = request.into();
+    let aggregator = state.deposit_verification_aggregator.clone();
+
     tracing::info!("Handling notify runes deposit request with out point: {:?}", outpoint);
 
     tokio::spawn(async move {
-        let _ = state
-            .deposit_verification_aggregator
-            .notify_runes_deposit(request.into())
-            .await;
+        if let Err(err) = aggregator.notify_runes_deposit(deposit_request).await {
+            tracing::error!(?outpoint, error = %err, "Failed to process notify_runes_deposit");
+        }
     });
 
     tracing::info!(

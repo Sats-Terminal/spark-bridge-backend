@@ -236,7 +236,17 @@ impl SparkService {
                 identity_public_key,
             )
             .await
-            .map_err(|e| SparkServiceError::SparkClientError(e.to_string()))?;
+            .map_err(|e| {
+                tracing::error!(
+                    "SparkService start_token_transaction failed: issuer_dkg_share_id={}, nonce_tweak_present={}, tx_type={:?}, token_identifier={}, err={}",
+                    issuer_dkg_share_id,
+                    nonce_tweak.is_some(),
+                    transaction_type,
+                    token_identifier.to_string(),
+                    e
+                );
+                SparkServiceError::SparkClientError(e.to_string())
+            })?;
 
         tracing::debug!(
             "Transaction: {:?} for dkg share id: {:?}, with token identifier: {:?}, started",
@@ -350,7 +360,17 @@ impl SparkService {
                 identity_public_key,
             )
             .await
-            .map_err(|e| SparkServiceError::SparkClientError(e.to_string()))?;
+            .map_err(|e| {
+                tracing::error!(
+                    "SparkService commit_token_transaction failed: issuer_dkg_share_id={}, nonce_tweak_present={}, tx_type={:?}, token_identifier={}, err={}",
+                    issuer_dkg_share_id,
+                    nonce_tweak.is_some(),
+                    transaction_type,
+                    token_identifier.to_string(),
+                    e
+                );
+                SparkServiceError::SparkClientError(e.to_string())
+            })?;
 
         tracing::info!(
             "Transaction: {:?} for dkg share id: {:?}, with token identifier: {:?}, committed",
