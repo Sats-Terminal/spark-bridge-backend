@@ -82,6 +82,7 @@ impl Network {
     fn from_hrp(hrp: &str) -> Option<Self> {
         match hrp {
             "sp" => Some(Network::Mainnet),
+            "spark" => Some(Network::Mainnet),
             "spt" => Some(Network::Testnet),
             "sps" => Some(Network::Signet),
             "sprt" => Some(Network::Regtest),
