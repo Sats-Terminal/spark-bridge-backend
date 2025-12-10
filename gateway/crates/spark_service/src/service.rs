@@ -375,31 +375,36 @@ impl SparkService {
 }
 
 fn serialize_frost_signature_bip340(signature: &Signature) -> Result<Vec<u8>, SparkServiceError> {
-    // FROST signatures serialize as [R_compressed (33 bytes)] || [z (32 bytes)].
-    // Spark expects BIP-340 encoding: x-coordinate of R (32 bytes) || z (32 bytes).
+    // FROST signatures may serialize as either:
+    // - 64 bytes already in BIP-340 form (rx || z)
+    // - 65 bytes as [R_compressed (33 bytes)] || [z (32 bytes)]
+    // Spark expects BIP-340 64-byte encoding.
     let sig_bytes = signature.serialize().map_err(|e| {
         SparkServiceError::DecodeError(format!("Failed to serialize FROST signature: {:?}", e))
     })?;
-    if sig_bytes.len() != 65 {
-        return Err(SparkServiceError::DecodeError(format!(
+
+    match sig_bytes.len() {
+        64 => Ok(sig_bytes),
+        65 => {
+            let (r_bytes, z_bytes) = sig_bytes.split_at(33);
+            let encoded_point = EncodedPoint::from_bytes(r_bytes).map_err(|e| {
+                SparkServiceError::DecodeError(format!("Failed to parse R point from signature: {:?}", e))
+            })?;
+            let r_affine = AffinePoint::from_encoded_point(&encoded_point)
+                .into_option()
+                .ok_or_else(|| SparkServiceError::DecodeError("Invalid R point in serialized signature".to_string()))?;
+            let rx = r_affine.x();
+
+            let mut out = Vec::with_capacity(64);
+            out.extend_from_slice(rx.as_ref());
+            out.extend_from_slice(z_bytes);
+            Ok(out)
+        }
+        other => Err(SparkServiceError::DecodeError(format!(
             "Unexpected FROST signature length: {}",
-            sig_bytes.len()
-        )));
+            other
+        ))),
     }
-
-    let (r_bytes, z_bytes) = sig_bytes.split_at(33);
-    let encoded_point = EncodedPoint::from_bytes(r_bytes).map_err(|e| {
-        SparkServiceError::DecodeError(format!("Failed to parse R point from signature: {:?}", e))
-    })?;
-    let r_affine = AffinePoint::from_encoded_point(&encoded_point)
-        .into_option()
-        .ok_or_else(|| SparkServiceError::DecodeError("Invalid R point in serialized signature".to_string()))?;
-    let rx = r_affine.x();
-
-    let mut out = Vec::with_capacity(64);
-    out.extend_from_slice(rx.as_ref());
-    out.extend_from_slice(z_bytes);
-    Ok(out)
 }
 
 fn hash_operator_specific_signable_payload(
