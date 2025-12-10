@@ -209,6 +209,12 @@ impl SparkService {
             )
             .await
             .map_err(|e| SparkServiceError::FrostAggregatorError(e.to_string()))?;
+        let owner_signature_bytes = serialize_frost_signature_bip340(&signature)?;
+        tracing::debug!(
+            "Owner signature (partial) len={} hex={}",
+            owner_signature_bytes.len(),
+            hex::encode(&owner_signature_bytes)
+        );
 
         tracing::info!(
             "SparkService starting token transaction: issuer_dkg_share_id={}, nonce_tweak_present={}, tx_type={:?}, token_identifier={}",
@@ -224,7 +230,7 @@ impl SparkService {
                     identity_public_key: identity_public_key.serialize().to_vec(),
                     partial_token_transaction: Some(partial_token_transaction_proto),
                     partial_token_transaction_owner_signatures: vec![SignatureWithIndex {
-                        signature: serialize_frost_signature_bip340(&signature)?,
+                        signature: owner_signature_bytes,
                         input_index: 0,
                     }],
                     validity_duration_seconds: DEFAULT_VALIDITY_DURATION_SECONDS,
