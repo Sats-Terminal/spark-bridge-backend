@@ -168,7 +168,9 @@ pub fn create_signing_metadata(
     spark_transaction_type: SparkTransactionType,
     is_partial: bool,
 ) -> Result<SigningMetadata, SparkServiceError> {
-    let token_transaction_proto = marshal_token_transaction(&token_transaction, is_partial)
+    // For partial transactions, do NOT include SO-filled fields (revocation commitment, withdraw params);
+    // for final transactions, include them. Marshal accordingly.
+    let token_transaction_proto = marshal_token_transaction(&token_transaction, !is_partial)
         .map_err(|e| SparkServiceError::InvalidData(format!("Failed to marshal token transaction: {:?}", e)))?;
     let signing_metadata: SigningMetadata = match (spark_transaction_type, is_partial) {
         (SparkTransactionType::Mint { .. }, true) => SigningMetadata::PartialMintToken {
