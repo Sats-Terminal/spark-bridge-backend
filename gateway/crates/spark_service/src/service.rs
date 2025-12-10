@@ -4,12 +4,12 @@ use bitcoin::{
     hashes::{Hash, HashEngine, sha256, sha256::Hash as Sha256Hash},
     secp256k1::PublicKey,
 };
-use frost::{
-    aggregator::FrostAggregator,
-    types::{SigningMetadata, TweakBytes},
-};
+use frost::aggregator::FrostAggregator;
+use frost::types::{SigningMetadata, TweakBytes};
+use frost_secp256k1_tr::Signature;
 use futures::future::join_all;
 use global_utils::conversion::spark_network_to_proto_network;
+use k256::elliptic_curve::{point::AffineCoordinates, sec1::FromEncodedPoint};
 use k256::{AffinePoint, EncodedPoint};
 use lrc20::marshal::{marshal_token_transaction, unmarshal_token_transaction};
 use proto_hasher::ProtoHasher;
@@ -391,12 +391,10 @@ fn serialize_frost_signature_bip340(signature: &Signature) -> Result<Vec<u8>, Sp
     let encoded_point = EncodedPoint::from_bytes(r_bytes).map_err(|e| {
         SparkServiceError::DecodeError(format!("Failed to parse R point from signature: {:?}", e))
     })?;
-    let r_affine = AffinePoint::from_encoded_point(&encoded_point).ok_or_else(|| {
-        SparkServiceError::DecodeError("Invalid R point in serialized signature".to_string())
-    })?;
-    let rx = r_affine.x().ok_or_else(|| {
-        SparkServiceError::DecodeError("Missing x-coordinate on R point".to_string())
-    })?;
+    let r_affine = AffinePoint::from_encoded_point(&encoded_point)
+        .into_option()
+        .ok_or_else(|| SparkServiceError::DecodeError("Invalid R point in serialized signature".to_string()))?;
+    let rx = r_affine.x();
 
     let mut out = Vec::with_capacity(64);
     out.extend_from_slice(rx.as_ref());
