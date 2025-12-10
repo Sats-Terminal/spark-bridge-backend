@@ -139,6 +139,8 @@ fn create_partial_token_leaf_output(
     token_identifier: TokenIdentifier,
     token_amount: u128,
 ) -> TokenLeafOutput {
+    // Spark mainnet currently enforces a fixed withdrawal bond; set it explicitly to satisfy operator validation.
+    const DEFAULT_WITHDRAW_BOND_SATS: u64 = 10_000;
     TokenLeafOutput {
         owner_public_key: receiver_identity_public_key,
         revocation_public_key: receiver_identity_public_key,
@@ -150,7 +152,7 @@ fn create_partial_token_leaf_output(
         withdraw_height: None,
         withdraw_block_hash: None,
         id: None,
-        withdrawal_bond_sats: None,
+        withdrawal_bond_sats: Some(DEFAULT_WITHDRAW_BOND_SATS),
         withdrawal_locktime: None,
     }
 }
