@@ -10,6 +10,7 @@ use frost::{
 };
 use futures::future::join_all;
 use global_utils::conversion::spark_network_to_proto_network;
+use k256::{AffinePoint, EncodedPoint};
 use lrc20::marshal::{marshal_token_transaction, unmarshal_token_transaction};
 use proto_hasher::ProtoHasher;
 use spark_address::Network;
@@ -223,12 +224,7 @@ impl SparkService {
                     identity_public_key: identity_public_key.serialize().to_vec(),
                     partial_token_transaction: Some(partial_token_transaction_proto),
                     partial_token_transaction_owner_signatures: vec![SignatureWithIndex {
-                        signature: signature
-                            .serialize()
-                            .map_err(|e| {
-                                SparkServiceError::DecodeError(format!("Failed to serialize signature: {:?}", e))
-                            })?
-                            .to_vec(),
+                        signature: serialize_frost_signature_bip340(&signature)?,
                         input_index: 0,
                     }],
                     validity_duration_seconds: DEFAULT_VALIDITY_DURATION_SECONDS,
@@ -314,12 +310,7 @@ impl SparkService {
 
                 let ttxo_signatures = InputTtxoSignaturesPerOperator {
                     ttxo_signatures: vec![SignatureWithIndex {
-                        signature: signature
-                            .serialize()
-                            .map_err(|e| {
-                                SparkServiceError::DecodeError(format!("Failed to serialize signature: {:?}", e))
-                            })?
-                            .to_vec(),
+                        signature: serialize_frost_signature_bip340(&signature)?,
                         input_index: 0,
                     }],
                     operator_identity_public_key: operator_public_key.serialize().to_vec(),
@@ -381,6 +372,36 @@ impl SparkService {
 
         Ok(())
     }
+}
+
+fn serialize_frost_signature_bip340(signature: &Signature) -> Result<Vec<u8>, SparkServiceError> {
+    // FROST signatures serialize as [R_compressed (33 bytes)] || [z (32 bytes)].
+    // Spark expects BIP-340 encoding: x-coordinate of R (32 bytes) || z (32 bytes).
+    let sig_bytes = signature.serialize().map_err(|e| {
+        SparkServiceError::DecodeError(format!("Failed to serialize FROST signature: {:?}", e))
+    })?;
+    if sig_bytes.len() != 65 {
+        return Err(SparkServiceError::DecodeError(format!(
+            "Unexpected FROST signature length: {}",
+            sig_bytes.len()
+        )));
+    }
+
+    let (r_bytes, z_bytes) = sig_bytes.split_at(33);
+    let encoded_point = EncodedPoint::from_bytes(r_bytes).map_err(|e| {
+        SparkServiceError::DecodeError(format!("Failed to parse R point from signature: {:?}", e))
+    })?;
+    let r_affine = AffinePoint::from_encoded_point(&encoded_point).ok_or_else(|| {
+        SparkServiceError::DecodeError("Invalid R point in serialized signature".to_string())
+    })?;
+    let rx = r_affine.x().ok_or_else(|| {
+        SparkServiceError::DecodeError("Missing x-coordinate on R point".to_string())
+    })?;
+
+    let mut out = Vec::with_capacity(64);
+    out.extend_from_slice(rx.as_ref());
+    out.extend_from_slice(z_bytes);
+    Ok(out)
 }
 
 fn hash_operator_specific_signable_payload(

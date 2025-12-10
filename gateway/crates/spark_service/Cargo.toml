@@ -8,6 +8,7 @@ chrono = { workspace = true }
 frost = { workspace = true }
 futures = { workspace = true }
 global_utils = { workspace = true }
+k256 = "0.13.4"
 lrc20 = { workspace = true }
 proto-hasher = { workspace = true }
 serde = { workspace = true }
