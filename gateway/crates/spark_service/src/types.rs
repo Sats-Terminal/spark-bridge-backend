@@ -139,8 +139,9 @@ fn create_partial_token_leaf_output(
     token_identifier: TokenIdentifier,
     token_amount: u128,
 ) -> TokenLeafOutput {
-    // Spark mainnet currently enforces a fixed withdrawal bond; set it explicitly to satisfy operator validation.
-    const DEFAULT_WITHDRAW_BOND_SATS: u64 = 10_000;
+    // Spark mainnet currently enforces fixed withdrawal params; set them explicitly to satisfy operator validation.
+    // Note: upstream default config uses 1_000_000 sats bond and 1000-block relative locktime.
+    const DEFAULT_WITHDRAW_BOND_SATS: u64 = 1_000_000;
     // Spark mainnet enforces a fixed relative block locktime; set it explicitly as well.
     const DEFAULT_WITHDRAW_RELATIVE_BLOCK_LOCKTIME: u32 = 1_000;
     TokenLeafOutput {
