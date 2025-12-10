@@ -375,10 +375,8 @@ impl SparkService {
 }
 
 fn serialize_frost_signature_bip340(signature: &Signature) -> Result<Vec<u8>, SparkServiceError> {
-    // FROST signatures may serialize as either:
-    // - 64 bytes already in BIP-340 form (rx || z)
-    // - 65 bytes as [R_compressed (33 bytes)] || [z (32 bytes)]
-    // Spark expects BIP-340 64-byte encoding.
+    // frost-secp256k1-tr already serializes signatures as BIP-340 (rx || z) 64 bytes.
+    // If we ever see a compressed R + z (65 bytes), convert to BIP-340 form.
     let sig_bytes = signature.serialize().map_err(|e| {
         SparkServiceError::DecodeError(format!("Failed to serialize FROST signature: {:?}", e))
     })?;
