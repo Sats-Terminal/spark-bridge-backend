@@ -35,6 +35,8 @@ pub fn marshal_token_transaction(
     tx: &TokenTransaction,
     with_revocation_commitments: bool,
 ) -> Result<TokenTransactionV2SparkProto, TokenTransactionError> {
+    const DEFAULT_VALIDITY_DURATION_SECONDS: u64 = 300;
+
     let mut spark_operator_identity_public_keys: Vec<Vec<u8>> = tx
         .spark_operator_identity_public_keys
         .clone()
@@ -73,7 +75,7 @@ pub fn marshal_token_transaction(
                 client_created_timestamp: Some(client_created_ts),
                 token_inputs,
                 invoice_attachments: Default::default(),
-                validity_duration_seconds: None,
+                validity_duration_seconds: Some(DEFAULT_VALIDITY_DURATION_SECONDS),
             };
 
             Ok(tx_proto)
@@ -112,7 +114,7 @@ pub fn marshal_token_transaction(
                 client_created_timestamp: Some(client_created_ts),
                 token_inputs,
                 invoice_attachments,
-                validity_duration_seconds: None,
+                validity_duration_seconds: Some(DEFAULT_VALIDITY_DURATION_SECONDS),
             };
 
             Ok(tx_proto)
