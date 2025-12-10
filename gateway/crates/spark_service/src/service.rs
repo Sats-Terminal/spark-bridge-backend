@@ -210,10 +210,14 @@ impl SparkService {
             .await
             .map_err(|e| SparkServiceError::FrostAggregatorError(e.to_string()))?;
         let owner_signature_bytes = serialize_frost_signature_bip340(&signature)?;
-        tracing::debug!(
+        tracing::info!(
             "Owner signature (partial) len={} hex={}",
             owner_signature_bytes.len(),
             hex::encode(&owner_signature_bytes)
+        );
+        tracing::info!(
+            "Partial token tx hash hex={}",
+            hex::encode(partial_token_transaction_hash.to_byte_array())
         );
 
         tracing::info!(
