@@ -141,6 +141,8 @@ fn create_partial_token_leaf_output(
 ) -> TokenLeafOutput {
     // Spark mainnet currently enforces a fixed withdrawal bond; set it explicitly to satisfy operator validation.
     const DEFAULT_WITHDRAW_BOND_SATS: u64 = 10_000;
+    // Spark mainnet enforces a fixed relative block locktime; set it explicitly as well.
+    const DEFAULT_WITHDRAW_RELATIVE_BLOCK_LOCKTIME: u32 = 1_000;
     TokenLeafOutput {
         owner_public_key: receiver_identity_public_key,
         revocation_public_key: receiver_identity_public_key,
@@ -153,7 +155,10 @@ fn create_partial_token_leaf_output(
         withdraw_block_hash: None,
         id: None,
         withdrawal_bond_sats: Some(DEFAULT_WITHDRAW_BOND_SATS),
-        withdrawal_locktime: None,
+        withdrawal_locktime: Some(
+            bitcoin::absolute::LockTime::from_height(DEFAULT_WITHDRAW_RELATIVE_BLOCK_LOCKTIME)
+                .expect("static withdraw locktime is valid"),
+        ),
     }
 }
 
