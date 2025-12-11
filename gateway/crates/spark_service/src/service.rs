@@ -20,9 +20,12 @@ use spark_protos::{
     reflect::ToDynamicMessage,
     spark_authn::{GetChallengeRequest, VerifyChallengeRequest},
     spark_token::{
-        partial_token_transaction::TokenInputs as PartialTokenInputs, CommitTransactionRequest,
-        InputTtxoSignaturesPerOperator, PartialTokenOutput, PartialTokenTransaction, SignatureWithIndex,
-        StartTransactionRequest, TokenMintInput as ProtoTokenMintInput, TokenTransactionMetadata,
+        final_token_transaction::TokenInputs as FinalTokenInputs,
+        partial_token_transaction::TokenInputs as PartialTokenInputs, token_transaction::TokenInputs as TokenTransactionInputs,
+        CommitTransactionRequest,
+        FinalTokenOutput, FinalTokenTransaction, InputTtxoSignaturesPerOperator, PartialTokenOutput,
+        PartialTokenTransaction, SignatureWithIndex, StartTransactionRequest, TokenMintInput as ProtoTokenMintInput,
+        TokenTransaction, TokenTransactionMetadata,
     },
 };
 use token_identifier::TokenIdentifier;
@@ -149,7 +152,7 @@ impl SparkService {
 
     fn hash_partial_token_transaction(
         &self,
-        token_tx_proto: &spark_protos::spark_token::TokenTransaction,
+        token_tx_proto: &TokenTransaction,
     ) -> Result<Sha256Hash, SparkServiceError> {
         use spark_protos::spark_token::token_transaction::TokenInputs as TokenTransactionInputs;
 
@@ -204,6 +207,62 @@ impl SparkService {
                 SparkServiceError::HashError(format!("Failed to hash partial token transaction: {:?}", e))
             })?)
             .map_err(|e| SparkServiceError::HashError(format!("Failed to hash partial token transaction: {:?}", e)))
+    }
+
+    fn hash_final_token_transaction(&self, token_tx_proto: &TokenTransaction) -> Result<Sha256Hash, SparkServiceError> {
+        let validity_duration_seconds = token_tx_proto
+            .validity_duration_seconds
+            .unwrap_or(DEFAULT_VALIDITY_DURATION_SECONDS);
+
+        let metadata = TokenTransactionMetadata {
+            spark_operator_identity_public_keys: token_tx_proto.spark_operator_identity_public_keys.clone(),
+            network: token_tx_proto.network,
+            client_created_timestamp: token_tx_proto.client_created_timestamp.clone(),
+            validity_duration_seconds,
+            invoice_attachments: token_tx_proto.invoice_attachments.clone(),
+        };
+
+        let token_inputs = match token_tx_proto
+            .token_inputs
+            .as_ref()
+            .ok_or_else(|| SparkServiceError::InvalidData("Missing token inputs".to_string()))?
+        {
+            TokenTransactionInputs::MintInput(mint) => Some(FinalTokenInputs::MintInput(mint.clone())),
+            TokenTransactionInputs::TransferInput(transfer) => Some(FinalTokenInputs::TransferInput(transfer.clone())),
+            TokenTransactionInputs::CreateInput(create) => Some(FinalTokenInputs::CreateInput(create.clone())),
+        };
+
+        let final_outputs: Vec<FinalTokenOutput> = token_tx_proto
+            .token_outputs
+            .iter()
+            .map(|output| {
+                let partial_output = PartialTokenOutput {
+                    owner_public_key: output.owner_public_key.clone(),
+                    withdraw_bond_sats: output.withdraw_bond_sats.unwrap_or_default(),
+                    withdraw_relative_block_locktime: output.withdraw_relative_block_locktime.unwrap_or_default(),
+                    token_identifier: output.token_identifier.clone().unwrap_or_default(),
+                    token_amount: output.token_amount.clone(),
+                };
+
+                FinalTokenOutput {
+                    partial_token_output: Some(partial_output),
+                    revocation_commitment: output.revocation_commitment.clone().unwrap_or_default(),
+                }
+            })
+            .collect();
+
+        let final_proto = FinalTokenTransaction {
+            version: token_tx_proto.version,
+            token_transaction_metadata: Some(metadata),
+            token_inputs,
+            final_token_outputs: final_outputs,
+        };
+
+        self.proto_hasher
+            .hash_proto(final_proto.to_dynamic().map_err(|e| {
+                SparkServiceError::HashError(format!("Failed to hash final token transaction: {:?}", e))
+            })?)
+            .map_err(|e| SparkServiceError::HashError(format!("Failed to hash final token transaction: {:?}", e)))
     }
 
     #[tracing::instrument(level = "trace", skip(self), ret)]
@@ -336,12 +395,7 @@ impl SparkService {
                 SparkServiceError::DecodeError(format!("Failed to unmarshal final token transaction: {:?}", e))
             })?;
 
-        let final_token_transaction_hash = self
-            .proto_hasher
-            .hash_proto(final_token_transaction_proto.to_dynamic().map_err(|e| {
-                SparkServiceError::HashError(format!("Failed to hash final token transaction: {:?}", e))
-            })?)
-            .map_err(|e| SparkServiceError::HashError(format!("Failed to hash final token transaction: {:?}", e)))?;
+        let final_token_transaction_hash = self.hash_final_token_transaction(&final_token_transaction_proto)?;
 
         let mut join_handles = vec![];
 
