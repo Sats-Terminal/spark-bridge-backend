@@ -22,3 +22,4 @@ uuid = { workspace = true }
 btc_indexer_client = { workspace = true }
 hex = { workspace = true }
 frost-secp256k1-tr = { workspace = true }
+prost-wkt-types = { workspace = true }

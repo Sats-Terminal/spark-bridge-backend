@@ -35,6 +35,7 @@ macro_rules! impl_to_dynamic {
 
 impl_to_dynamic! {
     spark_token::TokenTransaction => "spark_token.TokenTransaction",
+    spark_token::PartialTokenTransaction => "spark_token.PartialTokenTransaction",
 }
 
 #[derive(Debug, thiserror::Error)]

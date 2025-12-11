@@ -20,7 +20,9 @@ use spark_protos::{
     reflect::ToDynamicMessage,
     spark_authn::{GetChallengeRequest, VerifyChallengeRequest},
     spark_token::{
-        CommitTransactionRequest, InputTtxoSignaturesPerOperator, SignatureWithIndex, StartTransactionRequest,
+        partial_token_transaction::TokenInputs as PartialTokenInputs, CommitTransactionRequest,
+        InputTtxoSignaturesPerOperator, PartialTokenOutput, PartialTokenTransaction, SignatureWithIndex,
+        StartTransactionRequest, TokenMintInput as ProtoTokenMintInput, TokenTransactionMetadata,
     },
 };
 use token_identifier::TokenIdentifier;
@@ -145,6 +147,65 @@ impl SparkService {
         Ok(())
     }
 
+    fn hash_partial_token_transaction(
+        &self,
+        token_tx_proto: &spark_protos::spark_token::TokenTransaction,
+    ) -> Result<Sha256Hash, SparkServiceError> {
+        use spark_protos::spark_token::token_transaction::TokenInputs as TokenTransactionInputs;
+
+        let validity_duration_seconds = token_tx_proto
+            .validity_duration_seconds
+            .unwrap_or(DEFAULT_VALIDITY_DURATION_SECONDS);
+
+        let metadata = TokenTransactionMetadata {
+            spark_operator_identity_public_keys: token_tx_proto.spark_operator_identity_public_keys.clone(),
+            network: token_tx_proto.network,
+            client_created_timestamp: token_tx_proto.client_created_timestamp.clone(),
+            validity_duration_seconds,
+            invoice_attachments: token_tx_proto.invoice_attachments.clone(),
+        };
+
+        let token_inputs = match token_tx_proto
+            .token_inputs
+            .as_ref()
+            .ok_or_else(|| SparkServiceError::InvalidData("Missing token inputs".to_string()))?
+        {
+            TokenTransactionInputs::MintInput(mint) => Some(PartialTokenInputs::MintInput(ProtoTokenMintInput {
+                issuer_public_key: mint.issuer_public_key.clone(),
+                token_identifier: mint.token_identifier.clone(),
+            })),
+            TokenTransactionInputs::TransferInput(transfer) => {
+                Some(PartialTokenInputs::TransferInput(transfer.clone()))
+            }
+            TokenTransactionInputs::CreateInput(create) => Some(PartialTokenInputs::CreateInput(create.clone())),
+        };
+
+        let partial_outputs: Vec<PartialTokenOutput> = token_tx_proto
+            .token_outputs
+            .iter()
+            .map(|output| PartialTokenOutput {
+                owner_public_key: output.owner_public_key.clone(),
+                withdraw_bond_sats: output.withdraw_bond_sats.unwrap_or_default(),
+                withdraw_relative_block_locktime: output.withdraw_relative_block_locktime.unwrap_or_default(),
+                token_identifier: output.token_identifier.clone().unwrap_or_default(),
+                token_amount: output.token_amount.clone(),
+            })
+            .collect();
+
+        let partial_proto = PartialTokenTransaction {
+            version: token_tx_proto.version,
+            token_transaction_metadata: Some(metadata),
+            token_inputs,
+            partial_token_outputs: partial_outputs,
+        };
+
+        self.proto_hasher
+            .hash_proto(partial_proto.to_dynamic().map_err(|e| {
+                SparkServiceError::HashError(format!("Failed to hash partial token transaction: {:?}", e))
+            })?)
+            .map_err(|e| SparkServiceError::HashError(format!("Failed to hash partial token transaction: {:?}", e)))
+    }
+
     #[tracing::instrument(level = "trace", skip(self), ret)]
     pub async fn send_spark_transaction(
         &self,
@@ -182,12 +243,8 @@ impl SparkService {
                 SparkServiceError::InvalidData(format!("Failed to marshal partial token transaction: {:?}", e))
             })?;
 
-        let partial_token_transaction_hash = self
-            .proto_hasher
-            .hash_proto(partial_token_transaction_proto.to_dynamic().map_err(|e| {
-                SparkServiceError::HashError(format!("Failed to hash partial token transaction: {:?}", e))
-            })?)
-            .map_err(|e| SparkServiceError::HashError(format!("Failed to hash partial token transaction: {:?}", e)))?;
+        let partial_token_transaction_hash =
+            self.hash_partial_token_transaction(&partial_token_transaction_proto)?;
 
         let signing_metadata =
             create_signing_metadata(partial_token_transaction.clone(), transaction_type.clone(), true)?;
@@ -382,6 +439,7 @@ impl SparkService {
 
         Ok(())
     }
+
 }
 
 fn serialize_frost_signature_bip340(signature: &Signature) -> Result<Vec<u8>, SparkServiceError> {
