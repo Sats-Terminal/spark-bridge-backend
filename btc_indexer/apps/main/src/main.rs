@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use btc_indexer::{indexer::Indexer, tx_indexer::TxIndexer};
-use btc_indexer_client::client_api::new_btc_indexer_client;
+use btc_indexer_client::client_api::{new_btc_indexer_client, IndexerClient};
 use btc_indexer_config::AppConfig;
 use btc_indexer_local_db_store::storage::LocalDbStorage;
 use btc_indexer_server::init::create_app;
@@ -40,16 +40,21 @@ async fn main() -> Result<()> {
         indexer.run().await.unwrap();
     });
 
-    let mut tx_indexer = TxIndexer::new(
-        btc_indexer_client,
-        storage.clone(),
-        cancellation_token.clone(),
-        app_config.btc_indexer.clone(),
-    );
+    if let IndexerClient::Titan(client) = btc_indexer_client.clone() {
+        // Only Titan relies on pre-indexed block txids; Maestro would burn credits and disk space.
+        let mut tx_indexer = TxIndexer::new(
+            client,
+            storage.clone(),
+            cancellation_token.clone(),
+            app_config.btc_indexer.clone(),
+        );
 
-    tokio::spawn(async move {
-        tx_indexer.run().await.unwrap();
-    });
+        tokio::spawn(async move {
+            tx_indexer.run().await.unwrap();
+        });
+    } else {
+        tracing::info!("Tx indexer disabled for Maestro client");
+    }
 
     tracing::info!("Listening on {:?}", app_config.server.hostname);
     let listener = TcpListener::bind(app_config.server.hostname).await?;

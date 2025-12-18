@@ -223,6 +223,7 @@ async fn build_activity_response(
     for record in activity.into_iter() {
         let info = &record.deposit_info;
         let rune_id = record.rune_id.clone();
+        let status = overall_status(info, record.utxo_status);
 
         let (txid, vout) = match record
             .out_point
@@ -233,8 +234,9 @@ async fn build_activity_response(
             None => (None, None),
         };
 
-        let confirmations = if let (Some(tx), Some(client)) = (txid.as_ref(), maestro_client) {
-            match confirmations_cache.entry(tx.clone()) {
+        let needs_confirmations = matches!(status.as_str(), "waiting_for_confirmations" | "pending");
+        let confirmations = match (needs_confirmations, txid.as_ref(), maestro_client) {
+            (true, Some(tx), Some(client)) => match confirmations_cache.entry(tx.clone()) {
                 Entry::Occupied(entry) => *entry.get(),
                 Entry::Vacant(entry) => {
                     let fetched = match client.confirmations(tx).await {
@@ -247,12 +249,10 @@ async fn build_activity_response(
                     entry.insert(fetched);
                     fetched
                 }
-            }
-        } else {
-            None
+            },
+            _ => None,
         };
 
-        let status = overall_status(info, record.utxo_status);
         let wrune_metadata_value = metadata_map.get(&rune_id);
         let metadata_decimals = wrune_metadata_value
             .and_then(|meta| meta.get("decimals"))
